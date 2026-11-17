@@ -4,9 +4,8 @@ outdir = config.get("outdir", "output")
 indir = config.get("indir", "output/raw_fastq")
 logdir = config.get("logdir", "log")
 
-# 参数精确到 rule:Params.trimmomatic.<rule_name>.<key>(rule_param 见 common.smk;
+# 参数精确到 rule:Params.trimmomatic.<rule_name>.<key>(config 全量路径直读;
 # 无 module 级共享回退,trimmomatic_Paired / trimmomatic_Single 各自独立键)。
-_trimmomatic_params = config.get("Params", {}).get("trimmomatic", {})
 
 # neet for test
 rule trimmomatic_Paired:
@@ -20,7 +19,7 @@ rule trimmomatic_Paired:
     params:
         outdir = outdir,
         trimmomatic = config.get('Procedure',{}).get('trimmomatic') or 'trimmomatic',
-        adapter = rule_param(_trimmomatic_params, "trimmomatic_Paired", "adapter_pe", None),
+        adapter = config.get("Params", {}).get("trimmomatic", {}).get("trimmomatic_Paired", {}).get("adapter_pe", None),
         cmd = lambda wildcards: (
             f"java -jar {config.get('Procedure',{}).get('trimmomatic')}"
             if str(config.get('Procedure',{}).get('trimmomatic')).endswith(".jar")
@@ -46,6 +45,7 @@ rule trimmomatic_Paired:
             sample_outdir = os.path.join(params.outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"trimmomatic_Paired_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"trimmomatic_Paired.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -60,7 +60,8 @@ rule trimmomatic_Paired:
                 f.write(f"    MINLEN:80 \\\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"trimmomatic_Paired for sample {wildcards.sample_id} completed")
         except Exception as e:
             rule_logger.error(f"Error occurred: {e}")
@@ -75,7 +76,7 @@ rule trimmomatic_Single:
     params:
         outdir = outdir,
         trimmomatic = config.get('Procedure',{}).get('trimmomatic') or 'trimmomatic',
-        adapter = rule_param(_trimmomatic_params, "trimmomatic_Single", "adapter_se", None),
+        adapter = config.get("Params", {}).get("trimmomatic", {}).get("trimmomatic_Single", {}).get("adapter_se", None),
         cmd = lambda wildcards: (
             f"java -jar {config.get('Procedure',{}).get('trimmomatic')}"
             if str(config.get('Procedure',{}).get('trimmomatic')).endswith(".jar")
@@ -101,6 +102,7 @@ rule trimmomatic_Single:
             sample_outdir = os.path.join(params.outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"trimmomatic_Single_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"trimmomatic_Single.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -113,7 +115,8 @@ rule trimmomatic_Single:
                 f.write(f"    MINLEN:80 \\\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"trimmomatic_Single for sample {wildcards.sample_id} completed")
         except Exception as e:
             rule_logger.error(f"Error occurred: {e}")

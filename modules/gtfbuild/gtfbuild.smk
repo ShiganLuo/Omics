@@ -65,6 +65,7 @@ rule gtfbuild_liftoff:
             sample_outdir = os.path.dirname(str(output.gff3))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"gtfbuild_liftoff_{genome_name}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"gtfbuild_liftoff_{genome_name}.sh")
             lift_cmd = [
                 "liftoff",
@@ -90,7 +91,8 @@ rule gtfbuild_liftoff:
                 f.write(f"mv {output.gtf}.tmp {output.gtf}\n")
                 f.write(f'echo "gtfbuild_liftoff for {genome_name} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during gtfbuild_liftoff for {genome_name}: {e}\n")
             raise RuntimeError(f"Error occurred during gtfbuild_liftoff for {genome_name}: {e}\n")
@@ -128,6 +130,7 @@ rule gtfbuild_qc:
             sample_outdir = os.path.dirname(str(output.qc))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"gtfbuild_qc_{genome_name}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"gtfbuild_qc_{genome_name}.sh")
             cmd = [
                 "python", params.script,
@@ -144,7 +147,8 @@ rule gtfbuild_qc:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "gtfbuild_qc for {genome_name} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during gtfbuild_qc for {genome_name}: {e}\n")
             raise RuntimeError(f"Error occurred during gtfbuild_qc for {genome_name}: {e}\n")
@@ -201,6 +205,7 @@ rule gtfbuild_wga:
             sample_outdir = os.path.dirname(str(output.paf))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"gtfbuild_wga_{genome_name}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"gtfbuild_wga_{genome_name}.sh")
             cmd = [
                 "minimap2",
@@ -216,7 +221,8 @@ rule gtfbuild_wga:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "gtfbuild_wga for {genome_name} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during gtfbuild_wga for {genome_name}: {e}\n")
             raise RuntimeError(f"Error occurred during gtfbuild_wga for {genome_name}: {e}\n")
@@ -256,6 +262,7 @@ rule gtfbuild_liftover_bed:
             sample_outdir = os.path.dirname(str(output.bed))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"gtfbuild_liftover_bed_{BED_STEM}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"gtfbuild_liftover_bed_{BED_STEM}.sh")
             cmd = [
                 "paftools.js", "liftover",
@@ -281,7 +288,8 @@ rule gtfbuild_liftover_bed:
                 )
                 f.write(f'echo "gtfbuild_liftover_bed for {BED_STEM} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during gtfbuild_liftover_bed for {BED_STEM}: {e}\n")
             raise RuntimeError(f"Error occurred during gtfbuild_liftover_bed for {BED_STEM}: {e}\n")

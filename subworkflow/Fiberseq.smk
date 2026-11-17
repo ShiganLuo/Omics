@@ -396,7 +396,7 @@ fiberseq_mods_config = {
     "contrasts": (config.get("Params", {}).get("fiberseq_mods", {})
                   or {}).get("contrasts", []),
     "Params": {
-        "fiberseq_mods": (params.get("fiberseq_mods") or params.get("mods") or {})
+        "fiberseq_mods": (params.get("fiberseq_mods") or {})
     },
     "resources": config.get("resources", {}),
 }

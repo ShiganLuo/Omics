@@ -6,16 +6,15 @@ logdir = config.get("logdir", "log")
 ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
 
-ldsc_cfg = config.get("Params", {}).get("ldsc", {})
-gwas = ldsc_cfg.get("gwas", {}) or {}
+gwas = config.get("Params", {}).get("ldsc", {}).get("gwas", {}) or {}
 traits = sorted(gwas.keys())
 BIN = ROOT_DIR + "/modules/ldsc/bin"
 
 # 参数精确到 rule:annot_prefix 按 rule 各自配置
 # (Params.ldsc.ldsc_annot.annot_prefix / Params.ldsc.ldsc_h2_cts.annot_prefix;
-# 无 module 级共享回退,rule_param 见 common.smk)。
-_annot_prefix_ldsc_annot = rule_param(ldsc_cfg, "ldsc_annot", "annot_prefix", "peaks") or "peaks"
-_annot_prefix_ldsc_h2_cts = rule_param(ldsc_cfg, "ldsc_h2_cts", "annot_prefix", "peaks") or "peaks"
+# 无 module 级共享回退)。
+_annot_prefix_ldsc_annot = config.get("Params", {}).get("ldsc", {}).get("ldsc_annot", {}).get("annot_prefix", "peaks") or "peaks"
+_annot_prefix_ldsc_h2_cts = config.get("Params", {}).get("ldsc", {}).get("ldsc_h2_cts", {}).get("annot_prefix", "peaks") or "peaks"
 
 wildcard_constraints:
     trait = ".+",
@@ -23,7 +22,7 @@ wildcard_constraints:
 rule ldsc_annot:
     """Split FIRE peak clusters into LDSC annotation BEDs."""
     input:
-        peaks = lambda wildcards: _require(ldsc_cfg.get("annot_bed"),
+        peaks = lambda wildcards: _require(config.get("Params", {}).get("ldsc", {}).get("annot_bed"),
                                            "Params.ldsc.annot_bed", "LDSC"),
     output:
         manifest = outdir + "/annot/" + _annot_prefix_ldsc_annot + ".annot_manifest.tsv",
@@ -42,6 +41,7 @@ rule ldsc_annot:
     params:
         script = BIN + "/ldsc_annot.py",
         prefix = _annot_prefix_ldsc_annot,
+        annot_cluster_from_name = config.get("Params", {}).get("ldsc", {}).get("annot_cluster_from_name"),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -52,6 +52,7 @@ rule ldsc_annot:
             group_outdir = outdir + "/annot"
             os.makedirs(group_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"ldsc_annot_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(group_outdir, f"ldsc_annot.sh")
             cmd = [
                 "python", params.script,
@@ -60,7 +61,7 @@ rule ldsc_annot:
                 "--prefix", params.prefix,
                 "-l", log_path,
             ]
-            if ldsc_cfg.get("annot_cluster_from_name"):
+            if params.annot_cluster_from_name:
                 cmd.append("-c")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -68,7 +69,8 @@ rule ldsc_annot:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "ldsc_annot at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during ldsc_annot: {e}\n")
             raise RuntimeError(f"Error occurred during ldsc_annot: {e}\n")
@@ -94,7 +96,8 @@ rule ldsc_munge:
         sif("ldsc.yaml", "ldsc_munge")
     params:
         munge = config.get("Procedure", {}).get("munge_sumstats") or "munge_sumstats.py",
-        extra = ldsc_cfg.get("munge_args", ""),
+        extra = config.get("Params", {}).get("ldsc", {}).get("munge_args", ""),
+        merge_alleles = config.get("Params", {}).get("ldsc", {}).get("merge_alleles"),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -105,12 +108,13 @@ rule ldsc_munge:
             trait_outdir = outdir + f"/{wildcards.trait}"
             os.makedirs(trait_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"ldsc_munge_{wildcards.trait}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(trait_outdir, f"ldsc_munge.sh")
             cmd = [
                 params.munge,
                 "--sumstats", str(input.sumstats),
                 "--out", trait_outdir + f"/{wildcards.trait}",
-                "--merge-alleles", _require(ldsc_cfg.get("merge_alleles"),
+                "--merge-alleles", _require(params.merge_alleles,
                                             "Params.ldsc.merge_alleles", "LDSC"),
             ]
             if params.extra:
@@ -121,7 +125,8 @@ rule ldsc_munge:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "ldsc_munge for {wildcards.trait} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during ldsc_munge for {wildcards.trait}: {e}\n")
             raise RuntimeError(f"Error occurred during ldsc_munge for {wildcards.trait}: {e}\n")
@@ -147,8 +152,8 @@ rule ldsc_h2_cts:
         sif("ldsc.yaml", "ldsc_h2_cts")
     params:
         ldsc = config.get("Procedure", {}).get("ldsc") or "ldsc.py",
-        ref_ld = ldsc_cfg.get("ref_ld_chr"),
-        w_ld = ldsc_cfg.get("w_ld_chr"),
+        ref_ld = config.get("Params", {}).get("ldsc", {}).get("ref_ld_chr"),
+        w_ld = config.get("Params", {}).get("ldsc", {}).get("w_ld_chr"),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -159,6 +164,7 @@ rule ldsc_h2_cts:
             trait_outdir = outdir + f"/{wildcards.trait}"
             os.makedirs(trait_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"ldsc_h2_cts_{wildcards.trait}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(trait_outdir, f"ldsc_h2_cts.sh")
             cmd = [
                 params.ldsc,
@@ -173,7 +179,8 @@ rule ldsc_h2_cts:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "ldsc_h2_cts for {wildcards.trait} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during ldsc_h2_cts for {wildcards.trait}: {e}\n")
             raise RuntimeError(f"Error occurred during ldsc_h2_cts for {wildcards.trait}: {e}\n")
@@ -182,8 +189,3 @@ rule ldsc_result:
     """Panel of per-trait LDSC results."""
     input:
         results = expand(outdir + "/{trait}/{trait}.cts.results", trait=traits),
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "ldsc_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

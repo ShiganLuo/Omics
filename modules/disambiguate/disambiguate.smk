@@ -54,6 +54,7 @@ rule ngs_disambiguate:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start ngs_disambiguate for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"ngs_disambiguate_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(params.outdir, f"ngs_disambiguate.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -69,7 +70,8 @@ rule ngs_disambiguate:
                 f.write(f"rm -f {params.bamA_sortN} {params.bamB_sortN}\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             logger.error(f"Error occurred during ngs_disambiguate for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
@@ -112,6 +114,7 @@ rule disambiguate_sort_rename:
             rule_logger.info(f"Start disambiguate_sort_rename for sample {wildcards.sample_id} at {current_time}")
             outdir_sample = os.path.dirname(str(output.clean_bamA))
             script = os.path.join(RECEIPT_DIR, f"sort_rename_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir_sample, f"sort_rename.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -128,7 +131,8 @@ rule disambiguate_sort_rename:
                 f.write(f"rm -f {input.summary}\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             logger.error(f"Error occurred during disambiguate_sort_rename for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
@@ -161,6 +165,7 @@ rule disambiguate_report:
             rule_logger.info(f"Start disambiguate_report at {current_time}")
             report_dir = os.path.dirname(str(output.report))
             script = os.path.join(RECEIPT_DIR, f"disambiguate_report_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(report_dir, f"disambiguate_report.sh")
             reports_str = " ".join(input.reports)
             with open(script, "w") as f:
@@ -170,7 +175,8 @@ rule disambiguate_report:
                 f.write(f"    -o {output.report}\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             logger.error(f"Error occurred during disambiguate_report: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
@@ -179,8 +185,3 @@ rule ngs_disambiguate_result:
     input:
         bamA = lambda wc: f"{outdir}/{wc.sample_id}/{wc.sample_id}.disambiguatedSpecies_{genome_pairs[0]}.bam",
         bamB = lambda wc: f"{outdir}/{wc.sample_id}/{wc.sample_id}.disambiguatedSpecies_{genome_pairs[1]}.bam"
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "ngs_disambiguate_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

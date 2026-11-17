@@ -37,6 +37,7 @@ rule hisat2_index:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start hisat2 index at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"hisat2_index_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"index/hisat2_index.sh")
             cmd = [
                 "mkdir", "-p", os.path.dirname(str(params.prefix))
@@ -54,7 +55,8 @@ rule hisat2_index:
                 f.write(cmd_str)
                 f.write(f"echo 'hisat2 index was successfully completed'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"hisat2_index failed: {e}")
             raise RuntimeError(f"hisat2_index failed: {e}")
@@ -138,6 +140,7 @@ rule hisat2_align:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             sample_outdir = os.path.dirname(output.outfile)
             script = os.path.join(RECEIPT_DIR, f"hisat2_align_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = f"{sample_outdir}/hisat2_align.sh"
             cmd1 = [
                 f"{params.hisat2}",
@@ -161,7 +164,8 @@ rule hisat2_align:
                 f.write(" ".join(cmd) +"\n")
                 f.write(f"echo 'hisat_align for {wildcards.sample_id} was completed successfully at {current_time}'")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"hisat_align failed for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"histat_align failed: {e}")
@@ -169,8 +173,3 @@ rule hisat2_align:
 rule hisat2_result:
     input:
         bam = outdir + "/{sample_id}/{sample_id}.bam"
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "hisat2_result", input_size=input_size_named(input, 'bam'),
-            attempt=attempt).get("mem_mb", 8000),

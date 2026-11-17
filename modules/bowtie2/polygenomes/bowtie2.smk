@@ -5,9 +5,8 @@ outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 logdir_combine = config.get("logdir_combine", "log/group")
 
-# 参数精确到 rule:Params.bowtie2.<rule_name>.<key>(rule_param 见 common.smk;
+# 参数精确到 rule:Params.bowtie2.<rule_name>.<key>(config 全量路径直读;
 # 无 module 级共享回退,bowtie2_align_paired / bowtie2_align_single 各自独立键)。
-_bowtie2_params = config.get("Params", {}).get("bowtie2", {})
 genome_paired_samples = config.get("genome_paired_samples") or {}
 genome_single_samples = config.get("genome_single_samples") or {}
 
@@ -52,6 +51,7 @@ rule bowtie2_index:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             rule_logger.info(f"Start bowtie2 index for genome {wildcards.genome} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"bowtie2_index.{wildcards.genome}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = f"{outdir}/index/{wildcards.genome}/bowtie2_index.sh"
             cmd = [params.bowtie2_build, 
                     "--threads", str(threads), 
@@ -63,7 +63,8 @@ rule bowtie2_index:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "bowtie2 index was successfully completed !"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during bowtie2 index for genome {wildcards.genome}, error: {e}\n")
             raise RuntimeError(f"Error occurred during bowtie2 index for genome {wildcards.genome}, error: {e}, please check the {log_path} file for more details.\n")
@@ -133,7 +134,7 @@ rule bowtie2_align_paired:
         bowtie2 = config.get('Procedure',{}).get('bowtie2') or 'bowtie2',
         index_prefix = lambda wildcards, input: input.index[0].split(".1.bt2")[0],
         unmapped_prefix = outdir + "/{genome}/{sample_id}/{sample_id}_unmapped",
-        sam_append_comment = rule_param(_bowtie2_params, "bowtie2_align_paired", "sam-append-comment", False)
+        sam_append_comment = config.get("Params", {}).get("bowtie2", {}).get("bowtie2_align_paired", {}).get("sam-append-comment", False)
     conda:
         "../bowtie2.yaml"
     container:
@@ -147,6 +148,7 @@ rule bowtie2_align_paired:
             rule_logger.info(f"Start bowtie2_align_paired for sample {wildcards.sample_id} on genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bam))
             script = os.path.join(RECEIPT_DIR, f"bowtie2_align_{wildcards.genome}_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = f"{sample_outdir}/bowtie2_align.sh"
             cmd1 = [params.bowtie2, 
                     "-x", params.index_prefix, 
@@ -167,7 +169,8 @@ rule bowtie2_align_paired:
                 f.write(" ".join(cmd3) + "\n")
                 f.write(f'echo "bowtie2_align_paired for sample {wildcards.sample_id} on genome {wildcards.genome} successfully completed !"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"error occurred in bowtie2_align_paired for sample {wildcards.sample_id} on genome {wildcards.genome}, error: {e}\n")
             raise RuntimeError(f"error occurred in bowtie2_align_paired for sample {wildcards.sample_id} on genome {wildcards.genome}, error: {e}, please check the log file: {log_path} for details.\n")
@@ -190,7 +193,7 @@ rule bowtie2_align_single:
         bowtie2 = config.get('Procedure',{}).get('bowtie2') or 'bowtie2',
         unmapped_prefix = outdir + "/{genome}/{sample_id}/{sample_id}_unmapped",
         index_prefix = lambda wildcards, input: input.index[0].split(".")[0],
-        sam_append_comment = rule_param(_bowtie2_params, "bowtie2_align_single", "sam-append-comment", False)
+        sam_append_comment = config.get("Params", {}).get("bowtie2", {}).get("bowtie2_align_single", {}).get("sam-append-comment", False)
     conda:
         "../bowtie2.yaml"
     container:
@@ -204,6 +207,7 @@ rule bowtie2_align_single:
             rule_logger.info(f"Start bowtie2_align_single for sample {wildcards.sample_id} on genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bam))
             script = os.path.join(RECEIPT_DIR, f"bowtie2_align_{wildcards.genome}_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = f"{sample_outdir}/bowtie2_align.sh"
             cmd1 = [params.bowtie2, 
                     "-x", params.index_prefix, 
@@ -221,7 +225,8 @@ rule bowtie2_align_single:
                 f.write(" ".join(cmd2) + "\n")
                 f.write(f'echo "bowtie2_align_single for sample {wildcards.sample_id} on genome {wildcards.genome} successfully completed !"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"error occured in rule bowtie2_align_single for sample {wildcards.sample_id} on genome {wildcards.genome}, error: {e}\n")
             raise RuntimeError(f"error occured in rule bowtie2_align_single for sample {wildcards.sample_id} on genome {wildcards.genome}, error: {e}, please check the log file: {log_path} for details.\n")

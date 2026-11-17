@@ -35,6 +35,7 @@ rule seqprep_merge:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start SeqPrep merge for sample {wildcards.sample_id} at {current_time}")
         script = os.path.join(RECEIPT_DIR, f"seqprep_merge_{wildcards.sample_id}_{current_time}.sh")
+        os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
         plain_script = os.path.join(outdir, f"{wildcards.sample_id}/seqprep_merge.sh")
         cmd_merge = [
             params.seqprep,
@@ -55,14 +56,10 @@ rule seqprep_merge:
             f.write(" ".join(cmd_stats) + " 2>> {log}\n")
             f.write(f'echo "script completed successfully"\n')
         shutil.copyfile(script, plain_script)
-        shell("bash {plain_script} > {log} 2>&1")
+        if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            shell("bash {plain_script} > {log} 2>&1")
 
 rule seqprep_result:
     input:
         merge = outdir + "/{sample_id}/{sample_id}_merge.fastq.gz",
         report = outdir + "/{sample_id}/{sample_id}_merge.report"
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "seqprep_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

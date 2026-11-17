@@ -6,8 +6,7 @@ indir = config.get("indir", "input")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 # 参数精确到 rule:threads 按 rule 独立配置(Params.manta.<rule_name>.threads),
-# 无 module 级共享;rule_param 见 common.smk。
-_manta_params = config.get("Params", {}).get("manta", {})
+# 无 module 级共享。
 
 rule manta_config:
     """Configure Manta SV caller."""
@@ -38,6 +37,7 @@ rule manta_config:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start manta config for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"manta_config_{wildcards.genome}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/manta_config.sh")
             cmd = [
                 "configManta.py",
@@ -50,7 +50,8 @@ rule manta_config:
                 f.write(' '.join(cmd) + '\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, 'a') as f:
                 f.write(f"Error: {e}\n")
@@ -70,7 +71,7 @@ rule manta_run:
     log:
         logdir + "/{genome}/{sample_id}/manta_run.log"
     threads:
-        rule_param(_manta_params, "manta_run", "threads", 8)
+        config.get("Params", {}).get("manta", {}).get("manta_run", {}).get("threads", 8)
     benchmark: logdir + "/{genome}/{sample_id}/manta_run.benchmark.tsv",
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(
@@ -88,6 +89,7 @@ rule manta_run:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start manta run for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"manta_run_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/manta_run.sh")
             cmd = [
                 "python", str(input.script),
@@ -98,7 +100,8 @@ rule manta_run:
                 f.write(' '.join(cmd) + '\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, 'a') as f:
                 f.write(f"Error: {e}\n")
@@ -112,8 +115,3 @@ rule manta_result:
     input:
         vcf = outdir + "/{genome}/{sample_id}/results/variants/candidateSV.vcf.gz",
         tbi = outdir + "/{genome}/{sample_id}/results/variants/candidateSV.vcf.gz.tbi"
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "manta_result", input_size=input_size_named(input, 'vcf'),
-            attempt=attempt).get("mem_mb", 8000),

@@ -42,6 +42,7 @@ rule bwaMem2_index:
             sample_outdir = os.path.dirname(str(output.index[0]))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"bwaMem2_index_{wildcards.genome}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"bwaMem2_index.sh")
             cmd = [
                 str(params.bwa_mem2), "index",
@@ -53,7 +54,8 @@ rule bwaMem2_index:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             logger.error(f"Error occurred during bwa-mem2 index for genome {wildcards.genome}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
@@ -139,6 +141,7 @@ rule bwaMem2_alignment:
             sample_outdir = os.path.dirname(str(output.bam))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"bwaMem2_alignment_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"bwaMem2_alignment.sh")
             cmd1 = [
                 str(params.bwa_mem2), "mem", 
@@ -167,7 +170,8 @@ rule bwaMem2_alignment:
                 f.write(" ".join(cmd2) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during bwa-mem2 alignment for sample {wildcards.sample_id} on genome {wildcards.genome}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
@@ -175,8 +179,3 @@ rule bwaMem2_alignment:
 rule bwaMemm2_result:
     input:
         bam = outdir + "/{genome}/{sample_id}/{sample_id}.bam"
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "bwaMemm2_result", input_size=input_size_named(input, 'bam'),
-            attempt=attempt).get("mem_mb", 8000),

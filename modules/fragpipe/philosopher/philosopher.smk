@@ -45,6 +45,7 @@ rule philosopher_database:
             db_dir = os.path.join(outdir, "database")
             os.makedirs(db_dir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"philosopher_database_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(db_dir, f"philosopher_database.sh")
             # Philosopher writes a dated '<date>-decoys-contam-<name>.fas';
             # rename to a stable output so reruns stay mtime-stable.
@@ -58,7 +59,8 @@ rule philosopher_database:
                 f.write(f"mv \"$gen\" {shlex.quote(str(output.db))}\n")
                 f.write(f"echo 'Philosopher database build completed at {current_time}'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during Philosopher database build: {str(e)}\n")
             raise RuntimeError(f"Error during Philosopher database build: {str(e)}\n")
@@ -105,6 +107,7 @@ rule philosopher_filter:
                 except OSError:
                     shutil.copy(str(input.pepxml), local_pepxml)
             script = os.path.join(RECEIPT_DIR, f"philosopher_filter_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"philosopher_filter.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
@@ -129,7 +132,8 @@ rule philosopher_filter:
                 f.write(f"{shlex.quote(str(params.philosopher))} report\n")
                 f.write(f"echo 'Philosopher validation/filter for {wildcards.sample_id} completed at {current_time}'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during Philosopher filter: {str(e)}\n")
             raise RuntimeError(f"Error during Philosopher filter: {str(e)}\n")
@@ -138,8 +142,3 @@ rule philosopher_result:
     input:
         expand(outdir + "/{sample_id}/psm.tsv", sample_id=samples),
         outdir + "/database/fragpipe_db.fasta",
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "philosopher_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

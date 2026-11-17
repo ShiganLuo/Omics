@@ -75,7 +75,8 @@ rule cellranger_ref:
                 f.write(f'echo "Cell Ranger reference built at {str(output.ref_dir)} successfully"\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(command_script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"cellranger_ref failed: {e}\n")
             raise RuntimeError(f"cellranger_ref failed: {e}\n")
@@ -159,7 +160,8 @@ rule cellranger_count:
                 f.write(f"mv \"$outs/filtered_feature_bc_matrix.h5\" \"{output.h5}\"\n")
                 f.write(f'echo "Cell Ranger count completed for sample {sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"cellranger_count failed: {e}\n")
             raise RuntimeError(f"cellranger_count failed: {e}\n")
@@ -216,7 +218,8 @@ rule cellranger_to_h5ad:
                 f.write(" ".join(str(item) for item in cmd) + "\n")
                 f.write(f'echo "cellranger_to_h5ad completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"cellranger_to_h5ad failed: {e}\n")
             raise RuntimeError(f"cellranger_to_h5ad failed: {e}\n")

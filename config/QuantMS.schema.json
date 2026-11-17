@@ -113,35 +113,7 @@
           }
         }
       },
-      "msstats_result": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
       "protein_inference": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "protein_inference_result": {
         "type": "dict",
         "required": false,
         "properties": {
@@ -169,35 +141,7 @@
           }
         }
       },
-      "psm_fdr_result": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
       "psm_rescoring": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "psm_rescoring_result": {
         "type": "dict",
         "required": false,
         "properties": {
@@ -226,20 +170,6 @@
         }
       },
       "quantification_lfq": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "quantification_result": {
         "type": "dict",
         "required": false,
         "properties": {
@@ -282,20 +212,6 @@
         }
       },
       "raw2mzml": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "raw2mzml_result": {
         "type": "dict",
         "required": false,
         "properties": {

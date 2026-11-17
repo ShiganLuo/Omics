@@ -17,16 +17,15 @@ outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
 
 # 参数精确到 rule:参数挂在消费它的 rule 名下(原 pseudobulk_go 嵌套组名拍平
-# 为 rule 名,叶子名作 key;无 module 级共享回退,rule_param 见 common.smk)。
+# 为 rule 名,叶子名作 key;无 module 级共享回退,读点写 config 全量路径字面链)。
 # root 喂 function_pseudobulk_go_index(unit 发现)与 function_pseudobulk_go
 # (DEG 输入)两个 rule → 每 rule 一个读点;modes 只喂发现 rule。
-_func = config.get("Params", {}).get("function", {}) or {}
-pb_index_root = rule_param(_func, "function_pseudobulk_go_index", "root", indir) or indir
-pb_modes = rule_param(_func, "function_pseudobulk_go_index", "modes", ["gene"]) or ["gene"]
-pb_root = rule_param(_func, "function_pseudobulk_go", "root", indir) or indir
+pb_index_root = config.get("Params", {}).get("function", {}).get("function_pseudobulk_go_index", {}).get("root", indir) or indir
+pb_modes = config.get("Params", {}).get("function", {}).get("function_pseudobulk_go_index", {}).get("modes", ["gene"]) or ["gene"]
+pb_root = config.get("Params", {}).get("function", {}).get("function_pseudobulk_go", {}).get("root", indir) or indir
 # ① parse 期读入 + 规范化(str 收成单元素 list;合法值由 schema 声明)。
 # formats 为 parse 期变量(output 不能是函数,格式列表必须是模块级变量)。
-pb_formats = rule_param(_func, "function_pseudobulk_go", "formats", ["png"]) or ["png"]
+pb_formats = config.get("Params", {}).get("function", {}).get("function_pseudobulk_go", {}).get("formats") or ["png"]
 if isinstance(pb_formats, str):
     pb_formats = [pb_formats]
 
@@ -138,10 +137,10 @@ rule function_pseudobulk_go:
         sif("../function.yaml", "function_pseudobulk_go")
     params:
         go_kegg_script=ROOT_DIR + "/modules/function/bin/go-kegg.r",
-        species=rule_param(_func, "function_pseudobulk_go", "species", "") or "",
-        lfc_cut=rule_param(_func, "function_pseudobulk_go", "lfc_cut", 1),
-        p_cut=rule_param(_func, "function_pseudobulk_go", "p_cut", 0.05),
-        top=rule_param(_func, "function_pseudobulk_go", "top", 10),
+        species=config.get("Params", {}).get("function", {}).get("function_pseudobulk_go", {}).get("species", "") or "",
+        lfc_cut=config.get("Params", {}).get("function", {}).get("function_pseudobulk_go", {}).get("lfc_cut", 1),
+        p_cut=config.get("Params", {}).get("function", {}).get("function_pseudobulk_go", {}).get("p_cut", 0.05),
+        top=config.get("Params", {}).get("function", {}).get("function_pseudobulk_go", {}).get("top", 10),
         formats=pb_formats,   # ③ 转发
     run:
         log_path = str(log)
@@ -201,7 +200,8 @@ rule function_pseudobulk_go:
                         f'{wildcards.cell_type} at {current_time} completed '
                         f'successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during GO/KEGG enrichment: {e}")
             raise RuntimeError(

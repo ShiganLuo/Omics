@@ -9,10 +9,9 @@ logdir = config.get("logdir", "log")
 # vendored 绘图代码(ggsave/savefig)。figures 是 touch() 规则的副产物,不进
 # rule output(② 展开不适用);默认 ["pdf"] 保持上游行为。
 # ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
-# 参数精确到 rule:Params.mimseq.mimseq_coverage.formats(rule_param 见 common.smk;
-# 无 module 级共享回退)。
-_mimseq_params = config.get("Params", {}).get("mimseq", {})
-_plot_formats_mimseq_coverage = rule_param(_mimseq_params, "mimseq_coverage", "formats", ["pdf"])
+# 参数精确到 rule:config 全量路径读取 Params.mimseq.mimseq_coverage.formats
+# (无 module 级共享回退)。
+_plot_formats_mimseq_coverage = config.get("Params", {}).get("mimseq", {}).get("mimseq_coverage", {}).get("formats") or ["pdf"]
 if isinstance(_plot_formats_mimseq_coverage, str):
     _plot_formats_mimseq_coverage = [_plot_formats_mimseq_coverage]
 
@@ -26,9 +25,9 @@ rule mimseq_coverage:
         logdir + "/mimseq_coverage.log"
     params:
         script = os.path.join(ROOT_DIR, "modules", "mimseq", "bin", "coverage", "run.py"),
-        control_cond = rule_param(_mimseq_params, "mimseq_coverage", "control_cond", ""),
+        control_cond = config.get("Params", {}).get("mimseq", {}).get("mimseq_coverage", {}).get("control_cond", ""),
         mito_trnas = config.get("genome", {}).get("mito_trnas", ""),
-        misinc_thresh = rule_param(_mimseq_params, "mimseq_coverage", "misinc_thresh", 0.1),
+        misinc_thresh = config.get("Params", {}).get("mimseq", {}).get("mimseq_coverage", {}).get("misinc_thresh", 0.1),
         formats = _plot_formats_mimseq_coverage,   # ③ 转发
     threads: rule_res("mimseq_coverage").get("threads", 4)
     benchmark: logdir + "/mimseq_coverage.benchmark.tsv",
@@ -57,9 +56,9 @@ rule mimseq_coverage:
                 cmd += ["--control-cond", params.control_cond]
             if params.mito_trnas:
                 cmd += ["--mito-trnas", params.mito_trnas]
-            if not rule_param(_mimseq_params, "mimseq_coverage", "no_cca", False):
+            if not config.get("Params", {}).get("mimseq", {}).get("mimseq_coverage", {}).get("no_cca", False):
                 cmd += ["--cca"]
-            if rule_param(_mimseq_params, "mimseq_coverage", "double_cca", False):
+            if config.get("Params", {}).get("mimseq", {}).get("mimseq_coverage", {}).get("double_cca", False):
                 cmd += ["--double-cca"]
             for fmt in params.formats:
                 cmd += ["--format", str(fmt)]
@@ -69,7 +68,8 @@ rule mimseq_coverage:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             raise
 
@@ -77,8 +77,3 @@ rule mimseq_coverage_result:
     """Result rule for coverage module."""
     input:
         coverage_done = outdir + "/coverage.done",
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "mimseq_coverage_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

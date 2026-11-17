@@ -582,63 +582,7 @@
           }
         }
       },
-      "TEtranscripts_result": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
       "arriba_report": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "arriba_result": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "featureCounts_result": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "gatk_prepare_result": {
         "type": "dict",
         "required": false,
         "properties": {
@@ -681,20 +625,6 @@
         }
       },
       "sexcheck_idxstats": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "star_result": {
         "type": "dict",
         "required": false,
         "properties": {

@@ -11,8 +11,7 @@ if not fasta:
     )
 input_bam_substring = config.get("input_bam_substring") or ""
 # 参数精确到 rule:javaOptions/tmp-dir 按 rule 独立配置(Params.gatk.<rule_name>
-# .javaOptions/.tmp-dir),无 module 级共享;rule_param 见 common.smk。
-_gatk_params = config.get("Params", {}).get("gatk", {})
+# .javaOptions/.tmp-dir),无 module 级共享。
 
 rule gatk_index:
     input:
@@ -34,8 +33,8 @@ rule gatk_index:
         sif("gatk.yaml", "gatk_index")
     params:
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
-        javaOptions = rule_param(_gatk_params, "gatk_index", "javaOptions", "-Xmx30g"),
-        tmp_dir = rule_param(_gatk_params, "gatk_index", "tmp-dir", None)
+        javaOptions = config.get("Params", {}).get("gatk", {}).get("gatk_index", {}).get("javaOptions", "-Xmx30g"),
+        tmp_dir = config.get("Params", {}).get("gatk", {}).get("gatk_index", {}).get("tmp-dir", None)
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -46,6 +45,7 @@ rule gatk_index:
             index_outdir = os.path.join(outdir, "index")
             os.makedirs(index_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"gatk_index_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(index_outdir, f"gatk_index.sh")
             cmd1 = ["ln", "-s", input.fasta, output.fasta_link]
             cmd2 = [
@@ -68,7 +68,8 @@ rule gatk_index:
                 f.write(" ".join(cmd3) + "\n")
                 f.write(f"echo 'gatk_index was completed successfully for {input.fasta} !'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during gatk_index execution: {str(e)}\n")
             raise RuntimeError(f"Error occurred while running gatk_index: {e}, you can check the log file {log_path} for more details.")
@@ -101,8 +102,8 @@ rule addReadsGroup:
             attempt=attempt).get("mem_mb", 16000),
     params:
         id = "{sample_id}",
-        javaOptions = rule_param(_gatk_params, "addReadsGroup", "javaOptions", "-Xmx30g"),
-        tmp_dir = rule_param(_gatk_params, "addReadsGroup", "tmp-dir", None),
+        javaOptions = config.get("Params", {}).get("gatk", {}).get("addReadsGroup", {}).get("javaOptions", "-Xmx30g"),
+        tmp_dir = config.get("Params", {}).get("gatk", {}).get("addReadsGroup", {}).get("tmp-dir", None),
         RGLB = config.get("Params", {}).get("gatk", {}).get("addReadsGroup", {}).get("RGLB") or "lib1",
         RGPL = config.get("Params", {}).get("gatk", {}).get("addReadsGroup", {}).get("RGPL") or "illumina",
         RGPU = config.get("Params", {}).get("gatk", {}).get("addReadsGroup", {}).get("RGPU") or "unit1",
@@ -118,6 +119,7 @@ rule addReadsGroup:
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"addReadsGroup_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"addReadsGroup.sh")
             cmd1 = [
                 params.gatk, "AddOrReplaceReadGroups", "--java-options", f'"{params.javaOptions}"',
@@ -143,7 +145,8 @@ rule addReadsGroup:
                 f.write(" ".join(cmd2) + "\n")
                 f.write(f"echo 'addReadsGroup was completed successfully for {wildcards.sample_id} !'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during addReadsGroup execution for sample {wildcards.sample_id}: {str(e)}\n")
             raise RuntimeError(f"Error occurred while running addReadsGroup for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")
@@ -168,9 +171,9 @@ rule MarkDuplicates:
             "MarkDuplicates", input_size=input_size_named(input, 'bam'),
             attempt=attempt).get("mem_mb", 32000),
     params:
-        javaOptions = rule_param(_gatk_params, "MarkDuplicates", "javaOptions", "-Xmx30g"),
+        javaOptions = config.get("Params", {}).get("gatk", {}).get("MarkDuplicates", {}).get("javaOptions", "-Xmx30g"),
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
-        tmp_dir = rule_param(_gatk_params, "MarkDuplicates", "tmp-dir", None)
+        tmp_dir = config.get("Params", {}).get("gatk", {}).get("MarkDuplicates", {}).get("tmp-dir", None)
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -181,6 +184,7 @@ rule MarkDuplicates:
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"MarkDuplicates_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"MarkDuplicates.sh")
             cmd = [
                 params.gatk, "MarkDuplicates", "--java-options", f'"{params.javaOptions}"',
@@ -197,7 +201,8 @@ rule MarkDuplicates:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'MarkDuplicates was completed successfully for {wildcards.sample_id} !'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during MarkDuplicates execution for sample {wildcards.sample_id}: {str(e)}\n")
             raise RuntimeError(f"Error occurred while running MarkDuplicates for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")
@@ -267,8 +272,8 @@ rule collectHsMetrics:
             attempt=attempt).get("mem_mb", 16000),
     params:
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
-        javaOptions = rule_param(_gatk_params, "collectHsMetrics", "javaOptions", "-Xmx8g"),
-        tmp_dir = rule_param(_gatk_params, "collectHsMetrics", "tmp-dir", None),
+        javaOptions = config.get("Params", {}).get("gatk", {}).get("collectHsMetrics", {}).get("javaOptions", "-Xmx8g"),
+        tmp_dir = config.get("Params", {}).get("gatk", {}).get("collectHsMetrics", {}).get("tmp-dir", None),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -279,6 +284,7 @@ rule collectHsMetrics:
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"collectHsMetrics_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, "collectHsMetrics.sh")
             cmds = []
             if str(input.targets).endswith(".interval_list"):
@@ -312,7 +318,8 @@ rule collectHsMetrics:
                     f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'collectHsMetrics was completed successfully for {wildcards.sample_id} !'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during collectHsMetrics execution for {wildcards.sample_id}: {str(e)}")
             raise RuntimeError(f"Error occurred while running collectHsMetrics for {wildcards.sample_id}: {e}, you can check the log file {log_path} for more information.")
@@ -323,9 +330,3 @@ rule gatk_prepare_result:
         bam = outdir + "/{sample_id}/{sample_id}.sorted_markdup.bam",
         bai = outdir + "/{sample_id}/{sample_id}.sorted_markdup.bai",
         metrics = outdir + "/{sample_id}/{sample_id}.Markdup-metrics.txt"
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "gatk_prepare_result", input_size=input_size_named(input, 'bam'),
-            attempt=attempt).get("mem_mb", 8000),
-

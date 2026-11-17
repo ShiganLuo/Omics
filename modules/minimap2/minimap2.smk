@@ -61,6 +61,7 @@ rule minimap2_align:
             sample_outdir = os.path.dirname(str(output.bam))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"minimap2_align_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"minimap2_align_{wildcards.sample_id}.sh")
             raw_bam = outdir + f"/{wildcards.sample_id}/{wildcards.sample_id}.raw.bam"
             # minimap2 align → samtools sort → samtools index
@@ -83,7 +84,8 @@ rule minimap2_align:
                 f.write(f"mv {raw_bam}.bai {output.bai}\n")
                 f.write(f'echo "minimap2 alignment for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             logger.error(f"Error occurred during minimap2 alignment for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
@@ -95,8 +97,3 @@ rule minimap2_result:
     input:
         bam = outdir + "/{sample_id}/{sample_id}.sorted.bam",
         bai = outdir + "/{sample_id}/{sample_id}.sorted.bam.bai"
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "minimap2_result", input_size=input_size_named(input, 'bam'),
-            attempt=attempt).get("mem_mb", 8000),

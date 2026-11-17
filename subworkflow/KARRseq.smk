@@ -75,10 +75,8 @@ if paired_samples:
 # STAR alignment with KARRseq-specific parameters
 star_index_dir = genome_ref.get("star_index_dir")
 # KARRseq_star_align 参数段:Params.star(本 subworkflow 转发入 rule)。
-# 参数精确到 rule:Params.star.KARRseq_star_align.<key>(rule_param 见 common.smk;
+# 参数精确到 rule:Params.star.KARRseq_star_align.<key>(config 全量路径直读;
 # 无 module 级共享回退,KARRseq_star_align 与 star_align 各自独立键)。
-star_params = config.get("Params", {}).get("star", {})
-
 
 def get_alignment_input(wildcards):
     """Dynamically determine alignment input: merged PE or raw SE."""
@@ -178,15 +176,15 @@ rule KARRseq_star_align:
         STAR = config.get("Procedure", {}).get("STAR") or "STAR",
         index = star_index_dir,
         prefix = outdir + "/bam/{sample_id}/{sample_id}",
-        outFilterMultimapNmax = rule_param(star_params, "KARRseq_star_align", "outFilterMultimapNmax", 100),
-        outSAMattributes = rule_param(star_params, "KARRseq_star_align", "outSAMattributes", "All"),
-        alignIntronMin = rule_param(star_params, "KARRseq_star_align", "alignIntronMin", 1),
-        scoreGapNoncan = rule_param(star_params, "KARRseq_star_align", "scoreGapNoncan", -4),
-        scoreGapATAC = rule_param(star_params, "KARRseq_star_align", "scoreGapATAC", -4),
-        chimSegmentMin = rule_param(star_params, "KARRseq_star_align", "chimSegmentMin", 15),
-        chimJunctionOverhangMin = rule_param(star_params, "KARRseq_star_align", "chimJunctionOverhangMin", 15),
-        limitOutSJcollapsed = rule_param(star_params, "KARRseq_star_align", "limitOutSJcollapsed", 10000000),
-        limitIObufferSize = rule_param(star_params, "KARRseq_star_align", "limitIObufferSize", 1500000000),
+        outFilterMultimapNmax = config.get("Params", {}).get("star", {}).get("KARRseq_star_align", {}).get("outFilterMultimapNmax", 100),
+        outSAMattributes = config.get("Params", {}).get("star", {}).get("KARRseq_star_align", {}).get("outSAMattributes", "All"),
+        alignIntronMin = config.get("Params", {}).get("star", {}).get("KARRseq_star_align", {}).get("alignIntronMin", 1),
+        scoreGapNoncan = config.get("Params", {}).get("star", {}).get("KARRseq_star_align", {}).get("scoreGapNoncan", -4),
+        scoreGapATAC = config.get("Params", {}).get("star", {}).get("KARRseq_star_align", {}).get("scoreGapATAC", -4),
+        chimSegmentMin = config.get("Params", {}).get("star", {}).get("KARRseq_star_align", {}).get("chimSegmentMin", 15),
+        chimJunctionOverhangMin = config.get("Params", {}).get("star", {}).get("KARRseq_star_align", {}).get("chimJunctionOverhangMin", 15),
+        limitOutSJcollapsed = config.get("Params", {}).get("star", {}).get("KARRseq_star_align", {}).get("limitOutSJcollapsed", 10000000),
+        limitIObufferSize = config.get("Params", {}).get("star", {}).get("KARRseq_star_align", {}).get("limitIObufferSize", 1500000000),
         samtools = config.get("Procedure", {}).get("samtools") or "samtools"
     run:
         import time
@@ -219,7 +217,8 @@ rule KARRseq_star_align:
             f.write("#!/bin/bash\n")
             f.write(" ".join(cmd) + "\n")
             f.write(" ".join(cmd_index) + "\n")
-        shell(f"bash {script} > {log} 2>&1")
+        if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            shell(f"bash {script} > {log} 2>&1")
 
 
 # =================

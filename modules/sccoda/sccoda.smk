@@ -1,5 +1,6 @@
 
 include: "../common/common.smk"
+python = config.get("Procedure", {}).get("python") or "python"
 
 ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("indir", "input")
@@ -11,30 +12,14 @@ logdir = config.get("logdir", "logs")
 # not a Params read point — sccoda's own params are rule-scoped below.)
 reannotate = config.get("reannotate", {}) or {}
 
-params = config.get("Params", {}).get("sccoda", {})
 # tissue_samples: {tissue: [sample_id, ...]} — from node.py
-tissue_samples = params.get("tissue_samples", {})
+tissue_samples = config.get("Params", {}).get("sccoda", {}).get("tissue_samples", {})
 tissues = sorted(tissue_samples.keys())
-counters = sorted(k for k, v in params.items()
+counters = sorted(k for k, v in (config.get("Params", {}).get("sccoda", {}) or {}).items()
                   if isinstance(v, dict) and k != "tissue_samples")
-python = config.get("Procedure", {}).get("python") or "python"
 script = os.path.join(ROOT_DIR, "modules", "sccoda", "bin", "sccoda.py")
 
-# 参数精确到 rule:Params.sccoda.<counter>.sccoda_run.<key>(rule_param 见
-# common.smk;无 counter 级共享回退,原整段 cfg 转发已展开逐 key)。
-
-
-def _image_formats(wildcards, rule_name: str) -> list:
-    """Image formats for one rule's plots:
-    Params.sccoda.<counter>.<rule_name>.formats -> ["png"] (today's fixed
-    output names). 参数精确到 rule — no counter-level shared ``formats``
-    fallback (rule_param, common.smk). The da/ deliverable is a
-    directory() (pre-existing shape, unchanged); the files written inside
-    carry the requested extensions via the script's repeatable ``--format``
-    flag (modules.md #9).
-    """
-    fmts = rule_param(params.get(wildcards.counter), rule_name, "formats", ["png"])
-    return [fmts] if isinstance(fmts, str) else [str(f) for f in fmts]
+# 参数精确到 rule:Params.sccoda.<counter>.sccoda_run.<key>(无 counter 级共享回退,原整段 cfg 转发已展开逐 key)。
 
 
 def _sccoda_override(wildcards):
@@ -85,14 +70,15 @@ rule sccoda_run:
         python = python,
         script = script,
         # 参数精确到 rule:Params.sccoda.<counter>.sccoda_run.<key>
-        # (原 sccoda_cfg 整段 dict 转发已展开逐 key,rule_param 见 common.smk)
-        ref_celltype=lambda wildcards: rule_param(params.get(wildcards.counter), "sccoda_run", "ref_celltype", "automatic"),
-        formula=lambda wildcards: rule_param(params.get(wildcards.counter), "sccoda_run", "formula", "condition"),
-        credible_threshold=lambda wildcards: rule_param(params.get(wildcards.counter), "sccoda_run", "credible_threshold", 0.90),
-        num_samples=lambda wildcards: rule_param(params.get(wildcards.counter), "sccoda_run", "num_samples", 2000),
-        num_warmup=lambda wildcards: rule_param(params.get(wildcards.counter), "sccoda_run", "num_warmup", 500),
-        compare=lambda wildcards: rule_param(params.get(wildcards.counter), "sccoda_run", "compare", []) or [],
-        formats = lambda wildcards: _image_formats(wildcards, "sccoda_run"),
+        # (原 sccoda_cfg 整段 dict 转发已展开逐 key)
+        ref_celltype=lambda wildcards: config.get("Params", {}).get("sccoda", {}).get(wildcards.counter, {}).get("sccoda_run", {}).get("ref_celltype", "automatic"),
+        formula=lambda wildcards: config.get("Params", {}).get("sccoda", {}).get(wildcards.counter, {}).get("sccoda_run", {}).get("formula", "condition"),
+        credible_threshold=lambda wildcards: config.get("Params", {}).get("sccoda", {}).get(wildcards.counter, {}).get("sccoda_run", {}).get("credible_threshold", 0.90),
+        num_samples=lambda wildcards: config.get("Params", {}).get("sccoda", {}).get(wildcards.counter, {}).get("sccoda_run", {}).get("num_samples", 2000),
+        num_warmup=lambda wildcards: config.get("Params", {}).get("sccoda", {}).get(wildcards.counter, {}).get("sccoda_run", {}).get("num_warmup", 500),
+        compare=lambda wildcards: config.get("Params", {}).get("sccoda", {}).get(wildcards.counter, {}).get("sccoda_run", {}).get("compare", []) or [],
+        formats=lambda wildcards: (lambda fmts: [fmts] if isinstance(fmts, str) else [str(f) for f in fmts])(
+            config.get("Params", {}).get("sccoda", {}).get(wildcards.counter, {}).get("sccoda_run", {}).get("formats") or ["png"]),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -104,6 +90,7 @@ rule sccoda_run:
             os.makedirs(out_root, exist_ok=True)
             # dual-write receipts: timestamped copy in log/cmd, plain copy in outdir
             script = os.path.join(RECEIPT_DIR, f"sccoda_run_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(out_root, f"sccoda_run_{wildcards.counter}_{wildcards.tissue}.sh")
             cmd = [params.python, params.script,
                    "--h5ad", f"{wildcards.tissue}={input.h5ad}",
@@ -148,7 +135,8 @@ rule sccoda_run:
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scCODA differential abundance for {wildcards.tissue} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during scCODA differential abundance for tissue {wildcards.tissue}: {e}")
             raise RuntimeError(f"Error occurred during scCODA differential abundance for tissue {wildcards.tissue}: {e}")

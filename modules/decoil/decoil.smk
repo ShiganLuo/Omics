@@ -235,7 +235,8 @@ rule decoil_reconstruct:
                 f.write(f'echo "script completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"decoil_reconstruct failed for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"decoil_reconstruct failed for sample {wildcards.sample_id}: {e}")
@@ -247,12 +248,6 @@ rule decoil_result:
         reconstruct_ecdna    = outdir + "/{sample_id}/decoil/reconstruct.ecDNA.bed",
         reconstruct_filtered = outdir + "/{sample_id}/decoil/reconstruct.ecDNA.filtered.bed",
         summary              = outdir + "/{sample_id}/decoil/summary.txt",
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "decoil_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),
-
 rule decoil_plot:
     """Per-sample ecDNA statistics: size distribution, topology, region table.
 
@@ -291,6 +286,7 @@ rule decoil_plot:
             sample_vis_dir = os.path.dirname(str(output.regions_tsv))
             os.makedirs(sample_vis_dir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"decoil_plot_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_vis_dir, f"decoil_plot_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.plot_script,
@@ -307,7 +303,8 @@ rule decoil_plot:
                 f.write(f'echo "script completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"decoil_plot failed for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"decoil_plot failed for sample {wildcards.sample_id}: {e}")
@@ -351,6 +348,7 @@ rule decoil_compare:
             compare_dir = os.path.dirname(str(output.plots[0]))
             os.makedirs(compare_dir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"decoil_compare_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(compare_dir, f"decoil_compare.sh")
             cmd = [
                 "python", params.plot_script,
@@ -369,7 +367,8 @@ rule decoil_compare:
                 f.write(f'echo "script completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"decoil_compare failed: {e}")
             raise RuntimeError(f"decoil_compare failed: {e}")
@@ -425,6 +424,7 @@ rule decoil_structure:
             sample_vis_dir = os.path.dirname(str(output.genes_tsv))
             os.makedirs(sample_vis_dir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"decoil_structure_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_vis_dir, f"decoil_structure_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.structure_script,
@@ -446,7 +446,8 @@ rule decoil_structure:
                 f.write(f'echo "script completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"decoil_structure failed for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"decoil_structure failed for sample {wildcards.sample_id}: {e}")
@@ -507,6 +508,7 @@ rule decoil_igv:
                 json.dump(base_cfg, f, indent=2)
 
             script = os.path.join(RECEIPT_DIR, f"decoil_igv_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_vis_dir, f"decoil_igv_{wildcards.sample_id}.sh")
             cmd1 = [
                 "python", params.igv_config_script,
@@ -531,7 +533,8 @@ rule decoil_igv:
                 f.write(f'echo "script completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd1) + " && " + " ".join(cmd2))
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"decoil_igv failed for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"decoil_igv failed for sample {wildcards.sample_id}: {e}")
@@ -573,6 +576,7 @@ rule decoil_ucsc:
             sample_vis_dir = os.path.dirname(str(output.track))
             os.makedirs(sample_vis_dir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"decoil_ucsc_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_vis_dir, f"decoil_ucsc_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.track_script,
@@ -590,7 +594,8 @@ rule decoil_ucsc:
                 f.write(f'echo "script completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"decoil_ucsc failed for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"decoil_ucsc failed for sample {wildcards.sample_id}: {e}")

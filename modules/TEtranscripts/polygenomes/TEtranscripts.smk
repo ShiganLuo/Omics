@@ -53,6 +53,7 @@ rule TEcount:
             rule_logger.info(f"Start TEcount for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.project))
             script = os.path.join(RECEIPT_DIR, f"TEcount_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"TEcount_{wildcards.sample_id}.sh")
             cmd = [
                 params.TEcount,
@@ -71,7 +72,8 @@ rule TEcount:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'TEcount for sample {wildcards.sample_id} was completed successfully'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during TEcount for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"TEcount failed for sample {wildcards.sample_id}: {e}")
@@ -121,6 +123,7 @@ rule combine_TEcount:
             rule_logger.info(f"Start combine_TEcount at {current_time}")
             sample_outdir = os.path.dirname(str(output.outfile_raw))
             script = os.path.join(RECEIPT_DIR, f"combine_TEcount_{wildcards.genome}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"combine_TEcount.sh")
             cmd1 = [
                 "python", params.combineTE,
@@ -141,7 +144,8 @@ rule combine_TEcount:
                 f.write(" ".join(cmd2) + "\n")
                 f.write(f"echo 'combine_TEcount for {wildcards.genome} completed at {current_time}'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during combine_TEcount: {e}")
             raise RuntimeError(f"Error occurred during combine_TEcount: {e}")
@@ -191,6 +195,7 @@ rule TElocal:
             rule_logger.info(f"Start TElocal for sample {wildcards.sample_id} at {current_time}")
             outdir_local = os.path.dirname(str(output.project))
             script = os.path.join(RECEIPT_DIR, f"TElocal_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir_local, f"TElocal_{wildcards.sample_id}.sh")
             cmd1 = [
                 params.TElocal,
@@ -209,7 +214,8 @@ rule TElocal:
                 f.write(" ".join(cmd2) + "\n")
                 f.write(f"echo 'TElocal for sample {wildcards.sample_id} was completed successfully'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during TElocal for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred during TElocal for sample {wildcards.sample_id}: {e}")
@@ -258,6 +264,7 @@ rule combine_TElocal:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start combine_TElocal at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"combine_TElocal_{wildcards.genome}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(params.indir, f"combine_TElocal.sh")
             cmd1 = [
                 "python", str(params.combineTE),
@@ -277,7 +284,8 @@ rule combine_TElocal:
                 f.write(" ".join(cmd2) + "\n")
                 f.write(f"echo 'combine_TElocal for {wildcards.genome} was completed successfully'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} > {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} > {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during combine_TElocal: {e}")
             raise RuntimeError(f"Error occurred during combine_TElocal: {e}")
@@ -286,8 +294,3 @@ rule TEtranscripts_result:
     input:
         TEcount = outdir + "/{genome}/{genome}_TEcount.tsv",
         TElocal = outdir + "/{genome}/{genome}_TElocal.tsv"
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "TEtranscripts_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

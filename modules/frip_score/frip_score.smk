@@ -45,6 +45,7 @@ rule frip_score:
             
             sample_outdir = os.path.dirname(str(output.frip))
             script = os.path.join(RECEIPT_DIR, f"frip_score_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"frip_score.sh")
             
             script_content = f"""#!/bin/bash
@@ -85,7 +86,8 @@ echo "FRiP score: $FRIP"
             
             rule_logger.info(f"Executing script: {script}")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} > {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} > {log_path} 2>&1")
             
             rule_logger.info(f"FRiP score calculation for sample {wildcards.sample_id} completed successfully")
             
@@ -99,8 +101,3 @@ rule frip_score_result:
     """
     input:
         frip = outdir + "/{sample_id}/{sample_id}.FRiP.txt"
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "frip_score_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

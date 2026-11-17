@@ -40,6 +40,7 @@ rule ucsc_track_single:
             sample_outdir = os.path.dirname(str(output.track))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"ucsc_track_bedtools_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"ucsc_track_bedtools.sh")
 
             cmd = [
@@ -54,7 +55,8 @@ rule ucsc_track_single:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "ucsc_track_bedtools successfully completed !"'+ "\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             logger.error(f"ucsc_track_bedtools failed with error: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
@@ -88,6 +90,7 @@ rule ucsc_track_iclip:
             sample_outdir = os.path.dirname(str(output.track))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"ucsc_track_iclip_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"ucsc_track_iclip.sh")
 
             cmd = [
@@ -103,7 +106,8 @@ rule ucsc_track_iclip:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "ucsc_track_iclip successfully completed !"'+ "\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             logger.error(f"ucsc_track_iclip failed with error: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
@@ -145,6 +149,7 @@ rule igv_track_single:
             os.makedirs(sample_outdir, exist_ok=True)
             config_json_path = str(params.config_json)
             script = os.path.join(RECEIPT_DIR, f"igv_track_bedtools_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"igv_track_bedtools.sh")
 
             rule_logger.info(f"Writing IGV config JSON to {config_json_path}")
@@ -164,7 +169,8 @@ rule igv_track_single:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "igv_track_bedtools successfully completed !"'+ "\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             logger.error(f"igv_track_bedtools failed with error: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
@@ -207,6 +213,7 @@ rule igv_track_iclip:
             os.makedirs(sample_outdir, exist_ok=True)
             config_json_path = str(params.config_json)
             script = os.path.join(RECEIPT_DIR, f"igv_track_iclip_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"igv_track_iclip.sh")
 
             rule_logger.info(f"Writing IGV config JSON to {config_json_path}")
@@ -227,7 +234,8 @@ rule igv_track_iclip:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "igv_track_iclip successfully completed !"'+ "\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             logger.error(f"igv_track_iclip failed with error: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")

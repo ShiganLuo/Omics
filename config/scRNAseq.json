@@ -431,9 +431,6 @@
       "threads": 12,
       "mem_mb": 64000
     },
-    "star_result": {
-      "mem_mb": 8000
-    },
     "sv_go_kegg": {
       "threads": 1,
       "mem_mb": 8000

@@ -13,20 +13,15 @@ CUTOFF_SCRIPT = os.path.join(MODULE_DIR, "bin", "plot_cutoff_analysis.py")
 # ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
 # 参数精确到 rule:formats 挂 macs3_cutoff_plot 名下
 # (Params.macs3.macs3_cutoff_plot.formats,单 plot rule 消费;
-# 无 module 级共享回退,rule_param 见 common.smk)。
-_macs3_params = config.get("Params", {}).get("macs3", {})
-
-
-def _rule_formats(rule_name):
-    """Per-rule figure formats (parse 期解析,output 展开与 CLI 转发共用)。"""
-    fmts = rule_param(_macs3_params, rule_name, "formats", ["png"])
-    return [fmts] if isinstance(fmts, str) else fmts
-
-
+# 无 module 级共享回退),config 全量路径读取 + str 收成单元素 list。
 # 每 rule 一个 parse 期变量;macs3_result 聚合 macs3_cutoff_plot 输出,
 # 展开同一 rule 键。
-_formats_macs3_cutoff_plot = _rule_formats("macs3_cutoff_plot")
-_formats_macs3_result = _rule_formats("macs3_cutoff_plot")
+_formats_macs3_cutoff_plot = config.get("Params", {}).get("macs3", {}).get("macs3_cutoff_plot", {}).get("formats") or ["png"]
+if isinstance(_formats_macs3_cutoff_plot, str):
+    _formats_macs3_cutoff_plot = [_formats_macs3_cutoff_plot]
+_formats_macs3_result = config.get("Params", {}).get("macs3", {}).get("macs3_cutoff_plot", {}).get("formats") or ["png"]
+if isinstance(_formats_macs3_result, str):
+    _formats_macs3_result = [_formats_macs3_result]
 
 def get_macs3_input(wildcards):
     """
@@ -89,6 +84,7 @@ rule macs3_callpeak:
             rule_logger.info(f"Start macs3 call peak for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.narrow_peak))
             script = os.path.join(RECEIPT_DIR, f"macs3_callpeak_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"macs3_callpeak.sh")
             cmd = [
                 params.macs3, "callpeak",
@@ -127,7 +123,8 @@ rule macs3_callpeak:
                 f.write(" ".join(broad_cmd) + "\n")
                 f.write(f'echo "macs3 call peak (narrow + broad) for sample {wildcards.sample_id} completed !"'+ "\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during macs3 for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred during macs3 for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")
@@ -174,13 +171,15 @@ rule macs3_cutoff_plot:
             plot_dir = os.path.dirname(str(output.plots[0]))
             os.makedirs(plot_dir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"plot_cutoff_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(plot_dir, f"plot_cutoff.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             logger.error(f"Error during cutoff plot: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
@@ -197,8 +196,3 @@ rule macs3_result:
         broad_xls = outdir + "/{genome}/{sample_id}/{sample_id}_broad_peaks.xls",
         broad_cutoff = outdir + "/{genome}/{sample_id}/{sample_id}_broad_cutoff_analysis.txt",
         plots = [outdir + "/{genome}/cutoff_analysis." + fmt for fmt in _formats_macs3_result]
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "macs3_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

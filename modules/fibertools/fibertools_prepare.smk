@@ -17,8 +17,7 @@ outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 # 参数精确到 rule(2026-11 规范):Params.fibertools.<rule_name>.<key>,无
-# module 级共享回退(rule_param 见 common.smk)。
-_ft_params = config.get("Params", {}).get("fibertools", {})
+# module 级共享回退(config 全量路径内联读取)。
 
 def _detect_m6a_sh(bam_path: str) -> str:
     """Return shell snippet that sets HAS_M6A=1 or HAS_M6A=0.
@@ -108,7 +107,8 @@ rule ft_predict_m6a:
                 f.write(f'    echo "m6A prediction completed for sample {wildcards.sample_id}"\n')
                 f.write('fi\n')
             shutil.copyfile(command_script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"ft_predict_m6a failed: {e}")
             raise RuntimeError(f"ft_predict_m6a failed: {e}\n")
@@ -121,7 +121,7 @@ def get_input_for_ft_fire(wildcards):
     - Non-SPRQ (no m6A): fire reads fiberseq.bam (predict-m6a already has nuc)
     - add_nucleosomes_manual=true: force fire reads nuc.bam
     """
-    add_nucleosomes_manual = rule_param(_ft_params, "ft_fire", "add_nucleosomes_manual", None)
+    add_nucleosomes_manual = config.get("Params", {}).get("fibertools", {}).get("ft_fire", {}).get("add_nucleosomes_manual", None)
     if _has_m6a(wildcards.sample_id) or add_nucleosomes_manual:
         return outdir + "/{sample_id}/{sample_id}.fiberseq.nuc.bam"
     else:
@@ -173,7 +173,8 @@ rule ft_add_nucleosomes:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "Nucleosome calling completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"ft_add_nucleosomes failed: {e}")
             raise RuntimeError(f"ft_add_nucleosomes failed: {e}\n")
@@ -202,7 +203,7 @@ rule ft_fire:
         sif("fibertools.yaml", "ft_fire")
     params:
         ft = config.get("Procedure", {}).get("fibertools") or "ft",
-        is_ont = rule_param(_ft_params, "ft_fire", "ont", False)
+        is_ont = config.get("Params", {}).get("fibertools", {}).get("ft_fire", {}).get("ont", False)
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -227,7 +228,8 @@ rule ft_fire:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "FIRE calling completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"ft_fire failed: {e}")
             raise RuntimeError(f"ft_fire failed: {e}\n")

@@ -1670,20 +1670,6 @@
           }
         }
       },
-      "decoil_result": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
       "decoil_structure": {
         "type": "dict",
         "required": false,
@@ -2371,20 +2357,6 @@
         }
       },
       "sv_oncoprint": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "sv_result": {
         "type": "dict",
         "required": false,
         "properties": {

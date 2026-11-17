@@ -22,12 +22,11 @@ outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
 
 # 参数精确到 rule:参数挂在消费它的 rule 名下(Params.function.sv_go_kegg.<key>,
-# rule 名 = 原组名;无 module 级共享回退,rule_param 见 common.smk)。
-_func = config.get("Params", {}).get("function", {}) or {}
+# rule 名 = 原组名;无 module 级共享回退,读点写 config 全量路径字面链)。
 comparisons = config.get("comparisons") or {}
 # ① parse 期读入 + 规范化(str 收成单元素 list;合法值由 schema 声明)。
 # formats 为 parse 期变量(output 不能是函数,格式列表必须是模块级变量)。
-sg_formats = rule_param(_func, "sv_go_kegg", "formats", ["png"]) or ["png"]
+sg_formats = config.get("Params", {}).get("function", {}).get("sv_go_kegg", {}).get("formats") or ["png"]
 if isinstance(sg_formats, str):
     sg_formats = [sg_formats]
 
@@ -58,9 +57,9 @@ rule sv_go_kegg:
         sif("../function.yaml", "sv_go_kegg")
     params:
         script=ROOT_DIR + "/modules/function/sv_go_kegg/bin/sv_go-kegg.r",
-        species=rule_param(_func, "sv_go_kegg", "species", "") or "",
-        impact=rule_param(_func, "sv_go_kegg", "impact", "HIGH,MODERATE,LOW") or "HIGH,MODERATE,LOW",
-        top=rule_param(_func, "sv_go_kegg", "top", 10),
+        species=config.get("Params", {}).get("function", {}).get("sv_go_kegg", {}).get("species", "") or "",
+        impact=config.get("Params", {}).get("function", {}).get("sv_go_kegg", {}).get("impact", "HIGH,MODERATE,LOW") or "HIGH,MODERATE,LOW",
+        top=config.get("Params", {}).get("function", {}).get("sv_go_kegg", {}).get("top", 10),
         formats=sg_formats,   # ③ 转发
     run:
         log_path = str(log)
@@ -106,7 +105,8 @@ rule sv_go_kegg:
                 f.write(f'echo "SV GO/KEGG for {wildcards.comparison} '
                         f'at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
             # sentinel written by the rule (not the shell receipt) AFTER the
             # tool succeeded — the receipt's echo is not a success signal
             with open(str(output.done), "w") as fh:

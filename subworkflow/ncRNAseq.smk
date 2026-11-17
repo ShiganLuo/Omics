@@ -11,10 +11,6 @@ paired_samples = config.get("Params", {}).get("workflow").get("paired_samples", 
 single_samples = config.get("Params", {}).get("workflow").get("single_samples", [])
 all_samples = config.get("Params", {}).get("workflow").get("samples", [])
 aligner = config.get("Params", {}).get("workflow").get("aligner") or "star"
-def _rule_get(section, rule_name, key, default=None):
-    """参数精确到 rule:读取 <section>.<rule_name>.<key>(rule 子键优先,旧扁平
-    键兼容回退,再回退 default;键形同 common.smk rule_param,无 module 级共享)。"""
-    return ((section.get(rule_name) or {}).get(key) or section.get(key) or default)
 
 ip_samples = config.get("Params", {}).get("workflow").get("ip_samples", [])
 input_samples = config.get("Params", {}).get("workflow").get("input_samples", [])
@@ -261,18 +257,18 @@ elif aligner == "star":
         },
         "Params": {
             # 参数精确到 rule:Params.star.star_align.<key>(消费 rule star_align;
-            # 旧扁平键兼容回退),缺省值保持原转发默认
+            # config 全量路径读取,无旧扁平键回退),缺省值保持原转发默认
             "star": {
                 "star_align": {
-                    "twopassMode": _rule_get(config.get("Params", {}).get("star", {}), "star_align", "twopassMode"),
-                    "genomeLoad": _rule_get(config.get("Params", {}).get("star", {}), "star_align", "genomeLoad", "LoadAndRemove"),
-                    "limitBAMsortRAM": _rule_get(config.get("Params", {}).get("star", {}), "star_align", "limitBAMsortRAM", 20000000000),
-                    "outReadsUnmapped": _rule_get(config.get("Params", {}).get("star", {}), "star_align", "outReadsUnmapped", "Fastx"),
-                    "outFilterMultimapNmax": _rule_get(config.get("Params", {}).get("star", {}), "star_align", "outFilterMultimapNmax", 99999),
-                    "outFilterMismatchNoverLmax": _rule_get(config.get("Params", {}).get("star", {}), "star_align", "outFilterMismatchNoverLmax", 0.1),
-                    "outFilterMatchNminOverLread": _rule_get(config.get("Params", {}).get("star", {}), "star_align", "outFilterMatchNminOverLread", 0.66),
-                    "alignSJoverhangMin": _rule_get(config.get("Params", {}).get("star", {}), "star_align", "alignSJoverhangMin", 999),
-                    "alignSJDBoverhangMin": _rule_get(config.get("Params", {}).get("star", {}), "star_align", "alignSJDBoverhangMin", 999),
+                    "twopassMode": config.get('Params', {}).get('star', {}).get('star_align', {}).get('twopassMode'),
+                    "genomeLoad": config.get('Params', {}).get('star', {}).get('star_align', {}).get('genomeLoad') or "LoadAndRemove",
+                    "limitBAMsortRAM": config.get('Params', {}).get('star', {}).get('star_align', {}).get('limitBAMsortRAM') or 20000000000,
+                    "outReadsUnmapped": config.get('Params', {}).get('star', {}).get('star_align', {}).get('outReadsUnmapped') or "Fastx",
+                    "outFilterMultimapNmax": config.get('Params', {}).get('star', {}).get('star_align', {}).get('outFilterMultimapNmax') or 99999,
+                    "outFilterMismatchNoverLmax": config.get('Params', {}).get('star', {}).get('star_align', {}).get('outFilterMismatchNoverLmax') or 0.1,
+                    "outFilterMatchNminOverLread": config.get('Params', {}).get('star', {}).get('star_align', {}).get('outFilterMatchNminOverLread') or 0.66,
+                    "alignSJoverhangMin": config.get('Params', {}).get('star', {}).get('star_align', {}).get('alignSJoverhangMin') or 999,
+                    "alignSJDBoverhangMin": config.get('Params', {}).get('star', {}).get('star_align', {}).get('alignSJDBoverhangMin') or 999,
                 }
             }
         },

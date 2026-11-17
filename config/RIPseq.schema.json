@@ -63,20 +63,6 @@
           }
         }
       },
-      "bigwig_ratio_result": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
       "fastqc": {
         "type": "dict",
         "required": false,

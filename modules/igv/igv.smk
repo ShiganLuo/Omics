@@ -64,7 +64,8 @@ rule samtools_dedup:
                 f.write(" ".join(cmd) + "\n")
                 f.write(success_echo + "\n")
             shutil.copyfile(script_path, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             logger.error(f"samtools dedup failed: {e}\n")
             raise f"samtools dedup failed: {e}\n"
@@ -91,8 +92,7 @@ rule wig:
     params:
         binSize= config.get('Params',{}).get('bamCoverage',{}).get('binSize') or 50,
         bamCoverage = config.get('Procedure',{}).get('bamCoverage') or 'bamCoverage',
-        normalizeUsing = rule_param(config.get("Params", {}).get("bamCoverage", {}),
-                                    "wig", "normalizeUsing", "CPM") or "CPM",   # Params.bamCoverage.wig.normalizeUsing(与 bamCoverage 各自;rule_param 见 common.smk)
+        normalizeUsing = config.get("Params", {}).get("bamCoverage", {}).get("wig", {}).get("normalizeUsing", "CPM") or "CPM",   # Params.bamCoverage.wig.normalizeUsing(与 bamCoverage 各自;config 全量路径内联读取)
         offset = config.get('Params', {}).get('bamCoverage',{}).get('offset') or None,
         extendReads = config.get('Params', {}).get('bamCoverage',{}).get('extendReads') or False
     run:
@@ -125,7 +125,8 @@ rule wig:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "wig completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             logger.error(f"bamCoverage wig failed: {e}\n")
             raise f"bamCoverage wig failed: {e}\n"
@@ -133,8 +134,3 @@ rule wig:
 rule igv_result:
     input:
         bigwig = outdir + "/{sample_id}/{sample_id}.bigwig"
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "igv_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

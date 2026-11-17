@@ -8,19 +8,14 @@ samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
 genome_cfg = config.get("genome", {})
-_nucpos_params = config.get("Params", {}).get("fiberseq_nucpos", {})
 # 参数精确到 rule:formats 按 rule 独立配置(Params.fiberseq_nucpos.<rule_name>.formats,
-# 无 module 级共享回退;rule_param 见 common.smk),每 rule 一个 parse 期变量。
-
-
-def _rule_formats(rule_name):
-    """Per-rule figure formats (parse 期解析,output 展开与 CLI 转发共用)。"""
-    fmts = rule_param(_nucpos_params, rule_name, "formats", ["pdf"])
-    return [fmts] if isinstance(fmts, str) else (fmts or ["pdf"])
-
-
-_formats_run = _rule_formats("fiberseq_nucpos_run")
-_formats_result = _rule_formats("fiberseq_nucpos_result")
+# 无 module 级共享回退),每 rule 一个 parse 期变量(config 全量路径读取 + str 规范化)。
+_formats_run = config.get("Params", {}).get("fiberseq_nucpos", {}).get("fiberseq_nucpos_run", {}).get("formats") or ["pdf"]
+if isinstance(_formats_run, str):
+    _formats_run = [_formats_run]
+_formats_result = config.get("Params", {}).get("fiberseq_nucpos", {}).get("fiberseq_nucpos_result", {}).get("formats") or ["pdf"]
+if isinstance(_formats_result, str):
+    _formats_result = [_formats_result]
 
 rule fiberseq_nucpos_run:
     """Nucleosome positioning/phasing around TSS anchors."""
@@ -47,9 +42,9 @@ rule fiberseq_nucpos_run:
         sif("../fiberseq.yaml", "fiberseq_nucpos_run")
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/nucpos.py",
-        upstream = rule_param(_nucpos_params, "fiberseq_nucpos_run", "upstream_nucs", 5),
-        downstream = rule_param(_nucpos_params, "fiberseq_nucpos_run", "downstream_nucs", 5),
-        min_fibers = rule_param(_nucpos_params, "fiberseq_nucpos_run", "min_fibers", 10),
+        upstream = config.get("Params", {}).get("fiberseq_nucpos", {}).get("fiberseq_nucpos_run", {}).get("upstream_nucs", 5),
+        downstream = config.get("Params", {}).get("fiberseq_nucpos", {}).get("fiberseq_nucpos_run", {}).get("downstream_nucs", 5),
+        min_fibers = config.get("Params", {}).get("fiberseq_nucpos", {}).get("fiberseq_nucpos_run", {}).get("min_fibers", 10),
         formats = _formats_run,   # ③ 转发
     run:
         log_path = str(log)
@@ -61,6 +56,7 @@ rule fiberseq_nucpos_run:
             sample_outdir = os.path.dirname(str(output.per_anchor))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"fiberseq_nucpos_run_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             # timestamped copy stays in log/cmd as history; the outdir copy
             # (no timestamp, overwritten each run) documents the current command
             # next to the results it produced
@@ -85,7 +81,8 @@ rule fiberseq_nucpos_run:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "fiberseq_nucpos_run for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during fiberseq_nucpos_run for {wildcards.sample_id}: {e}\n")
             raise RuntimeError(f"Error occurred during fiberseq_nucpos_run for {wildcards.sample_id}: {e}\n")
@@ -96,8 +93,3 @@ rule fiberseq_nucpos_result:
                          sample_id=samples),
         plots = expand(outdir + "/{sample_id}/{sample_id}.nucpos.{fmt}",
                        sample_id=samples, fmt=_formats_result),
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "fiberseq_nucpos_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

@@ -48,6 +48,7 @@ rule derive_targets:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start derive_targets at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"derive_targets_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, "derive_targets.sh")
             os.makedirs(outdir, exist_ok=True)
             cmd = [
@@ -65,7 +66,8 @@ rule derive_targets:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during derive_targets: {e}")
             raise RuntimeError(f"Error occurred during derive_targets: {e}, you can check the log file {log_path} for more details.")

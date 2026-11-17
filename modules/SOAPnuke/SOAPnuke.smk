@@ -43,6 +43,7 @@ rule soapnuke_filter_paired:
             sample_outdir = params.workdir
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"soapnuke_filter_paired_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"soapnuke_filter_paired.sh")
 
             cmd = [
@@ -65,7 +66,8 @@ rule soapnuke_filter_paired:
                 f.write(f"mv {sample_outdir}/{params.clean_fastq2} {output.clean_fastq2}\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
 
             rule_logger.info(f"soapnuke_filter_paired for sample {wildcards.sample_id} completed")
         except Exception as e:
@@ -108,6 +110,7 @@ rule soapnuke_filter_single:
             sample_outdir = params.workdir
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"soapnuke_filter_single_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"soapnuke_filter_single.sh")
 
             cmd = [
@@ -127,7 +130,8 @@ rule soapnuke_filter_single:
                 f.write(f"mv {sample_outdir}/{params.clean_fastq} {output.clean_fastq}\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
 
             rule_logger.info(f"soapnuke_filter_single for sample {wildcards.sample_id} completed")
         except Exception as e:
@@ -138,17 +142,6 @@ rule soapnuke_filter_paired_result:
     input:
         clean_fastq1 = outdir + "/{sample_id}/{sample_id}_1.fq.gz",
         clean_fastq2 = outdir + "/{sample_id}/{sample_id}_2.fq.gz",
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "soapnuke_filter_paired_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),
-
 rule soapnuke_filter_single_result:
     input:
         clean_fastq = outdir + "/{sample_id}/{sample_id}.single.fq.gz",
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "soapnuke_filter_single_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

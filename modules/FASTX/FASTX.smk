@@ -38,6 +38,7 @@ rule fastx_quality_filter_single:
             sample_outdir = os.path.join(params.outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"fastx_quality_filter_single_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, "fastx_quality_filter_single.sh")
             cmd = [
                 params.fastx_toolkit,
@@ -53,7 +54,8 @@ rule fastx_quality_filter_single:
                 f.write(f'echo "fastx_quality_filter_single for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
             rule_logger.info("Executing: " + " ".join(cmd))
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"fastx_quality_filter_single for sample {wildcards.sample_id} completed")
         except Exception as e:
             rule_logger.error(f"Error occurred during fastx_quality_filter_single for sample {wildcards.sample_id}: {e}")

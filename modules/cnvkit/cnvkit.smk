@@ -14,8 +14,7 @@ control_samples = config.get("control_samples", [])
 #            + cnvkit_batch --reference)
 #   flat   - no reference at all (bare -n; uniform expected coverage)
 # 参数精确到 rule:method/mode 按 rule 独立配置(Params.cnvkit.<rule_name>.method
-# /.mode),无 module 级共享回退;rule_param 见 common.smk。
-_cnvkit_params = config.get("Params", {}).get("cnvkit", {})
+# /.mode),无 module 级共享回退。
 _paired_design_raw = config.get("paired_design") or []
 if isinstance(_paired_design_raw, list):
     paired_design = {
@@ -30,34 +29,15 @@ targets_bed = config.get("genome", {}).get("targets")
 paired_tumors = list(paired_design.keys())
 
 
-def _cnvkit_method(rule_name):
-    """Per-rule CNVkit calling method (wgs/hybrid; parse 期解析)。"""
-    return rule_param(_cnvkit_params, rule_name, "method", "wgs")
-
-
-def _cnvkit_use_paired(rule_name):
-    """Per-rule calling mode; "paired" = per-pair runs (parse 期解析)。"""
-    mode = rule_param(_cnvkit_params, rule_name, "mode", "auto")
-    if mode not in ("auto", "paired", "pooled", "flat"):
-        raise ValueError(
-            f"cnvkit: unknown Params.cnvkit.{rule_name}.mode '{mode}'; "
-            "expected one of: auto, paired, pooled, flat."
-        )
-    if mode == "paired" and not paired_design:
-        raise ValueError(
-            f"cnvkit: Params.cnvkit.{rule_name}.mode 'paired' but paired_design "
-            "is empty; fill it (or let node.py derive it from the meta design)."
-        )
-    return mode == "paired"
-
-
-# 每 rule 一个 parse 期变量(module 级共享读取已删除)。
-_cnvkit_reference_method = _cnvkit_method("cnvkit_reference")
-_cnvkit_reference_use_paired = _cnvkit_use_paired("cnvkit_reference")
-_cnvkit_batch_method = _cnvkit_method("cnvkit_batch")
-_cnvkit_batch_use_paired = _cnvkit_use_paired("cnvkit_batch")
-_cnvkit_paired_method = _cnvkit_method("cnvkit_paired")
-_cnvkit_paired_use_paired = _cnvkit_use_paired("cnvkit_paired")
+# 每 rule 一个 parse 期变量(module 级共享读取已删除)。method/mode 写
+# Params.cnvkit.<rule_name> config 全量路径;配置形状(mode 枚举、
+# paired_design)由 schema(run.py)与 node.py 保证,模块只取值不审判。
+_cnvkit_reference_method = config.get("Params", {}).get("cnvkit", {}).get("cnvkit_reference", {}).get("method", "wgs")
+_cnvkit_reference_use_paired = config.get("Params", {}).get("cnvkit", {}).get("cnvkit_reference", {}).get("mode", "auto") == "paired"
+_cnvkit_batch_method = config.get("Params", {}).get("cnvkit", {}).get("cnvkit_batch", {}).get("method", "wgs")
+_cnvkit_batch_use_paired = config.get("Params", {}).get("cnvkit", {}).get("cnvkit_batch", {}).get("mode", "auto") == "paired"
+_cnvkit_paired_method = config.get("Params", {}).get("cnvkit", {}).get("cnvkit_paired", {}).get("method", "wgs")
+_cnvkit_paired_use_paired = config.get("Params", {}).get("cnvkit", {}).get("cnvkit_paired", {}).get("mode", "auto") == "paired"
 
 # 结果聚合粒度跟随 cnvkit_paired(paired 模式按 tumor 聚合)。
 cnv_samples = paired_tumors if _cnvkit_paired_use_paired else list(samples)
@@ -98,6 +78,7 @@ rule cnvkit_reference:
             sample_outdir = os.path.dirname(str(output.ref))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"cnvkit_reference_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"cnvkit_reference.sh")
             cmd = [params.cnvkit, "batch"]
             cmd += [str(bam) for bam in input.control_bams]
@@ -112,7 +93,8 @@ rule cnvkit_reference:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during cnvkit reference build: {e}")
             raise RuntimeError(f"Error occurred during cnvkit reference build: {e}, you can check the log file {log_path} for more details.")
@@ -152,6 +134,7 @@ rule cnvkit_batch:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start cnvkit batch at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"cnvkit_batch_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(str(outdir), f"cnvkit_batch.sh")
             os.makedirs(str(outdir), exist_ok=True)
             os.makedirs(params.staging, exist_ok=True)
@@ -195,7 +178,8 @@ rule cnvkit_batch:
                 f.write(f'rm -rf "{params.staging}"\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during cnvkit batch: {e}")
             raise RuntimeError(f"Error occurred during cnvkit batch: {e}, you can check the log file {log_path} for more details.")
@@ -254,6 +238,7 @@ rule cnvkit_paired:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start cnvkit batch (paired) for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"cnvkit_paired_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(str(outdir), wildcards.sample_id, f"cnvkit_paired.sh")
             os.makedirs(os.path.join(str(outdir), wildcards.sample_id), exist_ok=True)
             os.makedirs(params.staging, exist_ok=True)
@@ -298,7 +283,8 @@ rule cnvkit_paired:
                 f.write(f'fi\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during cnvkit batch (paired) for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred during cnvkit batch (paired) for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")
@@ -308,8 +294,3 @@ rule cnvkit_result:
     input:
         cnr = expand(outdir + "/{sample_id}/{sample_id}.cnr", sample_id=cnv_samples),
         cns = expand(outdir + "/{sample_id}/{sample_id}.cns", sample_id=cnv_samples)
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "cnvkit_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

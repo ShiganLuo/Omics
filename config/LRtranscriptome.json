@@ -122,9 +122,6 @@
         "min_mem_mb": 8000,
         "max_mem_mb": 200000
       }
-    },
-    "stringtie_lr_result": {
-      "mem_mb": 8000
     }
   },
   "Procedure": {

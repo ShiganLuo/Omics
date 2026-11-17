@@ -106,13 +106,15 @@ rule qc_summary:
             cmd += ["--log", log_path]
 
             script = os.path.join(RECEIPT_DIR, f"qc_summary_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(summary_dir, "qc_summary.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
                 f.write('echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"qc_summary completed: {output.tsv}")
         except Exception as e:
             rule_logger.error(f"Error occurred during qc_summary: {e}")
@@ -124,8 +126,3 @@ rule qc_summary_result:
     input:
         tsv = outdir + "/qc_summary.tsv",
         html = outdir + "/qc_summary.html",
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "qc_summary_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

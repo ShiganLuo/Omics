@@ -7,8 +7,7 @@ fasta = config.get("reference", {}).get("fasta")
 interval = config.get("reference", {}).get("interval")
 known_sites = config.get("reference", {}).get("known_sites", [])
 # 参数精确到 rule:javaOptions/tmp-dir 按 rule 独立配置(Params.gatk.<rule_name>
-# .javaOptions/.tmp-dir),无 module 级共享;rule_param 见 common.smk。
-_gatk_params = config.get("Params", {}).get("gatk", {})
+# .javaOptions/.tmp-dir),无 module 级共享。
 
 rule BaseRecalibrator:
     input:
@@ -31,8 +30,8 @@ rule BaseRecalibrator:
     container:
         sif("../gatk.yaml", "BaseRecalibrator")
     params:
-        javaOptions = rule_param(_gatk_params, "BaseRecalibrator", "javaOptions", "-Xmx30g"),
-        tmp_dir = rule_param(_gatk_params, "BaseRecalibrator", "tmp-dir", None),
+        javaOptions = config.get("Params", {}).get("gatk", {}).get("BaseRecalibrator", {}).get("javaOptions", "-Xmx30g"),
+        tmp_dir = config.get("Params", {}).get("gatk", {}).get("BaseRecalibrator", {}).get("tmp-dir", None),
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         known_sites = " ".join([f"--known-sites {ks}" for ks in known_sites])
     run:
@@ -44,6 +43,7 @@ rule BaseRecalibrator:
             rule_logger.info(f"Start BaseRecalibrator for sample {wildcards.sample_id} at {current_time}")
             os.makedirs(os.path.dirname(str(output.table)), exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"BaseRecalibrator_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/BaseRecalibrator.sh")
             os.makedirs(os.path.dirname(plain_script), exist_ok=True)
             cmd = [
@@ -65,7 +65,8 @@ rule BaseRecalibrator:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'BaseRecalibrator completed successfully for sample {wildcards.sample_id}'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during BaseRecalibrator execution: {str(e)}")
             raise RuntimeError(f"Error occurred while running BaseRecalibrator for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")
@@ -91,9 +92,9 @@ rule ApplyBQSR:
             "ApplyBQSR", input_size=input_size_named(input, 'bam'),
             attempt=attempt).get("mem_mb", 16000),
     params:
-        javaOptions = rule_param(_gatk_params, "ApplyBQSR", "javaOptions", "-Xmx30g"),
+        javaOptions = config.get("Params", {}).get("gatk", {}).get("ApplyBQSR", {}).get("javaOptions", "-Xmx30g"),
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
-        tmp_dir = rule_param(_gatk_params, "ApplyBQSR", "tmp-dir", None),
+        tmp_dir = config.get("Params", {}).get("gatk", {}).get("ApplyBQSR", {}).get("tmp-dir", None),
         interval = interval
     run:
         log_path = str(log)
@@ -104,6 +105,7 @@ rule ApplyBQSR:
             rule_logger.info(f"Start ApplyBQSR for sample {wildcards.sample_id} at {current_time}")
             os.makedirs(os.path.dirname(str(output.bam)), exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"ApplyBQSR_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/ApplyBQSR.sh")
             os.makedirs(os.path.dirname(plain_script), exist_ok=True)
             cmd = [
@@ -123,7 +125,8 @@ rule ApplyBQSR:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'ApplyBQSR completed successfully for sample {wildcards.sample_id}'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during ApplyBQSR execution: {str(e)}")
             raise RuntimeError(f"Error occurred while running ApplyBQSR for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")
@@ -132,8 +135,3 @@ rule gatk_bqsr_result:
     input:
         bam = outdir + "/{sample_id}/{sample_id}.sorted_markdup.bqsr.bam",
         bai = outdir + "/{sample_id}/{sample_id}.sorted_markdup.bqsr.bam.bai"
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "gatk_bqsr_result", input_size=input_size_named(input, 'bam'),
-            attempt=attempt).get("mem_mb", 8000),

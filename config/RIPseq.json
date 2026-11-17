@@ -266,10 +266,6 @@
       "threads": 4,
       "mem_mb": 8000
     },
-    "bigwig_ratio_result": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
     "collectHsMetrics": {
       "threads": 4
     },

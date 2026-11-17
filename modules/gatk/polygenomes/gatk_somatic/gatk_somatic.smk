@@ -4,8 +4,7 @@ indir = config.get("indir") or "input"
 outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
 # 参数精确到 rule:javaOptions/tmp-dir 按 rule 独立配置(Params.gatk.<rule_name>
-# .javaOptions/.tmp-dir),无 module 级共享;rule_param 见 common.smk。
-_gatk_params = config.get("Params", {}).get("gatk", {})
+# .javaOptions/.tmp-dir),无 module 级共享。
 
 def get_input_somaticMutect2(wildcards):
     """
@@ -54,9 +53,9 @@ rule somaticMutect2:
     container:
         sif("../../gatk.yaml", "somaticMutect2")
     params:
-        javaOptions = rule_param(_gatk_params, "somaticMutect2", "javaOptions", "-Xmx30g"),
+        javaOptions = config.get("Params", {}).get("gatk", {}).get("somaticMutect2", {}).get("javaOptions", "-Xmx30g"),
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
-        tmp_dir = rule_param(_gatk_params, "somaticMutect2", "tmp-dir", None),
+        tmp_dir = config.get("Params", {}).get("gatk", {}).get("somaticMutect2", {}).get("tmp-dir", None),
         parameters = config.get("mutect2_parameters") or ""
     threads: rule_res("somaticMutect2").get("threads", 10)
     benchmark: logdir + "/{genome}/all/gatk/{normal_sample_id}_{experimental_sample_id}/mutect2.benchmark.tsv",
@@ -72,6 +71,7 @@ rule somaticMutect2:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start somaticMutect2 for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} genome {wildcards.genome} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"mutect2_{wildcards.normal_sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.genome}/mutect2-vcf/{wildcards.normal_sample_id}_vs_{wildcards.experimental_sample_id}/mutect2.sh")
             cmd = [
                 params.gatk, "Mutect2",
@@ -90,7 +90,8 @@ rule somaticMutect2:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "somaticMutect2 for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} on genome {wildcards.genome} successfully completed!"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during somaticMutect2 execution: {str(e)}")
             raise RuntimeError(f"Error occurred while running somaticMutect2 for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} genome {wildcards.genome}: {e}, you can check the log file {log_path} for more details.")

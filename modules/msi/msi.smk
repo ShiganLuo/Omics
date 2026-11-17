@@ -17,20 +17,12 @@ BAR_PLOT = os.path.join(ROOT_DIR, "modules", "msi", "bin", "bar_plot.r")
 # bar_plot.r output formats (Params.msi.msi_plot.formats); valid set is the R
 # base-graphics device set (png pdf svg ps eps tif tiff jpg jpeg). Default
 # ["jpg"] keeps the historical single msi_barplot.jpg output.
-# 参数精确到 rule:formats 挂 msi_plot 名下(单 plot rule 消费;
-# 无 module 级共享回退,rule_param 见 common.smk)。
-_msi_params = config.get("Params", {}).get("msi", {})
-
-
-def _rule_formats(rule_name):
-    """Per-rule figure formats (parse 期解析,output 展开与 CLI 转发共用)。"""
-    fmts = rule_param(_msi_params, rule_name, "formats", ["jpg"])
-    return [fmts] if isinstance(fmts, str) else fmts
-
-
-# 每 rule 一个 parse 期变量;msi_result 聚合 msi_plot 输出,展开同一 rule 键。
-_formats_msi_plot = _rule_formats("msi_plot")
-_formats_msi_result = _rule_formats("msi_plot")
+_formats_msi_plot = config.get("Params", {}).get("msi", {}).get("msi_plot", {}).get("formats") or ["jpg"]
+if isinstance(_formats_msi_plot, str):
+    _formats_msi_plot = [_formats_msi_plot]
+_formats_msi_result = config.get("Params", {}).get("msi", {}).get("msi_plot", {}).get("formats") or ["jpg"]
+if isinstance(_formats_msi_result, str):
+    _formats_msi_result = [_formats_msi_result]
 
 def _bam(sample_id):
     if bam_substring != "":
@@ -69,6 +61,7 @@ rule msi_scan:
             scan_dir = os.path.dirname(str(output.scan))
             os.makedirs(scan_dir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"msi_scan_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(scan_dir, "msi_scan.sh")
             cmd = [
                 params.msisensorpro, "scan",
@@ -81,7 +74,8 @@ rule msi_scan:
                 f.write(f'echo "msi scan was completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during msi scan: {e}\n")
             raise RuntimeError(f"Error occurred during msi scan: {e}, you can check the log file {log_path} for more details.\n")
@@ -121,6 +115,7 @@ rule msi_call:
             sample_outdir = os.path.dirname(str(output.msi))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"msi_call_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"msi_call_{wildcards.sample_id}.sh")
             cmd = [
                 params.msisensorpro, "msi",
@@ -135,7 +130,8 @@ rule msi_call:
                 f.write(f'echo "msi call for {wildcards.sample_id} was completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during msi call for sample {wildcards.sample_id}: {e}\n")
             raise RuntimeError(f"Error occurred during msi call for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.\n")
@@ -183,6 +179,7 @@ rule msi_plot:
                                 continue
                             f.write(f"{sample}\t{line.split()[2]}\n")
             script = os.path.join(RECEIPT_DIR, f"msi_plot_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, "msi_plot.sh")
             cmd = [
                 params.rscript, params.bar_plot,
@@ -197,7 +194,8 @@ rule msi_plot:
                 f.write(f'echo "msi plot was completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during msi plot: {e}\n")
             raise RuntimeError(f"Error occurred during msi plot: {e}, you can check the log file {log_path} for more details.\n")

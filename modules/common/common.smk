@@ -33,6 +33,12 @@ OUTDIR_ROOT = config.get("OUTDIR_ROOT") or "output"
 RECEIPT_DIR = os.path.join(OUTDIR_ROOT, "log", "cmd")
 os.makedirs(RECEIPT_DIR, exist_ok=True)
 
+# 测试模式(run.py --test 置环境变量 OMICS_SCRIPT_ONLY=1):输出 shell 脚本
+# 但不执行——run 块末尾以 SCRIPT_ONLY 判断跳过 bash 执行,回执脚本照常双写
+# 落盘,供跨版本 diff 对照参数传递语义;不制造任何输出占位(占位会污染真实
+# 输出目录的 mtime)。
+SCRIPT_ONLY = os.environ.get("OMICS_SCRIPT_ONLY", "") == "1"
+
 # Ensure src directory is in sys.path for importing common modules
 _src_dir = os.path.join(ROOT_DIR, "src")
 if _src_dir not in sys.path:
@@ -229,46 +235,6 @@ class _RuleRes(dict):
 
     def __getitem__(self, key):
         return _clamp_res_value(key, super().__getitem__(key), self._caps)
-
-
-def rule_param(section, rule_name, key, default=None):
-    """参数精确到 rule:读取 ``<section>.<rule_name>.<key>``。
-
-    每个参数挂在消费它的 rule 名下,不做 module 级共享回退(2026-11 规范:
-    参数必须可按 rule 精准控制;rule 子段未配置时返回代码内置 ``default``)。
-    配置形状(模块参数段中的 rule 子段,polygenomes 在 genome/counter 段内)::
-
-        Params.<module>.<rule_name>.<key>          # 普通模块
-        Params.<module>.<genome>.<rule_name>.<key>  # polygenomes(genome 段内)
-        Params.<module>.<counter>.<rule_name>.<key> # scanpy 等(counter 段内)
-
-    Usage in a rule::
-
-        quality = rule_param(cutadapt_params, "trimming_Paired", "quality", 20)
-
-    Parameters
-    ----------
-    section : dict
-        The module's params dict the rule reads from (e.g. Params.cutadapt,
-        or its per-genome/per-counter sub-dict).
-    rule_name : str
-        The consuming rule's name (must match the rule declared in the
-        snakefile).
-    key : str
-        Parameter name (leaf key inside the rule's sub-section).
-    default : Any, optional
-        Built-in default returned when the rule sub-section lacks the key.
-
-    Returns
-    -------
-    Any
-        The rule-scoped value, or ``default``.
-    """
-    if isinstance(section, dict):
-        sub = section.get(rule_name)
-        if isinstance(sub, dict) and key in sub and sub[key] is not None:
-            return sub[key]
-    return default
 
 
 def rule_res(name, input_size=None, attempt=1):

@@ -1,4 +1,5 @@
 include: "../../common/common.smk"
+epifany = config.get("Procedure", {}).get("epifany") or "Epifany"
 
 indir = config.get("indir", "data/psm_fdr")
 outdir = config.get("outdir", "output")
@@ -6,12 +7,8 @@ logdir = config.get("logdir", "logs")
 samples = config.get("samples", [])
 
 # Get parameters
-# 参数精确到 rule(2026-11 规范;rule_param 见 common.smk):
+# 参数精确到 rule(2026-11 规范):config 全量路径字面链
 # Params.protein_inference.protein_inference.<key>,无 module 级共享回退。
-pi_params = config.get("Params", {}).get("protein_inference", {})
-
-# Get executables
-epifany = config.get("Procedure", {}).get("epifany") or "Epifany"
 
 rule protein_inference:
     input:
@@ -31,8 +28,8 @@ rule protein_inference:
         sif("../openms.yaml", "protein_inference")
     params:
         epifany = epifany,
-        method = rule_param(pi_params, "protein_inference", "method", "epifany"),
-        greedy_group_resolution = rule_param(pi_params, "protein_inference", "greedy_group_resolution", "none")
+        method = config.get("Params", {}).get("protein_inference", {}).get("protein_inference", {}).get("method", "epifany"),
+        greedy_group_resolution = config.get("Params", {}).get("protein_inference", {}).get("protein_inference", {}).get("greedy_group_resolution", "none")
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -55,6 +52,7 @@ rule protein_inference:
                     "(search/identification quality) before protein inference"
                 )
             script = os.path.join(RECEIPT_DIR, f"protein_inference_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/protein_inference.sh")
             # Epifany (OpenMS 3.1) has no -algorithm:method: it only runs the
             # Bayesian inference; greedy_group_resolution is a TOPP-level
@@ -75,7 +73,8 @@ rule protein_inference:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f"echo 'Protein inference for {wildcards.sample_id} was completed successfully'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"rule protein_inference was call failed,error: {e}")
             raise RuntimeError(f"rule protein_inference was call failed,error: {e}")
@@ -83,8 +82,3 @@ rule protein_inference:
 rule protein_inference_result:
     input:
         protein_idxml = outdir + "/{sample_id}/{sample_id}_protein.idXML"
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "protein_inference_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

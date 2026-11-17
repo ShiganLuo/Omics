@@ -180,12 +180,6 @@
       "threads": 2,
       "mem_mb": 8000
     },
-    "gatk_bqsr_result": {
-      "mem_mb": 8000
-    },
-    "gatk_haplotypeCaller_result": {
-      "mem_mb": 8000
-    },
     "gatk_index": {
       "threads": 4,
       "mem_mb": 8000
@@ -195,9 +189,6 @@
     },
     "gatk_population_joint_genotyping": {
       "threads": 8
-    },
-    "gatk_prepare_result": {
-      "mem_mb": 8000
     },
     "germline_resource_strain": {
       "threads": 2,

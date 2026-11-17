@@ -27,6 +27,7 @@ rule extract_rRNA:
     run:
         current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
         script = os.path.join(RECEIPT_DIR, f"extract_rRNA_{current_time}.sh")
+        os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
         plain_script = f"{outdir}/extract_rRNA.sh"
         cmd = ["python", params.extract_rRNA_script, 
                 "--fasta", input.fasta, 
@@ -38,5 +39,6 @@ rule extract_rRNA:
             f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
             f.write(" ".join(cmd) + "\n")
             f.write(f'echo "script completed successfully"\n')
-        shell("bash {plain_script} > {log} 2>&1")
+        if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            shell("bash {plain_script} > {log} 2>&1")
 

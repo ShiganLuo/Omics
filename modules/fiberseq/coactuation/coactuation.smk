@@ -7,7 +7,6 @@ logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
-_coactuation_params = config.get("Params", {}).get("fiberseq_coactuation", {})
 rule fiberseq_coactuation_run:
     """Same-fiber co-actuation of region pairs (Fisher + actual vs expected)."""
     input:
@@ -32,11 +31,11 @@ rule fiberseq_coactuation_run:
         sif("../fiberseq.yaml", "fiberseq_coactuation_run")
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/coactuation.py",
-        # 参数精确到 rule:Params.fiberseq_coactuation.fiberseq_coactuation_run.<key>
-        max_distance = rule_param(_coactuation_params, "fiberseq_coactuation_run", "max_distance", 50000),
-        min_fibers = rule_param(_coactuation_params, "fiberseq_coactuation_run", "min_fibers", 10),
-        max_pairs = rule_param(_coactuation_params, "fiberseq_coactuation_run", "max_pairs", 200000),
-        alpha = rule_param(_coactuation_params, "fiberseq_coactuation_run", "alpha", 0.05),
+        # 参数精确到 rule:Params.fiberseq_coactuation.fiberseq_coactuation_run.<key>(config 全量路径读取)
+        max_distance = config.get("Params", {}).get("fiberseq_coactuation", {}).get("fiberseq_coactuation_run", {}).get("max_distance", 50000),
+        min_fibers = config.get("Params", {}).get("fiberseq_coactuation", {}).get("fiberseq_coactuation_run", {}).get("min_fibers", 10),
+        max_pairs = config.get("Params", {}).get("fiberseq_coactuation", {}).get("fiberseq_coactuation_run", {}).get("max_pairs", 200000),
+        alpha = config.get("Params", {}).get("fiberseq_coactuation", {}).get("fiberseq_coactuation_run", {}).get("alpha", 0.05),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -47,6 +46,7 @@ rule fiberseq_coactuation_run:
             sample_outdir = os.path.dirname(str(output.pairs))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"fiberseq_coactuation_run_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             # timestamped copy stays in log/cmd as history; the outdir copy
             # (no timestamp, overwritten each run) documents the current command
             # next to the results it produced
@@ -71,7 +71,8 @@ rule fiberseq_coactuation_run:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "fiberseq_coactuation_run for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during fiberseq_coactuation_run for {wildcards.sample_id}: {e}\n")
             raise RuntimeError(f"Error occurred during fiberseq_coactuation_run for {wildcards.sample_id}: {e}\n")
@@ -80,8 +81,3 @@ rule fiberseq_coactuation_result:
     input:
         pairs = expand(outdir + "/{sample_id}/{sample_id}.coactuation.tsv",
                        sample_id=samples),
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "fiberseq_coactuation_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

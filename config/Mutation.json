@@ -261,10 +261,6 @@
       "threads": 1,
       "mem_mb": 8000
     },
-    "burden_result": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
     "burden_snv_indel": {
       "threads": 1,
       "mem_mb": 8000
@@ -325,12 +321,6 @@
     },
     "filterMutectCalls": {
       "threads": 2,
-      "mem_mb": 8000
-    },
-    "gatk_bqsr_result": {
-      "mem_mb": 8000
-    },
-    "gatk_haplotypeCaller_result": {
       "mem_mb": 8000
     },
     "gatk_index": {

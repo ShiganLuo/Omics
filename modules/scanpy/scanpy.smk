@@ -11,31 +11,15 @@ outdir_pseudobulk = config.get("outdir_pseudobulk", outdir_combine)
 logdir_combine = config.get("logdir_combine", logdir)
 
 procedure = config.get("Procedure", {})
-params = config.get("Params", {}).get("scanpy", {})
-# tissue_samples: {tissue: [sample_id, ...]} — from node.py
-tissue_samples = params.get("tissue_samples", {})
-tissues = sorted(tissue_samples.keys())
 python = procedure.get("python") or "python"
+
+# tissue_samples: {tissue: [sample_id, ...]} — from node.py
+tissue_samples = config.get("Params", {}).get("scanpy", {}).get("tissue_samples", {})
 script = os.path.join(ROOT_DIR, "modules", "scanpy", "bin", "scRNAseq.py")
 
-# 参数精确到 rule:Params.scanpy.<counter>.<rule_name>.<key>(rule_param 见
-# common.smk;无 counter 级共享回退)。原 qc/auto/advanced/cluster/pseudobulk
+# 参数精确到 rule:Params.scanpy.<counter>.<rule_name>.<key>(无 counter 级共享回退)。原 qc/auto/advanced/cluster/pseudobulk
 # 参数段逐 key 挂到消费它的 rule 名下(scanpy_qc / scanpy_merge / scanpy_auto /
 # scanpy_reannotate / scanpy_advanced / scanpy_pseudobulk)各 rule 独立。
-
-
-def _image_formats(wildcards, rule_name: str) -> list:
-    """Resolve image formats for one rule's figures (modules.md #9).
-
-    参数精确到 rule:Params.scanpy.<counter>.<rule_name>.formats -> ["png"]
-    (today's fixed output names). No counter-level shared ``formats``
-    fallback (rule_param, common.smk) — each rule carries its own key.
-    Plot outputs are directory() (pre-existing shape, unchanged); the files
-    written inside carry the requested extensions via the script's
-    repeatable ``--format`` flag.
-    """
-    fmts = rule_param(params.get(wildcards.counter), rule_name, "formats", ["png"])
-    return [fmts] if isinstance(fmts, str) else [str(f) for f in fmts]
 
 
 # Gene type annotation references
@@ -68,14 +52,15 @@ rule scanpy_qc:
         python=python,
         script=script,
         # 参数精确到 rule:Params.scanpy.<counter>.scanpy_qc.<key>
-        min_genes=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_qc", "min_genes", 200),
-        max_genes=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_qc", "max_genes", 6000),
-        max_pct_mt=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_qc", "max_pct_mt", 20),
-        n_top_genes=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_qc", "n_top_genes", 3000),
-        use_mad=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_qc", "use_mad", False),
-        scrublet=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_qc", "scrublet", True),
-        doublet_rate=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_qc", "doublet_rate", 0.06),
-        formats=lambda wildcards: _image_formats(wildcards, "scanpy_qc")
+        min_genes=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_qc", {}).get("min_genes", 200),
+        max_genes=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_qc", {}).get("max_genes", 6000),
+        max_pct_mt=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_qc", {}).get("max_pct_mt", 20),
+        n_top_genes=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_qc", {}).get("n_top_genes", 3000),
+        use_mad=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_qc", {}).get("use_mad", False),
+        scrublet=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_qc", {}).get("scrublet", True),
+        doublet_rate=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_qc", {}).get("doublet_rate", 0.06),
+        formats=lambda wildcards: (lambda fmts: [fmts] if isinstance(fmts, str) else [str(f) for f in fmts])(
+            config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_qc", {}).get("formats") or ["png"])
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -87,6 +72,7 @@ rule scanpy_qc:
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(str(output.plot_dir), exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"scanpy_qc_{wildcards.counter}_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"scanpy_qc_{wildcards.counter}_{wildcards.sample_id}.sh")
             cmd = [params.python, params.script, "qc",
                    "-i", input.h5ad,
@@ -117,7 +103,8 @@ rule scanpy_qc:
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy QC for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during scanpy QC for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred during scanpy QC for sample {wildcards.sample_id}: {e}")
@@ -153,7 +140,8 @@ rule scanpy_merge:
         te_bed=te_bed,
         gene_tsv=gene_tsv,
         # 参数精确到 rule:Params.scanpy.<counter>.scanpy_merge.formats
-        formats=lambda wildcards: _image_formats(wildcards, "scanpy_merge")
+        formats=lambda wildcards: (lambda fmts: [fmts] if isinstance(fmts, str) else [str(f) for f in fmts])(
+            config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_merge", {}).get("formats") or ["png"])
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -165,6 +153,7 @@ rule scanpy_merge:
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(str(output.plot_dir), exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"scanpy_merge_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"scanpy_merge_{wildcards.counter}_{wildcards.tissue}.sh")
             cmd = [params.python, params.script, "merge",
                    "-i"] + list(input.h5ad) + ["-o", output.h5ad]
@@ -188,7 +177,8 @@ rule scanpy_merge:
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy merge for {wildcards.tissue} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during scanpy merge for tissue {wildcards.tissue}: {e}")
             raise RuntimeError(f"Error occurred during scanpy merge for tissue {wildcards.tissue}: {e}")
@@ -216,31 +206,32 @@ rule scanpy_auto:
         tissue=lambda wildcards: wildcards.tissue,
         # 参数精确到 rule:Params.scanpy.<counter>.scanpy_auto.<key>
         # (原 auto/cluster 参数段逐 key 挂到 scanpy_auto 名下)
-        llm_method=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_auto", "llm_method", ""),
-        llm_model=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_auto", "llm_model", ""),
-        llm_api_key=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_auto", "llm_api_key", ""),
-        llm_base_url=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_auto", "llm_base_url", ""),
-        resolution=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_auto", "resolution", 0.8),
-        max_iterations=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_auto", "max_iterations", 3),
-        min_genes=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_auto", "min_genes", 800),
-        min_counts=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_auto", "min_counts", 3000),
-        max_pct_mt=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_auto", "max_pct_mt", 20),
-        n_pcs=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_auto", "n_pcs", 50),
-        n_neighbors=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_auto", "n_neighbors", 50),
-        n_top_genes=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_auto", "n_top_genes", 3000),
-        batch_method=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_auto", "batch_method", "harmony"),
-        batch_key=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_auto", "batch_key", "sample_id"),
-        auto_n_pcs=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_auto", "auto_n_pcs", True),
-        skip_te=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_auto", "skip_te", True),
-        regress_cell_cycle=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_auto", "regress_cell_cycle", True),
-        save_iteration_h5ad=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_auto", "save_iteration_h5ad", False),
+        llm_method=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("llm_method", ""),
+        llm_model=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("llm_model", ""),
+        llm_api_key=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("llm_api_key", ""),
+        llm_base_url=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("llm_base_url", ""),
+        resolution=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("resolution", 0.8),
+        max_iterations=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("max_iterations", 3),
+        min_genes=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("min_genes", 800),
+        min_counts=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("min_counts", 3000),
+        max_pct_mt=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("max_pct_mt", 20),
+        n_pcs=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("n_pcs", 50),
+        n_neighbors=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("n_neighbors", 50),
+        n_top_genes=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("n_top_genes", 3000),
+        batch_method=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("batch_method", "harmony"),
+        batch_key=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("batch_key", "sample_id"),
+        auto_n_pcs=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("auto_n_pcs", True),
+        skip_te=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("skip_te", True),
+        regress_cell_cycle=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("regress_cell_cycle", True),
+        save_iteration_h5ad=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("save_iteration_h5ad", False),
         # marker_supplement 原为 scanpy_auto/scanpy_reannotate 共享 key;
         # 现按 rule 独立(Params.scanpy.<counter>.scanpy_auto.marker_supplement)
-        marker_supplement=lambda wildcards: (rule_param(params.get(wildcards.counter), "scanpy_auto", "marker_supplement", {}) or {}).get(wildcards.tissue, ""),
-        marker_supplement_llm=lambda wildcards: bool(rule_param(params.get(wildcards.counter), "scanpy_auto", "marker_supplement_llm", True)),
-        exclude_genes=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_auto", "exclude_genes", "") or "",
-        exclude_from_deg=lambda wildcards: bool(rule_param(params.get(wildcards.counter), "scanpy_auto", "exclude_from_deg", False)),
-        formats=lambda wildcards: _image_formats(wildcards, "scanpy_auto"),
+        marker_supplement=lambda wildcards: (config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("marker_supplement", {}) or {}).get(wildcards.tissue, ""),
+        marker_supplement_llm=lambda wildcards: bool(config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("marker_supplement_llm", True)),
+        exclude_genes=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("exclude_genes", "") or "",
+        exclude_from_deg=lambda wildcards: bool(config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("exclude_from_deg", False)),
+        formats=lambda wildcards: (lambda fmts: [fmts] if isinstance(fmts, str) else [str(f) for f in fmts])(
+            config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("formats") or ["png"]),
         species=species
     run:
         log_path = str(log)
@@ -310,42 +301,50 @@ rule scanpy_auto:
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy auto for {wildcards.tissue} at {current_time} completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during scanpy auto for tissue {wildcards.tissue}: {e}")
             raise RuntimeError(f"Error occurred during scanpy auto for tissue {wildcards.tissue}: {e}")
 
-def _reannotate_override(rule_name):
-    """Override JSON path for this tissue/counter under the rule's own key,
+def scanpy_reannotate_overrides(wildcards):
+    """Override JSON path for this tissue/counter under scanpy_reannotate's
+    own key (Params.scanpy.<counter>.scanpy_reannotate.cluster_annotations),
     or [] when disabled.
 
-    参数精确到 rule:Params.scanpy.<counter>.<rule_name>.cluster_annotations
-    (原 auto.cluster_annotations 共享 key 已按 rule 拆分;需要 override 或
+    原 auto.cluster_annotations 共享 key 已按 rule 拆分;需要 override 或
     排序的 rule 各自配置自己的子段,与 scanpy_reannotate 保持同值以保证
     DAG 一致 — marker 生产端(scanpy_reannotate)与消费端
-    (scanpy_advanced / scanpy_pseudobulk)按各自 key 独立解析)。
+    (scanpy_advanced / scanpy_pseudobulk)按各自 key 独立解析。
     """
-    def _get(wildcards):
-        ca = rule_param(params.get(wildcards.counter), rule_name, "cluster_annotations", {}) or {}
-        return ca.get(wildcards.tissue, "") or []
-    return _get
+    ca = config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_reannotate", {}).get("cluster_annotations", {}) or {}
+    return ca.get(wildcards.tissue, "") or []
 
 
-def _reannotate_marker(rule_name):
-    """Marker file input enforcing auto -> reannotate -> consumers ordering.
+def scanpy_advanced_reannotated(wildcards):
+    """Marker file input enforcing auto -> reannotate -> scanpy_advanced
+    ordering (Params.scanpy.<counter>.scanpy_advanced.cluster_annotations).
 
-    The reannotate step overwrites the auto h5ad in place; downstream rules
-    (advanced, pseudobulk) depend on this marker so they never read a
-    pre-override auto.h5ad. Empty when the consuming rule's own
-    cluster_annotations key has no entry for the tissue. The condition is
-    read from ``rule_name``'s sub-section (参数精确到 rule) — configure the
-    same overrides under the consumer rule name as under scanpy_reannotate
-    so the marker is requested whenever reannotate runs.
+    The reannotate step overwrites the auto h5ad in place; scanpy_advanced
+    depends on this marker so it never reads a pre-override auto.h5ad.
+    Empty when the rule's own cluster_annotations key has no entry for the
+    tissue.
     """
-    def _get(wildcards):
-        return (outdir_combine + f"/{wildcards.tissue}/{wildcards.tissue}_{wildcards.counter}_auto.h5ad.reannotated"
-                if _reannotate_override(rule_name)(wildcards) else [])
-    return _get
+    ca = config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_advanced", {}).get("cluster_annotations", {}) or {}
+    return (outdir_combine + f"/{wildcards.tissue}/{wildcards.tissue}_{wildcards.counter}_auto.h5ad.reannotated"
+            if ca.get(wildcards.tissue, "") or [] else [])
+
+
+def scanpy_pseudobulk_reannotated(wildcards):
+    """Marker file input enforcing auto -> reannotate -> scanpy_pseudobulk
+    ordering (Params.scanpy.<counter>.scanpy_pseudobulk.cluster_annotations).
+
+    Empty when the rule's own cluster_annotations key has no entry for the
+    tissue.
+    """
+    ca = config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_pseudobulk", {}).get("cluster_annotations", {}) or {}
+    return (outdir_combine + f"/{wildcards.tissue}/{wildcards.tissue}_{wildcards.counter}_auto.h5ad.reannotated"
+            if ca.get(wildcards.tissue, "") or [] else [])
 
 
 rule scanpy_reannotate:
@@ -361,7 +360,7 @@ rule scanpy_reannotate:
     """
     input:
         h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_auto.h5ad",
-        overrides = _reannotate_override("scanpy_reannotate")
+        overrides = scanpy_reannotate_overrides
     output:
         marker = outdir_combine + "/{tissue}/{tissue}_{counter}_auto.h5ad.reannotated",
     log:
@@ -379,8 +378,9 @@ rule scanpy_reannotate:
         script=script,
         # 参数精确到 rule:Params.scanpy.<counter>.scanpy_reannotate.<key>
         # (marker_supplement 原与 scanpy_auto 共享,现各自独立 key)
-        marker_supplement=lambda wildcards: (rule_param(params.get(wildcards.counter), "scanpy_reannotate", "marker_supplement", {}) or {}).get(wildcards.tissue, ""),
-        formats=lambda wildcards: _image_formats(wildcards, "scanpy_reannotate"),
+        marker_supplement=lambda wildcards: (config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_reannotate", {}).get("marker_supplement", {}) or {}).get(wildcards.tissue, ""),
+        formats=lambda wildcards: (lambda fmts: [fmts] if isinstance(fmts, str) else [str(f) for f in fmts])(
+            config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_reannotate", {}).get("formats") or ["png"]),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -390,6 +390,7 @@ rule scanpy_reannotate:
             rule_logger.info(f"Start scanpy reannotate (in-place) for tissue {wildcards.tissue}")
             sample_outdir = os.path.dirname(str(input.h5ad))
             script = os.path.join(RECEIPT_DIR, f"scanpy_reannotate_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"scanpy_reannotate_{wildcards.counter}_{wildcards.tissue}.sh")
             cmd = [params.python, params.script, "reannotate",
                    "-i", input.h5ad,
@@ -405,7 +406,8 @@ rule scanpy_reannotate:
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy reannotate for {wildcards.tissue} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
             with open(str(output.marker), "w") as f:
                 f.write(f"reannotated at {current_time}\n")
         except Exception as e:
@@ -420,7 +422,7 @@ rule scanpy_advanced:
         # ordering guard: when overrides are configured for this tissue,
         # reannotate rewrites the auto h5ad in place; this marker ensures
         # advanced reads the post-override labels.
-        reannotated = _reannotate_marker("scanpy_advanced")
+        reannotated = scanpy_advanced_reannotated
     output:
         h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_advanced.h5ad",
         plot_dir = directory(outdir_combine + "/{tissue}/plots/{counter}/advanced")
@@ -439,15 +441,16 @@ rule scanpy_advanced:
         script=script,
         # 参数精确到 rule:Params.scanpy.<counter>.scanpy_advanced.<key>
         # (原 cluster/advanced 参数段逐 key 挂到 scanpy_advanced 名下)
-        n_pcs=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_advanced", "n_pcs", 50),
-        n_neighbors=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_advanced", "n_neighbors", 15),
-        trajectory=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_advanced", "trajectory", True),
-        velocity=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_advanced", "velocity", False),
-        communication=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_advanced", "communication", False),
-        cnv=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_advanced", "cnv", False),
-        gtf=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_advanced", "gtf", ""),
-        cnv_reference=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_advanced", "cnv_reference", ""),
-        formats=lambda wildcards: _image_formats(wildcards, "scanpy_advanced")
+        n_pcs=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_advanced", {}).get("n_pcs", 50),
+        n_neighbors=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_advanced", {}).get("n_neighbors", 15),
+        trajectory=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_advanced", {}).get("trajectory", True),
+        velocity=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_advanced", {}).get("velocity", False),
+        communication=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_advanced", {}).get("communication", False),
+        cnv=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_advanced", {}).get("cnv", False),
+        gtf=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_advanced", {}).get("gtf", ""),
+        cnv_reference=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_advanced", {}).get("cnv_reference", ""),
+        formats=lambda wildcards: (lambda fmts: [fmts] if isinstance(fmts, str) else [str(f) for f in fmts])(
+            config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_advanced", {}).get("formats") or ["png"])
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -459,6 +462,7 @@ rule scanpy_advanced:
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(str(output.plot_dir), exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"scanpy_advanced_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"scanpy_advanced_{wildcards.counter}_{wildcards.tissue}.sh")
             cmd = [params.python, params.script, "advanced",
                     "-i", input.h5ad,
@@ -495,7 +499,8 @@ rule scanpy_advanced:
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy advanced analysis for {wildcards.tissue} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during scanpy advanced analysis for tissue {wildcards.tissue}: {e}")
             raise RuntimeError(f"Error occurred during scanpy advanced analysis for tissue {wildcards.tissue}: {e}")
@@ -508,8 +513,8 @@ rule scanpy_advanced:
         #   HVG-subset and its raw slot is log1p-normalised — neither is valid
         #   pseudobulk input). Runs PyDESeq2 per compare entry, plots
         #   volcano/heatmap/GO. 参数精确到 rule:compare 等逐 key 配置于
-        #   Params.scanpy.<counter>.scanpy_pseudobulk.<key>(rule_param 见
-        #   common.smk;原 pseudobulk 整段 dict 转发已展开逐 key,无共享回退)。
+        #   Params.scanpy.<counter>.scanpy_pseudobulk.<key>
+        #   (原 pseudobulk 整段 dict 转发已展开逐 key,无共享回退)。
         # ---------------------------------------------------------------------------
 rule scanpy_pseudobulk:
     """Pseudo-bulk DEG via PyDESeq2: annotations from scanpy_auto, full-gene
@@ -517,7 +522,7 @@ rule scanpy_pseudobulk:
     tissue, the reannotate marker orders pb after the in-place label fix."""
     input:
         h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_auto.h5ad",
-        reannotated = _reannotate_marker("scanpy_pseudobulk"),
+        reannotated = scanpy_pseudobulk_reannotated,
         counts = outdir_combine + "/{tissue}/{tissue}_{counter}_merged.h5ad"
     output:
         report = outdir_pseudobulk + "/{tissue}/{counter}/pseudobulk_report.html",
@@ -533,17 +538,18 @@ rule scanpy_pseudobulk:
         sif("scanpy.yaml", "scanpy_pseudobulk")
     params:
         # 参数精确到 rule:Params.scanpy.<counter>.scanpy_pseudobulk.<key>
-        # (原 pb_cfg 整段 dict 转发已展开逐 key,rule_param 见 common.smk)
-        pb_min_cells=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_pseudobulk", "min_cells", 30),
-        pb_min_counts=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_pseudobulk", "min_counts", 1000),
-        pb_n_pseudo_reps=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_pseudobulk", "n_pseudo_reps", 3),
-        pb_min_cells_per_rep=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_pseudobulk", "min_cells_per_rep", 10),
-        pb_cell_types=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_pseudobulk", "cell_types", None),
-        pb_compare=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_pseudobulk", "compare", []) or [],
-        pb_top_cell_types=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_pseudobulk", "top_cell_types", []) or [],
-        pb_highlight_genes=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_pseudobulk", "highlight_genes", []) or [],
-        pb_deg_mode=lambda wildcards: rule_param(params.get(wildcards.counter), "scanpy_pseudobulk", "deg_mode", ["all"]),
-        formats = lambda wildcards: _image_formats(wildcards, "scanpy_pseudobulk"),
+        # (原 pb_cfg 整段 dict 转发已展开逐 key)
+        pb_min_cells=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_pseudobulk", {}).get("min_cells", 30),
+        pb_min_counts=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_pseudobulk", {}).get("min_counts", 1000),
+        pb_n_pseudo_reps=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_pseudobulk", {}).get("n_pseudo_reps", 3),
+        pb_min_cells_per_rep=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_pseudobulk", {}).get("min_cells_per_rep", 10),
+        pb_cell_types=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_pseudobulk", {}).get("cell_types", None),
+        pb_compare=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_pseudobulk", {}).get("compare", []) or [],
+        pb_top_cell_types=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_pseudobulk", {}).get("top_cell_types", []) or [],
+        pb_highlight_genes=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_pseudobulk", {}).get("highlight_genes", []) or [],
+        pb_deg_mode=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_pseudobulk", {}).get("deg_mode", ["all"]),
+        formats=lambda wildcards: (lambda fmts: [fmts] if isinstance(fmts, str) else [str(f) for f in fmts])(
+            config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_pseudobulk", {}).get("formats") or ["png"]),
         python = python,
         script = os.path.join(ROOT_DIR, "modules", "scanpy", "bin", "pseudobulk.py"),
     run:
@@ -557,6 +563,7 @@ rule scanpy_pseudobulk:
             os.makedirs(out_root, exist_ok=True)
             # dual-write receipts: timestamped copy in log/cmd, plain copy in outdir
             script = os.path.join(RECEIPT_DIR, f"scanpy_pseudobulk_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(out_root, f"scanpy_pseudobulk_{wildcards.counter}_{wildcards.tissue}.sh")
             cmd = [params.python, params.script,
                    "--h5ad", f"{wildcards.tissue}={input.h5ad}",
@@ -607,7 +614,8 @@ rule scanpy_pseudobulk:
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy pseudobulk for {wildcards.tissue} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during scanpy pseudobulk for tissue {wildcards.tissue}: {e}")
             raise RuntimeError(f"Error occurred during scanpy pseudobulk for tissue {wildcards.tissue}: {e}")

@@ -59,20 +59,6 @@
           }
         }
       },
-      "mimseq_result": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
       "trimming_Paired": {
         "type": "dict",
         "required": false,

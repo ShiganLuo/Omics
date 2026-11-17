@@ -1,31 +1,15 @@
 """Strict gene-specific three-pass local alignment and Tailer after canonical star_3pass (polygenomes)."""
 
 include: "../../../common/common.smk"
+STAR = config.get("Procedure", {}).get("STAR") or "STAR"
+SAMTOOLS = config.get("Procedure", {}).get("samtools") or "samtools"
+BEDTOOLS = config.get("Procedure", {}).get("bedtools") or "bedtools"
+TAILER = config.get("Procedure", {}).get("tailer") or "Tailer"
 
 
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 final_bam_dir = config.get("final_bam_dir", "")
-STAR = config.get("Procedure", {}).get("STAR") or "STAR"
-SAMTOOLS = config.get("Procedure", {}).get("samtools") or "samtools"
-BEDTOOLS = config.get("Procedure", {}).get("bedtools") or "bedtools"
-TAILER = config.get("Procedure", {}).get("tailer") or "Tailer"
-params = config.get("Params", {}).get("star_3pass_gene", {})
-passes = params.get("passes", {})
-p1 = passes.get("pass1", {})
-p2 = passes.get("pass2", {})
-p3 = passes.get("pass3", {})
-ambiguous = rule_param(params, "star_3pg_gene_specific", "ambiguous", "exclude")
-flank = int(rule_param(params, "star_3pg_gene_specific", "flank", 50))
-index_params = params.get("index", {})
-genome_sa_index_nbases = int(index_params.get("genomeSAindexNbases", 3))
-# tailer 参数(整段 tailer_params 转发展开逐 key):Params.tailer.star_3pg_gene_specific.<key>
-# (与 tailer_global 各自独立键;rule_param 见 common.smk,无共享回退)。
-tailer_params = config.get("Params", {}).get("tailer", {})
-_tailer_threshold_star_3pg = rule_param(tailer_params, "star_3pg_gene_specific", "threshold", None)
-_tailer_rev_comp_star_3pg = rule_param(tailer_params, "star_3pg_gene_specific", "rev_comp", False)
-HELPER = os.path.join(config["ROOT_DIR"], "modules/star/star_3pass/bin/gene_specific_align.py")
-PREPARE_HELPER = os.path.join(config["ROOT_DIR"], "modules/star/star_3pass/bin/prepare_gene_inputs.py")
 
 def final_bam(wildcards):
     return [f"{final_bam_dir}/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}.bam",
@@ -52,6 +36,23 @@ rule star_3pg_gene_specific:
         "../../star.yaml"
     container:
         sif("../../star.yaml", "star_3pg_gene_specific")
+    params:
+        # 工具/参数挂 Params 的 rule 子键(config 全量路径直读,run 只碰 params)
+        HELPER = os.path.join(config["ROOT_DIR"], "modules/star/star_3pass/bin/gene_specific_align.py"),
+        PREPARE_HELPER = os.path.join(config["ROOT_DIR"], "modules/star/star_3pass/bin/prepare_gene_inputs.py"),
+        STAR = STAR,
+        SAMTOOLS = SAMTOOLS,
+        BEDTOOLS = BEDTOOLS,
+        TAILER = TAILER,
+        ambiguous = config.get("Params", {}).get("star_3pass_gene", {}).get("star_3pg_gene_specific", {}).get("ambiguous") or "exclude",
+        flank = int(config.get("Params", {}).get("star_3pass_gene", {}).get("star_3pg_gene_specific", {}).get("flank") or 50),
+        genome_sa_index_nbases = int(config.get("Params", {}).get("star_3pass_gene", {}).get("index", {}).get("genomeSAindexNbases") or 3),
+        pass1 = config.get("Params", {}).get("star_3pass_gene", {}).get("passes", {}).get("pass1", {}),
+        pass2 = config.get("Params", {}).get("star_3pass_gene", {}).get("passes", {}).get("pass2", {}),
+        pass3 = config.get("Params", {}).get("star_3pass_gene", {}).get("passes", {}).get("pass3", {}),
+        # tailer 参数:Params.tailer.star_3pg_gene_specific.<key>(与 tailer_global 各自独立键)
+        tailer_threshold = config.get("Params", {}).get("tailer", {}).get("star_3pg_gene_specific", {}).get("threshold", None),
+        tailer_rev_comp = config.get("Params", {}).get("tailer", {}).get("star_3pg_gene_specific", {}).get("rev_comp", False),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -65,28 +66,30 @@ rule star_3pg_gene_specific:
             os.makedirs(os.path.dirname(log_path), exist_ok=True)
             input_dir = os.path.join(outdir, wildcards.genome, wildcards.sample_id)
             script = os.path.join(RECEIPT_DIR, f"gene_specific_{wildcards.genome}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"gene_specific.sh")
+            p1, p2, p3 = params.pass1, params.pass2, params.pass3
 
             cmd = [
-                "python", HELPER,
+                "python", params.HELPER,
                 "--input-bam", str(input.bam[0]),
                 "--input-bed", str(input.bed),
                 "--input-genome-fasta", str(input.genome_fasta),
                 "--output-bam", str(output.bam),
                 "--output-tail", str(output.tail),
                 "--input-dir", input_dir,
-                "--helper", PREPARE_HELPER,
+                "--helper", params.PREPARE_HELPER,
                 "--log", log_path,
                 "--threads", str(threads),
-                "--star", STAR,
-                "--samtools", SAMTOOLS,
-                "--bedtools", BEDTOOLS,
-                "--tailer", TAILER,
-                "--ambiguous", ambiguous,
-                "--flank", str(flank),
+                "--star", params.STAR,
+                "--samtools", params.SAMTOOLS,
+                "--bedtools", params.BEDTOOLS,
+                "--tailer", params.TAILER,
+                "--ambiguous", params.ambiguous,
+                "--flank", str(params.flank),
             ]
             # Index parameters (genomeGenerate)
-            cmd += ["--index-genome-sa-index-nbases", str(genome_sa_index_nbases)]
+            cmd += ["--index-genome-sa-index-nbases", str(params.genome_sa_index_nbases)]
             # Pass 1 parameters
             if "outFilterMultimapNmax" in p1:
                 cmd += ["--pass1-outFilterMultimapNmax", str(p1["outFilterMultimapNmax"])]
@@ -131,9 +134,9 @@ rule star_3pg_gene_specific:
             if "alignEndsType" in p3:
                 cmd += ["--pass3-alignEndsType", str(p3["alignEndsType"])]
             # Tailer parameters (rule 级键,与 tailer_global 各自独立)
-            if _tailer_threshold_star_3pg is not None:
-                cmd += ["--tailer-threshold", str(int(_tailer_threshold_star_3pg))]
-            if _tailer_rev_comp_star_3pg:
+            if params.tailer_threshold is not None:
+                cmd += ["--tailer-threshold", str(int(params.tailer_threshold))]
+            if params.tailer_rev_comp:
                 cmd.append("--tailer-rev-comp")
 
             with open(script, "w") as f:
@@ -141,7 +144,8 @@ rule star_3pg_gene_specific:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f"echo 'star_3pg_gene_specific for sample {wildcards.sample_id} genome {wildcards.genome} completed successfully at {current_time}'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
 
             rule_logger.info(f"star_3pg_gene_specific for sample {wildcards.sample_id} genome {wildcards.genome} completed")
         except Exception as e:

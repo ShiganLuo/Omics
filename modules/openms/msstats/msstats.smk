@@ -1,18 +1,18 @@
 include: "../../common/common.smk"
+msstats_converter = config.get("Procedure", {}).get("msstats") or "MSstatsConverter"
 
 indir = config.get("indir", "data/quantification")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
 samples = config.get("samples", [])
-quantification_method = (config.get("quantification_method") or "lfq").lower()
+# 指令派生名(input: 与 params 按方法选源;config 原名 quantification_method),
+# 赋值写 config 全量路径 Params.workflow.quantification_method。
+quantification_method = (config.get("Params", {}).get("workflow", {}).get("quantification_method") or "lfq").lower()
 
 # Experimental design TSV (OpenMS design format); wired from
 # Params.workflow.expdesign at subworkflow level. MSstatsConverter REQUIRES
 # it for the isobaric path, ProteomicsLFQ uses it to fill Run/Condition.
 expdesign = config.get("expdesign", "")
-
-# Get executables
-msstats_converter = config.get("Procedure", {}).get("msstats") or "MSstatsConverter"
 
 # Per-method product of the quantification module that carries the peptide
 # intensities for the MSstats input table:
@@ -56,6 +56,7 @@ rule msstats:
             rule_logger.info(f"Start MSstats input preparation at {current_time}")
             os.makedirs(outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"msstats_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"msstats.sh")
             if params.method == "tmt":
                 # Isobaric consensusXML -> MSstats (MSstatsTMT) input CSV.
@@ -86,7 +87,8 @@ rule msstats:
                         f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                         f.write(f"echo 'MSstats input preparation completed at {current_time}'\n")
                     shutil.copyfile(script, plain_script)
-                    shell(f"bash {plain_script} >> {log_path} 2>&1")
+                    if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                        shell(f"bash {plain_script} >> {log_path} 2>&1")
             else:
                 # ProteomicsLFQ -out_msstats already writes the MSstats input
                 # CSV; stage it under the uniform final path.
@@ -100,8 +102,3 @@ rule msstats:
 rule msstats_result:
     input:
         outdir + "/msstats_input.csv"
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "msstats_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

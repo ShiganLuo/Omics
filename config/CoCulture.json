@@ -76,9 +76,6 @@
       "threads": 2,
       "mem_mb": 32000
     },
-    "TEtranscripts_result": {
-      "mem_mb": 8000
-    },
     "combine_TEcount": {
       "threads": 1,
       "mem_mb": 8000

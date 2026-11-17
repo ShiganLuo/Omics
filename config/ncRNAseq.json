@@ -326,9 +326,6 @@
       "threads": 10,
       "mem_mb": 8000
     },
-    "featureCounts_result": {
-      "mem_mb": 8000
-    },
     "featureCounts_single_noMultiple": {
       "threads": 10,
       "mem_mb": 8000
@@ -379,9 +376,6 @@
     },
     "regionplot": {
       "threads": 1,
-      "mem_mb": 8000
-    },
-    "report_result": {
       "mem_mb": 8000
     },
     "samtools_dedup": {

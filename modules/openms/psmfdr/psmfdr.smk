@@ -1,4 +1,5 @@
 include: "../../common/common.smk"
+openms = config.get("Procedure", {}).get("openms") or "FalseDiscoveryRate"
 
 indir = config.get("indir", "data/psm_rescoring")
 outdir = config.get("outdir", "output")
@@ -6,12 +7,8 @@ logdir = config.get("logdir", "logs")
 samples = config.get("samples", [])
 
 # Get parameters
-# 参数精确到 rule(2026-11 规范;rule_param 见 common.smk):
+# 参数精确到 rule(2026-11 规范):config 全量路径字面链
 # Params.psm_fdr_control.psm_fdr.<key>,无 module 级共享回退。
-fdr_params = config.get("Params", {}).get("psm_fdr_control", {})
-
-# Get executables
-openms = config.get("Procedure", {}).get("openms") or "FalseDiscoveryRate"
 
 rule psm_fdr:
     input:
@@ -31,8 +28,8 @@ rule psm_fdr:
         sif("../openms.yaml", "psm_fdr")
     params:
         openms = openms,
-        fdr = rule_param(fdr_params, "psm_fdr", "fdr", 0.01),
-        method = rule_param(fdr_params, "psm_fdr", "method", "BH")
+        fdr = config.get("Params", {}).get("psm_fdr_control", {}).get("psm_fdr", {}).get("fdr", 0.01),
+        method = config.get("Params", {}).get("psm_fdr_control", {}).get("psm_fdr", {}).get("method", "BH")
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -41,6 +38,7 @@ rule psm_fdr:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start PSM FDR control for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"psm_fdr_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/psm_fdr.sh")
             cmd = [
                 params.openms,
@@ -69,7 +67,8 @@ rule psm_fdr:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f'echo "PSM FDR control for {wildcards.sample_id} was completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"rule psm_fdr was call failed,error: {e}")
             raise RuntimeError(f"rule psm_fdr was call failed,error: {e}")
@@ -78,8 +77,3 @@ rule psm_fdr:
 rule psm_fdr_result:
     input:
         filtered_idxml = outdir + "/{sample_id}/{sample_id}_filtered.idXML"
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "psm_fdr_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

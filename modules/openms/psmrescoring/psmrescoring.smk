@@ -1,4 +1,5 @@
 include: "../../common/common.smk"
+percolator = config.get("Procedure", {}).get("percolator") or "PercolatorAdapter"
 
 shell.prefix("set -x; set -e;")
 
@@ -9,28 +10,21 @@ logdir = config.get("logdir", "logs")
 samples = config.get("samples", [])
 
 # Get parameters
-# 参数精确到 rule(2026-11 规范;rule_param 见 common.smk),无 module 级共享回退:
+# 参数精确到 rule(2026-11 规范):config 全量路径字面链,无 module 级共享回退:
 #   Params.psm_rescoring.search_engine                    # 引擎选择,每 rule 独立键
 #   Params.psm_rescoring.percolator.psm_rescoring.<key>   # 参数组单消费,挂 rule 名下
 #   Params.psm_rescoring.psm_feature_extractor.psm_rescoring.<key>
-percolator_params = config.get("Params", {}).get("psm_rescoring", {}).get("percolator", {})
-_psm_feature_params = config.get("Params", {}).get("psm_rescoring", {}).get("psm_feature_extractor", {})
-_params_root = config.get("Params", {})
 
-# search engine selector:原 module 级共享读取 Params.search_engine →
-# rule 级键 Params.psm_rescoring.search_engine(parse 期变量)。
-_search_engine_psm_rescoring = rule_param(_params_root, "psm_rescoring", "search_engine", None)
-# Get executables
-percolator = config.get("Procedure", {}).get("percolator") or "PercolatorAdapter"
 def get_input_for_psm_rescoring(wildcards):
     """Get input files for PSM rescoring."""
-    if _search_engine_psm_rescoring == "comet":
+    search_engine = config.get("Params", {}).get("psm_rescoring", {}).get("search_engine", None)
+    if search_engine == "comet":
         return {"idxml": indir + f"/{wildcards.sample_id}/{wildcards.sample_id}_comet.idXML"}
-    elif _search_engine_psm_rescoring == "msgf":
+    elif search_engine == "msgf":
         return {"idxml": indir + f"/{wildcards.sample_id}/{wildcards.sample_id}_msgf.idXML"}
-    elif _search_engine_psm_rescoring == "sage":
+    elif search_engine == "sage":
         return {"idxml": indir + f"/{wildcards.sample_id}/{wildcards.sample_id}_sage.idXML"}
-    elif _search_engine_psm_rescoring == "msfragger":
+    elif search_engine == "msfragger":
         return {"idxml": indir + f"/{wildcards.sample_id}/{wildcards.sample_id}_msfragger.idXML"}
     else:
         raise ValueError("No search engine specified in the configuration.")
@@ -54,9 +48,9 @@ rule psm_rescoring:
     params:
         percolator = percolator,
         feature_extractor = config.get("Procedure", {}).get("psm_feature_extractor") or "PSMFeatureExtractor",
-        extra = rule_param(_psm_feature_params, "psm_rescoring", "extra", ""),
-        train_FDR = rule_param(percolator_params, "psm_rescoring", "train_FDR", 0.05),
-        test_FDR = rule_param(percolator_params, "psm_rescoring", "test_FDR", 0.05),
+        extra = config.get("Params", {}).get("psm_rescoring", {}).get("psm_feature_extractor", {}).get("psm_rescoring", {}).get("extra", ""),
+        train_FDR = config.get("Params", {}).get("psm_rescoring", {}).get("percolator", {}).get("psm_rescoring", {}).get("train_FDR", 0.05),
+        test_FDR = config.get("Params", {}).get("psm_rescoring", {}).get("percolator", {}).get("psm_rescoring", {}).get("test_FDR", 0.05),
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -65,6 +59,7 @@ rule psm_rescoring:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start PSM rescoring for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"psm_rescoring_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/psm_rescoring.sh")
             feat_idxml = os.path.join(outdir, f"{wildcards.sample_id}/{wildcards.sample_id}_features.idXML")
             # PercolatorAdapter needs search-engine-specific features, which
@@ -91,7 +86,8 @@ rule psm_rescoring:
                 f.write(" ".join(perc_cmd) + "\n")
                 f.write(f"echo 'PSM rescoring for {wildcards.sample_id} was completed successfully'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"rule psm_rescoring was call failed,error: {e}")
             raise RuntimeError(f"rule psm_rescoring was call failed,error: {e}")
@@ -99,8 +95,3 @@ rule psm_rescoring:
 rule psm_rescoring_result:
     input:
         expand(outdir + "/{sid}/{sid}_scored.idXML", sid=samples)
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "psm_rescoring_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

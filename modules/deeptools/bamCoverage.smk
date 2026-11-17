@@ -40,8 +40,7 @@ rule bamCoverage:
     params:
         bamCoverage = config.get("Procedure", {}).get("bamCoverage") or "bamCoverage",
         bin_size    = config.get("Params", {}).get("bamCoverage", {}).get("bin_size") or 50,
-        normalizeUsing  = rule_param(config.get("Params", {}).get("bamCoverage", {}),
-                                     "bamCoverage", "normalizeUsing", "CPM") or "CPM",   # Params.bamCoverage.bamCoverage.normalizeUsing(与 wig 各自;rule_param 见 common.smk)
+        normalizeUsing  = config.get("Params", {}).get("bamCoverage", {}).get("bamCoverage", {}).get("normalizeUsing", "CPM") or "CPM",   # Params.bamCoverage.bamCoverage.normalizeUsing(与 wig 各自;config 全量路径内联读取)
         outdir_sample = outdir + "/{sample_id}"
     run:
         log_path = str(log)
@@ -81,7 +80,8 @@ rule bamCoverage:
                 f.write(f'echo "script completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"bamCoverage failed for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"bamCoverage failed for sample {wildcards.sample_id}: {e}")
@@ -90,8 +90,3 @@ rule bamCoverage_result:
     """Result aggregation rule."""
     input:
         bw = outdir + "/{sample_id}/{sample_id}" + bw_suffix
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "bamCoverage_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

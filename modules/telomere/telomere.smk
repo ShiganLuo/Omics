@@ -113,6 +113,7 @@ rule telogator2_run:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start telogator2 for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"telogator2_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/telogator2.sh")
             output_dir = os.path.join(outdir, f"{wildcards.sample_id}/telogator2")
             cmd = [
@@ -128,7 +129,8 @@ rule telogator2_run:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             raise
 
@@ -169,6 +171,7 @@ rule assembly_telomere_scan:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start assembly telomere scan for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"assembly_telomere_scan_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/assembly_telomere_scan.sh")
             cmd = [
                 "python", params.script,
@@ -182,7 +185,8 @@ rule assembly_telomere_scan:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             raise
 
@@ -223,6 +227,7 @@ rule read_density_telomere:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start read density telomere for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"read_density_telomere_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/read_density_telomere.sh")
             cmd = [
                 "python", params.script,
@@ -236,7 +241,8 @@ rule read_density_telomere:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             raise
 
@@ -267,6 +273,7 @@ rule tidk_init:
         try:
             logger.info("Building tidk reference database (one-time init)")
             script = os.path.join(RECEIPT_DIR, f"tidk_init_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, "tidk_init.sh")
             cmd = [params.tidk, "build"]
             cmd_touch = ["touch", output[0]]
@@ -276,7 +283,8 @@ rule tidk_init:
                 f.write(" ".join(cmd_touch) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             raise
 
@@ -313,6 +321,7 @@ rule tidk_scan:
             logger.info(f"Start tidk scan for sample {wildcards.sample_id} at {current_time}")
 
             script = os.path.join(RECEIPT_DIR, f"tidk_scan_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/tidk_scan.sh")
             # tidk search: --string, --output (prefix), --dir, positional FASTA
             cmd_search = [
@@ -328,7 +337,8 @@ rule tidk_scan:
                 f.write(" ".join(cmd_search) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
 
             # tidk search outputs <output>_telomeric_repeat.tsv in --dir
             search_tsv = os.path.join(params.output_dir, f"{wildcards.sample_id}_tidk_search_telomeric_repeat.tsv")
@@ -350,38 +360,15 @@ rule telogator2_result:
     """Result aggregation for telogator2."""
     input:
         tsv = outdir + "/{sample_id}/telogator2/tlens_by_allele.tsv"
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "telogator2_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),
-
 rule assembly_telomere_result:
     """Result aggregation for assembly-based telomere scan."""
     input:
         stats = outdir + "/{sample_id}/assembly_scan/{sample_id}_assembly_telomere_stats.txt"
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "assembly_telomere_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),
-
 rule read_density_telomere_result:
     """Result aggregation for read-density telomere estimation."""
     input:
         stats = outdir + "/{sample_id}/read_density/{sample_id}_read_telomere_stats.txt"
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "read_density_telomere_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),
-
 rule tidk_result:
     """Result aggregation for tidk scan."""
     input:
         tsv = outdir + "/{sample_id}/tidk/{sample_id}_tidk_telomeres.tsv"
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "tidk_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

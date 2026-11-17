@@ -6,8 +6,7 @@ logdir = config.get("logdir") or "log"
 interval = config.get("reference", {}).get("interval")
 known_sites = config.get("reference", {}).get("known_sites", [])
 # 参数精确到 rule:javaOptions/tmp-dir 按 rule 独立配置(Params.gatk.<rule_name>
-# .javaOptions/.tmp-dir),无 module 级共享;rule_param 见 common.smk。
-_gatk_params = config.get("Params", {}).get("gatk", {})
+# .javaOptions/.tmp-dir),无 module 级共享。
 
 def get_input_HaplotypeCaller(wildcards):
     """
@@ -51,9 +50,9 @@ rule HaplotypeCaller:
     container:
         sif("../../gatk.yaml", "HaplotypeCaller")
     params:
-        javaOptions = rule_param(_gatk_params, "HaplotypeCaller", "javaOptions", "-Xmx30g"),
+        javaOptions = config.get("Params", {}).get("gatk", {}).get("HaplotypeCaller", {}).get("javaOptions", "-Xmx30g"),
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
-        tmp_dir = rule_param(_gatk_params, "HaplotypeCaller", "tmp-dir", None)
+        tmp_dir = config.get("Params", {}).get("gatk", {}).get("HaplotypeCaller", {}).get("tmp-dir", None)
     threads: rule_res("HaplotypeCaller").get("threads", 10)
     benchmark: logdir + "/{genome}/{sample_id}/haplotypeCaller.benchmark.tsv",
     resources:
@@ -68,6 +67,7 @@ rule HaplotypeCaller:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start HaplotypeCaller for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"HaplotypeCaller_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/HaplotypeCaller.sh")
             cmd = [
                 params.gatk, "--java-options", f'"{params.javaOptions}"', "HaplotypeCaller",
@@ -82,7 +82,8 @@ rule HaplotypeCaller:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'HaplotypeCaller completed successfully for sample {wildcards.sample_id} genome {wildcards.genome}'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred while running HaplotypeCaller for sample {wildcards.sample_id} genome {wildcards.genome}: {e}")
             raise RuntimeError(f"Error occurred while running HaplotypeCaller for sample {wildcards.sample_id} genome {wildcards.genome}: {e}, you can check the log file {log_path} for more details.")
@@ -126,8 +127,8 @@ rule filterHaplotypeCallerVcf:
     params:
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         bcftools = config.get("Procedure", {}).get("bcftools") or "bcftools",
-        javaOptions = rule_param(_gatk_params, "filterHaplotypeCallerVcf", "javaOptions", "-Xmx30g"),
-        tmp_dir = rule_param(_gatk_params, "filterHaplotypeCallerVcf", "tmp-dir", None),
+        javaOptions = config.get("Params", {}).get("gatk", {}).get("filterHaplotypeCallerVcf", {}).get("javaOptions", "-Xmx30g"),
+        tmp_dir = config.get("Params", {}).get("gatk", {}).get("filterHaplotypeCallerVcf", {}).get("tmp-dir", None),
         FS_threshold = config.get("Params", {}).get("gatk", {}).get("FS_threshold") or 20.0,
         QD_threshold = config.get("Params", {}).get("gatk", {}).get("QD_threshold") or 2.0,
         DP_threshold = config.get("Params", {}).get("gatk", {}).get("DP_threshold") or 10.0,
@@ -140,6 +141,7 @@ rule filterHaplotypeCallerVcf:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start filterHaplotypeCallerVcf for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"filterHaplotypeCallerVcf_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/filterHaplotypeCallerVcf.sh")
             cmd1 = [
                 params.gatk, "--java-options", f'"{params.javaOptions}"', "VariantFiltration",
@@ -164,7 +166,8 @@ rule filterHaplotypeCallerVcf:
                 f.write(" ".join(cmd2) + "\n")
                 f.write(f"echo 'filterHaplotypeCallerVcf completed successfully for sample {wildcards.sample_id} genome {wildcards.genome}'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred while filtering HaplotypeCaller VCF for sample {wildcards.sample_id} genome {wildcards.genome}: {e}")
             raise RuntimeError(f"Error occurred while filtering HaplotypeCaller VCF for sample {wildcards.sample_id} genome {wildcards.genome}: {e}, you can check the log file {log_path} for more details.")
@@ -173,8 +176,3 @@ rule gatk_haplotypeCaller_result:
     input:
         vcf = outdir + "/{genome}/{sample_id}/{sample_id}.filtered.vcf.gz",
         csi = outdir + "/{genome}/{sample_id}/{sample_id}.filtered.vcf.gz.csi"
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "gatk_haplotypeCaller_result", input_size=input_size_named(input, 'vcf'),
-            attempt=attempt).get("mem_mb", 8000),

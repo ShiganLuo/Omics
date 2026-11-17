@@ -11,9 +11,8 @@ outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 paired_samples = config.get("paired_samples", [])
 
-# 参数精确到 rule:Params.fumitools.<rule_name>.<key>(rule_param 见 common.smk;
+# 参数精确到 rule:Params.fumitools.<rule_name>.<key>(config 全量路径直读;
 # 无 module 级共享回退,每 rule 各自独立键)。
-_fumitools_params = config.get("Params", {}).get("fumitools", {})
 
 rule fumitools_copy_umi_paired:
     """Copy UMI from read sequence into FASTQ header."""
@@ -27,8 +26,8 @@ rule fumitools_copy_umi_paired:
         logdir + "/{sample_id}/fumitools_copy_umi.log"
     params:
         fumi_tools = config.get("Procedure", {}).get("fumitools") or "fumi_tools",
-        umi_length = rule_param(_fumitools_params, "fumitools_copy_umi_paired", "umi_length", None),
-        tag_umi = rule_param(_fumitools_params, "fumitools_copy_umi_paired", "tag_umi", False),
+        umi_length = config.get("Params", {}).get("fumitools", {}).get("fumitools_copy_umi_paired", {}).get("umi_length", None),
+        tag_umi = config.get("Params", {}).get("fumitools", {}).get("fumitools_copy_umi_paired", {}).get("tag_umi", False),
     threads: rule_res("fumitools_copy_umi_paired").get("threads", 4)
     benchmark: logdir + "/{sample_id}/fumitools_copy_umi.benchmark.tsv",
     resources:
@@ -79,7 +78,8 @@ rule fumitools_copy_umi_paired:
                     f.write(" ".join(cmd) + "\n")
                     f.write(f'echo "script completed successfully"\n')
                 shutil.copyfile(script_path, plain_script)
-                shell(f"bash {plain_script} >> {log_path} 2>&1")
+                if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                    shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             raise
 
@@ -92,8 +92,8 @@ rule fumitools_copy_umi_single:
         logdir + "/{sample_id}/fumitools_copy_umi.log"
     params:
         fumi_tools = config.get("Procedure", {}).get("fumitools") or "fumi_tools",
-        umi_length = rule_param(_fumitools_params, "fumitools_copy_umi_single", "umi_length", None),
-        tag_umi = rule_param(_fumitools_params, "fumitools_copy_umi_single", "tag_umi", False),
+        umi_length = config.get("Params", {}).get("fumitools", {}).get("fumitools_copy_umi_single", {}).get("umi_length", None),
+        tag_umi = config.get("Params", {}).get("fumitools", {}).get("fumitools_copy_umi_single", {}).get("tag_umi", False),
     threads: rule_res("fumitools_copy_umi_single").get("threads", 4)
     benchmark: logdir + "/{sample_id}/fumitools_copy_umi.benchmark.tsv",
     resources:
@@ -140,7 +140,8 @@ rule fumitools_copy_umi_single:
                     f.write(" ".join(cmd) + "\n")
                     f.write(f'echo "script completed successfully"\n')
                 shutil.copyfile(script_path, plain_script)
-                shell(f"bash {plain_script} >> {log_path} 2>&1")
+                if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                    shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             raise
         # ========================
@@ -157,8 +158,8 @@ rule fumitools_dedup:
         logdir + "/{sample_id}/fumitools_dedup.log"
     params:
         fumi_tools = config.get("Procedure", {}).get("fumitools") or "fumi_tools",
-        memory = rule_param(_fumitools_params, "fumitools_dedup", "memory", "3G"),
-        start_only = rule_param(_fumitools_params, "fumitools_dedup", "start_only", False),
+        memory = config.get("Params", {}).get("fumitools", {}).get("fumitools_dedup", {}).get("memory") or "3G",
+        start_only = config.get("Params", {}).get("fumitools", {}).get("fumitools_dedup", {}).get("start_only", False),
     threads: rule_res("fumitools_dedup").get("threads", 4)
     benchmark: logdir + "/{sample_id}/fumitools_dedup.benchmark.tsv",
     resources:
@@ -194,7 +195,8 @@ rule fumitools_dedup:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             raise
 
@@ -205,17 +207,6 @@ rule fumitools_dedup:
 rule fumitools_copy_umi_result:
     input:
         r1 = outdir + "/{sample_id}/{sample_id}_1.umi.fq.gz",
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "fumitools_copy_umi_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),
-
 rule fumitools_dedup_result:
     input:
         bam = outdir + "/{sample_id}/{sample_id}.dedup.bam",
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "fumitools_dedup_result", input_size=input_size_named(input, 'bam'),
-            attempt=attempt).get("mem_mb", 8000),

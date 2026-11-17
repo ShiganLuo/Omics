@@ -63,6 +63,7 @@ rule arriba:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             script = os.path.join(RECEIPT_DIR, f"{wildcards.sample_id}_arriba_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = f"{outdir}/{wildcards.sample_id}/{wildcards.sample_id}_arriba.sh"
             if not os.path.exists(input.blacklist):
                 rule_logger.error(f"Blacklist file not found: {input.blacklist}")
@@ -92,7 +93,8 @@ rule arriba:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "Arriba fusion detection for sample {wildcards.sample_id} successfully completed!"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Arriba fusion detection failed for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")
             raise RuntimeError(f"Arriba fusion detection failed for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")
@@ -131,6 +133,7 @@ rule arriba_report:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             script = os.path.join(RECEIPT_DIR, f"arriba_report_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = f"{outdir}/arriba_report.sh"
             cmd = [
                 "python", params.summary_script,
@@ -145,7 +148,8 @@ rule arriba_report:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "Arriba report generation successfully completed!"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Arriba report generation failed: {e}\n")
             raise RuntimeError(f"Arriba report generation failed: {e}\n")
@@ -153,8 +157,3 @@ rule arriba_result:
     input:
         passed_fusion_tsv = outdir + "/{sample_id}/{sample_id}_passed_fusions.tsv",
         discarded_fusion_tsv = outdir + "/{sample_id}/{sample_id}_discarded_fusions.tsv"
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "arriba_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

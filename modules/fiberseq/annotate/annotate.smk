@@ -8,7 +8,6 @@ samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
 genome_cfg = config.get("genome", {})
-_annotate_params = config.get("Params", {}).get("fiberseq_annotate", {})
 
 def get_input_for_fiberseq_annotate_run(wildcards):
     """Get input files for fiberseq_annotate_run rule."""
@@ -46,9 +45,9 @@ rule fiberseq_annotate_run:
         sif("../fiberseq.yaml", "fiberseq_annotate_run")
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/fire_annotate.py",
-        # 参数精确到 rule:Params.fiberseq_annotate.fiberseq_annotate_run.<key>
-        tss_flank = rule_param(_annotate_params, "fiberseq_annotate_run", "tss_flank", 1000),
-        repeat_frac = rule_param(_annotate_params, "fiberseq_annotate_run", "repeat_frac", 0.25),
+        # 参数精确到 rule:Params.fiberseq_annotate.fiberseq_annotate_run.<key>(config 全量路径读取)
+        tss_flank = config.get("Params", {}).get("fiberseq_annotate", {}).get("fiberseq_annotate_run", {}).get("tss_flank", 1000),
+        repeat_frac = config.get("Params", {}).get("fiberseq_annotate", {}).get("fiberseq_annotate_run", {}).get("repeat_frac", 0.25),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -59,6 +58,7 @@ rule fiberseq_annotate_run:
             sample_outdir = os.path.dirname(str(output.annotated))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"fiberseq_annotate_run_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             # timestamped copy stays in log/cmd as history; the outdir copy
             # (no timestamp, overwritten each run) documents the current command
             # next to the results it produced
@@ -81,7 +81,8 @@ rule fiberseq_annotate_run:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "fiberseq_annotate_run for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during fiberseq_annotate_run for {wildcards.sample_id}: {e}\n")
             raise RuntimeError(f"Error occurred during fiberseq_annotate_run for {wildcards.sample_id}: {e}\n")
@@ -92,8 +93,3 @@ rule fiberseq_annotate_result:
                            sample_id=samples),
         summary = expand(outdir + "/{sample_id}/{sample_id}.peaks_summary.tsv",
                          sample_id=samples),
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "fiberseq_annotate_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

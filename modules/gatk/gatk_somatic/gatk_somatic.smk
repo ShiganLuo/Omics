@@ -10,8 +10,7 @@ targets = config.get("genome", {}).get("targets")
 known_sites = config.get("genome", {}).get("known_sites")
 interval = config.get("genome", {}).get("interval")
 # 参数精确到 rule:javaOptions 按 rule 独立配置(Params.gatk.<rule_name>
-# .javaOptions),无 module 级共享;rule_param 见 common.smk。
-_gatk_params = config.get("Params", {}).get("gatk", {})
+# .javaOptions),无 module 级共享。
 # Germline suppression resources for Mutect2/FilterMutectCalls (both optional):
 #   genome.germline_resource - population allele-frequency VCF (e.g. gnomAD),
 #                       assembly-tied so it lives in genome.references.<name>
@@ -73,7 +72,7 @@ rule somaticMutect2:
     container:
         sif("../gatk.yaml", "somaticMutect2")
     params:
-        javaOptions = rule_param(_gatk_params, "somaticMutect2", "javaOptions", "-Xmx30g"),
+        javaOptions = config.get("Params", {}).get("gatk", {}).get("somaticMutect2", {}).get("javaOptions", "-Xmx30g"),
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         tmp_dir = config.get("tmp_dir") or None
     threads: rule_res("somaticMutect2").get("threads", 10)
@@ -90,6 +89,7 @@ rule somaticMutect2:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start somaticMutect2 for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"somaticMutect2_{wildcards.normal_sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             sample_outdir = os.path.dirname(output.vcf)
             plain_script = os.path.join(sample_outdir, "somaticMutect2.sh")
             cmd = [
@@ -117,7 +117,8 @@ rule somaticMutect2:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'somaticMutect2 completed successfully for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id}'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during somaticMutect2 execution: {str(e)}")
             raise RuntimeError(f"Error occurred while running somaticMutect2 for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id}: {e}, you can check the log file {log_path} for more details.")
@@ -170,6 +171,7 @@ rule germline_resource_strain:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start germline resource build for strain {wildcards.strain} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"germline_resource_strain_{wildcards.strain}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             sample_outdir = os.path.dirname(str(output.vcf))
             os.makedirs(sample_outdir, exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"germline_resource_strain_{wildcards.strain}.sh")
@@ -195,7 +197,8 @@ rule germline_resource_strain:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "germline resource for strain {wildcards.strain} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during germline resource build for strain {wildcards.strain}: {e}")
             raise RuntimeError(f"Error occurred during germline resource build for strain {wildcards.strain}: {e}, you can check the log file {log_path} for more details.")
@@ -233,7 +236,7 @@ rule filterMutectCalls:
         sif("../gatk.yaml", "filterMutectCalls")
     params:
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
-        javaOptions = rule_param(_gatk_params, "filterMutectCalls", "javaOptions", "-Xmx8g"),
+        javaOptions = config.get("Params", {}).get("gatk", {}).get("filterMutectCalls", {}).get("javaOptions", "-Xmx8g"),
         tmp_dir = config.get("tmp_dir") or None,
     run:
         log_path = str(log)
@@ -243,6 +246,7 @@ rule filterMutectCalls:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start FilterMutectCalls for {wildcards.normal_sample_id} vs {wildcards.experimental_sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"filterMutectCalls_{wildcards.experimental_sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             sample_outdir = os.path.dirname(str(output.vcf))
             plain_script = os.path.join(sample_outdir, f"filterMutectCalls_{wildcards.experimental_sample_id}.sh")
             cmd = [
@@ -259,7 +263,8 @@ rule filterMutectCalls:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "filterMutectCalls completed successfully for {wildcards.normal_sample_id} vs {wildcards.experimental_sample_id}"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during filterMutectCalls for {wildcards.experimental_sample_id}: {e}")
             raise RuntimeError(f"Error occurred during filterMutectCalls for {wildcards.experimental_sample_id}: {e}, you can check the log file {log_path} for more details.")

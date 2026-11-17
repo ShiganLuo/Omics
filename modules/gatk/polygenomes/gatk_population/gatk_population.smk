@@ -8,8 +8,7 @@ samples = config.get("samples", [])
 sample_bams = config.get("sample_bams", {})
 gatk = config.get("Procedure", {}).get("gatk") or "gatk"
 # 参数精确到 rule:javaOptions/tmp-dir 按 rule 独立配置(Params.gatk.<rule_name>
-# .javaOptions/.tmp-dir),无 module 级共享;rule_param 见 common.smk。
-gatk_params = config.get("Params", {}).get("gatk", {})
+# .javaOptions/.tmp-dir),无 module 级共享。
 
 if not samples or not sample_bams:
     raise ValueError("gatk_population requires samples and sample_bams")
@@ -50,8 +49,8 @@ rule gatk_population_haplotype_caller:
         sif("../../gatk.yaml", "gatk_population_haplotype_caller")
     params:
         gatk=gatk,
-        java_options=rule_param(gatk_params, "gatk_population_haplotype_caller", "javaOptions", "-Xmx30g"),
-        tmp_dir=rule_param(gatk_params, "gatk_population_haplotype_caller", "tmp-dir", None),
+        java_options=config.get("Params", {}).get("gatk", {}).get("gatk_population_haplotype_caller", {}).get("javaOptions", "-Xmx30g"),
+        tmp_dir=config.get("Params", {}).get("gatk", {}).get("gatk_population_haplotype_caller", {}).get("tmp-dir", None),
         interval=get_genome_interval
     run:
         log_path = str(log)
@@ -62,6 +61,7 @@ rule gatk_population_haplotype_caller:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start gatk_population_haplotype_caller for sample {wildcards.sample} genome {wildcards.genome} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"gatk_population_haplotype_caller_{wildcards.sample}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(os.path.dirname(output.vcf), f"gatk_population_haplotype_caller_{wildcards.sample}.sh")
             cmd = [params.gatk, "--java-options", params.java_options, "HaplotypeCaller", "-R", input.fasta, "-I", input.bam, "-O", output.vcf, "-ERC", "GVCF", "--native-pair-hmm-threads", str(threads)]
             if params.interval:
@@ -74,7 +74,8 @@ rule gatk_population_haplotype_caller:
                 handle.write(f"{params.gatk} IndexFeatureFile -I {output.vcf}\n")
                 handle.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as exc:
             rule_logger.error(f"HaplotypeCaller failed for {wildcards.sample} genome {wildcards.genome}: {exc}")
             raise RuntimeError(f"HaplotypeCaller failed for {wildcards.sample} genome {wildcards.genome}: {exc}, you can check the log file {log_path} for more details.")
@@ -103,8 +104,8 @@ rule gatk_population_joint_genotyping:
         sif("../../gatk.yaml", "gatk_population_joint_genotyping")
     params:
         gatk=gatk,
-        java_options=rule_param(gatk_params, "gatk_population_joint_genotyping", "javaOptions", "-Xmx30g"),
-        tmp_dir=rule_param(gatk_params, "gatk_population_joint_genotyping", "tmp-dir", None),
+        java_options=config.get("Params", {}).get("gatk", {}).get("gatk_population_joint_genotyping", {}).get("javaOptions", "-Xmx30g"),
+        tmp_dir=config.get("Params", {}).get("gatk", {}).get("gatk_population_joint_genotyping", {}).get("tmp-dir", None),
         interval=get_genome_interval,
         workspace=lambda wildcards: outdir + f"/{wildcards.genome}/variants/joint/genomicsdb"
     run:
@@ -120,6 +121,7 @@ rule gatk_population_joint_genotyping:
                 for sample, gvcf in zip(samples, input.gvcfs):
                     handle.write(f"{sample}\t{gvcf}\n")
             script = os.path.join(RECEIPT_DIR, f"gatk_population_joint_genotyping_{wildcards.genome}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(os.path.dirname(output.vcf), f"gatk_population_joint_genotyping.sh")
             import_cmd = [params.gatk, "--java-options", params.java_options, "GenomicsDBImport", "--sample-name-map", sample_map, "--genomicsdb-workspace-path", params.workspace, "--reader-threads", str(threads)]
             genotype_cmd = [params.gatk, "--java-options", params.java_options, "GenotypeGVCFs", "-R", input.fasta, "-V", "gendb://" + params.workspace, "-O", output.vcf]
@@ -138,7 +140,8 @@ rule gatk_population_joint_genotyping:
                 handle.write(f"{params.gatk} IndexFeatureFile -I {output.vcf}\n")
                 handle.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as exc:
             rule_logger.error(f"Joint genotyping failed for genome {wildcards.genome}: {exc}")
             raise RuntimeError(f"Joint genotyping failed for genome {wildcards.genome}: {exc}, you can check the log file {log_path} for more details.")

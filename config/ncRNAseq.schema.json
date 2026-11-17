@@ -119,20 +119,6 @@
           }
         }
       },
-      "featureCounts_result": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
       "featureCounts_single_noMultiple": {
         "type": "dict",
         "required": false,
@@ -204,20 +190,6 @@
         }
       },
       "regionplot": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "report_result": {
         "type": "dict",
         "required": false,
         "properties": {

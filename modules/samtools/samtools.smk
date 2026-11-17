@@ -33,13 +33,15 @@ rule bam_flagstat:
             sample_outdir = os.path.dirname(str(output.flagstat))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"bam_flagstat_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"bam_flagstat.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(f"{params.samtools} flagstat {input.bam} > {output.flagstat}\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             logger.error(f"Error occurred during samtools flagstat for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
@@ -47,9 +49,3 @@ rule bam_flagstat:
 rule samtools_result:
     input:
         flagstat = outdir + "/{sample_id}/{sample_id}_flagstat.txt"
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "samtools_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),
-

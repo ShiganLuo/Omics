@@ -8,9 +8,6 @@ samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
 genome_cfg = config.get("genome", {})
-# 参数精确到 rule(2026-11 规范;rule_param 见 common.smk):
-# Params.diann.diann_run.<key>,无 module 级共享回退。
-p = config.get("Params", {}).get("diann", {})
 
 def _require(value, key):
     if not value:
@@ -49,22 +46,24 @@ rule diann_run:
     container:
         sif("diann.yaml", "diann_run")
     params:
+        # 参数精确到 rule:config 全量路径读取(Params.diann.diann_run.<key>,
+        # 工具名 Params.Procedure.diann_run.diann;无 module 级共享回退)。
         diann = config.get("Procedure", {}).get("diann") or "diann",
-        qvalue = rule_param(p, "diann_run", "qvalue", 0.01),
-        matrix_qvalue = rule_param(p, "diann_run", "matrix_qvalue", 0.01),
-        mass_acc_ms1 = rule_param(p, "diann_run", "mass_acc_ms1", 20),
-        mass_acc = rule_param(p, "diann_run", "mass_acc", 20),
-        min_fr_mz = rule_param(p, "diann_run", "min_fr_mz", 200),
-        max_fr_mz = rule_param(p, "diann_run", "max_fr_mz", 1800),
-        min_pept_len = rule_param(p, "diann_run", "min_pept_len", 7),
-        max_pept_len = rule_param(p, "diann_run", "max_pept_len", 30),
-        fixed_mod = rule_param(p, "diann_run", "fixed_mod", "Carbamidomethyl (C),57.0215"),
-        var_mods = rule_param(p, "diann_run", "var_mods", "Oxidation (M),15.9949"),
-        library = rule_param(p, "diann_run", "library", None),
-        gen_spec_lib = rule_param(p, "diann_run", "gen_spec_lib", True),
-        predictor = rule_param(p, "diann_run", "predictor", True),
-        verbose = rule_param(p, "diann_run", "verbose", True),
-        extra = rule_param(p, "diann_run", "extra", ""),
+        qvalue = config.get("Params", {}).get("diann", {}).get("diann_run", {}).get("qvalue", 0.01),
+        matrix_qvalue = config.get("Params", {}).get("diann", {}).get("diann_run", {}).get("matrix_qvalue", 0.01),
+        mass_acc_ms1 = config.get("Params", {}).get("diann", {}).get("diann_run", {}).get("mass_acc_ms1", 20),
+        mass_acc = config.get("Params", {}).get("diann", {}).get("diann_run", {}).get("mass_acc", 20),
+        min_fr_mz = config.get("Params", {}).get("diann", {}).get("diann_run", {}).get("min_fr_mz", 200),
+        max_fr_mz = config.get("Params", {}).get("diann", {}).get("diann_run", {}).get("max_fr_mz", 1800),
+        min_pept_len = config.get("Params", {}).get("diann", {}).get("diann_run", {}).get("min_pept_len", 7),
+        max_pept_len = config.get("Params", {}).get("diann", {}).get("diann_run", {}).get("max_pept_len", 30),
+        fixed_mod = config.get("Params", {}).get("diann", {}).get("diann_run", {}).get("fixed_mod", "Carbamidomethyl (C),57.0215"),
+        var_mods = config.get("Params", {}).get("diann", {}).get("diann_run", {}).get("var_mods", "Oxidation (M),15.9949"),
+        library = config.get("Params", {}).get("diann", {}).get("diann_run", {}).get("library", None),
+        gen_spec_lib = config.get("Params", {}).get("diann", {}).get("diann_run", {}).get("gen_spec_lib", True),
+        predictor = config.get("Params", {}).get("diann", {}).get("diann_run", {}).get("predictor", True),
+        verbose = config.get("Params", {}).get("diann", {}).get("diann_run", {}).get("verbose", True),
+        extra = config.get("Params", {}).get("diann", {}).get("diann_run", {}).get("extra", ""),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -75,6 +74,7 @@ rule diann_run:
             group_outdir = outdir
             os.makedirs(group_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"diann_run_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(group_outdir, f"diann_run.sh")
             cmd = [
                 params.diann,
@@ -110,7 +110,8 @@ rule diann_run:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "diann_run at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during diann_run: {e}\n")
             raise RuntimeError(f"Error occurred during diann_run: {e}\n")
@@ -145,6 +146,7 @@ rule diann_summary:
             rule_logger.info(f"Start DIA-NN summary at {current_time}")
             os.makedirs(outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"diann_summary_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"diann_summary.sh")
             cmd = [
                 "python", params.script,
@@ -158,7 +160,8 @@ rule diann_summary:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "diann_summary at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during diann_summary: {e}\n")
             raise RuntimeError(f"Error occurred during diann_summary: {e}\n")
@@ -169,8 +172,3 @@ rule diann_result:
         stats = outdir + "/diann.report.stats.tsv",
         qc = outdir + "/diann_qc.tsv",
         matrix = outdir + "/diann_protein_matrix.tsv",
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "diann_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

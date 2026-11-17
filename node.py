@@ -181,43 +181,6 @@ def _enabled(datajson: Dict[str, Any], step: str) -> bool:
 
 
 
-def _plot_formats(
-        datajson: Dict[str, Any], *path: str,
-        default: Optional[List[str]] = None) -> Optional[List[str]]:
-    """Formats list of a plotting param section (modules.md #9 formats 规范).
-
-    Reads Params.<path...>.formats (plain str normalized to a one-element
-    list) and returns it; ``default`` mirrors the consuming module smk's own
-    parse-time default so node.py outfiles always match what the rules write
-    to disk. Returns None when the key is absent and no default is given
-    (lets callers implement section-level fallback chains).
-    """
-    node: Any = datajson.get("Params", {})
-    for key in path:
-        node = (node.get(key) or {}) if isinstance(node, dict) else {}
-    fmts = node.get("formats") if isinstance(node, dict) else None
-    if fmts is None:
-        return list(default) if default is not None else None
-    if isinstance(fmts, str):
-        fmts = [fmts]
-    return [str(f) for f in fmts]
-
-
-def _rule_first(
-        section: Dict[str, Any], rules: Sequence[str], key: str,
-        default: Any = None) -> Any:
-    """参数精确到 rule 读取:``<section>.<rule_name>.<key>`` 各 rule 独立键,
-    取首个配置值;未配置时回退旧扁平键(兼容),再回退 ``default``。
-    与 common.smk rule_param 的键形状一致,供 config 组装层(node.py)使用。
-    """
-    for rule in rules:
-        value = (section.get(rule) or {}).get(key)
-        if value is not None:
-            return value
-    flat = section.get(key)
-    return default if flat is None else flat
-
-
 def _figs(base: str, fmts) -> List[str]:
     """Per-format figure files for one extension-less figure base."""
     return [f"{base}.{fmt}" for fmt in fmts]
@@ -253,13 +216,13 @@ def _register_regionplot(
     List[str]
         Outfile paths to register; empty when the gate is off.
     """
-    params = datajson.get("Params", {}).get("regionplot", {})
     if not _enabled(datajson, "regionplot"):
         return []
     # 参数精确到 rule:Params.regionplot.regionplot.<key>(消费 rule regionplot;
-    # 旧扁平键兼容回退)。
+    # config 全量路径读取,无 module 级共享回退)。
     # regions: BED rows or a [NAME=]chrom:start-end list
-    regions_file = _rule_first(params, ("regionplot",), "regions")
+    regions_file = (datajson.get("Params", {}).get("regionplot", {})
+                    .get("regionplot", {}).get("regions"))
     if not regions_file:
         raise ValueError(
             f"{workflow}: Params.regionplot.enabled=true requires "
@@ -267,7 +230,8 @@ def _register_regionplot(
             "rows or a list of [NAME=]chrom:start-end lines); set it in "
             "the workflow config JSON, then rerun.")
     # group map: hand-filled config wins, else derive from meta group column
-    group_dict = dict(_rule_first(params, ("regionplot",), "sample_group_dict", {}) or {})
+    group_dict = dict(datajson.get("Params", {}).get("regionplot", {})
+                      .get("regionplot", {}).get("sample_group_dict") or {})
     for sid in samples:
         if sid not in group_dict:
             group = getattr(samples_info_dict.get(sid), "group", None)
@@ -277,7 +241,8 @@ def _register_regionplot(
     datajson.setdefault("Params", {}).setdefault("regionplot", {}).setdefault(
         "regionplot", {})["sample_group_dict"] = group_dict
     # formats normalize (same expression as the module smk)
-    formats = _rule_first(params, ("regionplot",), "formats") or ["png", "svg"]
+    formats = (datajson.get("Params", {}).get("regionplot", {})
+               .get("regionplot", {}).get("formats") or ["png", "svg"])
     if isinstance(formats, str):
         formats = [formats]
     if not isinstance(formats, list) or not all(isinstance(f, str) for f in formats):
@@ -363,10 +328,9 @@ def _register_fiberbrowser(
     List[str]
         Outfile paths to register; empty when the gate is off.
     """
-    params = datajson.get("Params", {}).get("fiberbrowser", {})
-    if not (isinstance(params, dict) and params.get("enabled")):
+    if not (datajson.get("Params", {}).get("fiberbrowser", {}) or {}).get("enabled"):
         return []
-    loci_file = params.get("loci")
+    loci_file = (datajson.get("Params", {}).get("fiberbrowser", {}) or {}).get("loci")
     if not loci_file:
         raise ValueError(
             f"{workflow}: Params.fiberbrowser.enabled=true requires "
@@ -374,19 +338,23 @@ def _register_fiberbrowser(
             "or a list of [NAME=]chrom:start-end lines); set it in the "
             "workflow config JSON, then rerun.")
     # group map: hand-filled config wins, else derive from meta group column
-    # (参数精确到 rule:Params.fiberbrowser.fiberbrowser.<key>;旧扁平键兼容回退)
-    group_dict = dict(_rule_first(params, ("fiberbrowser",), "sample_group_dict", {}) or {})
+    # (参数精确到 rule:Params.fiberbrowser.fiberbrowser.<key>;config 全量路径
+    # 读取,无 module 级共享回退)
+    group_dict = dict(datajson.get("Params", {}).get("fiberbrowser", {})
+                      .get("fiberbrowser", {}).get("sample_group_dict") or {})
     for sid in samples:
         if sid not in group_dict:
             group = getattr(samples_info_dict.get(sid), "group", None)
             if group:
                 group_dict[sid] = group
-    formats = _rule_first(params, ("fiberbrowser",), "formats") or ["png"]
+    formats = (datajson.get("Params", {}).get("fiberbrowser", {})
+               .get("fiberbrowser", {}).get("formats") or ["png"])
     if isinstance(formats, str):
         formats = [formats]
     if not isinstance(formats, list) or not all(isinstance(f, str) for f in formats):
         raise ValueError(f"{workflow}: Params.fiberbrowser.fiberbrowser.formats must be a list of strings")
-    variants = _rule_first(params, ("fiberbrowser",), "variants") or ["plain", "zoom"]
+    variants = (datajson.get("Params", {}).get("fiberbrowser", {})
+                .get("fiberbrowser", {}).get("variants") or ["plain", "zoom"])
     if isinstance(variants, str):
         variants = [variants]
     variant_suffix = {"plain": "", "zoom": "_zoom"}
@@ -929,10 +897,13 @@ def runPacVar(
         # repeat characterization
         if enable_repeat and _genome_ref.get("repeat_bed"):
             outfiles.append(f"{outdir}/repeat/trgt/genotype/{sample_id}/{sample_id}.trgt.vcf.gz")
+            _trgt_fmts = (datajson.get("Params", {}).get("trgt", {})
+                          .get("trgt_plot", {}).get("formats") or ["png"])
+            if isinstance(_trgt_fmts, str):
+                _trgt_fmts = [_trgt_fmts]
             outfiles += _figs(
                 f"{outdir}/repeat/trgt/plot/{sample_id}/{sample_id}.trgt.repeat",
-                _plot_formats(datajson, "trgt", "trgt_plot", default=None)
-                or _plot_formats(datajson, "trgt", default=("png",)))
+                _trgt_fmts)
 
     # eccDNA / ecDNA reconstruction via Decoil
     # Decoil is reconstruction-only: SV VCF comes from pbsv upstream and the
@@ -947,21 +918,32 @@ def runPacVar(
             outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/reconstruct.ecDNA.filtered.bed")
             outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/summary.txt")
             # Visualization: per-sample stats + interactive IGV HTML
+            _decoil_plot_fmts = (datajson.get("Params", {}).get("decoil", {})
+                                 .get("plot", {}).get("formats") or ["png"])
+            if isinstance(_decoil_plot_fmts, str):
+                _decoil_plot_fmts = [_decoil_plot_fmts]
             outfiles += _figs(
                 f"{outdir}/eccdna/{sample_id}/visualization/decoil_stats",
-                _plot_formats(datajson, "decoil", "plot", default=("png",)))
+                _decoil_plot_fmts)
+            _decoil_structure_fmts = (datajson.get("Params", {}).get("decoil", {})
+                                      .get("structure", {}).get("formats") or ["png"])
+            if isinstance(_decoil_structure_fmts, str):
+                _decoil_structure_fmts = [_decoil_structure_fmts]
             outfiles += _figs(
                 f"{outdir}/eccdna/{sample_id}/visualization/decoil_structure",
-                _plot_formats(datajson, "decoil", "structure", default=("png",)))
+                _decoil_structure_fmts)
             outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/decoil_structure_genes.tsv")
             outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/igv_ecdna.html")
             outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/ucsc_track.txt")
         # Cross-sample comparison (aggregated): decoil module writes these
         # under {outdir}/eccdna/compare/ (rule decoil_compare), not
         # {outdir}/eccdna/visualization/.
+        _decoil_compare_fmts = (datajson.get("Params", {}).get("decoil", {})
+                                .get("compare", {}).get("formats") or ["png"])
+        if isinstance(_decoil_compare_fmts, str):
+            _decoil_compare_fmts = [_decoil_compare_fmts]
         outfiles += _figs(f"{outdir}/eccdna/compare/decoil_compare",
-                          _plot_formats(datajson, "decoil", "compare",
-                                        default=("png",)))
+                          _decoil_compare_fmts)
         outfiles.append(f"{outdir}/eccdna/compare/decoil_compare_shared_unique.tsv")
     elif enable_eccdna:
         logger.warning(
@@ -1014,7 +996,8 @@ def runPacVar(
         )
     if enable_sv and comparisons:
         sv_outdir = f"{outdir}/variation/germline_sv_analysis"
-        sv_genes = _rule_first(sv_params, ("sv_gene_model",), "genes") or []
+        sv_genes = (datajson.get("Params", {}).get("sv", {})
+                    .get("sv_gene_model", {}).get("genes") or [])
         sv_oncoprint = sv_params.get("oncoprint") or {}
         known_samples = set(samples_info_dict)
         for name, c in comparisons.items():
@@ -1222,12 +1205,14 @@ def runMutation(
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     if designPairs:
+        _spectrum_fmts = (datajson.get("Params", {}).get("somatic_spectrum", {})
+                          .get("plot", {}).get("formats") or ["png"])
+        if isinstance(_spectrum_fmts, str):
+            _spectrum_fmts = [_spectrum_fmts]
         outfiles += _figs(f"{outdir}/stability/spectrum/somatic_spectrum_stacked_bar",
-                          _plot_formats(datajson, "somatic_spectrum", "plot",
-                                        default=("png",)))
+                          _spectrum_fmts)
         outfiles += _figs(f"{outdir}/stability/spectrum/somatic_spectrum_heatmap",
-                          _plot_formats(datajson, "somatic_spectrum", "plot",
-                                        default=("png",)))
+                          _spectrum_fmts)
         outfiles.append(f"{outdir}/stability/spectrum/somatic_spectrum.csv")
         outfiles.append(f"{outdir}/stability/spectrum/somatic_spectrum_per_sample.csv")
         outfiles.append(f"{outdir}/stability/spectrum/somatic_spectrum_sample_stats.csv")
@@ -1238,8 +1223,10 @@ def runMutation(
         if _sig_cfg.get("enabled"):
             _sig_mode = str(_sig_cfg.get("mode", "both")).lower()
             if _sig_mode in ("refit", "both"):
-                _sig_fmts = _plot_formats(datajson, "somatic_spectrum",
-                                          "signature", default=("png",))
+                _sig_fmts = (datajson.get("Params", {}).get("somatic_spectrum", {})
+                             .get("signature", {}).get("formats") or ["png"])
+                if isinstance(_sig_fmts, str):
+                    _sig_fmts = [_sig_fmts]
                 for _f in ("signature_refit_exposures.csv",
                            "signature_refit_exposure_fractions.csv",
                            "signature_refit_family_exposures.csv",
@@ -1251,8 +1238,10 @@ def runMutation(
                     outfiles += _figs(f"{outdir}/stability/spectrum/{_b}",
                                       _sig_fmts)
             if _sig_mode in ("nmf", "both"):
-                _sig_fmts = _plot_formats(datajson, "somatic_spectrum",
-                                          "signature", default=("png",))
+                _sig_fmts = (datajson.get("Params", {}).get("somatic_spectrum", {})
+                             .get("signature", {}).get("formats") or ["png"])
+                if isinstance(_sig_fmts, str):
+                    _sig_fmts = [_sig_fmts]
                 for _f in ("signature_nmf_signatures.csv",
                            "signature_nmf_exposures.csv",
                            "signature_nmf_rank_diagnostics.csv",
@@ -1278,11 +1267,12 @@ def runMutation(
     # Per-module gates: Params.<module>.enabled (default true)
     if _enabled(datajson, "fragment_size"):
         outfiles.append(f"{outdir}/results/fragment_size/fragment/FragmentSize.txt")
+        _frag_fmts = (datajson.get("Params", {}).get("fragment_size", {})
+                      .get("plotFragmentSize", {}).get("formats") or ["png"])
+        if isinstance(_frag_fmts, str):
+            _frag_fmts = [_frag_fmts]
         outfiles += _figs(f"{outdir}/results/fragment_size/fragment/FragmentSize",
-                          _plot_formats(datajson, "fragment_size", "plotFragmentSize",
-                                        default=None)
-                          or _plot_formats(datajson, "fragment_size",
-                                           default=("png",)))
+                          _frag_fmts)
 
     if _enabled(datajson, "manta"):
         # Matched-normal design pairs -> Manta somatic mode (somaticSV.vcf.gz),
@@ -1302,10 +1292,13 @@ def runMutation(
                 f"{outdir}/stability/msi/{designPair.exp_sample_id}/"
                 f"{designPair.exp_sample_id}_msi_pro.tsv")
         outfiles.append(f"{outdir}/stability/msi/msi_input.txt")
-        # formats 精确到 rule:Params.msi.msi_plot.formats(旧扁平键兼容回退)。
-        outfiles += _figs(f"{outdir}/stability/msi/msi_barplot",
-                          _plot_formats(datajson, "msi", "msi_plot", default=None)
-                          or _plot_formats(datajson, "msi", default=("jpg",)))
+        # formats 精确到 rule:Params.msi.msi_plot.formats(config 全量路径读取,
+        # 无 module 级共享回退)。
+        _msi_fmts = (datajson.get("Params", {}).get("msi", {})
+                     .get("msi_plot", {}).get("formats") or ["jpg"])
+        if isinstance(_msi_fmts, str):
+            _msi_fmts = [_msi_fmts]
+        outfiles += _figs(f"{outdir}/stability/msi/msi_barplot", _msi_fmts)
 
     if _enabled(datajson, "cnvkit"):
         # Mode-aware registration: paired -> per-pair tumors only (no pooled
@@ -1348,13 +1341,13 @@ def runMutation(
             if not burden_cfg.get(key):
                 burden_cfg[key] = derived
         # VEP annotation settings (Params.burden.burden_snv_indel.annotate,
-        # default on; 扁平 Params.burden.annotate 为旧键兼容回退):
+        # default on;config 全量路径读取,无 module 级共享回退):
         # species/assembly are derived from the genome; an explicit config
         # value wins and an unmapped genome hard-errors instead of guessing.
         _burden_snvi = burden_cfg.setdefault("burden_snv_indel", {})
-        if _burden_snvi.get("annotate", burden_cfg.get("annotate", True)):
-            if not (_burden_snvi.get("vep_species") or burden_cfg.get("vep_species")) \
-                    or not (_burden_snvi.get("vep_assembly") or burden_cfg.get("vep_assembly")):
+        if _burden_snvi.get("annotate", True):
+            if not _burden_snvi.get("vep_species") \
+                    or not _burden_snvi.get("vep_assembly"):
                 _genome_key = str(datajson["genome"]["default"])
                 mapped = GENOME_VEP_SPECIES.get(_genome_key)
                 if not mapped:
@@ -1365,8 +1358,6 @@ def runMutation(
                         f"'Params.burden.burden_snv_indel.vep_assembly' in the config JSON, or "
                         f"disable annotation with Params.burden.burden_snv_indel.annotate=false."
                     )
-                burden_cfg.setdefault("vep_species", mapped[0])
-                burden_cfg.setdefault("vep_assembly", mapped[1])
                 _burden_snvi.setdefault("vep_species", mapped[0])
                 _burden_snvi.setdefault("vep_assembly", mapped[1])
                 logger.info(
@@ -1394,8 +1385,11 @@ def runMutation(
     # Final PPT report + results workbook (modules/Mutation_report), gated
     # by Params.report.enabled like the other report modules.
     if _enabled(datajson, "report"):
-        report_params = datajson["Params"].setdefault("report", {})
-        report_params.setdefault("date", time.strftime("%Y-%m-%d", time.localtime()))
+        # 写回精确到 rule:Params.report.generate_report.date(与
+        # runPeakCalling/runRIPseq/runRNAseq 的写回同一键形)
+        datajson["Params"].setdefault("report", {}).setdefault(
+            "generate_report", {}).setdefault(
+            "date", time.strftime("%Y-%m-%d", time.localtime()))
         outfiles.append(f"{outdir}/Mutation_report.pptx")
         outfiles.append(f"{outdir}/Mutation_report.xlsx")
         # 报告自有图导出清单(报告模块规范:figures/<name>.<fmt> 条件产出,
@@ -1537,26 +1531,38 @@ def runPeakCalling(
             if ip_sample in cm_heatmap_samples:
                 if hm_suffix == "per_gene" and cm_gene_names:
                     for gene_name in cm_gene_names:
+                        _hm_gene_fmts = (datajson.get("Params", {}).get("plotHeatmap", {})
+                                         .get("heatmap_gene", {}).get("formats") or ["png"])
+                        if isinstance(_hm_gene_fmts, str):
+                            _hm_gene_fmts = [_hm_gene_fmts]
                         outfiles += _figs(
                             f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{gene_name}_heatmap",
-                            _plot_formats(datajson, "plotHeatmap", "heatmap_gene", default=None)
-                            or _plot_formats(datajson, "plotHeatmap", default=("png",)))
+                            _hm_gene_fmts)
                 else:
+                    _hm_fmts = (datajson.get("Params", {}).get("plotHeatmap", {})
+                                .get("heatmap", {}).get("formats") or ["png"])
+                    if isinstance(_hm_fmts, str):
+                        _hm_fmts = [_hm_fmts]
                     outfiles += _figs(
                         f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{hm_suffix}_heatmap",
-                        _plot_formats(datajson, "plotHeatmap", "heatmap", default=None)
-                        or _plot_formats(datajson, "plotHeatmap", default=("png",)))
+                        _hm_fmts)
             # Step 10: HOMER annotation
             outfiles.append(f"{outdir}/results/annotation/{ip_sample}/{ip_sample}_peaks.annotatePeaks.txt")
             # Step 11: Peak-TE overlap
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_te_subfamily_overlap.tsv")
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_peak_centric_te.tsv")
+        _macs3_cutoff_fmts = (datajson.get("Params", {}).get("macs3", {})
+                              .get("macs3_cutoff_plot", {}).get("formats") or ["png"])
+        if isinstance(_macs3_cutoff_fmts, str):
+            _macs3_cutoff_fmts = [_macs3_cutoff_fmts]
         outfiles += _figs(f"{outdir}/results/peaks/cutoff_analysis",
-                          _plot_formats(datajson, "macs3", "macs3_cutoff_plot", default=None)
-                          or _plot_formats(datajson, "macs3", default=("png",)))
+                          _macs3_cutoff_fmts)
+        _pte_fmts = (datajson.get("Params", {}).get("peak_te_overlap", {})
+                     .get("peak_te_overlap_fig", {}).get("formats") or ["png"])
+        if isinstance(_pte_fmts, str):
+            _pte_fmts = [_pte_fmts]
         outfiles += _figs(f"{outdir}/results/te_overlap/te_subfamily_overlap_combined",
-                          _plot_formats(datajson, "peak_te_overlap", "peak_te_overlap_fig", default=None)
-                      or _plot_formats(datajson, "peak_te_overlap", default=("png",)))
+                          _pte_fmts)
         for input_sample in input_samples:
             outfiles.append(f"{outdir}/common/4_markdup_bam/{input_sample}/{input_sample}.sorted_markdup.bam")
             outfiles.append(f"{outdir}/results/tracks/{input_sample}/{input_sample}.bigwig")
@@ -1573,23 +1579,32 @@ def runPeakCalling(
             if ip_sample in cm_heatmap_samples:
                 if hm_suffix == "per_gene" and cm_gene_names:
                     for gene_name in cm_gene_names:
+                        _hm_gene_fmts = (datajson.get("Params", {}).get("plotHeatmap", {})
+                                         .get("heatmap_gene", {}).get("formats") or ["png"])
+                        if isinstance(_hm_gene_fmts, str):
+                            _hm_gene_fmts = [_hm_gene_fmts]
                         outfiles += _figs(
                             f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{gene_name}_heatmap",
-                            _plot_formats(datajson, "plotHeatmap", "heatmap_gene", default=None)
-                            or _plot_formats(datajson, "plotHeatmap", default=("png",)))
+                            _hm_gene_fmts)
                 else:
+                    _hm_fmts = (datajson.get("Params", {}).get("plotHeatmap", {})
+                                .get("heatmap", {}).get("formats") or ["png"])
+                    if isinstance(_hm_fmts, str):
+                        _hm_fmts = [_hm_fmts]
                     outfiles += _figs(
                         f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{hm_suffix}_heatmap",
-                        _plot_formats(datajson, "plotHeatmap", "heatmap", default=None)
-                        or _plot_formats(datajson, "plotHeatmap", default=("png",)))
+                        _hm_fmts)
             # Step 10: HOMER annotation
             outfiles.append(f"{outdir}/results/annotation/{ip_sample}/{ip_sample}_peaks.annotatePeaks.txt")
             # Step 11: Peak-TE overlap
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_te_subfamily_overlap.tsv")
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_peak_centric_te.tsv")
+    _pte_fmts = (datajson.get("Params", {}).get("peak_te_overlap", {})
+                 .get("peak_te_overlap_fig", {}).get("formats") or ["png"])
+    if isinstance(_pte_fmts, str):
+        _pte_fmts = [_pte_fmts]
     outfiles += _figs(f"{outdir}/results/te_overlap/te_subfamily_overlap_combined",
-                      _plot_formats(datajson, "peak_te_overlap", "peak_te_overlap_fig", default=None)
-                      or _plot_formats(datajson, "peak_te_overlap", default=("png",)))
+                      _pte_fmts)
     outfiles.append(f"{outdir}/results/tracks/ucsc_track.txt")
     outfiles.append(f"{outdir}/results/tracks/igv_track.html")
     outfiles.append(f"{outdir}/PeakCalling_report.pptx")
@@ -1706,26 +1721,38 @@ def runRIPseq(
             if ip_sample in cm_heatmap_samples:
                 if hm_suffix == "per_gene" and cm_gene_names:
                     for gene_name in cm_gene_names:
+                        _hm_gene_fmts = (datajson.get("Params", {}).get("plotHeatmap", {})
+                                         .get("heatmap_gene", {}).get("formats") or ["png"])
+                        if isinstance(_hm_gene_fmts, str):
+                            _hm_gene_fmts = [_hm_gene_fmts]
                         outfiles += _figs(
                             f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{gene_name}_heatmap",
-                            _plot_formats(datajson, "plotHeatmap", "heatmap_gene", default=None)
-                            or _plot_formats(datajson, "plotHeatmap", default=("png",)))
+                            _hm_gene_fmts)
                 else:
+                    _hm_fmts = (datajson.get("Params", {}).get("plotHeatmap", {})
+                                .get("heatmap", {}).get("formats") or ["png"])
+                    if isinstance(_hm_fmts, str):
+                        _hm_fmts = [_hm_fmts]
                     outfiles += _figs(
                         f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{hm_suffix}_heatmap",
-                        _plot_formats(datajson, "plotHeatmap", "heatmap", default=None)
-                        or _plot_formats(datajson, "plotHeatmap", default=("png",)))
+                        _hm_fmts)
             # Step 10: HOMER annotation
             outfiles.append(f"{outdir}/results/annotation/{ip_sample}/{ip_sample}_peaks.annotatePeaks.txt")
             # Step 11: Peak-TE overlap
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_te_subfamily_overlap.tsv")
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_peak_centric_te.tsv")
+        _macs3_cutoff_fmts = (datajson.get("Params", {}).get("macs3", {})
+                              .get("macs3_cutoff_plot", {}).get("formats") or ["png"])
+        if isinstance(_macs3_cutoff_fmts, str):
+            _macs3_cutoff_fmts = [_macs3_cutoff_fmts]
         outfiles += _figs(f"{outdir}/results/peaks/cutoff_analysis",
-                          _plot_formats(datajson, "macs3", "macs3_cutoff_plot", default=None)
-                          or _plot_formats(datajson, "macs3", default=("png",)))
+                          _macs3_cutoff_fmts)
+        _pte_fmts = (datajson.get("Params", {}).get("peak_te_overlap", {})
+                     .get("peak_te_overlap_fig", {}).get("formats") or ["png"])
+        if isinstance(_pte_fmts, str):
+            _pte_fmts = [_pte_fmts]
         outfiles += _figs(f"{outdir}/results/te_overlap/te_subfamily_overlap_combined",
-                          _plot_formats(datajson, "peak_te_overlap", "peak_te_overlap_fig", default=None)
-                      or _plot_formats(datajson, "peak_te_overlap", default=("png",)))
+                          _pte_fmts)
         for input_sample in input_samples:
             outfiles.append(f"{outdir}/common/4_markdup_bam/{input_sample}/{input_sample}.sorted_markdup.bam")
             outfiles.append(f"{outdir}/results/tracks/{input_sample}/{input_sample}.bigwig")
@@ -1742,23 +1769,32 @@ def runRIPseq(
             if ip_sample in cm_heatmap_samples:
                 if hm_suffix == "per_gene" and cm_gene_names:
                     for gene_name in cm_gene_names:
+                        _hm_gene_fmts = (datajson.get("Params", {}).get("plotHeatmap", {})
+                                         .get("heatmap_gene", {}).get("formats") or ["png"])
+                        if isinstance(_hm_gene_fmts, str):
+                            _hm_gene_fmts = [_hm_gene_fmts]
                         outfiles += _figs(
                             f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{gene_name}_heatmap",
-                            _plot_formats(datajson, "plotHeatmap", "heatmap_gene", default=None)
-                            or _plot_formats(datajson, "plotHeatmap", default=("png",)))
+                            _hm_gene_fmts)
                 else:
+                    _hm_fmts = (datajson.get("Params", {}).get("plotHeatmap", {})
+                                .get("heatmap", {}).get("formats") or ["png"])
+                    if isinstance(_hm_fmts, str):
+                        _hm_fmts = [_hm_fmts]
                     outfiles += _figs(
                         f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{hm_suffix}_heatmap",
-                        _plot_formats(datajson, "plotHeatmap", "heatmap", default=None)
-                        or _plot_formats(datajson, "plotHeatmap", default=("png",)))
+                        _hm_fmts)
             # Step 10: HOMER annotation
             outfiles.append(f"{outdir}/results/annotation/{ip_sample}/{ip_sample}_peaks.annotatePeaks.txt")
             # Step 11: Peak-TE overlap
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_te_subfamily_overlap.tsv")
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_peak_centric_te.tsv")
+    _pte_fmts = (datajson.get("Params", {}).get("peak_te_overlap", {})
+                 .get("peak_te_overlap_fig", {}).get("formats") or ["png"])
+    if isinstance(_pte_fmts, str):
+        _pte_fmts = [_pte_fmts]
     outfiles += _figs(f"{outdir}/results/te_overlap/te_subfamily_overlap_combined",
-                      _plot_formats(datajson, "peak_te_overlap", "peak_te_overlap_fig", default=None)
-                      or _plot_formats(datajson, "peak_te_overlap", default=("png",)))
+                      _pte_fmts)
     outfiles.append(f"{outdir}/results/tracks/ucsc_track.txt")
     outfiles.append(f"{outdir}/results/tracks/igv_track.html")
     # Report (subworkflow.md: pptx + xlsx pair, gated by Params.report.enabled)
@@ -1934,45 +1970,45 @@ def runRNAseq(
         if enable_deseq2 and enable_TElocal:
             te_figures_dir = f"{outdir}/diff_expression/{group_pair.organism}/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}/TElocal"
             outfiles.append(f"{te_figures_dir}/DESeq2.done")
+            _manhattan_fmts = (datajson.get("Params", {}).get("DESeq2", {})
+                               .get("DESeq2_TElocal_manhattan", {}).get("formats") or ["png"])
+            if isinstance(_manhattan_fmts, str):
+                _manhattan_fmts = [_manhattan_fmts]
             outfiles += _figs(
                 f"{te_figures_dir}/manhattan/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}.manhattan",
-                _plot_formats(datajson, "DESeq2", "manhattan")
-                or _plot_formats(datajson, "DESeq2", default=("png",)))
+                _manhattan_fmts)
             # locus boxplot / subfamily bar only run when their per-contrast
-            # family patterns are configured (Params.DESeq2.<rule>.families).
-            for te_fig_rule, te_fig_dir in (("locus_boxplot", "locus_box"), ("subfamily_bar", "subfamily_bar")):
+            # family patterns are configured (Params.DESeq2.<rule>.families;
+            # rule 键 = 真实规则名,与 modules/DESeq2 读点一致)。
+            for te_fig_rule, te_fig_dir in (("DESeq2_TElocal_locus_boxplot", "locus_box"),
+                                            ("DESeq2_TElocal_subfamily_bar", "subfamily_bar")):
                 te_fig_families = (datajson.get("Params", {}).get("DESeq2", {}).get(te_fig_rule, {}) or {}).get("families", {}) or {}
                 if te_fig_families.get(group_pair.organism, {}).get(f"{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}"):
+                    te_fig_fmts = (datajson.get("Params", {}).get("DESeq2", {})
+                                   .get(te_fig_rule, {}).get("formats") or ["png"])
+                    if isinstance(te_fig_fmts, str):
+                        te_fig_fmts = [te_fig_fmts]
                     outfiles += _figs(
                         f"{te_figures_dir}/{te_fig_dir}/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}.{te_fig_dir}",
-                        _plot_formats(datajson, "DESeq2", te_fig_rule)
-                        or _plot_formats(datajson, "DESeq2", default=("png",)))
+                        te_fig_fmts)
         sample_groups.setdefault(group_pair.ctr_group_name, []).extend(group_pair.ctr_sample_ids)
         sample_groups.setdefault(group_pair.exp_group_name, []).extend(group_pair.exp_sample_ids)
 
         if datajson.get("Params", {}).get("function", {}).get(group_pair.organism, {}).get("enabled", False):
             pair_dir = f"{outdir}/function/{group_pair.organism}/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}"
-            outfiles += _figs(f"{pair_dir}/go_back_to_back",
-                              _plot_formats(datajson, "function",
-                                            group_pair.organism, "function_go_kegg",
-                                            default=None)
-                              or _plot_formats(datajson, "function",
-                                               group_pair.organism, "go_kegg",
-                                               default=("png",)))
-            outfiles += _figs(f"{pair_dir}/kegg_back_to_back",
-                              _plot_formats(datajson, "function",
-                                            group_pair.organism, "function_go_kegg",
-                                            default=None)
-                              or _plot_formats(datajson, "function",
-                                               group_pair.organism, "go_kegg",
-                                               default=("png",)))
-            outfiles += _figs(f"{pair_dir}/GSEA/TEcount_Gene_GSEA",
-                              _plot_formats(datajson, "function",
-                                            group_pair.organism, "function_gsea",
-                                            default=None)
-                              or _plot_formats(datajson, "function",
-                                               group_pair.organism, "gsea",
-                                               default=("jpeg",)))
+            _fn_go_fmts = (datajson.get("Params", {}).get("function", {})
+                           .get(group_pair.organism, {})
+                           .get("function_go_kegg", {}).get("formats") or ["png"])
+            if isinstance(_fn_go_fmts, str):
+                _fn_go_fmts = [_fn_go_fmts]
+            outfiles += _figs(f"{pair_dir}/go_back_to_back", _fn_go_fmts)
+            outfiles += _figs(f"{pair_dir}/kegg_back_to_back", _fn_go_fmts)
+            _fn_gsea_fmts = (datajson.get("Params", {}).get("function", {})
+                             .get(group_pair.organism, {})
+                             .get("function_gsea", {}).get("formats") or ["jpeg"])
+            if isinstance(_fn_gsea_fmts, str):
+                _fn_gsea_fmts = [_fn_gsea_fmts]
+            outfiles += _figs(f"{pair_dir}/GSEA/TEcount_Gene_GSEA", _fn_gsea_fmts)
             outfiles.append(f"{pair_dir}/go_up.csv")
             outfiles.append(f"{pair_dir}/go_down.csv")
             outfiles.append(f"{pair_dir}/kegg_up.csv")
@@ -2036,9 +2072,13 @@ def runRNAseq(
                 for _st_fig in ("TE_chimeric_group_stacked",
                                 "TE_chimeric_te_type_top",
                                 "TE_chimeric_te_type_by_group"):
+                    _st_fmts = (datajson.get("Params", {}).get("StringTie", {})
+                                .get("formats") or ["png"])
+                    if isinstance(_st_fmts, str):
+                        _st_fmts = [_st_fmts]
                     outfiles += _figs(
                         f"{outdir}/transcripts/{organism}/TE_chimeric/{_st_fig}",
-                        _plot_formats(datajson, "StringTie", default=("png",)))
+                        _st_fmts)
                 outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_sample_summary.tsv")
                 outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_group_summary.tsv")
                 outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_te_type_counts.tsv")
@@ -2055,11 +2095,13 @@ def runRNAseq(
         # GSVA enrichment analysis
         if datajson.get("Params", {}).get("function", {}).get(organism, {}).get("enabled", False):
             outfiles.append(f"{outdir}/function/{organism}/gsva/gsva_scores.tsv")
+            _fn_gsva_fmts = (datajson.get("Params", {}).get("function", {})
+                             .get(organism, {})
+                             .get("function_gsva", {}).get("formats") or ["png"])
+            if isinstance(_fn_gsva_fmts, str):
+                _fn_gsva_fmts = [_fn_gsva_fmts]
             outfiles += _figs(f"{outdir}/function/{organism}/gsva/gsva_heatmap",
-                              _plot_formats(datajson, "function", organism,
-                                            "function_gsva", default=None)
-                              or _plot_formats(datajson, "function", organism,
-                                               "gsva", default=("png",)))
+                              _fn_gsva_fmts)
         if enable_report:
             outfiles.append(f"{outdir}/results/{organism}/RNAseq_report.pptx")
             outfiles.append(f"{outdir}/results/{organism}/figures/manifest.tsv")
@@ -2092,11 +2134,13 @@ def runtRNAseq(
     The pipeline processes all samples together via a sample data sheet.
     """
     root_dir = _init_raw_json(datajson, indir, outdir, raw_files)
-    # data_dir 精确到 rule:Params.mimseq.mimseq_tRNAtools.data_dir(旧扁平键
-    # 兼容回退;写回同样落到 rule 子段)
-    _mimseq = datajson.setdefault("Params", {}).setdefault("mimseq", {})
-    if not _rule_first(_mimseq, ("mimseq_tRNAtools",), "data_dir"):
-        _mimseq.setdefault("mimseq_tRNAtools", {})["data_dir"] = os.path.join(root_dir, "modules", "mimseq", "mimseq", "data")
+    # data_dir 精确到 rule:Params.mimseq.mimseq_tRNAtools.data_dir(config
+    # 全量路径读取与写回,无 module 级共享回退)
+    if not (datajson.get("Params", {}).get("mimseq", {})
+            .get("mimseq_tRNAtools", {}) or {}).get("data_dir"):
+        datajson.setdefault("Params", {}).setdefault("mimseq", {}).setdefault(
+            "mimseq_tRNAtools", {})["data_dir"] = os.path.join(
+            root_dir, "modules", "mimseq", "mimseq", "data")
     datajson.setdefault("Params", {}).setdefault("workflow", {})["meta"] = meta
     samples = []
     for sample_id in samples_info_dict:
@@ -2454,25 +2498,34 @@ def runFiberseq(
         if enable_motif:
             outfiles.append(f"{outdir}/fiberseq_analysis/motif/{sample_id}/{sample_id}.motif_profile.tsv")
             outfiles.append(f"{outdir}/fiberseq_analysis/motif/{sample_id}/{sample_id}.motif_footprint_scores.tsv")
+            _motif_fmts = (datajson.get("Params", {}).get("motif", {})
+                           .get("fiberseq_motif_profile", {}).get("formats") or ["pdf"])
+            if isinstance(_motif_fmts, str):
+                _motif_fmts = [_motif_fmts]
             outfiles += _figs(
                 f"{outdir}/fiberseq_analysis/motif/{sample_id}/{sample_id}.motif_profile",
-                _plot_formats(datajson, "motif", "fiberseq_motif_profile", default=None)
-                or _plot_formats(datajson, "motif", default=("pdf",)))
+                _motif_fmts)
         if enable_footprint:
             outfiles.append(f"{outdir}/fiberseq_analysis/footprint/{sample_id}/{sample_id}.footprint_categories.tsv")
             outfiles.append(f"{outdir}/fiberseq_analysis/footprint/{sample_id}/{sample_id}.footprint_profiles.tsv")
             outfiles.append(f"{outdir}/fiberseq_analysis/footprint/{sample_id}/{sample_id}.footprint_scores.tsv")
+            _footprint_fmts = (datajson.get("Params", {}).get("footprint", {})
+                               .get("fiberseq_footprint_run", {}).get("formats") or ["pdf"])
+            if isinstance(_footprint_fmts, str):
+                _footprint_fmts = [_footprint_fmts]
             outfiles += _figs(
                 f"{outdir}/fiberseq_analysis/footprint/{sample_id}/{sample_id}.footprint_profile",
-                _plot_formats(datajson, "footprint", "fiberseq_footprint_run", default=None)
-                or _plot_formats(datajson, "footprint", default=("pdf",)))
+                _footprint_fmts)
         if enable_nucpos:
             outfiles.append(f"{outdir}/fiberseq_analysis/nucpos/{sample_id}/{sample_id}.nuc_offset_per_anchor.tsv")
             outfiles.append(f"{outdir}/fiberseq_analysis/nucpos/{sample_id}/{sample_id}.nuc_offset_summary.tsv")
+            _nucpos_fmts = (datajson.get("Params", {}).get("nucpos", {})
+                            .get("fiberseq_nucpos_run", {}).get("formats") or ["pdf"])
+            if isinstance(_nucpos_fmts, str):
+                _nucpos_fmts = [_nucpos_fmts]
             outfiles += _figs(
                 f"{outdir}/fiberseq_analysis/nucpos/{sample_id}/{sample_id}.nucpos",
-                _plot_formats(datajson, "nucpos", "fiberseq_nucpos_run", default=None)
-                or _plot_formats(datajson, "nucpos", default=("pdf",)))
+                _nucpos_fmts)
         if enable_track:
             outfiles.append(f"{outdir}/fiberseq_analysis/track/{sample_id}/{sample_id}.accessibility.bw")
             outfiles.append(f"{outdir}/fiberseq_analysis/track/{sample_id}/{sample_id}.m6a_density.bw")
@@ -2486,10 +2539,13 @@ def runFiberseq(
             outfiles.append(f"{outdir}/fiberseq_analysis/censat/{sample_id}/{sample_id}.censat_regions.tsv")
             outfiles.append(f"{outdir}/fiberseq_analysis/censat/{sample_id}/{sample_id}.censat_class_summary.tsv")
             outfiles.append(f"{outdir}/fiberseq_analysis/censat/{sample_id}/{sample_id}.censat_profile.tsv")
+            _censat_fmts = (datajson.get("Params", {}).get("censat", {})
+                            .get("fiberseq_censat_run", {}).get("formats") or ["pdf"])
+            if isinstance(_censat_fmts, str):
+                _censat_fmts = [_censat_fmts]
             outfiles += _figs(
                 f"{outdir}/fiberseq_analysis/censat/{sample_id}/{sample_id}.censat_profile",
-                _plot_formats(datajson, "censat", "fiberseq_censat_run", default=None)
-                or _plot_formats(datajson, "censat", default=("pdf",)))
+                _censat_fmts)
 
         # Step 5: haplotype chain
         if enable_haplotype:
@@ -2538,9 +2594,12 @@ def runFiberseq(
             # Cross-sample comparison (aggregated): the decoil module writes
             # these under {outdir}/compare/ (see modules/decoil/decoil.smk
             # rule decoil_compare), NOT {outdir}/visualization/.
+            _decoil_cmp_fmts = (datajson.get("Params", {}).get("decoil", {})
+                                .get("compare", {}).get("formats") or ["png"])
+            if isinstance(_decoil_cmp_fmts, str):
+                _decoil_cmp_fmts = [_decoil_cmp_fmts]
             outfiles += _figs(f"{outdir}/eccdna/compare/decoil_compare",
-                              _plot_formats(datajson, "decoil", "compare",
-                                            default=("png",)))
+                              _decoil_cmp_fmts)
             outfiles.append(f"{outdir}/eccdna/compare/decoil_compare_shared_unique.tsv")
         if enable_sv:
             outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.svsig.gz")
@@ -2590,7 +2649,8 @@ def runFiberseq(
         )
     if enable_sv and comparisons:
         sv_outdir = f"{outdir}/variation/germline_sv_analysis"
-        sv_genes = _rule_first(sv_params, ("sv_gene_model",), "genes") or []
+        sv_genes = (datajson.get("Params", {}).get("sv", {})
+                    .get("sv_gene_model", {}).get("genes") or [])
         sv_oncoprint = sv_params.get("oncoprint") or {}
         known_samples = set(samples_info_dict)
         for name, c in comparisons.items():
@@ -2651,15 +2711,18 @@ def runFiberseq(
                        or datajson["Params"].setdefault("fiberseq_mods", {}))
         # 参数精确到 rule:mod_type/region_axis 是各 rule 独立键
         # (Params.fiberseq_mods.<rule>.<key>;长表文件名由
-        # fiberseq_mods_longtable 产出,以其子键为锚;旧扁平键兼容回退)
-        _mod_rules = ("fiberseq_mods_longtable", "fiberseq_mods_split",
-                      "fiberseq_mods_top_loci", "fiberseq_mods_result")
-        mod_type = _rule_first(mods_params, _mod_rules, "mod_type", "m6a")
+        # fiberseq_mods_longtable 产出,以其子键为锚;config 全量路径读取,
+        # 无旧扁平键/跨 rule 回退)
+        mod_type = ((datajson.get("Params", {}).get("fiberseq_mods", {})
+                     .get("fiberseq_mods_longtable", {}) or {})
+                    .get("mod_type") or "m6a")
         # region_axis is a discriminant object ({default, options}); the
         # axis id selects the engine, the long-table schema, and which
         # axis-specific params (min_fibers/loci_top_n vs metric/top_n)
         # apply. Flat strings are NOT accepted (closed-set parse error).
-        _ra = _rule_first(mods_params, _mod_rules, "region_axis") or {}
+        _ra = ((datajson.get("Params", {}).get("fiberseq_mods", {})
+                .get("fiberseq_mods_longtable", {}) or {})
+               .get("region_axis") or {})
         if not isinstance(_ra, dict):
             raise ValueError(
                 "Params.fiberseq_mods.<rule>.region_axis must be a discriminant "
@@ -2675,7 +2738,7 @@ def runFiberseq(
         metric = axis_opts.get("metric", f"{mod_type}_per_fiber")
         if region_axis == "te":
             # tested TE levels belong to sigtest (they choose its feature
-            # column); read there with a legacy fallback to mods
+            # column); read there (config 全量路径,无旧扁平键回退)
             sigtest_params = datajson["Params"].setdefault("sigtest", {})
             te_levels = ([lv for lv in sigtest_params.get("te_levels", ["subfamily", "family"])
                           if lv in ("subfamily", "family")])
@@ -2787,9 +2850,11 @@ def runFiberseq(
         for contrast, groups in sorted(contrast_groups.items()):
             base = f"{outdir}/fiberseq_analysis/diff/{contrast}"
             outfiles.append(f"{base}/diff_{contrast}.tsv")
-            outfiles += _figs(f"{base}/volcano_{contrast}",
-                              _plot_formats(datajson, "diff", "fiberseq_diff_run", default=None)
-                              or _plot_formats(datajson, "diff", default=("pdf",)))
+            _diff_fmts = (datajson.get("Params", {}).get("diff", {})
+                          .get("fiberseq_diff_run", {}).get("formats") or ["pdf"])
+            if isinstance(_diff_fmts, str):
+                _diff_fmts = [_diff_fmts]
+            outfiles += _figs(f"{base}/volcano_{contrast}", _diff_fmts)
             outfiles.append(f"{base}/class_summary_{contrast}.tsv")
             outfiles.append(f"{base}/TEcount/{contrast}.TEcount_Gene.name.tsv")
 
@@ -2812,36 +2877,33 @@ def runFiberseq(
         if enable_function:
             for contrast in sorted(contrast_groups):
                 base = f"{outdir}/function/{contrast}"
-                outfiles += _figs(f"{base}/go_back_to_back",
-                                  _plot_formats(datajson, "function",
-                                                "function_go_kegg", default=None)
-                                  or _plot_formats(datajson, "function",
-                                                   "go_kegg", default=("png",)))
-                outfiles += _figs(f"{base}/kegg_back_to_back",
-                                  _plot_formats(datajson, "function",
-                                                "function_go_kegg", default=None)
-                                  or _plot_formats(datajson, "function",
-                                                   "go_kegg", default=("png",)))
+                _fn_go_fmts = (datajson.get("Params", {}).get("function", {})
+                               .get("function_go_kegg", {}).get("formats") or ["png"])
+                if isinstance(_fn_go_fmts, str):
+                    _fn_go_fmts = [_fn_go_fmts]
+                outfiles += _figs(f"{base}/go_back_to_back", _fn_go_fmts)
+                outfiles += _figs(f"{base}/kegg_back_to_back", _fn_go_fmts)
                 outfiles.append(f"{base}/go_up.csv")
                 outfiles.append(f"{base}/go_down.csv")
                 outfiles.append(f"{base}/kegg_up.csv")
                 outfiles.append(f"{base}/kegg_down.csv")
                 outfiles.append(f"{base}/up_genes.txt")
                 outfiles.append(f"{base}/down_genes.txt")
-            if _rule_first((datajson.get("Params", {}).get("function", {}) or {}),
-                           ("function_gsea", "function_gsva"), "gmt") and default_ref.get("geneIDAnno"):
+            if ((datajson.get("Params", {}).get("function", {})
+                 .get("function_gsea", {}) or {}).get("gmt")
+                    and default_ref.get("geneIDAnno")):
                 for contrast in sorted(contrast_groups):
                     base = f"{outdir}/function/{contrast}/GSEA"
-                    outfiles += _figs(f"{base}/TEcount_Gene_GSEA",
-                                      _plot_formats(datajson, "function",
-                                                    "function_gsea", default=None)
-                                      or _plot_formats(datajson, "function",
-                                                       "gsea", default=("jpeg",)))
+                    _fn_gsea_fmts = (datajson.get("Params", {}).get("function", {})
+                                     .get("function_gsea", {}).get("formats") or ["jpeg"])
+                    if isinstance(_fn_gsea_fmts, str):
+                        _fn_gsea_fmts = [_fn_gsea_fmts]
+                    outfiles += _figs(f"{base}/TEcount_Gene_GSEA", _fn_gsea_fmts)
                     outfiles.append(f"{base}/TEcount_Gene_GSEA.csv")
 
     if enable_lsdc:
-        prefix = _rule_first((datajson.get("Params", {}).get("ldsc", {}) or {}),
-                             ("ldsc_annot", "ldsc_h2_cts"), "annot_prefix") or "peaks"
+        prefix = ((datajson.get("Params", {}).get("ldsc", {})
+                   .get("ldsc_annot", {}) or {}).get("annot_prefix") or "peaks")
         outfiles.append(f"{outdir}/ldsc/annot/{prefix}.annot_manifest.tsv")
         for trait in sorted((datajson.get("Params", {}).get("ldsc", {}).get("gwas") or {}).keys()):
             outfiles.append(f"{outdir}/ldsc/{trait}/{trait}.sumstats.gz")

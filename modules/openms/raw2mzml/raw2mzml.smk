@@ -7,9 +7,8 @@ samples = config.get("samples", [])
 raw_files = config.get("raw_files", [])
 
 # Get parameters
-# 参数精确到 rule(2026-11 规范;rule_param 见 common.smk):
+# 参数精确到 rule(2026-11 规范):config 全量路径字面链
 # Params.raw_to_mzml.raw2mzml.<key>,无 module 级共享回退。
-raw_to_mzml_params = config.get("Params", {}).get("raw_to_mzml", {})
 
 def get_raw_input(wildcards):
     if raw_files and wildcards.sample_id in samples:
@@ -46,10 +45,10 @@ rule raw2mzml:
     container:
         sif("../openms.yaml", "raw2mzml")
     params:
-        converter = rule_param(raw_to_mzml_params, "raw2mzml", "converter", "thermorawfileparser"),
-        converter_mode = rule_param(raw_to_mzml_params, "raw2mzml", "mode", "thermorawfileparser").lower(),
-        converter_args = rule_param(raw_to_mzml_params, "raw2mzml", "args", ""),
-        peak_picking = rule_param(raw_to_mzml_params, "raw2mzml", "peak_picking", True)
+        converter = config.get("Params", {}).get("raw_to_mzml", {}).get("raw2mzml", {}).get("converter", "thermorawfileparser"),
+        converter_mode = (config.get("Params", {}).get("raw_to_mzml", {}).get("raw2mzml", {}).get("mode", "thermorawfileparser") or "thermorawfileparser").lower(),
+        converter_args = config.get("Params", {}).get("raw_to_mzml", {}).get("raw2mzml", {}).get("args", ""),
+        peak_picking = config.get("Params", {}).get("raw_to_mzml", {}).get("raw2mzml", {}).get("peak_picking", True)
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -60,6 +59,7 @@ rule raw2mzml:
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"raw2mzml_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"raw2mzml.sh")
             output_dir = os.path.dirname(output.mzml)
             output_name = os.path.basename(output.mzml)
@@ -92,7 +92,8 @@ rule raw2mzml:
                 f.write(" ".join(shlex.quote(x) for x in cmd) + "\n")
                 f.write(f'echo "raw2mzml completed for sample {wildcards.sample_id} at $(date)"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"rule raw2mzml was call failed,error: {e}")
             raise RuntimeError(f"rule raw2mzml was call failed,error: {e}")
@@ -100,8 +101,3 @@ rule raw2mzml:
 rule raw2mzml_result:
     input:
         expand(outdir + "/{sample_id}/{sample_id}.mzML", sample_id=samples)
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "raw2mzml_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

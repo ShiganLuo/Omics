@@ -7,8 +7,7 @@ bam_suffix = config.get("bam_suffix", "")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 # 参数精确到 rule:threads 按 rule 独立配置(Params.manta.<rule_name>.threads),
-# 无 module 级共享;rule_param 见 common.smk。
-_manta_params = config.get("Params", {}).get("manta", {})
+# 无 module 级共享。
 
 rule manta_config_germline:
     """Configure Manta SV caller."""
@@ -39,6 +38,7 @@ rule manta_config_germline:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start manta config for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"manta_config_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/manta_config.sh")
             cmd = [
                 "configManta.py",
@@ -51,7 +51,8 @@ rule manta_config_germline:
                 f.write(' '.join(cmd) + '\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"manta_config failed for sample {wildcards.sample_id} with error: {e}")
             raise RuntimeError(f"manta_config failed for sample {wildcards.sample_id} with error: {e}")
@@ -67,7 +68,7 @@ rule manta_run_germline:
     log:
         logdir + "/{sample_id}/manta_run.log"
     threads:
-        rule_param(_manta_params, "manta_run_germline", "threads", 8)
+        config.get("Params", {}).get("manta", {}).get("manta_run_germline", {}).get("threads", 8)
     benchmark: logdir + "/{sample_id}/manta_run.benchmark.tsv",
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(
@@ -85,6 +86,7 @@ rule manta_run_germline:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start manta run for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"manta_run_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/manta_run.sh")
             cmd = [
                 "python", str(input.script),
@@ -95,7 +97,8 @@ rule manta_run_germline:
                 f.write(' '.join(cmd) + '\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"manta_run failed for sample {wildcards.sample_id} with error: {e}")
             raise RuntimeError(f"manta_run failed for sample {wildcards.sample_id} with error: {e}")
@@ -130,6 +133,7 @@ rule manta_config_somatic:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start manta somatic config for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"manta_config_somatic_{wildcards.experimental_sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.normal_sample_id}_vs_{wildcards.experimental_sample_id}/manta_config_somatic.sh")
             cmd = [
                 "configManta.py",
@@ -143,7 +147,8 @@ rule manta_config_somatic:
                 f.write(' '.join(cmd) + '\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"manta_config_somatic failed for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} with error: {e}")
             raise RuntimeError(f"manta_config_somatic failed for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} with error: {e}")
@@ -160,7 +165,7 @@ rule manta_run_somatic:
     log:
         logdir + "/manta/{normal_sample_id}_vs_{experimental_sample_id}/manta_run_somatic.log"
     threads:
-        rule_param(_manta_params, "manta_run_somatic", "threads", 8)
+        config.get("Params", {}).get("manta", {}).get("manta_run_somatic", {}).get("threads", 8)
     benchmark: logdir + "/manta/{normal_sample_id}_vs_{experimental_sample_id}/manta_run_somatic.benchmark.tsv",
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(
@@ -178,6 +183,7 @@ rule manta_run_somatic:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start manta somatic run for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"manta_run_somatic_{wildcards.experimental_sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.normal_sample_id}_vs_{wildcards.experimental_sample_id}/manta_run_somatic.sh")
             cmd = [
                 "python", str(input.script),
@@ -188,7 +194,8 @@ rule manta_run_somatic:
                 f.write(' '.join(cmd) + '\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"manta_run_somatic failed for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} with error: {e}")
             raise RuntimeError(f"manta_run_somatic failed for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} with error: {e}")
@@ -198,8 +205,3 @@ rule manta_result:
     input:
         vcf = outdir + "/{sample_id}/results/variants/candidateSV.vcf.gz",
         tbi = outdir + "/{sample_id}/results/variants/candidateSV.vcf.gz.tbi"
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "manta_result", input_size=input_size_named(input, 'vcf'),
-            attempt=attempt).get("mem_mb", 8000),

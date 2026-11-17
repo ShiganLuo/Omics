@@ -42,6 +42,7 @@ rule stringTie:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start stringTie run for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"stringTie_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = f"...{wildcards.sample_id}/stringTie.sh"
             cmd = [params.stringtie, "-o", output.gtf, input.bam, "-G", params.gtf, "-p", str(threads)]
             with open(script, 'w') as f:
@@ -49,7 +50,8 @@ rule stringTie:
                 f.write(' '.join(cmd) + '\n')
                 f.write(f"echo 'stringTie run completed for sample {wildcards.sample_id} was successful completed'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during stringTie run for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred during stringTie run for sample {wildcards.sample_id}: {e}\n")
@@ -82,6 +84,7 @@ rule TEChimericTranscripts:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             rule_logger.info(f"Start TEChimericTranscripts run for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"TEChimericTranscripts_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = f"...{wildcards.sample_id}/TEChimericTranscripts.sh"
             cmd = f"python {params.TEChimericTranscripts} -s {input.gtf} -t {params.te_gtf} -o {output.txt} > {log} 2>&1"
             with open(script, 'w') as f:
@@ -89,7 +92,8 @@ rule TEChimericTranscripts:
                 f.write(cmd + "\n")
                 f.write(f"echo 'TEChimericTranscripts run completed for sample {wildcards.sample_id} was successful completed'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during TEChimericTranscripts for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred during TEChimericTranscripts for sample {wildcards.sample_id}: {e}\n")
@@ -127,6 +131,7 @@ rule TEChimericPlot:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             script = os.path.join(RECEIPT_DIR, f"TEChimericPlot_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             rule_logger.info(f"Start TEChimericPlot run at {current_time}")
             group_tsv = outdir + "/TE_chimeric/sample_groups.tsv"
             with open(group_tsv, 'w') as f:
@@ -147,7 +152,8 @@ rule TEChimericPlot:
                 f.write(' '.join(cmd) + "\n")
                 f.write(f"echo 'TEChimericPlot run completed successfully'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during TEChimericPlot: {e}")
             raise RuntimeError(f"Error occurred during TEChimericPlot: {e}\n")
@@ -180,6 +186,7 @@ rule stringTieMerge:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start stringTieMerge run at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"stringTieMerge_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"stringTieMerge.sh")
             cmd = [params.stringtie, "--merge"] + list(input.gtfs) + ["-o", output.gtf, "-G", params.gtf]
             with open(script, 'w') as f:
@@ -187,7 +194,8 @@ rule stringTieMerge:
                 f.write(' '.join(cmd) + '\n')
                 f.write(f"echo 'stringTieMerge run completed successfully'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during stringTieMerge: {e}")
             raise RuntimeError(f"Error occurred during stringTieMerge: {e}\n")

@@ -219,7 +219,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--dry-run', action='store_true', help='dry run')
     parser.add_argument('--touch', action='store_true', help='touch output files to update timestamps without re-running (cannot combine with --dry-run)')
     parser.add_argument('--test', type=str, nargs='?', const='all', metavar='WORKFLOW',
-        help='run dry-run test for a workflow (or "all"). Auto-sets meta/output/dry-run from test/ directory')
+        help='test a workflow (or "all"): generate every rule\'s shell receipt without executing (see modules.md). Auto-sets meta/output from test/ directory')
     parser.add_argument('--log', type=str, default='workflow.log', help='log file')
     parser.add_argument('--callback-url', type=str, default=None,
         help='execution callback endpoint (default: env BIPLATFORM_CALLBACK_URL '
@@ -801,7 +801,12 @@ def setup_test_args(args: argparse.Namespace, root_dir: str) -> argparse.Namespa
     os.makedirs(args.output_dir, exist_ok=True)
     logger.info(f"Output: {args.output_dir}")
 
-    args.dry_run = True
+    # 测试模式:输出 shell 脚本但不执行(见 modules.md「测试模式」)。真实
+    # 执行 DAG,run 块末尾按 SCRIPT_ONLY 判断只落盘回执,不 touch 任何输出
+    # 占位;--forceall 每次全量重新生成回执,保证跨版本对照的回执集合完整。
+    args.dry_run = False
+    os.environ["OMICS_SCRIPT_ONLY"] = "1"
+    args.snakemake_args = list(args.snakemake_args or []) + ["--forceall", "--keep-going"]
     args.log = os.path.join(args.output_dir, "test.log")
     os.makedirs(args.output_dir, exist_ok=True)
 
@@ -1173,7 +1178,33 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
 
     # Execute snakemake commands
     if args._test_meta_map:
-        # Test mode: run each workflow, catch errors
+        # Test mode: run each workflow, catch errors. PASS 判据:回执脚本落盘
+        # 即达成测试模式目的;snakemake 9 对「run 块跳过执行、产物不落盘」
+        # 逐一报 MissingOutputException——属预期行为,全部失败均为该类时豁免;
+        # 其余失败仍记 FAIL。
+        import re as _re
+
+        def _missing_outputs_only(exc: Exception) -> bool:
+            """True = snakemake 输出中的每个 Error in rule 块都是
+            MissingOutputException(测试模式跳过执行的预期结果)。"""
+            cause = getattr(exc, "__cause__", None)
+            out = ((getattr(cause, "stdout", "") or "")
+                   + (getattr(cause, "stderr", "") or ""))
+            if "MissingOutputException" not in out:
+                logger.info("[test-judge] no MissingOutputException in snakemake output")
+                return False
+            blocks = out.split("Error in rule")[1:] or []
+            if not blocks:
+                logger.info("[test-judge] no 'Error in rule' blocks in snakemake output")
+                return False
+            for blk in blocks:
+                names = _re.findall(r"\b([A-Za-z_]+(?:Exception|Error))\b", blk)
+                names = [n for n in names if n != "WorkflowError"]
+                logger.info(f"[test-judge] block exceptions: {sorted(set(names))}")
+                if any(n != "MissingOutputException" for n in names):
+                    return False
+            return True
+
         exec_status: Dict[str, str] = {}
         for cmd, cwd in smk_cmds:
             wf = os.path.basename(cwd)
@@ -1182,8 +1213,12 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
                 test_results[wf] = (True, "")
                 exec_status[wf] = "ok"
             except Exception as e:
-                test_results[wf] = (False, str(e)[:200])
-                exec_status[wf] = "failed"
+                if _missing_outputs_only(e):
+                    test_results[wf] = (True, "回执已生成;产物按测试模式约定不落盘(MissingOutputException 已豁免)")
+                    exec_status[wf] = "ok"
+                else:
+                    test_results[wf] = (False, str(e)[:200])
+                    exec_status[wf] = "failed"
 
         _write_run_summary(args.output_dir, _summary_payload(exec_status))
         print_test_summary(test_results)

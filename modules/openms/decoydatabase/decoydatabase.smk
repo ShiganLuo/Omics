@@ -1,4 +1,5 @@
 include: "../../common/common.smk"
+openms = config.get("Procedure", {}).get("openms") or "DecoyDatabase"
 
 indir = config.get("indir", "data/fasta")
 outdir = config.get("outdir", "output")
@@ -9,12 +10,8 @@ protein_fasta = config.get("genome", {}).get("protein_fasta")
 # this rule and must not crash at parse.
 
 # Get parameters
-# 参数精确到 rule(2026-11 规范;rule_param 见 common.smk):
+# 参数精确到 rule(2026-11 规范):config 全量路径字面链
 # Params.decoy_database.decoy_database.<key>,无 module 级共享回退。
-decoy_params = config.get("Params", {}).get("decoy_database", {})
-
-# Get OpenMS executable
-openms = config.get("Procedure", {}).get("openms") or "DecoyDatabase"
 
 rule decoy_database:
     input:
@@ -34,11 +31,11 @@ rule decoy_database:
         sif("../openms.yaml", "decoy_database")
     params:
         openms = openms,
-        decoy_string = rule_param(decoy_params, "decoy_database", "decoy_string", "DECOY_"),
-        decoy_string_position = rule_param(decoy_params, "decoy_database", "decoy_string_position", "prefix"),
-        method = rule_param(decoy_params, "decoy_database", "method", "shuffle"),
-        shuffle_max_attempts = rule_param(decoy_params, "decoy_database", "shuffle_max_attempts", 30),
-        shuffle_sequence_identity_threshold = rule_param(decoy_params, "decoy_database", "shuffle_sequence_identity_threshold", 0.5)
+        decoy_string = config.get("Params", {}).get("decoy_database", {}).get("decoy_database", {}).get("decoy_string", "DECOY_"),
+        decoy_string_position = config.get("Params", {}).get("decoy_database", {}).get("decoy_database", {}).get("decoy_string_position", "prefix"),
+        method = config.get("Params", {}).get("decoy_database", {}).get("decoy_database", {}).get("method", "shuffle"),
+        shuffle_max_attempts = config.get("Params", {}).get("decoy_database", {}).get("decoy_database", {}).get("shuffle_max_attempts", 30),
+        shuffle_sequence_identity_threshold = config.get("Params", {}).get("decoy_database", {}).get("decoy_database", {}).get("shuffle_sequence_identity_threshold", 0.5)
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -65,6 +62,7 @@ rule decoy_database:
                     f"'genome.protein_fasta' to the protein database."
                 )
             script = os.path.join(RECEIPT_DIR, f"decoy_database_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"decoy_database.sh")
             cmd = [
                 params.openms,
@@ -81,7 +79,8 @@ rule decoy_database:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'Decoy database generation for {input.protein_fasta} was completed successfully'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"rule decoy_database was call failed,error: {e}")
             raise RuntimeError(f"rule decoy_database was call failed,error: {e}")
@@ -89,8 +88,3 @@ rule decoy_database:
 rule decoy_database_result:
     input:
         decoy_fasta = outdir + "/genome_decoy.fasta"
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "decoy_database_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

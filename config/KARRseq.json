@@ -81,20 +81,11 @@
     "karrseq_remove_duplicates": {
       "mem_mb": 8000
     },
-    "karrseq_result": {
-      "mem_mb": 8000
-    },
     "qc_summary": {
       "threads": 1,
       "mem_mb": 8000
     },
-    "qc_summary_result": {
-      "mem_mb": 8000
-    },
     "seqprep_merge": {
-      "mem_mb": 8000
-    },
-    "seqprep_result": {
       "mem_mb": 8000
     },
     "sexcheck": {
@@ -103,9 +94,6 @@
     },
     "sexcheck_idxstats": {
       "threads": 1,
-      "mem_mb": 8000
-    },
-    "sexcheck_result": {
       "mem_mb": 8000
     }
   },

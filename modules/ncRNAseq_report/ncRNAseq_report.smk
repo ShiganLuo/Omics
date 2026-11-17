@@ -120,7 +120,8 @@ rule generate_report:
                 fh.write(" ".join([shlex.quote(str(x)) for x in cmd]) + "\n")
                 fh.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
-            shell(f"bash {plain_script} > {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} > {log_path} 2>&1")
         except Exception as e:
             logger.error(f"ncRNAseq report generation failed: {e}")
             raise
@@ -130,8 +131,3 @@ rule report_result:
         report = outdir + "/ncRNAseq_report.pptx",
         file_inventory = outdir + "/ncRNAseq_report_files.xlsx",
         manifest = outdir + "/figures/manifest.tsv",
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "report_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

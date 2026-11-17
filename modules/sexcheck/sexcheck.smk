@@ -63,6 +63,7 @@ rule sexcheck_idxstats:
                 ">", str(output.tsv),
             ]
             script = os.path.join(RECEIPT_DIR, f"sexcheck_idxstats_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             # plain_script must carry sample_id: all samples share the
             # idxstats/ outdir, a fixed name races under parallel jobs.
             plain_script = os.path.join(sample_outdir, f"sexcheck_idxstats.sh")
@@ -71,7 +72,8 @@ rule sexcheck_idxstats:
                 f.write(" ".join(str(c) for c in cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during sexcheck idxstats for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred during sexcheck idxstats for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")
@@ -183,13 +185,15 @@ rule sexcheck:
             if params.xist_min_rpkm is not None:
                 cmd += ["--xist-min-rpkm", str(params.xist_min_rpkm)]
             script = os.path.join(RECEIPT_DIR, f"sexcheck_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(summary_dir, "sexcheck.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
                 f.write('echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during sexcheck: {e}")
             raise RuntimeError(f"Error occurred during sexcheck: {e}, you can check the log file {log_path} for more details.")
@@ -200,8 +204,3 @@ rule sexcheck_result:
     input:
         tsv=outdir + "/sexcheck.tsv",
         done=outdir + "/sexcheck.done",
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "sexcheck_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

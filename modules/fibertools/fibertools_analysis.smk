@@ -19,8 +19,7 @@ logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 _bam_suffix = config.get("bam_suffix", ".fiberseq.fire.aligned.bam")
 # 参数精确到 rule(2026-11 规范):Params.fibertools.<rule_name>.<key>,无
-# module 级共享回退(rule_param 见 common.smk)。
-_ft_params = config.get("Params", {}).get("fibertools", {})
+# module 级共享回退(config 全量路径内联读取)。
 
 rule ft_extract:
     """Extract Fiber-seq data to BED format.
@@ -75,20 +74,11 @@ rule ft_extract:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "Fiber-seq extraction completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"ft_extract failed: {e}\n")
             raise RuntimeError(f"ft_extract failed: {e}\n")
-
-def _call_peaks_mode():
-    """ft_call_peaks 的 mode(Params.fibertools.ft_call_peaks.call_peaks_mode,
-    'fdr' | 'fire_frac')。
-
-    Single source shared by the input function (DAG-time gating) and the
-    run block (command construction), per modules.md run 块禁止模块级全局变量。
-    """
-    return rule_param(_ft_params, "ft_call_peaks", "call_peaks_mode", "fdr")
-
 
 def _ft_call_peaks_inputs(wildcards):
     """Declare every file ft_call_peaks consumes; missing ones fail at DAG
@@ -103,7 +93,7 @@ def _ft_call_peaks_inputs(wildcards):
         "engine": ROOT_DIR + "/modules/fibertools/bin/call_peaks.py",
         "shuffle_script": ROOT_DIR + "/modules/fibertools/bin/shuffle_bed.py",
     }
-    if _call_peaks_mode() == "fdr":
+    if config.get("Params", {}).get("fibertools", {}).get("ft_call_peaks", {}).get("call_peaks_mode", "fdr") == "fdr":
         # fdr mode shuffles fibers genome-wide; without chrom sizes the
         # null cannot be built — fail at DAG time naming the JSON key.
         files["fai"] = _require(
@@ -143,11 +133,11 @@ rule ft_call_peaks:
     params:
         ft = config.get("Procedure", {}).get("fibertools") or "ft",
         # 整段 dict 转发已展开逐 key(Params.fibertools.ft_call_peaks.<key>)
-        call_peaks_mode = _call_peaks_mode(),
-        sd_cov = rule_param(_ft_params, "ft_call_peaks", "sd_cov", 5.0),
-        max_fdr = rule_param(_ft_params, "ft_call_peaks", "max_fdr", 0.05),
-        min_fire_frac = rule_param(_ft_params, "ft_call_peaks", "min_fire_frac", 0.1),
-        haps = rule_param(_ft_params, "ft_call_peaks", "haps", False),
+        call_peaks_mode = config.get("Params", {}).get("fibertools", {}).get("ft_call_peaks", {}).get("call_peaks_mode", "fdr"),
+        sd_cov = config.get("Params", {}).get("fibertools", {}).get("ft_call_peaks", {}).get("sd_cov", 5.0),
+        max_fdr = config.get("Params", {}).get("fibertools", {}).get("ft_call_peaks", {}).get("max_fdr", 0.05),
+        min_fire_frac = config.get("Params", {}).get("fibertools", {}).get("ft_call_peaks", {}).get("min_fire_frac", 0.1),
+        haps = config.get("Params", {}).get("fibertools", {}).get("ft_call_peaks", {}).get("haps", False),
         tmp_dir = config.get("tmp_dir") or os.path.join(outdir, "tmp"),
     run:
         log_path = str(log)
@@ -188,7 +178,8 @@ rule ft_call_peaks:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f'echo "FIRE peak calling completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"ft_call_peaks failed: {e}\n")
             raise RuntimeError(f"ft_call_peaks failed: {e}\n")
@@ -217,7 +208,7 @@ rule ft_qc:
         sif("fibertools.yaml", "ft_qc")
     params:
         ft = config.get("Procedure", {}).get("fibertools") or "ft",
-        use_acf = rule_param(_ft_params, "ft_qc", "acf", False),
+        use_acf = config.get("Params", {}).get("fibertools", {}).get("ft_qc", {}).get("acf", False),
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -243,7 +234,8 @@ rule ft_qc:
                 f.write(f'echo "QC metrics collected for sample {wildcards.sample_id}"\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(command_script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"ft_qc failed: {e}\n")
             raise RuntimeError(f"ft_qc failed: {e}\n")
@@ -275,7 +267,7 @@ rule ft_extract_fire:
         sif("fibertools.yaml", "ft_extract_fire")
     params:
         ft = config.get("Procedure", {}).get("fibertools") or "ft",
-        is_ont = rule_param(_ft_params, "ft_extract_fire", "ont", False),
+        is_ont = config.get("Params", {}).get("fibertools", {}).get("ft_extract_fire", {}).get("ont", False),
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -308,7 +300,8 @@ rule ft_extract_fire:
                 f.write(f"rm -f {tmp_fire}\n")
                 f.write(f'echo "FIRE extraction completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"ft_extract_fire failed: {e}\n")
             raise RuntimeError(f"ft_extract_fire failed: {e}\n")
@@ -352,7 +345,8 @@ rule ft_split_hap:
                 f.write(f'samtools index {output.bam}\n')
                 f.write(f'echo "Haplotype split completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"ft_split_hap failed: {e}\n")
             raise RuntimeError(f"ft_split_hap failed: {e}\n")
@@ -407,7 +401,8 @@ rule ft_extract_hap:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "Haplotype extraction completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"ft_extract_hap failed: {e}\n")
             raise RuntimeError(f"ft_extract_hap failed: {e}\n")

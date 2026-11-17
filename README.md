@@ -87,7 +87,7 @@ python workflow/Omics/run.py -m data/meta.tsv -w scRNAseq -o output \
 
 ### 内置测试模式
 
-`--test <workflow>`（或 `--test all`）用自带测试数据完成配置解析、`raw.json` 生成和 dry-run，不真正执行，几秒钟验证流程是否可用。
+`--test <workflow>`（或 `--test all`）用自带测试数据生成全部回执 shell 脚本但不执行（run 块末尾 `SCRIPT_ONLY` 判断跳过 bash，见 modules.md「测试模式」），几秒钟验证流程接线并产出可跨版本 diff 的回执集。
 
 ### AI 友好，还带 LLM auto 模式
 

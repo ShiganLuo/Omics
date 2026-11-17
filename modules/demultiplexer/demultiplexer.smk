@@ -57,14 +57,17 @@ rule demultiplex_trim_dedup:
             # Run jla-trim: trims randommer+AG from read1 3' end, removes PCR duplicates
             cmd = f"jla-trim -r1 {tmp_r1} -r2 {tmp_r2} -r {params.ranmer_len} -maxHam {params.max_ham} >> {log_path} 2>&1"
             rule_logger.info(f"Running: {cmd}")
-            shell(cmd)
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(cmd)
 
             # jla-trim outputs {input}.trimmed.fastq - rename and compress
             trimmed_r1 = tmp_r1 + ".trimmed.fastq"
             trimmed_r2 = tmp_r2 + ".trimmed.fastq"
 
-            shell(f"gzip -c {trimmed_r1} > {output.r1}")
-            shell(f"gzip -c {trimmed_r2} > {output.r2}")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"gzip -c {trimmed_r1} > {output.r1}")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"gzip -c {trimmed_r2} > {output.r2}")
 
             # Cleanup temporary files
             for f in [tmp_r1, tmp_r2, trimmed_r1, trimmed_r2]:

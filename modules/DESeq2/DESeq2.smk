@@ -13,9 +13,8 @@ gene_map = config.get('genome',{}).get('gene_map')
 # R figure formats forwarded to DESeq2.r --format (repeatable). Valid set is
 # the R ggsave device set (png pdf svg ps eps tif tiff jpg jpeg); DESeq2.r
 # fails fast on anything else (pgf/raw/rgba are matplotlib-only).
-# 参数精确到 rule:Params.DESeq2.DESeq2_TEcount.formats(rule_param 见 common.smk)。
-_formats = rule_param(config.get("Params", {}).get("DESeq2", {}),
-                      "DESeq2_TEcount", "formats", ["png"])
+# 参数精确到 rule:config 全量路径读取 Params.DESeq2.DESeq2_TEcount.formats。
+_formats = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TEcount", {}).get("formats") or ["png"]
 if isinstance(_formats, str):
     _formats = [_formats]
 
@@ -70,6 +69,7 @@ rule DESeq2_TEcount:
             sample_outdir = os.path.dirname(str(output.deseq2_results))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"DESeq2_TEcount_{wildcards.contrast}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"DESeq2_TEcount.sh")
             control_group_name = group_pairs[wildcards.contrast]["control_group_name"]
             experimental_group_name = group_pairs[wildcards.contrast]["experimental_group_name"]
@@ -120,7 +120,8 @@ rule DESeq2_TEcount:
                 f.write("echo 'DESeq2 TEcount analysis completed successfully'\n")
 
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during DESeq2 TEcount: {e}\n")
             raise RuntimeError(f"Error occurred during DESeq2 TEcount: {e}\n")

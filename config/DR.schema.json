@@ -271,35 +271,7 @@
           }
         }
       },
-      "gatk_haplotypeCaller_result": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
       "gatk_index": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "gatk_prepare_result": {
         "type": "dict",
         "required": false,
         "properties": {
@@ -426,20 +398,6 @@
         }
       },
       "BaseRecalibrator": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "gatk_bqsr_result": {
         "type": "dict",
         "required": false,
         "properties": {

@@ -1117,20 +1117,6 @@
           }
         }
       },
-      "burden_result": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
       "collectHsMetrics": {
         "type": "dict",
         "required": false,
@@ -1314,20 +1300,6 @@
         }
       },
       "filterMutectCalls": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "gatk_haplotypeCaller_result": {
         "type": "dict",
         "required": false,
         "properties": {
@@ -1594,20 +1566,6 @@
         }
       },
       "somatic_spectrum": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "gatk_bqsr_result": {
         "type": "dict",
         "required": false,
         "properties": {

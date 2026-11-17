@@ -37,6 +37,7 @@ rule TEcoutCPM:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start TEcoutCPM run at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"TEcoutCPM_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"TEcoutCPM.sh")
             cmd = [params.Rscript, params.script, "-i", input.infile, "-o", output.outfile]
             with open(script, 'w') as f:
@@ -44,7 +45,8 @@ rule TEcoutCPM:
                 f.write(' '.join(cmd) + '\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, 'a') as f:
                 f.write(f"Error: {e}\n")
@@ -77,6 +79,7 @@ rule commonExpression:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start commonExpression at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"commonExpression_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"commonExpression.sh")
             cmd = [
                 "python", params.script,
@@ -89,7 +92,8 @@ rule commonExpression:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             raise f"commonExpression failed with error: {e}"
         finally:
@@ -122,6 +126,7 @@ rule getBed:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start getBed at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"getBed_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"getBed.sh")
             cmd = [
                 "python", params.script,
@@ -135,7 +140,8 @@ rule getBed:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             raise f"getBed failed with error: {e}"
         finally:
@@ -166,6 +172,7 @@ rule vcfIntersectBed:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start vcfIntersectBed for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"vcfIntersectBed_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/vcfIntersectBed.sh")
             cmd = [
                 "bedtools", "intersect",
@@ -178,7 +185,8 @@ rule vcfIntersectBed:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             raise f"vcfIntersectBed failed for sample {wildcards.sample_id} with error: {e}"
         finally:
@@ -213,6 +221,7 @@ rule annovar_convert:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start annovar_convert run for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"annovar_convert_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/annovar_convert.sh")
             cmd = [params.perl, params.convert, "-format", "vcf4", "-withfreq", input.vcf, ">", output.avinput, "2>", log_path]
             with open(script, 'w') as f:
@@ -220,7 +229,8 @@ rule annovar_convert:
                 f.write(' '.join(cmd) + '\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, 'a') as f:
                 f.write(f"Error: {e}\n")
@@ -260,6 +270,7 @@ rule annovar_table:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start annovar_table run for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"annovar_table_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/annovar_table.sh")
             cmd = [params.perl, params.table, input.avinput, params.db, "-buildver", params.buildver, "-out", params.out, "-remove", "-protocol", "refGene", "-operation", "g", "-nastring", ".", "-csvout"]
             with open(script, 'w') as f:
@@ -267,7 +278,8 @@ rule annovar_table:
                 f.write(' '.join(cmd) + '\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, 'a') as f:
                 f.write(f"Error: {e}\n")

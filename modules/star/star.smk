@@ -17,9 +17,8 @@ if not is_fasta_intermediate and (not fasta or not os.path.exists(fasta)):
 gtf = config.get('genome',{}).get('gtf')
 fastq_sample_suffix = config.get('fastq_sample_suffix') or None
 
-# 参数精确到 rule:Params.star.<rule_name>.<key>(rule_param 见 common.smk;
+# 参数精确到 rule:Params.star.<rule_name>.<key>(config 全量路径直读;
 # 无 module 级共享回退,star_align 独立键;index 子段仍为 Params.star.index)。
-_star_params = config.get("Params", {}).get("star", {})
 
 rule star_index:
     input:
@@ -54,6 +53,7 @@ rule star_index:
             sample_outdir = os.path.dirname(str(output.index_file))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"star_index_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"star_index.sh")
 
             cmd = [
@@ -100,7 +100,8 @@ rule star_index:
                 f.write(" ".join(cmd) + "\n")
                 f.write("echo 'STAR index generation completed successfully.'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during star_index: {e}")
             raise RuntimeError(f"Error occurred during star_index: {e}, you can check the log file {log_path} for more details.")
@@ -178,37 +179,37 @@ rule star_align:
             f"{input.fastq[0]} {input.fastq[1]}" if len(input.fastq) == 2 else f"{input.fastq[0]}",
         STAR = config.get('Procedure',{}).get('STAR') or 'STAR',
         SAMTOOLS = config.get('Procedure',{}).get('samtools') or 'samtools',
-        twopassMode = rule_param(_star_params, "star_align", "twopassMode", None),
-        alignEndsType = rule_param(_star_params, "star_align", "alignEndsType", "Local"),
-        outFilterMismatchNoverReadLmax = rule_param(_star_params, "star_align", "outFilterMismatchNoverReadLmax", 1.0),
-        outFilterMismatchNmax = rule_param(_star_params, "star_align", "outFilterMismatchNmax", 10),
-        outFilterMultimapNmax = rule_param(_star_params, "star_align", "outFilterMultimapNmax", 10),
-        winAnchorMultimapNmax = rule_param(_star_params, "star_align", "winAnchorMultimapNmax", 50),
-        genomeLoad = rule_param(_star_params, "star_align", "genomeLoad", 'NoSharedMemory'),
-        limitBAMsortRAM = rule_param(_star_params, "star_align", "limitBAMsortRAM", 0),
-        outReadsUnmapped = rule_param(_star_params, "star_align", "outReadsUnmapped", None),
-        outFilterMismatchNoverLmax = rule_param(_star_params, "star_align", "outFilterMismatchNoverLmax", 0.3),
-        outFilterMatchNminOverLread = rule_param(_star_params, "star_align", "outFilterMatchNminOverLread", 0.66),
-        alignSJoverhangMin = rule_param(_star_params, "star_align", "alignSJoverhangMin", 5),
-        alignSJDBoverhangMin = rule_param(_star_params, "star_align", "alignSJDBoverhangMin", 3),
-        chimSegmentMin = rule_param(_star_params, "star_align", "chimSegmentMin", 0),
-        chimOutType = rule_param(_star_params, "star_align", "chimOutType", "Junctions"),
-        chimJunctionOverhangMin = rule_param(_star_params, "star_align", "chimJunctionOverhangMin", 20),
-        outSAMstrandField = rule_param(_star_params, "star_align", "outSAMstrandField", None),
-        chimScoreMin = rule_param(_star_params, "star_align", "chimScoreMin", 0),
-        chimScoreDropMax = rule_param(_star_params, "star_align", "chimScoreDropMax", 20),
-        chimScoreJunctionNonGTAG = rule_param(_star_params, "star_align", "chimScoreJunctionNonGTAG", -1),
-        chimScoreSeparation = rule_param(_star_params, "star_align", "chimScoreSeparation", 10),
-        alignSJstitchMismatchNmax = rule_param(_star_params, "star_align", "alignSJstitchMismatchNmax", "0 -1 0 0"),
-        chimSegmentReadGapMax = rule_param(_star_params, "star_align", "chimSegmentReadGapMax", 0),
-        outSAMattributes = rule_param(_star_params, "star_align", "outSAMattributes", "NM"),
-        outMultimapperOrder = rule_param(_star_params, "star_align", "outMultimapperOrder", "Old_2.4"),
-        runRNGseed = rule_param(_star_params, "star_align", "runRNGseed", 777),
-        outSAMmultNmax = rule_param(_star_params, "star_align", "outSAMmultNmax", -1),
-        soloType = rule_param(_star_params, "star_align", "soloType", None),
-        soloCBwhitelist = rule_param(_star_params, "star_align", "soloCBwhitelist", None),
-        soloBarcodeReadLength = rule_param(_star_params, "star_align", "soloBarcodeReadLength", 1), # may be 0
-        limitSjdbInsertNsj = rule_param(_star_params, "star_align", "limitSjdbInsertNsj", 1000000),
+        twopassMode = config.get("Params", {}).get("star", {}).get("star_align", {}).get("twopassMode", None),
+        alignEndsType = config.get("Params", {}).get("star", {}).get("star_align", {}).get("alignEndsType") or "Local",
+        outFilterMismatchNoverReadLmax = config.get("Params", {}).get("star", {}).get("star_align", {}).get("outFilterMismatchNoverReadLmax") or 1.0,
+        outFilterMismatchNmax = config.get("Params", {}).get("star", {}).get("star_align", {}).get("outFilterMismatchNmax") or 10,
+        outFilterMultimapNmax = config.get("Params", {}).get("star", {}).get("star_align", {}).get("outFilterMultimapNmax") or 10,
+        winAnchorMultimapNmax = config.get("Params", {}).get("star", {}).get("star_align", {}).get("winAnchorMultimapNmax") or 50,
+        genomeLoad = config.get("Params", {}).get("star", {}).get("star_align", {}).get("genomeLoad") or "NoSharedMemory",
+        limitBAMsortRAM = config.get("Params", {}).get("star", {}).get("star_align", {}).get("limitBAMsortRAM") or 0,
+        outReadsUnmapped = config.get("Params", {}).get("star", {}).get("star_align", {}).get("outReadsUnmapped", None),
+        outFilterMismatchNoverLmax = config.get("Params", {}).get("star", {}).get("star_align", {}).get("outFilterMismatchNoverLmax") or 0.3,
+        outFilterMatchNminOverLread = config.get("Params", {}).get("star", {}).get("star_align", {}).get("outFilterMatchNminOverLread") or 0.66,
+        alignSJoverhangMin = config.get("Params", {}).get("star", {}).get("star_align", {}).get("alignSJoverhangMin") or 5,
+        alignSJDBoverhangMin = config.get("Params", {}).get("star", {}).get("star_align", {}).get("alignSJDBoverhangMin") or 3,
+        chimSegmentMin = config.get("Params", {}).get("star", {}).get("star_align", {}).get("chimSegmentMin") or 0,
+        chimOutType = config.get("Params", {}).get("star", {}).get("star_align", {}).get("chimOutType") or "Junctions",
+        chimJunctionOverhangMin = config.get("Params", {}).get("star", {}).get("star_align", {}).get("chimJunctionOverhangMin") or 20,
+        outSAMstrandField = config.get("Params", {}).get("star", {}).get("star_align", {}).get("outSAMstrandField", None),
+        chimScoreMin = config.get("Params", {}).get("star", {}).get("star_align", {}).get("chimScoreMin") or 0,
+        chimScoreDropMax = config.get("Params", {}).get("star", {}).get("star_align", {}).get("chimScoreDropMax") or 20,
+        chimScoreJunctionNonGTAG = config.get("Params", {}).get("star", {}).get("star_align", {}).get("chimScoreJunctionNonGTAG") or -1,
+        chimScoreSeparation = config.get("Params", {}).get("star", {}).get("star_align", {}).get("chimScoreSeparation") or 10,
+        alignSJstitchMismatchNmax = config.get("Params", {}).get("star", {}).get("star_align", {}).get("alignSJstitchMismatchNmax") or "0 -1 0 0",
+        chimSegmentReadGapMax = config.get("Params", {}).get("star", {}).get("star_align", {}).get("chimSegmentReadGapMax") or 0,
+        outSAMattributes = config.get("Params", {}).get("star", {}).get("star_align", {}).get("outSAMattributes") or "NM",
+        outMultimapperOrder = config.get("Params", {}).get("star", {}).get("star_align", {}).get("outMultimapperOrder") or "Old_2.4",
+        runRNGseed = config.get("Params", {}).get("star", {}).get("star_align", {}).get("runRNGseed") or 777,
+        outSAMmultNmax = config.get("Params", {}).get("star", {}).get("star_align", {}).get("outSAMmultNmax") or -1,
+        soloType = config.get("Params", {}).get("star", {}).get("star_align", {}).get("soloType", None),
+        soloCBwhitelist = config.get("Params", {}).get("star", {}).get("star_align", {}).get("soloCBwhitelist", None),
+        soloBarcodeReadLength = config.get("Params", {}).get("star", {}).get("star_align", {}).get("soloBarcodeReadLength", 1), # may be 0
+        limitSjdbInsertNsj = config.get("Params", {}).get("star", {}).get("star_align", {}).get("limitSjdbInsertNsj") or 1000000,
         outTmpDir = outdir + "/{sample_id}/tmp_star"
     conda:
         "star.yaml"
@@ -221,6 +222,7 @@ rule star_align:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             script = os.path.join(RECEIPT_DIR, f"star_align_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = f"{outdir}/{wildcards.sample_id}/star_align.sh"
             rule_logger.info(f"Start STAR alignment for sample {wildcards.sample_id} at {current_time}")
             cmd1 = [
@@ -280,7 +282,8 @@ rule star_align:
                 f.write(f"test -f {output.unmapped_r2} || touch {output.unmapped_r2}\n")
                 f.write(f"echo 'STAR alignment for {wildcards.sample_id} completed successfully.'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during STAR alignment for sample {wildcards.sample_id}: {str(e)}")
             raise RuntimeError(f"Error occurred during STAR alignment for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")
@@ -288,8 +291,3 @@ rule star_align:
 rule star_result:
     input:
         star_align = outdir + "/{sample_id}/{sample_id}.bam"
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "star_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

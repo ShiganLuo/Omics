@@ -58,6 +58,7 @@ rule diff_exomePeak:
             sample_outdir = outdir
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"diff_exomePeak_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"diff_exomePeak.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -100,7 +101,8 @@ rule diff_exomePeak:
                 f.write(f"rm -f {outdir}/diff_peaks.bed {outdir}/diff_peaks.xls {outdir}/con_sig_diff_peak.bed {outdir}/con_sig_diff_peak.xls {outdir}/sig_diff_peak.bed {outdir}/sig_diff_peak.xls\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             logger.error(f"Error occurred during diff_exomePeak: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
@@ -147,6 +149,7 @@ rule call_exomePeak:
             sample_outdir = outdir
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"call_exomePeak_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"call_exomePeak.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -177,7 +180,8 @@ rule call_exomePeak:
                 f.write(f"rm -f {outdir}/all_peaks.bed {outdir}/all_peaks.xls {outdir}/con_peaks.bed {outdir}/con_peaks.xls\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             logger.error(f"Error occurred during call_exomePeak: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
@@ -186,9 +190,3 @@ rule exomePeak_result:
     input:
         call_exomePeak = rules.call_exomePeak.output,
         diff_exomePeak = rules.diff_exomePeak.output
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "exomePeak_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),
-

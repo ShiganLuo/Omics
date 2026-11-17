@@ -7,10 +7,6 @@ logdir = config.get("Params", {}).get("workflow", {}).get("logdir") or "log"
 paired_samples = config.get("Params", {}).get("workflow", {}).get("paired_samples") or []
 single_samples = config.get("Params", {}).get("workflow", {}).get("single_samples") or []
 aligner = config.get("Params", {}).get("workflow", {}).get("aligner") or "cellranger"
-def _rule_get(section, rule_name, key, default=None):
-    """参数精确到 rule:读取 <section>.<rule_name>.<key>(rule 子键优先,旧扁平
-    键兼容回退,再回退 default;键形同 common.smk rule_param,无 module 级共享)。"""
-    return ((section.get(rule_name) or {}).get(key) or section.get(key) or default)
 
 counters = config.get("Params", {}).get("workflow", {}).get("counters") or ["scTE", "cellranger"]
 input_mode = config.get("Params", {}).get("workflow", {}).get("input_mode") or "fastq"
@@ -38,18 +34,18 @@ if aligner == "star":
         "Params": {
             "star": {
             # 参数精确到 rule:Params.star.star_align.<key>(消费 rule star_align;
-            # 旧扁平键兼容回退)
+            # config 全量路径读取,无旧扁平键回退)
             "star_align": {
-            "outSAMattributes": _rule_get(config.get('Params', {}).get('star', {}), 'star_align', 'outSAMattributes'),
-            "outFilterMultimapNmax": _rule_get(config.get('Params', {}).get('star', {}), 'star_align', 'outFilterMultimapNmax'),
-            "winAnchorMultimapNmax": _rule_get(config.get('Params', {}).get('star', {}), 'star_align', 'winAnchorMultimapNmax'),
-            "outMultimapperOrder": _rule_get(config.get('Params', {}).get('star', {}), 'star_align', 'outMultimapperOrder'),
-            "runRNGseed": _rule_get(config.get('Params', {}).get('star', {}), 'star_align', 'runRNGseed'),
-            "outSAMmultNmax": _rule_get(config.get('Params', {}).get('star', {}), 'star_align', 'outSAMmultNmax'),
-            "soloType": _rule_get(config.get('Params', {}).get('star', {}), 'star_align', 'soloType'),
-            "soloCBwhitelist": _rule_get(config.get('Params', {}).get('star', {}), 'star_align', 'soloCBwhitelist'),
-            "soloBarcodeReadLength": _rule_get(config.get('Params', {}).get('star', {}), 'star_align', 'soloBarcodeReadLength'),
-            "limitSjdbInsertNsj": _rule_get(config.get('Params', {}).get('star', {}), 'star_align', 'limitSjdbInsertNsj')
+            "outSAMattributes": config.get('Params', {}).get('star', {}).get('star_align', {}).get('outSAMattributes'),
+            "outFilterMultimapNmax": config.get('Params', {}).get('star', {}).get('star_align', {}).get('outFilterMultimapNmax'),
+            "winAnchorMultimapNmax": config.get('Params', {}).get('star', {}).get('star_align', {}).get('winAnchorMultimapNmax'),
+            "outMultimapperOrder": config.get('Params', {}).get('star', {}).get('star_align', {}).get('outMultimapperOrder'),
+            "runRNGseed": config.get('Params', {}).get('star', {}).get('star_align', {}).get('runRNGseed'),
+            "outSAMmultNmax": config.get('Params', {}).get('star', {}).get('star_align', {}).get('outSAMmultNmax'),
+            "soloType": config.get('Params', {}).get('star', {}).get('star_align', {}).get('soloType'),
+            "soloCBwhitelist": config.get('Params', {}).get('star', {}).get('star_align', {}).get('soloCBwhitelist'),
+            "soloBarcodeReadLength": config.get('Params', {}).get('star', {}).get('star_align', {}).get('soloBarcodeReadLength'),
+            "limitSjdbInsertNsj": config.get('Params', {}).get('star', {}).get('star_align', {}).get('limitSjdbInsertNsj')
             }
             }
         },

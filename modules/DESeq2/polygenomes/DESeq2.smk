@@ -10,19 +10,14 @@ group_pairs = config.get("group_pairs", {})
 # R figure formats forwarded to DESeq2.r --format (repeatable). Valid set is
 # the R ggsave device set (png pdf svg ps eps tif tiff jpg jpeg); DESeq2.r
 # fails fast on anything else (pgf/raw/rgba are matplotlib-only).
-# 参数精确到 rule:formats 按 rule 独立配置(Params.DESeq2.<rule_name>.formats,
-# 无 module 级共享;rule_param 见 common.smk)。
-_DESeq2_params = config.get("Params", {}).get("DESeq2", {})
-
-
-def _rule_formats(rule_name):
-    """Per-rule figure formats (parse 期解析,output 展开与 CLI 转发共用)。"""
-    fmts = rule_param(_DESeq2_params, rule_name, "formats", ["png"])
-    return [fmts] if isinstance(fmts, str) else fmts
-
-
-_formats_TEcount = _rule_formats("DESeq2_TEcount")
-_formats_TElocal = _rule_formats("DESeq2_TElocal")
+# 参数精确到 rule:formats 按 rule 独立配置(config 全量路径读取,
+# Params.DESeq2.<rule_name>.formats)。
+_formats_TEcount = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TEcount", {}).get("formats") or ["png"]
+if isinstance(_formats_TEcount, str):
+    _formats_TEcount = [_formats_TEcount]
+_formats_TElocal = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal", {}).get("formats") or ["png"]
+if isinstance(_formats_TElocal, str):
+    _formats_TElocal = [_formats_TElocal]
 
 def get_input_for_DESeq2_TEcount(wildcards):
     """Dynamically determines the input count matrix for DESeq2 TEcount based on the contrast."""
@@ -90,6 +85,7 @@ rule DESeq2_TEcount:
             sample_outdir = os.path.dirname(str(output.deseq2_results))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"DESeq2_TEcount_{wildcards.genome}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"DESeq2_TEcount.sh")
             control_group_name = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name")
             experimental_group_name = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name")
@@ -143,7 +139,8 @@ rule DESeq2_TEcount:
                 f.write("echo 'DESeq2 TEcount analysis completed successfully'\n")
 
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during DESeq2 TEcount: {e}\n")
             raise RuntimeError(f"Error occurred during DESeq2 TEcount: {e}\n")
@@ -214,6 +211,7 @@ rule DESeq2_TElocal:
             sample_outdir = os.path.dirname(str(output.deseq2_results))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"DESeq2_TElocal_{wildcards.genome}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"DESeq2_TElocal.sh")
             control_group_name = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name")
             experimental_group_name = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name")
@@ -268,75 +266,30 @@ rule DESeq2_TElocal:
                 f.write("echo 'DESeq2 TElocal analysis completed successfully'\n")
 
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during DESeq2 TElocal: {e}\n")
             raise RuntimeError(f"Error occurred during DESeq2 TElocal: {e}\n")
 
 # ---------------------------------------------------------------------------
 # TE locus figures over TElocal results (Manhattan / locus box / subfamily bar).
-# Figure params resolve from Params.DESeq2.<rule_name>.<key> only
-# (参数精确到 rule,无 module 级共享回退;rule_param 见 common.smk).
+# Figure params resolve from Params.DESeq2.<rule_name>.<key> only, via config
+# 全量路径(参数精确到 rule,无共享回退).
 # Per-contrast family patterns live in Params.DESeq2.<rule_name>.<key>[genome][contrast].
 # ---------------------------------------------------------------------------
-params_deseq2 = config.get("Params", {}).get("DESeq2", {})
-
-
-def fig_param(rule_key: str, key: str, default=None):
-    """Resolve a TE figure param from the rule's own sub-section.
-
-    Rule-scoped only (Params.DESeq2.<rule_name>.<key>); delegates to
-    rule_param (common.smk) — 参数精确到 rule, no shared fallback.
-
-    Parameters
-    ----------
-    rule_key : str
-        The consuming rule's name (e.g. ``DESeq2_TElocal_manhattan``).
-    key : str
-        Parameter name (e.g. ``label_top``).
-    default : Any, optional
-        Built-in default when the rule sub-section lacks the key.
-
-    Returns
-    -------
-    Any
-        The resolved parameter value.
-    """
-    return rule_param(params_deseq2, rule_key, key, default)
-
-
-def fig_families(rule_key: str, key: str, wildcards):
-    """Resolve per-contrast family patterns for a TE figure rule.
-
-    Parameters
-    ----------
-    rule_key : str
-        The consuming rule's name (e.g. ``DESeq2_TElocal_locus_boxplot``).
-    key : str
-        Parameter name holding the per-contrast mapping (e.g. ``families``).
-    wildcards : snakemake.io.Wildcards
-        Must provide ``genome`` and ``contrast``.
-
-    Returns
-    -------
-    list of str
-        Family patterns for this contrast (empty when unconfigured).
-    """
-    families = fig_param(rule_key, key, {}) or {}
-    return list(families.get(wildcards.genome, {}).get(wildcards.contrast, []) or [])
-
 
 # ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
 # Output formats for the TE locus figures (matplotlib full set; the te_*.py
-# scripts fail fast on anything else). Resolution follows fig_param:
+# scripts fail fast on anything else). Resolution: config 全量路径
 # Params.DESeq2.<rule_name>.formats only (rule-scoped; built-in ["png"]).
-_manhattan_formats = fig_param("DESeq2_TElocal_manhattan", "formats", ["png"]) or ["png"]
+_manhattan_formats = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_manhattan", {}).get("formats") or ["png"]
 if isinstance(_manhattan_formats, str):
     _manhattan_formats = [_manhattan_formats]
-_locus_box_formats = fig_param("DESeq2_TElocal_locus_boxplot", "formats", ["png"]) or ["png"]
+_locus_box_formats = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_locus_boxplot", {}).get("formats") or ["png"]
 if isinstance(_locus_box_formats, str):
     _locus_box_formats = [_locus_box_formats]
-_subfamily_bar_formats = fig_param("DESeq2_TElocal_subfamily_bar", "formats", ["png"]) or ["png"]
+_subfamily_bar_formats = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_subfamily_bar", {}).get("formats") or ["png"]
 if isinstance(_subfamily_bar_formats, str):
     _subfamily_bar_formats = [_subfamily_bar_formats]
 
@@ -367,9 +320,9 @@ rule DESeq2_TElocal_manhattan:
         figure_script = ROOT_DIR + "/modules/DESeq2/bin/te_manhattan.py",
         control_group_name = lambda wildcards: group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name"),
         experimental_group_name = lambda wildcards: group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name"),
-        highlight_families = lambda wildcards: fig_families("DESeq2_TElocal_manhattan", "highlight_families", wildcards),
-        label_top = fig_param("DESeq2_TElocal_manhattan", "label_top", 10),
-        ylabel = fig_param("DESeq2_TElocal_manhattan", "ylabel", "log2(1+|delta TPM|)"),
+        highlight_families = lambda wildcards: list(config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_manhattan", {}).get("highlight_families", {}).get(wildcards.genome, {}).get(wildcards.contrast, [])),
+        label_top = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_manhattan", {}).get("label_top", 10),
+        ylabel = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_manhattan", {}).get("ylabel", "log2(1+|delta TPM|)"),
         formats = _manhattan_formats,   # ③ 转发
     conda:
         "../tefig.yaml"
@@ -387,6 +340,7 @@ rule DESeq2_TElocal_manhattan:
             fig_outdir = os.path.dirname(str(output.manhattan[0]))
             os.makedirs(fig_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"DESeq2_TElocal_manhattan_{wildcards.genome}_{wildcards.contrast}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(fig_outdir, "DESeq2_TElocal_manhattan.sh")
             if not params.control_group_name or not params.experimental_group_name:
                 raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
@@ -416,7 +370,8 @@ rule DESeq2_TElocal_manhattan:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write("echo 'DESeq2 TElocal manhattan completed successfully'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during DESeq2 TElocal manhattan: {e}\n")
             raise RuntimeError(f"Error occurred during DESeq2 TElocal manhattan: {e}\n")
@@ -438,11 +393,11 @@ rule DESeq2_TElocal_locus_boxplot:
         figure_script = ROOT_DIR + "/modules/DESeq2/bin/te_locus_boxplot.py",
         control_group_name = lambda wildcards: group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name"),
         experimental_group_name = lambda wildcards: group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name"),
-        families = lambda wildcards: fig_families("DESeq2_TElocal_locus_boxplot", "families", wildcards),
-        match_field = fig_param("DESeq2_TElocal_locus_boxplot", "match_field", "subfamily"),
-        match_mode = fig_param("DESeq2_TElocal_locus_boxplot", "match_mode", "exact"),
-        normalize = fig_param("DESeq2_TElocal_locus_boxplot", "normalize", "log2tpm"),
-        kind = fig_param("DESeq2_TElocal_locus_boxplot", "kind", "box"),
+        families = lambda wildcards: list(config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_locus_boxplot", {}).get("families", {}).get(wildcards.genome, {}).get(wildcards.contrast, [])),
+        match_field = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_locus_boxplot", {}).get("match_field", "subfamily"),
+        match_mode = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_locus_boxplot", {}).get("match_mode", "exact"),
+        normalize = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_locus_boxplot", {}).get("normalize", "log2tpm"),
+        kind = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_locus_boxplot", {}).get("kind", "box"),
         formats = _locus_box_formats,   # ③ 转发
     conda:
         "../tefig.yaml"
@@ -460,6 +415,7 @@ rule DESeq2_TElocal_locus_boxplot:
             fig_outdir = os.path.dirname(str(output.locus_box[0]))
             os.makedirs(fig_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"DESeq2_TElocal_locus_boxplot_{wildcards.genome}_{wildcards.contrast}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(fig_outdir, "DESeq2_TElocal_locus_boxplot.sh")
             if not params.control_group_name or not params.experimental_group_name:
                 raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
@@ -491,7 +447,8 @@ rule DESeq2_TElocal_locus_boxplot:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write("echo 'DESeq2 TElocal locus boxplot completed successfully'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during DESeq2 TElocal locus boxplot: {e}\n")
             raise RuntimeError(f"Error occurred during DESeq2 TElocal locus boxplot: {e}\n")
@@ -513,13 +470,13 @@ rule DESeq2_TElocal_subfamily_bar:
         figure_script = ROOT_DIR + "/modules/DESeq2/bin/te_subfamily_bar.py",
         control_group_name = lambda wildcards: group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name"),
         experimental_group_name = lambda wildcards: group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name"),
-        families = lambda wildcards: fig_families("DESeq2_TElocal_subfamily_bar", "families", wildcards),
-        match_field = fig_param("DESeq2_TElocal_subfamily_bar", "match_field", "subfamily"),
-        match_mode = fig_param("DESeq2_TElocal_subfamily_bar", "match_mode", "exact"),
-        value = fig_param("DESeq2_TElocal_subfamily_bar", "value", "total"),
-        normalize = fig_param("DESeq2_TElocal_subfamily_bar", "normalize", "tpm"),
-        yscale = fig_param("DESeq2_TElocal_subfamily_bar", "yscale", "linear"),
-        ylabel = fig_param("DESeq2_TElocal_subfamily_bar", "ylabel", "TPM"),
+        families = lambda wildcards: list(config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_subfamily_bar", {}).get("families", {}).get(wildcards.genome, {}).get(wildcards.contrast, [])),
+        match_field = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_subfamily_bar", {}).get("match_field", "subfamily"),
+        match_mode = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_subfamily_bar", {}).get("match_mode", "exact"),
+        value = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_subfamily_bar", {}).get("value", "total"),
+        normalize = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_subfamily_bar", {}).get("normalize", "tpm"),
+        yscale = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_subfamily_bar", {}).get("yscale", "linear"),
+        ylabel = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_subfamily_bar", {}).get("ylabel", "TPM"),
         formats = _subfamily_bar_formats,   # ③ 转发
     conda:
         "../tefig.yaml"
@@ -537,6 +494,7 @@ rule DESeq2_TElocal_subfamily_bar:
             fig_outdir = os.path.dirname(str(output.subfamily_bar[0]))
             os.makedirs(fig_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"DESeq2_TElocal_subfamily_bar_{wildcards.genome}_{wildcards.contrast}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(fig_outdir, "DESeq2_TElocal_subfamily_bar.sh")
             if not params.control_group_name or not params.experimental_group_name:
                 raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
@@ -570,7 +528,8 @@ rule DESeq2_TElocal_subfamily_bar:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write("echo 'DESeq2 TElocal subfamily bar completed successfully'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during DESeq2 TElocal subfamily bar: {e}\n")
             raise RuntimeError(f"Error occurred during DESeq2 TElocal subfamily bar: {e}\n")

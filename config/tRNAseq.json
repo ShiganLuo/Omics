@@ -210,9 +210,6 @@
     "mimseq_prepare_sample_data": {
       "mem_mb": 8000
     },
-    "mimseq_result": {
-      "mem_mb": 8000
-    },
     "mimseq_tRNAtools": {
       "threads": 4,
       "mem_mb": 8000

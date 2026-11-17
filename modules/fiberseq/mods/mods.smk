@@ -36,42 +36,33 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 
 
 # 参数精确到 rule(2026-11 规范):参数挂在消费它的 rule 名下,读
-# Params.fiberseq_mods.<rule_name>.<key>,无 module 级共享回退(rule_param 见
-# common.smk)。region_axis/mod_type/group_samples/groups_by_contrast 被
+# Params.fiberseq_mods.<rule_name>.<key>,无 module 级共享回退(config 全量
+# 路径内联读取)。region_axis/mod_type/group_samples/groups_by_contrast 被
 # longtable/split/top_loci/result 共享 → 各 rule 独立键。output/log 文件名里的
 # te_{mod_type}/metric 由 longtable 产出、split/top_loci/result 拼回同一路径,
 # 各 rule 的配置需保持一致(未配置时走同一内置默认,行为不变)。
 # 指令串联所需的派生值(output/log/threads 指令无法调用函数)每 rule 一个
 # parse 期变量;配置形状由 schema(run.py)与 node.py 保证,模块只校验输入文件。
-_mods_params = config.get("Params", {}).get("fiberseq_mods", {})
-
-
-def _ra(rule_name):
-    """Params.fiberseq_mods.<rule_name>.region_axis(嵌套 dict;未配置→{})。"""
-    return rule_param(_mods_params, rule_name, "region_axis", {}) or {}
-
-
-def _ra_opt(rule_name, axis, key, default):
-    """region_axis.options.<axis>.<key>(未配置→内置 default)。"""
-    return (_ra(rule_name).get("options", {}).get(axis, {}).get(key, default))
 
 
 # ---- 每 rule 一个 parse 期变量(互不共享)----
 # fiberseq_mods_longtable
-_te_longtable = _ra("fiberseq_mods_longtable").get("default", "fire_peaks") == "te"
-_mod_type_longtable = rule_param(_mods_params, "fiberseq_mods_longtable", "mod_type", "m6a")
-_metric_longtable = _ra_opt("fiberseq_mods_longtable", "fire_peaks", "metric",
-                            f"{_mod_type_longtable}_per_fiber")
+region_axis_longtable = config.get("Params", {}).get("fiberseq_mods", {}).get("fiberseq_mods_longtable", {}).get("region_axis") or {}
+te_axis_longtable = region_axis_longtable.get("default", "fire_peaks") == "te"
+mod_type_longtable = config.get("Params", {}).get("fiberseq_mods", {}).get("fiberseq_mods_longtable", {}).get("mod_type", "m6a")
+metric_longtable = region_axis_longtable.get("options", {}).get("fire_peaks", {}).get("metric", f"{mod_type_longtable}_per_fiber")
 # fiberseq_mods_split
-_te_split = _ra("fiberseq_mods_split").get("default", "fire_peaks") == "te"
+region_axis_split = config.get("Params", {}).get("fiberseq_mods", {}).get("fiberseq_mods_split", {}).get("region_axis") or {}
+te_axis_split = region_axis_split.get("default", "fire_peaks") == "te"
 # fiberseq_mods_top_loci
-_te_top_loci = _ra("fiberseq_mods_top_loci").get("default", "fire_peaks") == "te"
-_mod_type_top_loci = rule_param(_mods_params, "fiberseq_mods_top_loci", "mod_type", "m6a")
+region_axis_top_loci = config.get("Params", {}).get("fiberseq_mods", {}).get("fiberseq_mods_top_loci", {}).get("region_axis") or {}
+te_axis_top_loci = region_axis_top_loci.get("default", "fire_peaks") == "te"
+mod_type_top_loci = config.get("Params", {}).get("fiberseq_mods", {}).get("fiberseq_mods_top_loci", {}).get("mod_type", "m6a")
 # fiberseq_mods_result
-_te_result = _ra("fiberseq_mods_result").get("default", "fire_peaks") == "te"
-_mod_type_result = rule_param(_mods_params, "fiberseq_mods_result", "mod_type", "m6a")
-_metric_result = _ra_opt("fiberseq_mods_result", "fire_peaks", "metric",
-                         f"{_mod_type_result}_per_fiber")
+region_axis_result = config.get("Params", {}).get("fiberseq_mods", {}).get("fiberseq_mods_result", {}).get("region_axis") or {}
+te_axis_result = region_axis_result.get("default", "fire_peaks") == "te"
+mod_type_result = config.get("Params", {}).get("fiberseq_mods", {}).get("fiberseq_mods_result", {}).get("mod_type", "m6a")
+metric_result = region_axis_result.get("options", {}).get("fire_peaks", {}).get("metric", f"{mod_type_result}_per_fiber")
 
 sigtest_outdir = config.get("sigtest_dir") or os.path.join(outdir, "sigtest")  # sigtest 模块的输出根(subworkflow 接线);split/top_loci 的产物与它的表同目录
 sigtest_contrasts = [str(c) for c in (config.get("contrasts") or [])]
@@ -84,12 +75,12 @@ def _mods_longtable_inputs(wildcards):
     design by node.py) — no design file input.
     """
     files = {
-        "mods": expand(indir + "/{sample_id}/{sample_id}." + _mod_type_longtable + ".bed.gz",
+        "mods": expand(indir + "/{sample_id}/{sample_id}." + mod_type_longtable + ".bed.gz",
                        sample_id=samples),
         "msp": expand(indir + "/{sample_id}/{sample_id}.msp.bed.gz",
                       sample_id=samples),
     }
-    if _te_longtable:
+    if te_axis_longtable:
         te_bed = config.get("te_bed") or config.get("genome", {}).get("repeat_bed")
         files["te_bed"] = _require(te_bed, "genome.repeat_bed", "fiberseq_mods")
     else:
@@ -109,17 +100,17 @@ rule fiberseq_mods_longtable:
     input:
         unpack(_mods_longtable_inputs),
     output:
-        longtable = (outdir + f"/te_{_mod_type_longtable}_long.tsv" if _te_longtable
-                     else outdir + f"/{_metric_longtable}_long.tsv"),
-        loci = ([outdir + f"/te_{_mod_type_longtable}_loci.tsv"] if _te_longtable else []),
+        longtable = (outdir + f"/te_{mod_type_longtable}_long.tsv" if te_axis_longtable
+                     else outdir + f"/{metric_longtable}_long.tsv"),
+        loci = ([outdir + f"/te_{mod_type_longtable}_loci.tsv"] if te_axis_longtable else []),
     log:
-        logdir + (f"/mods/fiberseq_mods_longtable_te_{_mod_type_longtable}_long.tsv.log" if _te_longtable
-                 else f"/mods/fiberseq_mods_longtable_{_metric_longtable}_long.tsv.log")
-    threads: rule_res("fiberseq_mods_te_longtable" if _te_longtable else "fiberseq_mods_longtable").get("threads", 1)
-    benchmark: (logdir + (f"/mods/fiberseq_mods_longtable_te_{_mod_type_longtable}_long.benchmark.tsv" if _te_longtable else f"/mods/fiberseq_mods_longtable_{_metric_longtable}_long.benchmark.tsv")),
+        logdir + (f"/mods/fiberseq_mods_longtable_te_{mod_type_longtable}_long.tsv.log" if te_axis_longtable
+                 else f"/mods/fiberseq_mods_longtable_{metric_longtable}_long.tsv.log")
+    threads: rule_res("fiberseq_mods_te_longtable" if te_axis_longtable else "fiberseq_mods_longtable").get("threads", 1)
+    benchmark: (logdir + (f"/mods/fiberseq_mods_longtable_te_{mod_type_longtable}_long.benchmark.tsv" if te_axis_longtable else f"/mods/fiberseq_mods_longtable_{metric_longtable}_long.benchmark.tsv")),
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(
-            "fiberseq_mods_te_longtable" if _te_longtable else "fiberseq_mods_longtable",
+            "fiberseq_mods_te_longtable" if te_axis_longtable else "fiberseq_mods_longtable",
             input_size=input_size_mb(input),
             attempt=attempt).get("mem_mb", 8000),
     conda:
@@ -127,15 +118,15 @@ rule fiberseq_mods_longtable:
     container:
         sif("../fiberseq.yaml", "fiberseq_mods_longtable")
     params:
-        script = (ROOT_DIR + "/modules/fiberseq/mods/bin/te_modification.py" if _te_longtable
+        script = (ROOT_DIR + "/modules/fiberseq/mods/bin/te_modification.py" if te_axis_longtable
                   else ROOT_DIR + "/modules/fiberseq/mods/bin/extract_modification_longtable.py"),
-        metric = _metric_longtable,
+        metric = metric_longtable,
         # <- Params.fiberseq_mods.fiberseq_mods_longtable.group_samples (node.py 从 meta 设计派生)
-        group_samples = rule_param(_mods_params, "fiberseq_mods_longtable", "group_samples", {}),
-        is_te = _te_longtable,
-        mod_type = _mod_type_longtable,
-        min_fibers = int(_ra_opt("fiberseq_mods_longtable", "te", "min_fibers", 3)),
-        loci_name = (f"te_{_mod_type_longtable}_loci.tsv" if _te_longtable else ""),
+        group_samples = config.get("Params", {}).get("fiberseq_mods", {}).get("fiberseq_mods_longtable", {}).get("group_samples", {}),
+        is_te = te_axis_longtable,
+        mod_type = mod_type_longtable,
+        min_fibers = int(region_axis_longtable.get("options", {}).get("te", {}).get("min_fibers", 3)),
+        loci_name = (f"te_{mod_type_longtable}_loci.tsv" if te_axis_longtable else ""),
         tmp_dir = config.get("tmp_dir") or os.path.join(outdir, "tmp"),
     run:
         log_path = str(log)
@@ -147,6 +138,7 @@ rule fiberseq_mods_longtable:
             sample_outdir = os.path.dirname(str(output.longtable))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"fiberseq_mods_longtable_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, "fiberseq_mods_longtable.sh")
             if params.is_te:
                 cmd = [
@@ -184,7 +176,8 @@ rule fiberseq_mods_longtable:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f'echo "fiberseq_mods_longtable at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during fiberseq_mods_longtable: {e}\n")
             raise RuntimeError(f"Error occurred during fiberseq_mods_longtable: {e}, you can check the log file {log_path} for more details.\n")
@@ -208,7 +201,7 @@ rule fiberseq_mods_split:
         sig_tsv = sigtest_outdir + "/{contrast}/significant_objects.tsv",
         # BED 只在 fire_peaks 轴声明(feature id = chrom:start-end|name 可解析成坐标);
         # TE 轴 feature 是 subfamily/family 名,无坐标,BED 恒为空表头 -> 不产出
-        sig_bed = ([] if _te_split
+        sig_bed = ([] if te_axis_split
                    else [sigtest_outdir + "/{contrast}/significant_objects.bed"]),
         rest_tsv = sigtest_outdir + "/{contrast}/nonsignificant_objects.tsv",
     log:
@@ -226,7 +219,7 @@ rule fiberseq_mods_split:
     params:
         split_script = ROOT_DIR + "/modules/fiberseq/mods/bin/split_significant.py",
         # <- Params.fiberseq_mods.fiberseq_mods_split.region_axis.options.fire_peaks.top_n
-        top_n = int(_ra_opt("fiberseq_mods_split", "fire_peaks", "top_n", 0)),
+        top_n = int(region_axis_split.get("options", {}).get("fire_peaks", {}).get("top_n", 0)),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -237,6 +230,7 @@ rule fiberseq_mods_split:
             sample_outdir = os.path.dirname(str(output.sig_tsv))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"fiberseq_mods_split_{wildcards.contrast}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"fiberseq_mods_split_{wildcards.contrast}.sh")
             cmd = [
                 "python", params.split_script,
@@ -253,7 +247,8 @@ rule fiberseq_mods_split:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f'echo "fiberseq_mods_split for {wildcards.contrast} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during fiberseq_mods_split for {wildcards.contrast}: {e}\n")
             raise RuntimeError(f"Error occurred during fiberseq_mods_split for {wildcards.contrast}: {e}, you can check the log file {log_path} for more details.\n")
@@ -268,10 +263,10 @@ rule fiberseq_mods_top_loci:
     """
     input:
         sig = _sigtest_tsv,
-        loci = [outdir + f"/te_{_mod_type_top_loci}_loci.tsv"] if _te_top_loci else [],
+        loci = [outdir + f"/te_{mod_type_top_loci}_loci.tsv"] if te_axis_top_loci else [],
     output:
-        tsv = [sigtest_outdir + "/{contrast}/top_loci.tsv"] if _te_top_loci else [],
-        bed = [sigtest_outdir + "/{contrast}/top_loci.bed"] if _te_top_loci else [],
+        tsv = [sigtest_outdir + "/{contrast}/top_loci.tsv"] if te_axis_top_loci else [],
+        bed = [sigtest_outdir + "/{contrast}/top_loci.bed"] if te_axis_top_loci else [],
     log:
         logdir + "/mods/top_loci_{contrast}.log"
     threads: rule_res("fiberseq_mods_top_loci").get("threads", 1)
@@ -287,15 +282,15 @@ rule fiberseq_mods_top_loci:
     params:
         top_loci_script = ROOT_DIR + "/modules/fiberseq/mods/bin/te_top_loci.py",
         # <- Params.fiberseq_mods.fiberseq_mods_top_loci.group_samples (node.py 从 meta 设计派生)
-        group_samples = rule_param(_mods_params, "fiberseq_mods_top_loci", "group_samples", {}),
-        grp_by_contrast = rule_param(_mods_params, "fiberseq_mods_top_loci", "groups_by_contrast", {}),
-        groups = rule_param(_mods_params, "fiberseq_mods_top_loci", "groups", []),
-        mod_type = _mod_type_top_loci,
+        group_samples = config.get("Params", {}).get("fiberseq_mods", {}).get("fiberseq_mods_top_loci", {}).get("group_samples", {}),
+        grp_by_contrast = config.get("Params", {}).get("fiberseq_mods", {}).get("fiberseq_mods_top_loci", {}).get("groups_by_contrast", {}),
+        groups = config.get("Params", {}).get("fiberseq_mods", {}).get("fiberseq_mods_top_loci", {}).get("groups", []),
+        mod_type = mod_type_top_loci,
         # <- Params.fiberseq_mods.fiberseq_mods_top_loci.region_axis.options.te.min_fibers
-        min_fibers = int(_ra_opt("fiberseq_mods_top_loci", "te", "min_fibers", 3)),
+        min_fibers = int(region_axis_top_loci.get("options", {}).get("te", {}).get("min_fibers", 3)),
         # <- Params.fiberseq_mods.fiberseq_mods_top_loci.region_axis.options.te.loci_top_n
-        loci_top_n = int(_ra_opt("fiberseq_mods_top_loci", "te", "loci_top_n", 5)),
-        is_te = _te_top_loci,
+        loci_top_n = int(region_axis_top_loci.get("options", {}).get("te", {}).get("loci_top_n", 5)),
+        is_te = te_axis_top_loci,
     run:
         if not params.is_te:
             # fire_peaks axis declares empty outputs; nothing to rank
@@ -311,6 +306,7 @@ rule fiberseq_mods_top_loci:
                 sample_outdir = os.path.dirname(str(output.tsv[0]))
                 os.makedirs(sample_outdir, exist_ok=True)
                 script = os.path.join(RECEIPT_DIR, f"fiberseq_mods_top_loci_{wildcards.contrast}_{current_time}.sh")
+                os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
                 plain_script = os.path.join(sample_outdir, f"fiberseq_mods_top_loci_{wildcards.contrast}.sh")
                 # the two compared groups for this contrast (node.py
                 # groups_by_contrast -> global groups -> all groups), their
@@ -335,7 +331,8 @@ rule fiberseq_mods_top_loci:
                     f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                     f.write(f'echo "fiberseq_mods_top_loci for {wildcards.contrast} completed successfully"\n')
                 shutil.copyfile(script, plain_script)
-                shell(f"bash {plain_script} >> {log_path} 2>&1")
+                if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                    shell(f"bash {plain_script} >> {log_path} 2>&1")
             except Exception as e:
                 rule_logger.error(f"Error occurred during fiberseq_mods_top_loci for {wildcards.contrast}: {e}\n")
                 raise RuntimeError(f"Error occurred during fiberseq_mods_top_loci for {wildcards.contrast}: {e}, you can check the log file {log_path} for more details.\n")
@@ -349,12 +346,12 @@ rule fiberseq_mods_result:
     """
 
     input:
-        longtable = (outdir + f"/te_{_mod_type_result}_long.tsv" if _te_result
-                     else outdir + f"/{_metric_result}_long.tsv"),
+        longtable = (outdir + f"/te_{mod_type_result}_long.tsv" if te_axis_result
+                     else outdir + f"/{metric_result}_long.tsv"),
         sig_tsv = expand(sigtest_outdir + "/{contrast}/significant_objects.tsv",
                          contrast=sigtest_contrasts),
-        sig_bed = ([] if _te_result
+        sig_bed = ([] if te_axis_result
                    else expand(sigtest_outdir + "/{contrast}/significant_objects.bed",
                                contrast=sigtest_contrasts)),
         top_loci = (expand(sigtest_outdir + "/{contrast}/top_loci.bed",
-                           contrast=sigtest_contrasts) if _te_result else []),
+                           contrast=sigtest_contrasts) if te_axis_result else []),

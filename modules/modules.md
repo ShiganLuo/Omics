@@ -308,7 +308,7 @@ pandas、json、gzip …）才在模块里 import。重复导入不报错、不�
 
 - 规则名描述动作：`*_index` / `*_align` / `*_run` / `*_phase`
 - 输出目录按模块名组织：`{outdir}/<module>/{sample_id}/...`
-- 收尾规则：`<tool>_result`，仅声明 `input:` 作为依赖聚合点（无 `shell`/`run`）
+- 收尾规则：`<tool>_result`，仅声明 `input:` 作为依赖聚合点（无 `shell`/`run`），不加 `threads:`/`resources:`（纯聚合无实际工作）
 - 报告规则：`<tool>_report`，聚合所有样本输出生成跨样本报告
 
 # 日志规范
@@ -392,7 +392,8 @@ rule <tool>_<action>:
                 f.write(f'echo "<tool> <action> for {wildcards.sample_id} was completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during <tool> <action> for sample {wildcards.sample_id}: {e}\n")
             raise RuntimeError(f"Error occurred during <tool> <action> for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.\n")
@@ -435,6 +436,29 @@ os.makedirs(os.path.join(logdir, "cmd", ...))                          # 目录�
 写文件顺序：先写时间戳备份版（`script`），`shutil.copyfile` 复制为无时间戳
 版（`plain_script`），然后 `shell()` 执行 `plain_script`。注意 plain 文件名若
 含通配符插值（`{wildcards.sample_id}`）必须是 f-string。
+
+## 测试模式：输出 shell 脚本但不执行
+
+`run.py --test <Workflow>`（或 `--test all`）给 snakemake 注入环境变量
+`OMICS_SCRIPT_ONLY=1`，common.smk 据此置 `SCRIPT_ONLY` 常量。测试模式下每条
+规则照常走完整个 run 块——命令列表构建、时间戳回执与 plain 回执双写落盘、
+日志与登记照旧——只在最后一行跳过执行：
+
+```python
+shutil.copyfile(script, plain_script)
+if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+    shell(f"bash {plain_script} >> {log_path} 2>&1")
+```
+
+单分支、无 `else`：测试模式**不做任何输出占位**，不 touch 任何输出文件，
+下游规则的回执同样只落盘；辅助函数内的 `shell()` 调用同样包这一判断。多命令
+回执（一个 `.sh` 内多条命令）只在唯一的 `shell()` 处判断一次，不要拆。配合
+`--forceall` 可全量重跑、让每条规则重新生成回执（不带 `--forceall` 时已
+up-to-date 的规则不会重生成）。
+
+**用途**：回执脚本里是完整的命令与参数字面量。跨版本（或参数读取重构前后）
+用 `--forceall` 各生成一套全量回执，diff 两套 `.sh` 即可逐条对照参数传递语义
+是否变化——配置读取重构后回执逐字节不变，即证明传参语义未变。
 
 ## 输出目录卫生（强制）
 

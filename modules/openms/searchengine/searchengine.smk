@@ -1,4 +1,7 @@
 include: "../../common/common.smk"
+comet = config.get("Procedure", {}).get("comet") or "CometAdapter"
+msgf = config.get("Procedure", {}).get("msgf") or "MSGFPlusAdapter"
+sage = config.get("Procedure", {}).get("sage") or "SageAdapter"
 
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
@@ -7,25 +10,16 @@ mzML_dir = config.get("mzML_dir", "data/mzml")
 decoy_dir = config.get("decoy_dir", "data/decoy_database")
 
 # Get parameters
-# 参数精确到 rule(2026-11 规范;rule_param 见 common.smk),无 module 级共享回退:
+# 参数精确到 rule(2026-11 规范):config 全量路径字面链,无 module 级共享回退:
 #   Params.search_engine.<rule_name>.engine            # 引擎选择,每 rule 独立键
 #   Params.search_engine.<engine组>.<rule_name>.<key>  # 各引擎参数组(单消费,挂 rule 名下)
-_se_params = config.get("Params", {}).get("search_engine", {})
-_se_comet_params = _se_params.get("comet", {})
-_se_msgf_params = _se_params.get("msgf", {})
-_se_sage_params = _se_params.get("sage", {})
 
 # engine(Params.search_engine.<rule_name>.engine):原 module 级共享键
 # Params.search_engine.engine 被 comet/msgf/sage 3 rules 共享 → 每 rule 独立键,
 # 每 rule 一个 parse 期变量(默认即该 rule 的引擎)。
-_engine_comet = rule_param(_se_params, "search_engine_comet", "engine", "comet")
-_engine_msgf = rule_param(_se_params, "search_engine_msgf", "engine", "msgf")
-_engine_sage = rule_param(_se_params, "search_engine_sage", "engine", "sage")
-
-# Get executables
-comet = config.get("Procedure", {}).get("comet") or "CometAdapter"
-msgf = config.get("Procedure", {}).get("msgf") or "MSGFPlusAdapter"
-sage = config.get("Procedure", {}).get("sage") or "SageAdapter"
+_engine_comet = config.get("Params", {}).get("search_engine", {}).get("search_engine_comet", {}).get("engine", "comet")
+_engine_msgf = config.get("Params", {}).get("search_engine", {}).get("search_engine_msgf", {}).get("engine", "msgf")
+_engine_sage = config.get("Params", {}).get("search_engine", {}).get("search_engine_sage", {}).get("engine", "sage")
 
 # Get decoy database
 decoy_fasta = config.get("genome", {}).get("decoy_fasta")
@@ -94,35 +88,33 @@ def _normalize_label_mods(fixed, variable, method):
     other = [m for m in variable if m not in label]
     return fixed, label + other
 
-_quant_method = (config.get("quantification_method") or "").lower()
+_quant_method = (config.get("Params", {}).get("workflow", {}).get("quantification_method") or "").lower()
 
-def _rule_mods(rule_name, se_group_params):
-    """Per-rule modification sets (parse 期解析;无共享回退)。
-
-    键挂 rule 名下(Params.search_engine.<engine组>.<rule_name>.fixed_modifications
-    / variable_modifications),未配置按 quantification_method 默认集。原 module 级
-    _fixed_mods/_variable_mods 喂 comet/msgf/sage 3 rules(CLI 转发 + 报告离子
-    校验)→ 每 rule 一个 parse 期变量。
-    """
-    fixed, variable = _normalize_label_mods(
-        rule_param(se_group_params, rule_name, "fixed_modifications",
-                   _MOD_DEFAULTS.get(_quant_method, ["Carbamidomethyl (C)"])),
-        rule_param(se_group_params, rule_name, "variable_modifications",
-                   _VAR_MOD_DEFAULTS.get(_quant_method, ["Oxidation (M)"])),
-        _quant_method,
-    )
-    # Label mods imply isobaric reporter ions must be present in the spectra;
-    # verify at runtime so a label/data mismatch fails loudly at the search step
-    # instead of silently producing noise PSMs (see check_reporter_ions).
-    expect_reporters = any(
-        "tmt" in str(m).lower() or "itraq" in str(m).lower()
-        for m in list(fixed) + list(variable)
-    )
-    return fixed, variable, expect_reporters
-
-_fixed_comet, _variable_comet, _expect_comet = _rule_mods("search_engine_comet", _se_comet_params)
-_fixed_msgf, _variable_msgf, _expect_msgf = _rule_mods("search_engine_msgf", _se_msgf_params)
-_fixed_sage, _variable_sage, _expect_sage = _rule_mods("search_engine_sage", _se_sage_params)
+# 每 rule 一个 parse 期变量(原 _rule_mods 内联;config 全量路径读取,
+# 键挂 Params.search_engine.<engine组>.<rule_name>.<key>,未配置按
+# quantification_method 默认集;原 module 级 _fixed_mods/_variable_mods 喂
+# comet/msgf/sage 3 rules(CLI 转发 + 报告离子校验)→ 每 rule 独立)。
+_fixed_comet, _variable_comet = _normalize_label_mods(
+    config.get("Params", {}).get("search_engine", {}).get("comet", {}).get("search_engine_comet", {}).get("fixed_modifications", _MOD_DEFAULTS.get(_quant_method, ["Carbamidomethyl (C)"])),
+    config.get("Params", {}).get("search_engine", {}).get("comet", {}).get("search_engine_comet", {}).get("variable_modifications", _VAR_MOD_DEFAULTS.get(_quant_method, ["Oxidation (M)"])),
+    _quant_method,
+)
+_fixed_msgf, _variable_msgf = _normalize_label_mods(
+    config.get("Params", {}).get("search_engine", {}).get("msgf", {}).get("search_engine_msgf", {}).get("fixed_modifications", _MOD_DEFAULTS.get(_quant_method, ["Carbamidomethyl (C)"])),
+    config.get("Params", {}).get("search_engine", {}).get("msgf", {}).get("search_engine_msgf", {}).get("variable_modifications", _VAR_MOD_DEFAULTS.get(_quant_method, ["Oxidation (M)"])),
+    _quant_method,
+)
+_fixed_sage, _variable_sage = _normalize_label_mods(
+    config.get("Params", {}).get("search_engine", {}).get("sage", {}).get("search_engine_sage", {}).get("fixed_modifications", _MOD_DEFAULTS.get(_quant_method, ["Carbamidomethyl (C)"])),
+    config.get("Params", {}).get("search_engine", {}).get("sage", {}).get("search_engine_sage", {}).get("variable_modifications", _VAR_MOD_DEFAULTS.get(_quant_method, ["Oxidation (M)"])),
+    _quant_method,
+)
+# Label mods imply isobaric reporter ions must be present in the spectra;
+# verify at runtime so a label/data mismatch fails loudly at the search step
+# instead of silently producing noise PSMs (see check_reporter_ions).
+_expect_comet = any("tmt" in str(m).lower() or "itraq" in str(m).lower() for m in list(_fixed_comet) + list(_variable_comet))
+_expect_msgf = any("tmt" in str(m).lower() or "itraq" in str(m).lower() for m in list(_fixed_msgf) + list(_variable_msgf))
+_expect_sage = any("tmt" in str(m).lower() or "itraq" in str(m).lower() for m in list(_fixed_sage) + list(_variable_sage))
 
 def _assert_label_matches_data(mzml_path, fixed_mods, variable_mods, expect_reporters):
     """Fail when isobaric label mods are configured but spectra carry no reporters."""
@@ -159,10 +151,10 @@ rule search_engine_comet:
     params:
         comet = comet,
         engine = _engine_comet,
-        precursor_mass_tolerance = rule_param(_se_comet_params, "search_engine_comet", "precursor_mass_tolerance", 20),
-        fragment_mass_tolerance = rule_param(_se_comet_params, "search_engine_comet", "fragment_mass_tolerance", 0.02),
-        fragment_bin_offset = rule_param(_se_comet_params, "search_engine_comet", "fragment_bin_offset", 0),
-        unmatched_action = rule_param(_se_comet_params, "search_engine_comet", "unmatched_action", "remove"),
+        precursor_mass_tolerance = config.get("Params", {}).get("search_engine", {}).get("comet", {}).get("search_engine_comet", {}).get("precursor_mass_tolerance", 20),
+        fragment_mass_tolerance = config.get("Params", {}).get("search_engine", {}).get("comet", {}).get("search_engine_comet", {}).get("fragment_mass_tolerance", 0.02),
+        fragment_bin_offset = config.get("Params", {}).get("search_engine", {}).get("comet", {}).get("search_engine_comet", {}).get("fragment_bin_offset", 0),
+        unmatched_action = config.get("Params", {}).get("search_engine", {}).get("comet", {}).get("search_engine_comet", {}).get("unmatched_action", "remove"),
         fixed_modifications = _fixed_comet,
         variable_modifications = _variable_comet
     run:
@@ -174,6 +166,7 @@ rule search_engine_comet:
             rule_logger.info(f"Start Comet search (engine={params.engine}) for sample {wildcards.sample_id} at {current_time}")
             _assert_label_matches_data(input.mzml, _fixed_comet, _variable_comet, _expect_comet)
             script = os.path.join(RECEIPT_DIR, f"comet_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/comet.sh")
             cmd = [
                 params.comet,
@@ -200,7 +193,8 @@ rule search_engine_comet:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f'echo "rule search_engine_comet called for {wildcards.sample_id} was successfully completed"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"rule search_engine_comet was call failed,error: {e}")
             raise RuntimeError(f"rule search_engine_comet was call failed,error: {e}")
@@ -226,9 +220,9 @@ rule search_engine_msgf:
     params:
         msgf = msgf,
         engine = _engine_msgf,
-        precursor_mass_tolerance = rule_param(_se_msgf_params, "search_engine_msgf", "precursor_mass_tolerance", 20),
-        fragment_mass_tolerance = rule_param(_se_msgf_params, "search_engine_msgf", "fragment_mass_tolerance", 0.02),
-        isotope_error_range = rule_param(_se_msgf_params, "search_engine_msgf", "isotope_error_range", "0,1")
+        precursor_mass_tolerance = config.get("Params", {}).get("search_engine", {}).get("msgf", {}).get("search_engine_msgf", {}).get("precursor_mass_tolerance", 20),
+        fragment_mass_tolerance = config.get("Params", {}).get("search_engine", {}).get("msgf", {}).get("search_engine_msgf", {}).get("fragment_mass_tolerance", 0.02),
+        isotope_error_range = config.get("Params", {}).get("search_engine", {}).get("msgf", {}).get("search_engine_msgf", {}).get("isotope_error_range", "0,1")
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -238,6 +232,7 @@ rule search_engine_msgf:
             rule_logger.info(f"Start MSGF+ search (engine={params.engine}) for sample {wildcards.sample_id} at {current_time}")
             _assert_label_matches_data(input.mzml, _fixed_msgf, _variable_msgf, _expect_msgf)
             script = os.path.join(RECEIPT_DIR, f"msgf_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/msgf.sh")
             cmd = [
                 params.msgf,
@@ -254,7 +249,8 @@ rule search_engine_msgf:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f'echo "rule search_engine_msgf called for {wildcards.sample_id} was successfully completed"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"rule search_engine_msgf was call failed,error: {e}")
             raise RuntimeError(f"rule search_engine_msgf was call failed,error: {e}")
@@ -279,8 +275,8 @@ rule search_engine_sage:
     params:
         sage = sage,
         engine = _engine_sage,
-        precursor_mass_tolerance = rule_param(_se_sage_params, "search_engine_sage", "precursor_mass_tolerance", 20),
-        fragment_mass_tolerance = rule_param(_se_sage_params, "search_engine_sage", "fragment_mass_tolerance", 0.02)
+        precursor_mass_tolerance = config.get("Params", {}).get("search_engine", {}).get("sage", {}).get("search_engine_sage", {}).get("precursor_mass_tolerance", 20),
+        fragment_mass_tolerance = config.get("Params", {}).get("search_engine", {}).get("sage", {}).get("search_engine_sage", {}).get("fragment_mass_tolerance", 0.02)
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -290,6 +286,7 @@ rule search_engine_sage:
             rule_logger.info(f"Start Sage search (engine={params.engine}) for sample {wildcards.sample_id} at {current_time}")
             _assert_label_matches_data(input.mzml, _fixed_sage, _variable_sage, _expect_sage)
             script = os.path.join(RECEIPT_DIR, f"sage_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/sage.sh")
             cmd = [
                 params.sage,
@@ -305,7 +302,8 @@ rule search_engine_sage:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f'echo "rule search_engine_sage called for {wildcards.sample_id} was successfully completed"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"rule search_engine_sage was call failed,error: {e}")
             raise RuntimeError(f"rule search_engine_sage was call failed,error: {e}")

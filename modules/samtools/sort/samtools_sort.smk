@@ -46,6 +46,7 @@ rule bam_sort:
             output.bai
         ]
         script = os.path.join(RECEIPT_DIR, f"samtools_sort_{wildcards.sample_id}_{current_time}.sh")
+        os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
         plain_script = os.path.join(outdir, f"samtools_sort.sh")
         with open(script, "w") as f:
             f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -53,14 +54,10 @@ rule bam_sort:
             f.write(" ".join(cmd2) + "\n")
             f.write(f'echo "script completed successfully"\n')
         shutil.copyfile(script, plain_script)
-        shell("bash {plain_script} > {log} 2>&1")
+        if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            shell("bash {plain_script} > {log} 2>&1")
 
 rule samtools_sort_index_result:
     input:
         bam = outdir + "/{sample_id}/{sample_id}.bam",
         bai = outdir + "/{sample_id}/{sample_id}.bam.bai"
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "samtools_sort_index_result", input_size=input_size_named(input, 'bam'),
-            attempt=attempt).get("mem_mb", 8000),

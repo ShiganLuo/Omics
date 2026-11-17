@@ -1,6 +1,5 @@
 include: "../../common/common.smk"
 
-
 ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
@@ -10,10 +9,9 @@ logdir = config.get("logdir", "log")
 # vendored 绘图代码(ggsave/savefig)。figures 是 touch() 规则的副产物,不进
 # rule output(② 展开不适用);默认 ["pdf"] 保持上游行为。
 # ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
-# 参数精确到 rule:Params.mimseq.mimseq_align.formats(rule_param 见 common.smk;
-# 无 module 级共享回退)。
-_mimseq_params = config.get("Params", {}).get("mimseq", {})
-_plot_formats_mimseq_align = rule_param(_mimseq_params, "mimseq_align", "formats", ["pdf"])
+# 参数精确到 rule:config 全量路径读取 Params.mimseq.mimseq_align.formats
+# (无 module 级共享回退)。
+_plot_formats_mimseq_align = config.get("Params", {}).get("mimseq", {}).get("mimseq_align", {}).get("formats") or ["pdf"]
 if isinstance(_plot_formats_mimseq_align, str):
     _plot_formats_mimseq_align = [_plot_formats_mimseq_align]
 
@@ -28,10 +26,10 @@ rule mimseq_align:
         logdir + "/mimseq_align.log"
     params:
         script = os.path.join(ROOT_DIR, "modules", "mimseq", "bin", "align", "run.py"),
-        name = rule_param(_mimseq_params, "mimseq_align", "name", "tRNAseq"),
-        mismatches = rule_param(_mimseq_params, "mimseq_align", "max_mismatches", 0.075),
-        remap = rule_param(_mimseq_params, "mimseq_align", "remap", True),
-        keep_temp = rule_param(_mimseq_params, "mimseq_align", "keep_temp", False),
+        name = config.get("Params", {}).get("mimseq", {}).get("mimseq_align", {}).get("name", "tRNAseq"),
+        mismatches = config.get("Params", {}).get("mimseq", {}).get("mimseq_align", {}).get("max_mismatches", 0.075),
+        remap = config.get("Params", {}).get("mimseq", {}).get("mimseq_align", {}).get("remap", True),
+        keep_temp = config.get("Params", {}).get("mimseq", {}).get("mimseq_align", {}).get("keep_temp", False),
         formats = _plot_formats_mimseq_align,   # ③ 转发
     threads: rule_res("mimseq_align").get("threads", 10)
     benchmark: logdir + "/mimseq_align.benchmark.tsv",
@@ -71,7 +69,8 @@ rule mimseq_align:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             raise
 
@@ -79,8 +78,3 @@ rule mimseq_align_result:
     """Result rule for align module."""
     input:
         align_done = outdir + "/align.done",
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "mimseq_align_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

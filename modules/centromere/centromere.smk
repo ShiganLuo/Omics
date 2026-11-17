@@ -54,6 +54,7 @@ rule hifiasm_assemble:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start hifiasm assembly for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"hifiasm_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/hifiasm.sh")
             fq_gz = os.path.join(outdir, f"{wildcards.sample_id}/assembly/{wildcards.sample_id}.hifi.fq.gz")
             cmd0 = [
@@ -74,7 +75,8 @@ rule hifiasm_assemble:
                 f.write(" ".join(cmd3) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log[0]} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log[0]} 2>&1")
         except Exception as e:
             raise f"hifiasm assembly failed for sample {wildcards.sample_id} with error: {e}"
 
@@ -90,8 +92,7 @@ rule repeatmasker_init:
     container:
         sif("centromere.yaml", "repeatmasker_init")
     params:
-        species = rule_param(config.get("Params", {}).get("RepeatMasker", {}),
-                             "repeatmasker_init", "species", "Mus musculus"),   # Params.RepeatMasker.repeatmasker_init.species(与 repeatmasker_run 各自;rule_param 见 common.smk)
+        species = config.get("Params", {}).get("RepeatMasker", {}).get("repeatmasker_init", {}).get("species", "Mus musculus"),   # Params.RepeatMasker.repeatmasker_init.species(与 repeatmasker_run 各自)
         RepeatMasker = config.get("Procedure", {}).get("RepeatMasker") or "RepeatMasker"
     threads: rule_res("repeatmasker_init").get("threads", 1)
     benchmark: logdir + "/all/RepeatMasker/repeatmasker_init.benchmark.tsv",
@@ -120,6 +121,7 @@ rule repeatmasker_init:
             cmd2 = ["rm", "-rf", tmpdir]
             cmd4 = ["echo", "RepeatMasker library cache initialized."]
             script = os.path.join(RECEIPT_DIR, f"repeatmasker_init_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(os.path.dirname(str(output[0])), "repeatmasker_init.sh")
             if input.dfam_h5 and os.path.exists(input.dfam_h5):
                 logger.warning("RepeatMasker don't support specifying custom Dfam h5 directly, pipeline will try to find the corresponding library dir and link your dfam h5 to the library dir with a name that RepeatMasker can recognize. Please ensure the Dfam h5 you provided is compatible with your RepeatMasker version and includes relevant satellite DNA for target species.")
@@ -153,7 +155,8 @@ rule repeatmasker_init:
                 f.write(" ".join(cmd4) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log[0]} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log[0]} 2>&1")
         except Exception as e:
             raise f"RepeatMasker init failed with error: {e}"
 
@@ -185,8 +188,7 @@ rule repeatmasker_run:
             "repeatmasker_run", input_size=input_size_mb(input),
             attempt=attempt).get("mem_mb", 32000),
     params:
-        species = rule_param(config.get("Params", {}).get("RepeatMasker", {}),
-                             "repeatmasker_run", "species", "Mus musculus"),   # Params.RepeatMasker.repeatmasker_run.species(与 repeatmasker_init 各自;rule_param 见 common.smk)
+        species = config.get("Params", {}).get("RepeatMasker", {}).get("repeatmasker_run", {}).get("species", "Mus musculus"),   # Params.RepeatMasker.repeatmasker_run.species(与 repeatmasker_init 各自)
         rm_dir = outdir + "/{sample_id}/RepeatMasker",
         RepeatMasker = config.get("Procedure", {}).get("RepeatMasker") or "RepeatMasker",
     run:
@@ -197,6 +199,7 @@ rule repeatmasker_run:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start RepeatMasker for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"repeatmasker_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/repeatmasker.sh")
             cmd = [
                 params.RepeatMasker,
@@ -211,7 +214,8 @@ rule repeatmasker_run:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log[0]} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log[0]} 2>&1")
         except Exception as e:
             raise f"RepeatMasker failed for sample {wildcards.sample_id} with error: {e}"
 
@@ -242,6 +246,7 @@ rule centromere_extract:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start centromere stats extraction for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"centromere_extract_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/centromere_extract.sh")
             cmd = [
                 "python", params.script,
@@ -253,7 +258,8 @@ rule centromere_extract:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log[0]} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log[0]} 2>&1")
         except Exception as e:
             raise f"Centromere stats extraction failed for sample {wildcards.sample_id} with error: {e}"
 
@@ -261,8 +267,3 @@ rule centromere_result:
     """Result aggregation rule for subworkflow use rule import."""
     input:
         stats = outdir + "/{sample_id}/{sample_id}.centromere_stats.txt"
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "centromere_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

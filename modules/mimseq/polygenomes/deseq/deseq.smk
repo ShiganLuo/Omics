@@ -1,6 +1,5 @@
 include: "../../../common/common.smk"
 
-
 ROOT_DIR = config.get("ROOT_DIR", ".")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -9,10 +8,9 @@ logdir = config.get("logdir", "log")
 # vendored 绘图代码(ggsave/savefig)。figures 是 touch() 规则的副产物,不进
 # rule output(② 展开不适用);默认 ["pdf"] 保持上游行为。
 # ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
-# 参数精确到 rule:Params.mimseq.mimseq_deseq.formats(rule_param 见 common.smk;
-# 无 module 级共享回退)。
-_mimseq_params = config.get("Params", {}).get("mimseq", {})
-_plot_formats_mimseq_deseq = rule_param(_mimseq_params, "mimseq_deseq", "formats", ["pdf"])
+# 参数精确到 rule:config 全量路径读取 Params.mimseq.mimseq_deseq.formats
+# (无 module 级共享回退)。
+_plot_formats_mimseq_deseq = config.get("Params", {}).get("mimseq", {}).get("mimseq_deseq", {}).get("formats") or ["pdf"]
 if isinstance(_plot_formats_mimseq_deseq, str):
     _plot_formats_mimseq_deseq = [_plot_formats_mimseq_deseq]
 
@@ -26,8 +24,8 @@ rule mimseq_deseq:
         logdir + "/{genome}/mimseq_deseq.log"
     params:
         script = os.path.join(ROOT_DIR, "modules", "mimseq", "bin", "deseq", "run.py"),
-        control_cond = rule_param(_mimseq_params, "mimseq_deseq", "control_cond", ""),
-        p_adj = rule_param(_mimseq_params, "mimseq_deseq", "p_adj", 0.05),
+        control_cond = config.get("Params", {}).get("mimseq", {}).get("mimseq_deseq", {}).get("control_cond", ""),
+        p_adj = config.get("Params", {}).get("mimseq", {}).get("mimseq_deseq", {}).get("p_adj", 0.05),
         formats = _plot_formats_mimseq_deseq,   # ③ 转发
         mito_trnas = lambda wildcards: config["genome"][wildcards.genome].get("mito_trnas", ""),
     threads: rule_res("mimseq_deseq").get("threads", 4)
@@ -65,7 +63,8 @@ rule mimseq_deseq:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             raise
 
@@ -73,8 +72,3 @@ rule mimseq_deseq_result:
     """Result rule for deseq module."""
     input:
         deseq_done = outdir + "/{genome}/deseq.done",
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "mimseq_deseq_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

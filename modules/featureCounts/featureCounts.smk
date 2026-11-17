@@ -47,6 +47,7 @@ rule featureCounts_single_noMultiple:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start featureCounts_single_noMultiple at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"featureCounts_single_noMultiple_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(os.path.dirname(output.outfile), f"featureCounts_single_noMultiple.sh")
             os.makedirs(os.path.dirname(output.outfile), exist_ok=True)
             bams_str = " ".join(input.bams)
@@ -55,7 +56,8 @@ rule featureCounts_single_noMultiple:
                 f.write(f"{params.featureCounts} -T {threads} -t exon -g gene_id -a {params.gtf} -o {output.outfile} {bams_str}\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"featureCounts_single_noMultiple completed")
         except Exception as e:
             rule_logger.error(f"featureCounts_single_noMultiple failed: {e}\n")
@@ -100,6 +102,7 @@ rule featureCounts_paired_noMultiple:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start featureCounts_paired_noMultiple at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"featureCounts_paired_noMultiple_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(os.path.dirname(output.outfile), f"featureCounts_paired_noMultiple.sh")
             os.makedirs(os.path.dirname(output.outfile), exist_ok=True)
             bams_str = " ".join(input.bams)
@@ -110,7 +113,8 @@ rule featureCounts_paired_noMultiple:
                 f.write(f"{params.featureCounts} -T {threads} -B -p --countReadPairs -t exon -g gene_id -a {params.gtf} -o {output.outfile} {bams_str}\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"featureCounts_paired_noMultiple completed")
         except Exception as e:
             rule_logger.error(f"featureCounts_paired_noMultiple failed: {e}\n")
@@ -122,8 +126,3 @@ rule featureCounts_result:
         single = outdir + "/all_single_featureCounts.tsv"
     output:
         touch(outdir + "/featureCounts.done")
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "featureCounts_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

@@ -11,21 +11,18 @@ paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
 # 参数精确到 rule:参数挂在消费它的 rule 名下(Params.function.<rule_name>.<key>;
 # 原 go_kegg/gsea/gsva 嵌套组名拍平为 rule 名,叶子名作 key;无 module 级共享,
-# rule_param 见 common.smk)。formats 为每 rule 一个 parse 期变量——output 不能
+# 读点写 config 全量路径字面链)。formats 为每 rule 一个 parse 期变量——output 不能
 # 是函数,格式列表必须是模块级变量(decoil.smk 同款注释),各 rule 独立展开
 # output;① parse 期读入 + 规范化(str 收成单元素 list;合法值由 schema 声明)。
-_func = config.get("Params", {}).get("function", {}) or {}
-
-
-def _rule_formats(rule_name, default):
-    """Per-rule figure formats (parse 期解析,output 展开与 CLI 转发共用)。"""
-    fmts = rule_param(_func, rule_name, "formats", default) or default
-    return [fmts] if isinstance(fmts, str) else fmts
-
-
-_go_kegg_formats = _rule_formats("function_go_kegg", ["png"])
-_gsea_formats = _rule_formats("function_gsea", ["jpeg"])
-_gsva_formats = _rule_formats("function_gsva", ["png"])
+_go_kegg_formats = config.get("Params", {}).get("function", {}).get("function_go_kegg", {}).get("formats") or ["png"]
+if isinstance(_go_kegg_formats, str):
+    _go_kegg_formats = [_go_kegg_formats]
+_gsea_formats = config.get("Params", {}).get("function", {}).get("function_gsea", {}).get("formats") or ["jpeg"]
+if isinstance(_gsea_formats, str):
+    _gsea_formats = [_gsea_formats]
+_gsva_formats = config.get("Params", {}).get("function", {}).get("function_gsva", {}).get("formats") or ["png"]
+if isinstance(_gsva_formats, str):
+    _gsva_formats = [_gsva_formats]
 
 rule function_go_kegg:
     input:
@@ -52,10 +49,10 @@ rule function_go_kegg:
             attempt=attempt).get("mem_mb", 8000),
     params:
         go_kegg_script = ROOT_DIR + "/modules/function/bin/go-kegg.r",
-        species = rule_param(_func, "function_go_kegg", "species", "mouse"),
-        lfc_cut = rule_param(_func, "function_go_kegg", "lfc_cut", 1),
-        p_cut = rule_param(_func, "function_go_kegg", "p_cut", 0.05),
-        top = rule_param(_func, "function_go_kegg", "top", 10),
+        species = config.get("Params", {}).get("function", {}).get("function_go_kegg", {}).get("species", "mouse"),
+        lfc_cut = config.get("Params", {}).get("function", {}).get("function_go_kegg", {}).get("lfc_cut", 1),
+        p_cut = config.get("Params", {}).get("function", {}).get("function_go_kegg", {}).get("p_cut", 0.05),
+        top = config.get("Params", {}).get("function", {}).get("function_go_kegg", {}).get("top", 10),
         formats = _go_kegg_formats,   # ③ 转发
     conda:
         "function.yaml"
@@ -96,6 +93,7 @@ rule function_go_kegg:
                 cmd += ["--format", str(fmt)]
 
             script = os.path.join(RECEIPT_DIR, f"go_kegg_{wildcards.contrast}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"go_kegg.sh")
             with open(script, 'w') as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -104,7 +102,8 @@ rule function_go_kegg:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'GO/KEGG analysis completed for {wildcards.contrast}'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"GO/KEGG analysis failed: {e}")
             raise RuntimeError(f"GO/KEGG analysis failed: {e}\n")
@@ -122,7 +121,7 @@ def get_input_for_function_gsea(wildcards):
             f"Ensure DESeq2_TEcount has completed for {wildcards.contrast}."
         )
     in_dict['deseq2_result'] = deseq2_result
-    gmt = rule_param(_func, "function_gsea", "gmt", None)
+    gmt = config.get("Params", {}).get("function", {}).get("function_gsea", {}).get("gmt", None)
     if not gmt or not os.path.exists(gmt):
         raise ValueError(
             f"GSEA requires a GMT file. {gmt} is not exists, please set Params.function.function_gsea.gmt in config."
@@ -192,13 +191,15 @@ rule function_gsea:
                 cmd += ["--format", str(fmt)]
 
             script = os.path.join(RECEIPT_DIR, f"gsea_{wildcards.contrast}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"gsea.sh")
             with open(script, 'w') as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'GSEA analysis completed for {wildcards.contrast}'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"GSEA analysis failed: {e}")
             raise RuntimeError(f"GSEA analysis failed: {e}")
@@ -220,7 +221,7 @@ def get_input_for_function_gsva(wildcards):
         )
     in_dict['counts'] = counts
     # GMT gene set file
-    gsva_gmt = rule_param(_func, "function_gsva", "gmt", None)
+    gsva_gmt = config.get("Params", {}).get("function", {}).get("function_gsva", {}).get("gmt", None)
     if not gsva_gmt or not os.path.exists(gsva_gmt):
         raise ValueError(
             f"GSVA requires a GMT file. {gsva_gmt} is not exists, please set Params.function.function_gsva.gmt in config."
@@ -267,7 +268,7 @@ rule function_gsva:
     params:
         norm_script = ROOT_DIR + "/modules/function/bin/normalization.py",
         gsva_script = ROOT_DIR + "/modules/function/bin/gsva.py",
-        species = rule_param(_func, "function_gsva", "species", "mouse"),
+        species = config.get("Params", {}).get("function", {}).get("function_gsva", {}).get("species", "mouse"),
         formats = _gsva_formats,   # ③ 转发
     conda:
         "function.yaml"
@@ -321,6 +322,7 @@ rule function_gsva:
             for fmt in params.formats:
                 gsva_cmd += ["--format", str(fmt)]
             script = os.path.join(RECEIPT_DIR, f"gsva_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(gsva_outdir, f"gsva.sh")
             with open(script, 'w') as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -328,7 +330,8 @@ rule function_gsva:
                 f.write(" ".join(shlex.quote(str(x)) for x in gsva_cmd) + "\n")
                 f.write(f"echo 'GSVA analysis completed for {params.species}'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"GSVA analysis failed: {e}")
             raise RuntimeError(f"GSVA analysis failed: {e}")

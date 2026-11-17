@@ -17,8 +17,7 @@ outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 # 参数精确到 rule(2026-11 规范):Params.fibertools.<rule_name>.<key>,无
-# module 级共享回退(rule_param 见 common.smk)。
-_ft_params = config.get("Params", {}).get("fibertools", {})
+# module 级共享回退(config 全量路径内联读取)。
 # fasta resolved per-genome in rules
 
 rule ft_predict_m6a:
@@ -67,7 +66,8 @@ rule ft_predict_m6a:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "m6A prediction completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred: {e}")
             raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
@@ -118,7 +118,8 @@ rule ft_add_nucleosomes:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "Nucleosome calling completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred: {e}")
             raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
@@ -147,7 +148,7 @@ rule ft_fire:
         sif("../fibertools.yaml", "ft_fire")
     params:
         ft = config.get("Procedure", {}).get("fibertools") or "ft",
-        is_ont = rule_param(_ft_params, "ft_fire", "ont", False)
+        is_ont = config.get("Params", {}).get("fibertools", {}).get("ft_fire", {}).get("ont", False)
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -171,7 +172,8 @@ rule ft_fire:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "FIRE calling completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred: {e}")
             raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
@@ -228,7 +230,8 @@ rule ft_extract:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "Fiber-seq extraction completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred: {e}")
             raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")

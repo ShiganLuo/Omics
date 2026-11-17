@@ -29,7 +29,8 @@ REPORT_SCRIPT = os.path.join(ROOT_DIR, "modules", "Mutation_report", "bin", "gen
 # formats(模块 md #9 / subworkflow.md formats 规范):报告自有图(体细胞调用
 # 柱状图)的导出格式;str 收成单元素列表(格式合法性由 schema 声明)。报告图
 # 为条件产出,不逐一声明 output——由 figures/manifest.tsv 兜底(报告模块规范)。
-_formats = (config.get("Params", {}).get("report", {}) or {}).get("formats") or ["png"]
+# 参数精确到 rule:config 全量路径字面链 Params.report.generate_report.<key>。
+_formats = config.get("Params", {}).get("report", {}).get("generate_report", {}).get("formats") or ["png"]
 if isinstance(_formats, str):
     _formats = [_formats]
 
@@ -82,11 +83,11 @@ rule generate_report:
         sif("Mutation_report.yaml", "generate_report")
     params:
         script = REPORT_SCRIPT,
-        title = config.get("Params", {}).get("report", {}).get("title")
+        title = config.get("Params", {}).get("report", {}).get("generate_report", {}).get("title")
             or "Mutation 分析报告 / Mutation Report",
-        pipeline = config.get("Params", {}).get("report", {}).get("pipeline") or "Mutation",
-        genome = config.get("Params", {}).get("report", {}).get("genome") or "",
-        date = config.get("Params", {}).get("report", {}).get("date") or "",
+        pipeline = config.get("Params", {}).get("report", {}).get("generate_report", {}).get("pipeline") or "Mutation",
+        genome = config.get("Params", {}).get("report", {}).get("generate_report", {}).get("genome") or "",
+        date = config.get("Params", {}).get("report", {}).get("generate_report", {}).get("date") or "",
         formats = _formats,   # ③ 转发
         pairs = [
             (rec.get("experimental"), rec.get("control"))
@@ -128,13 +129,15 @@ rule generate_report:
                 cmd += ["--format", str(fmt)]
 
             script = os.path.join(RECEIPT_DIR, f"generate_report_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(report_dir or ".", "generate_report.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
                 f.write('echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"Mutation report completed: {output.report}")
         except Exception as e:
             rule_logger.error(f"Error occurred during Mutation generate_report: {e}")
@@ -146,8 +149,3 @@ rule report_result:
         report = outdir + "/Mutation_report.pptx",
         excel = outdir + "/Mutation_report.xlsx",
         manifest = outdir + "/figures/manifest.tsv",
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "report_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

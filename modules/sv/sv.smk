@@ -25,26 +25,29 @@ def _sample_vcfs(sample_ids):
 
 # Global parameters
 # 图片格式(modules.md #9):键名 "formats"。参数精确到 rule:formats 按 rule
-# 独立配置(Params.sv.<rule_name>.formats,无 module 级共享回退;rule_param
-# 见 common.smk),每 rule 一个 parse 期变量。
-_sv_params = config.get("Params", {}).get("sv", {})
-
-
-def _rule_formats(rule_name):
-    """Per-rule figure formats (parse 期解析,CLI -f 转发共用)。"""
-    fmts = rule_param(_sv_params, rule_name, "formats", ["png"])
-    return [fmts] if isinstance(fmts, str) else fmts
-
-
-_formats_sv_exp_specific = _rule_formats("sv_exp_specific")
-_formats_sv_exp_circos = _rule_formats("sv_exp_circos")
-_formats_sv_gene_model = _rule_formats("sv_gene_model")
-_formats_sv_diff_analysis = _rule_formats("sv_diff_analysis")
-_formats_sv_oncoprint = _rule_formats("sv_oncoprint")
-_formats_sv_mei = _rule_formats("sv_mei")
+# 独立配置(Params.sv.<rule_name>.formats,无 module 级共享回退),每 rule 一个
+# parse 期变量(config 全量路径读取 + str 收成单元素 list)。
+_formats_sv_exp_specific = config.get("Params", {}).get("sv", {}).get("sv_exp_specific", {}).get("formats") or ["png"]
+if isinstance(_formats_sv_exp_specific, str):
+    _formats_sv_exp_specific = [_formats_sv_exp_specific]
+_formats_sv_exp_circos = config.get("Params", {}).get("sv", {}).get("sv_exp_circos", {}).get("formats") or ["png"]
+if isinstance(_formats_sv_exp_circos, str):
+    _formats_sv_exp_circos = [_formats_sv_exp_circos]
+_formats_sv_gene_model = config.get("Params", {}).get("sv", {}).get("sv_gene_model", {}).get("formats") or ["png"]
+if isinstance(_formats_sv_gene_model, str):
+    _formats_sv_gene_model = [_formats_sv_gene_model]
+_formats_sv_diff_analysis = config.get("Params", {}).get("sv", {}).get("sv_diff_analysis", {}).get("formats") or ["png"]
+if isinstance(_formats_sv_diff_analysis, str):
+    _formats_sv_diff_analysis = [_formats_sv_diff_analysis]
+_formats_sv_oncoprint = config.get("Params", {}).get("sv", {}).get("sv_oncoprint", {}).get("formats") or ["png"]
+if isinstance(_formats_sv_oncoprint, str):
+    _formats_sv_oncoprint = [_formats_sv_oncoprint]
+_formats_sv_mei = config.get("Params", {}).get("sv", {}).get("sv_mei", {}).get("formats") or ["png"]
+if isinstance(_formats_sv_mei, str):
+    _formats_sv_mei = [_formats_sv_mei]
 
 # genes 同样 rule 级(Params.sv.sv_gene_model.genes),仅 sv_gene_model 消费。
-_genes_sv_gene_model = rule_param(_sv_params, "sv_gene_model", "genes", [])
+_genes_sv_gene_model = config.get("Params", {}).get("sv", {}).get("sv_gene_model", {}).get("genes", [])
 
 # ========================
 # Per-comparison rules
@@ -78,6 +81,7 @@ rule sv_exp_specific:
         custom_fasta = config.get("genome", {}).get("custom_fasta", ""),
         te_lib = config.get("genome", {}).get("te_lib", ""),
         dist = config.get("Params", {}).get("sv", {}).get("exp_specific", {}).get("dist", 500),
+        formats = _formats_sv_exp_specific,   # ③ 转发
     conda:
         "sv.yaml"
     container:
@@ -93,7 +97,7 @@ rule sv_exp_specific:
             plain_script = os.path.join(outdir, f"{wildcards.comparison}/sv_exp_specific.sh")
             rule_logger.info(f"Running sv_exp_specific for comparison: {wildcards.comparison}")
             fmt_args = []
-            for fmt in _formats_sv_exp_specific:
+            for fmt in params.formats:
                 fmt_args += ["-f", fmt]
             cmd = [
                 "python", params.script,
@@ -117,7 +121,8 @@ rule sv_exp_specific:
                 f.write(" ".join(cmd) + "\n")
                 f.write("echo 'sv_exp_specific completed successfully.'\n")
             shutil.copyfile(script_path, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"sv_exp_specific failed for {wildcards.comparison}: {e}")
             raise RuntimeError(f"sv_exp_specific failed for {wildcards.comparison}: {e}")
@@ -140,6 +145,7 @@ rule sv_exp_circos:
         genome = config.get("Params", {}).get("sv", {}).get("circos", {}).get("genome", "mm39"),
         cytoband = config.get("Params", {}).get("sv", {}).get("circos", {}).get("cytoband", ""),
         ins_bin_size = config.get("Params", {}).get("sv", {}).get("circos", {}).get("ins_bin_size", 100000),
+        formats = _formats_sv_exp_circos,   # ③ 转发
     conda:
         "sv.yaml"
     container:
@@ -155,7 +161,7 @@ rule sv_exp_circos:
             plain_script = os.path.join(outdir, f"{wildcards.comparison}/sv_exp_circos.sh")
             rule_logger.info(f"Running sv_exp_circos for comparison: {wildcards.comparison}")
             fmt_args = []
-            for fmt in _formats_sv_exp_circos:
+            for fmt in params.formats:
                 fmt_args += ["-f", fmt]
             cmd = [
                 "python", params.script,
@@ -172,7 +178,8 @@ rule sv_exp_circos:
                 f.write(" ".join(cmd) + "\n")
                 f.write("echo 'sv_exp_circos completed successfully.'\n")
             shutil.copyfile(script_path, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"sv_exp_circos failed for {wildcards.comparison}: {e}")
             raise RuntimeError(f"sv_exp_circos failed for {wildcards.comparison}: {e}")
@@ -195,6 +202,8 @@ rule sv_gene_model:
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/utils/gene_model.py"),
         threads = config.get("Params", {}).get("sv", {}).get("gene_model", {}).get("threads", 1),
+        genes = _genes_sv_gene_model,   # ③ 转发
+        formats = _formats_sv_gene_model,   # ③ 转发
     conda:
         "sv.yaml"
     container:
@@ -210,10 +219,10 @@ rule sv_gene_model:
             plain_script = os.path.join(outdir, f"{wildcards.comparison}/sv_gene_model.sh")
             rule_logger.info(f"Running sv_gene_model for comparison: {wildcards.comparison}")
             gene_args = []
-            for g in _genes_sv_gene_model:
+            for g in params.genes:
                 gene_args += ["-g", g]
             fmt_args = []
-            for fmt in _formats_sv_gene_model:
+            for fmt in params.formats:
                 fmt_args += ["-f", fmt]
             cmd = [
                 "python", params.script,
@@ -228,7 +237,8 @@ rule sv_gene_model:
                 f.write(" ".join(cmd) + "\n")
                 f.write("echo 'sv_gene_model completed successfully.'\n")
             shutil.copyfile(script_path, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"sv_gene_model failed for {wildcards.comparison}: {e}")
             raise RuntimeError(f"sv_gene_model failed for {wildcards.comparison}: {e}")
@@ -253,6 +263,7 @@ rule sv_diff_analysis:
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/pbsv_sv_diff_analysis.py"),
         large_sv_threshold = config.get("Params", {}).get("sv", {}).get("diff_analysis", {}).get("large_sv_threshold", 10000),
+        formats = _formats_sv_diff_analysis,   # ③ 转发
     conda:
         "sv.yaml"
     container:
@@ -271,7 +282,7 @@ rule sv_diff_analysis:
                 vcf_path = f"{outdir}/{name}/{name}_only.vcf"
                 group_args += ["-g", f"{name}:{vcf_path}"]
             fmt_args = []
-            for fmt in _formats_sv_diff_analysis:
+            for fmt in params.formats:
                 fmt_args += ["-f", fmt]
             cmd = [
                 "python", params.script,
@@ -283,7 +294,8 @@ rule sv_diff_analysis:
                 f.write(" ".join(cmd) + "\n")
                 f.write("echo 'sv_diff_analysis completed successfully.'\n")
             shutil.copyfile(script_path, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"sv_diff_analysis failed: {e}")
             raise RuntimeError(f"sv_diff_analysis failed: {e}")
@@ -306,6 +318,7 @@ rule sv_oncoprint:
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/run_OncoPrint.py"),
         deseq2_files = config.get("Params", {}).get("sv", {}).get("oncoprint", {}).get("deseq2_files", {}),
+        formats = _formats_sv_oncoprint,   # ③ 转发
     conda:
         "sv.yaml"
     container:
@@ -328,7 +341,7 @@ rule sv_oncoprint:
             for cond, path in params.deseq2_files.items():
                 deseq2_args += ["-d", f"{cond}:{path}"]
             fmt_args = []
-            for fmt in _formats_sv_oncoprint:
+            for fmt in params.formats:
                 fmt_args += ["-f", fmt]
             cmd = [
                 "python", params.script,
@@ -340,7 +353,8 @@ rule sv_oncoprint:
                 f.write(" ".join(cmd) + "\n")
                 f.write("echo 'sv_oncoprint completed successfully.'\n")
             shutil.copyfile(script_path, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"sv_oncoprint failed: {e}")
             raise RuntimeError(f"sv_oncoprint failed: {e}")
@@ -348,14 +362,6 @@ rule sv_oncoprint:
         # ========================
         # Result aggregation rule
         # ========================
-
-
-def _sv_mei_cfg():
-    """Normalized sv.mei config block (dfam_h5 always a list)."""
-    mei = dict(config.get("Params", {}).get("sv", {}).get("mei", {}) or {})
-    dfam_h5 = mei.get("dfam_h5") or []
-    mei["dfam_h5"] = [dfam_h5] if isinstance(dfam_h5, str) else list(dfam_h5)
-    return mei
 
 
 def sv_mei_inputs(wildcards):
@@ -366,7 +372,9 @@ def sv_mei_inputs(wildcards):
     Optional reference files join the inputs only when configured, so a
     missing file fails at DAG build instead of mid-execution.
     """
-    mei = _sv_mei_cfg()
+    mei = dict(config.get("Params", {}).get("sv", {}).get("mei", {}) or {})
+    dfam_h5 = mei.get("dfam_h5") or []
+    mei["dfam_h5"] = [dfam_h5] if isinstance(dfam_h5, str) else list(dfam_h5)
     te_lib = config.get("genome", {}).get("te_lib") or ""
     classifier = mei["dfam_h5"] or ([te_lib] if te_lib and os.path.exists(te_lib) else [])
     if not classifier:
@@ -409,9 +417,10 @@ rule sv_mei:
             attempt=attempt).get("mem_mb", 16000),
     params:
         analysis = os.path.join(ROOT_DIR, "modules/sv/bin/mei_analysis.py"),
-        mei = _sv_mei_cfg(),
+        mei = config.get("Params", {}).get("sv", {}).get("mei", {}) or {},
         te_lib = config.get("genome", {}).get("te_lib") or "",
         threads = lambda wildcards: rule_res("sv_mei").get("threads", 4),
+        formats = _formats_sv_mei,   # ③ 转发
         ctrl_name = lambda wildcards: (comparisons.get(wildcards.comparison, {}) or {}).get("control_group_name") or "",
         exp_name = lambda wildcards: (comparisons.get(wildcards.comparison, {}) or {}).get("experimental_group_name") or "",
     conda:
@@ -428,7 +437,9 @@ rule sv_mei:
             os.makedirs(mei_out, exist_ok=True)
             script_path = os.path.join(RECEIPT_DIR, f"sv_mei_{wildcards.comparison}_{current_time}.sh")
             plain_script = os.path.join(str(outdir), wildcards.comparison, "sv_mei.sh")
-            mei = params.mei
+            mei = dict(params.mei)
+            dfam_h5 = mei.get("dfam_h5") or []
+            mei["dfam_h5"] = [dfam_h5] if isinstance(dfam_h5, str) else list(dfam_h5)
             cmd = [
                 "python", params.analysis,
                 "-i", str(input.merged_vcf),
@@ -460,7 +471,7 @@ rule sv_mei:
                     cmd += [flag, shlex.quote(str(val))]
             # image formats: one -f per requested format (mei figures +
             # report are written per format by mei_analysis -> mei_plot)
-            for fmt in _formats_sv_mei:
+            for fmt in params.formats:
                 cmd += ["-f", str(fmt)]
             # figures run INSIDE the entry (utils/mei_plot.py chained)
             with open(script_path, "w") as f:
@@ -468,7 +479,8 @@ rule sv_mei:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "sv_mei completed successfully for {wildcards.comparison}"\n')
             shutil.copyfile(script_path, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
             # completion marker: mei/ is NOT a directory() output, so the
             # script-level caches and artifacts inside survive reruns
             with open(str(output.mei_done), "w") as f:
@@ -489,8 +501,3 @@ rule sv_result:
         mei_done = expand(outdir + "/{comp}/mei/mei.done", comp=comparison_names),
         diff_dir = outdir + "/sv_diff_analysis",
         oncoprint_dir = outdir + "/sv_oncoprint",
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "sv_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

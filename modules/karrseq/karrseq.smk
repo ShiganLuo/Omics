@@ -7,10 +7,9 @@ logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 
-# 参数精确到 rule:Params.karrseq.<rule_name>.<key>(rule_param 见 common.smk;
+# 参数精确到 rule:Params.karrseq.<rule_name>.<key>(config 全量路径直读;
 # 无 module 级共享回退,karrseq_chimeric_to_pairs / karrseq_remove_duplicates
 # 各自独立键)。
-_karrseq_params = config.get("Params", {}).get("karrseq", {})
 
 rule karrseq_chimeric_to_pairs:
     input:
@@ -21,8 +20,8 @@ rule karrseq_chimeric_to_pairs:
     log:
         logdir + "/{sample_id}/karrseq_chimeric_to_pairs.log"
     params:
-        mapq = rule_param(_karrseq_params, "karrseq_chimeric_to_pairs", "mapq", 1),
-        span = rule_param(_karrseq_params, "karrseq_chimeric_to_pairs", "span", 0),
+        mapq = config.get("Params", {}).get("karrseq", {}).get("karrseq_chimeric_to_pairs", {}).get("mapq", 1),
+        span = config.get("Params", {}).get("karrseq", {}).get("karrseq_chimeric_to_pairs", {}).get("span") or 0,
         script = os.path.join(ROOT_DIR, "modules/karrseq/bin/get_STAR_reads.py"),
         tmp1 = outdir + "/{sample_id}/{sample_id}.tmp1",
         tmp2 = outdir + "/{sample_id}/{sample_id}.tmp2"
@@ -65,7 +64,8 @@ rule karrseq_chimeric_to_pairs:
             f.write(" ".join(cmd_merge) + "\n")
             f.write(" ".join(cmd_cleanup) + "\n")
             f.write(f'echo "script completed successfully"\n')
-        shell("bash {plain_script} > {log} 2>&1")
+        if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            shell("bash {plain_script} > {log} 2>&1")
 
 rule karrseq_remove_duplicates:
     input:
@@ -82,7 +82,7 @@ rule karrseq_remove_duplicates:
             "karrseq_remove_duplicates", input_size=input_size_mb(input),
             attempt=attempt).get("mem_mb", 8000),
     params:
-        mapq = rule_param(_karrseq_params, "karrseq_remove_duplicates", "mapq", 1),
+        mapq = config.get("Params", {}).get("karrseq", {}).get("karrseq_remove_duplicates", {}).get("mapq", 1),
         dedup_script = os.path.join(ROOT_DIR, "modules/karrseq/bin/remove_duplicates.py"),
         bed_script = os.path.join(ROOT_DIR, "modules/karrseq/bin/pairs_to_bed.py"),
         todedup = "dedup"
@@ -119,7 +119,8 @@ rule karrseq_remove_duplicates:
             f.write("sleep 120\n")
             f.write(" ".join(cmd_index) + "\n")
             f.write(f'echo "script completed successfully"\n')
-        shell("bash {plain_script} > {log} 2>&1")
+        if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            shell("bash {plain_script} > {log} 2>&1")
 
 rule karrseq_ligation:
     input:
@@ -161,13 +162,9 @@ rule karrseq_ligation:
             f.write("sleep 60\n")
             f.write(" ".join(cmd_index) + "\n")
             f.write(f'echo "script completed successfully"\n')
-        shell("bash {plain_script} > {log} 2>&1")
+        if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            shell("bash {plain_script} > {log} 2>&1")
 
 rule karrseq_result:
     input:
         pairs_gz = outdir + "/{sample_id}/{sample_id}.dedup.ligation.pairs.gz"
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "karrseq_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

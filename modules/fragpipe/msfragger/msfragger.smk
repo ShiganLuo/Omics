@@ -82,6 +82,7 @@ rule msfragger_run:
                 check=True,
             )
             script = os.path.join(RECEIPT_DIR, f"msfragger_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"msfragger.sh")
             if params.jar:
                 cmd = [params.java, f"-Xmx{params.java_xmx}", "-jar", str(params.jar)]
@@ -106,7 +107,8 @@ rule msfragger_run:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f"echo 'MSFragger search for {wildcards.sample_id} completed at {current_time}'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during MSFragger search: {str(e)}\n")
             raise RuntimeError(f"Error during MSFragger search: {str(e)}\n")
@@ -144,6 +146,7 @@ rule msfragger_idxml:
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"msfragger_idxml_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"msfragger_idxml.sh")
             # Staged copy must keep a .pepXML suffix: IDFileConverter has no
             # -in_type in OpenMS 3.x and infers the INPUT type from the
@@ -210,7 +213,8 @@ rule msfragger_idxml:
                 f.write(f"rm -f {shlex.quote(tmp_idxml)} {shlex.quote(tmp_pepxml)}\n")
                 f.write(f"echo 'pepXML -> idXML conversion for {wildcards.sample_id} completed at {current_time}'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during pepXML -> idXML conversion: {str(e)}\n")
             raise RuntimeError(f"Error during pepXML -> idXML conversion: {str(e)}\n")
@@ -219,8 +223,3 @@ rule msfragger_result:
     input:
         expand(outdir + "/{sample_id}/{sample_id}.pepXML", sample_id=samples),
         expand(outdir + "/{sample_id}/{sample_id}_msfragger.idXML", sample_id=samples),
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "msfragger_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

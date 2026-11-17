@@ -1,10 +1,17 @@
 include: "../../common/common.smk"
+proteomicslfq = config.get("Procedure", {}).get("proteomicslfq") or "ProteomicsLFQ"
+proteinquantifier = config.get("Procedure", {}).get("proteinquantifier") or "ProteinQuantifier"
+isobaric_analyzer = config.get("Procedure", {}).get("isobaric_analyzer") or "IsobaricAnalyzer"
+id_mapper = config.get("Procedure", {}).get("id_mapper") or "IDMapper"
+file_merger = config.get("Procedure", {}).get("file_merger") or "FileMerger"
 
 indir = config.get("indir", "data/protein_inference")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
 samples = config.get("samples", [])
-quantification_method = (config.get("quantification_method") or "lfq").lower()
+# 指令派生名(input: 按方法取聚合目标;config 原名 quantification_method),
+# 赋值写 config 全量路径 Params.workflow.quantification_method。
+quantification_method = (config.get("Params", {}).get("workflow", {}).get("quantification_method") or "lfq").lower()
 mzml_dir = config.get("mzml_dir", "")
 
 # PSM-level filtered idXML (5_psm_fdr). ProteomicsLFQ documents its -ids as
@@ -22,7 +29,7 @@ search_fasta = config.get("genome", {}).get("search_fasta", "")
 expdesign = config.get("expdesign", "")
 
 # Get parameters
-# 参数精确到 rule(2026-11 规范;rule_param 见 common.smk):共享读点拆成
+# 参数精确到 rule(2026-11 规范):config 全量路径字面链,共享读点拆成
 # 每 rule 一个 parse 期变量,键挂在消费 rule 名下,无 module 级共享回退:
 #   Params.tmt.<rule_name>.<key>            # IsobaricAnalyzer 提取/通道映射
 #   Params.protein_quant.<rule_name>.<key>  # 汇总参数(lfq/dia/tmt 各自独立)
@@ -31,43 +38,32 @@ expdesign = config.get("expdesign", "")
 #   Params.<rule_name>.quantify_decoys      # decoy 定量(lfq/dia)
 # 旧键 method/average/best_charge_and_score/channel_mass_tolerance/
 # channel_annotation 为兼容回退键,随 module 级共享读取一并删除。
-tmt_params = config.get("Params", {}).get("tmt", {})
-protein_quant_params = config.get("Params", {}).get("protein_quant", {})
-protein_fdr_params = config.get("Params", {}).get("protein_fdr", {})
-_params_root = config.get("Params", {})
-
-# Get executables
-proteomicslfq = config.get("Procedure", {}).get("proteomicslfq") or "ProteomicsLFQ"
-proteinquantifier = config.get("Procedure", {}).get("proteinquantifier") or "ProteinQuantifier"
-isobaric_analyzer = config.get("Procedure", {}).get("isobaric_analyzer") or "IsobaricAnalyzer"
-id_mapper = config.get("Procedure", {}).get("id_mapper") or "IDMapper"
-file_merger = config.get("Procedure", {}).get("file_merger") or "FileMerger"
 
 # add_triqler_output(Params.<rule_name>.add_triqler_output)、quantify_decoys
 # (Params.<rule_name>.quantify_decoys):lfq/dia 两 rule 共享 → 每 rule 独立键,
 # output 展开与 CLI 转发共用 parse 期变量。
-_add_triqler_lfq = rule_param(_params_root, "quantification_lfq", "add_triqler_output", False)
-_add_triqler_dia = rule_param(_params_root, "quantification_dia", "add_triqler_output", False)
-_quantify_decoys_lfq = rule_param(_params_root, "quantification_lfq", "quantify_decoys", False)
-_quantify_decoys_dia = rule_param(_params_root, "quantification_dia", "quantify_decoys", False)
+_add_triqler_lfq = config.get("Params", {}).get("quantification_lfq", {}).get("add_triqler_output", False)
+_add_triqler_dia = config.get("Params", {}).get("quantification_dia", {}).get("add_triqler_output", False)
+_quantify_decoys_lfq = config.get("Params", {}).get("quantification_lfq", {}).get("quantify_decoys", False)
+_quantify_decoys_dia = config.get("Params", {}).get("quantification_dia", {}).get("quantify_decoys", False)
 
 # ProteomicsLFQ protein summarization options (ProteinQuantification subsection
 # of ProteomicsLFQ / top-N options of ProteinQuantifier):
 # Params.protein_quant.<rule_name>.<key>,每 rule 一个 parse 期变量。lfq/dia 经
 # _plfq_summarization_cmd 转发;tmt 只消费 top/top_aggregate/best_charge_and_fraction。
-_quant_method_lfq = rule_param(protein_quant_params, "quantification_lfq", "quantification_method", "feature_intensity")
-_inference_lfq = rule_param(protein_quant_params, "quantification_lfq", "protein_inference", "aggregation")
-_top_n_lfq = rule_param(protein_quant_params, "quantification_lfq", "top", 3)
-_top_aggregate_lfq = rule_param(protein_quant_params, "quantification_lfq", "top_aggregate", "median")
-_best_caf_lfq = rule_param(protein_quant_params, "quantification_lfq", "best_charge_and_fraction", True)
-_quant_method_dia = rule_param(protein_quant_params, "quantification_dia", "quantification_method", "feature_intensity")
-_inference_dia = rule_param(protein_quant_params, "quantification_dia", "protein_inference", "aggregation")
-_top_n_dia = rule_param(protein_quant_params, "quantification_dia", "top", 3)
-_top_aggregate_dia = rule_param(protein_quant_params, "quantification_dia", "top_aggregate", "median")
-_best_caf_dia = rule_param(protein_quant_params, "quantification_dia", "best_charge_and_fraction", True)
-_top_n_tmt = rule_param(protein_quant_params, "quantification_tmt", "top", 3)
-_top_aggregate_tmt = rule_param(protein_quant_params, "quantification_tmt", "top_aggregate", "median")
-_best_caf_tmt = rule_param(protein_quant_params, "quantification_tmt", "best_charge_and_fraction", True)
+_quant_method_lfq = config.get("Params", {}).get("protein_quant", {}).get("quantification_lfq", {}).get("quantification_method", "feature_intensity")
+_inference_lfq = config.get("Params", {}).get("protein_quant", {}).get("quantification_lfq", {}).get("protein_inference", "aggregation")
+_top_n_lfq = config.get("Params", {}).get("protein_quant", {}).get("quantification_lfq", {}).get("top", 3)
+_top_aggregate_lfq = config.get("Params", {}).get("protein_quant", {}).get("quantification_lfq", {}).get("top_aggregate", "median")
+_best_caf_lfq = config.get("Params", {}).get("protein_quant", {}).get("quantification_lfq", {}).get("best_charge_and_fraction", True)
+_quant_method_dia = config.get("Params", {}).get("protein_quant", {}).get("quantification_dia", {}).get("quantification_method", "feature_intensity")
+_inference_dia = config.get("Params", {}).get("protein_quant", {}).get("quantification_dia", {}).get("protein_inference", "aggregation")
+_top_n_dia = config.get("Params", {}).get("protein_quant", {}).get("quantification_dia", {}).get("top", 3)
+_top_aggregate_dia = config.get("Params", {}).get("protein_quant", {}).get("quantification_dia", {}).get("top_aggregate", "median")
+_best_caf_dia = config.get("Params", {}).get("protein_quant", {}).get("quantification_dia", {}).get("best_charge_and_fraction", True)
+_top_n_tmt = config.get("Params", {}).get("protein_quant", {}).get("quantification_tmt", {}).get("top", 3)
+_top_aggregate_tmt = config.get("Params", {}).get("protein_quant", {}).get("quantification_tmt", {}).get("top_aggregate", "median")
+_best_caf_tmt = config.get("Params", {}).get("protein_quant", {}).get("quantification_tmt", {}).get("best_charge_and_fraction", True)
 for _inf_rule, _inf_val in (("quantification_lfq", _inference_lfq),
                            ("quantification_dia", _inference_dia)):
     if _inf_val not in ("aggregation", "bayesian"):
@@ -78,24 +74,24 @@ for _inf_rule, _inf_val in (("quantification_lfq", _inference_lfq),
 
 # Protein FDR options (ProteomicsLFQ -proteinFDR/-picked_proteinFDR):
 # Params.protein_fdr.<rule_name>.fdr/picked,lfq/dia 两 rule 共享 → 每 rule 独立。
-_protein_fdr_lfq = rule_param(protein_fdr_params, "quantification_lfq", "fdr", None)
-_protein_fdr_picked_lfq = rule_param(protein_fdr_params, "quantification_lfq", "picked", False)
-_protein_fdr_dia = rule_param(protein_fdr_params, "quantification_dia", "fdr", None)
-_protein_fdr_picked_dia = rule_param(protein_fdr_params, "quantification_dia", "picked", False)
+_protein_fdr_lfq = config.get("Params", {}).get("protein_fdr", {}).get("quantification_lfq", {}).get("fdr", None)
+_protein_fdr_picked_lfq = config.get("Params", {}).get("protein_fdr", {}).get("quantification_lfq", {}).get("picked", False)
+_protein_fdr_dia = config.get("Params", {}).get("protein_fdr", {}).get("quantification_dia", {}).get("fdr", None)
+_protein_fdr_picked_dia = config.get("Params", {}).get("protein_fdr", {}).get("quantification_dia", {}).get("picked", False)
 
 # TMT / isobaric extraction options (IsobaricAnalyzer):
 # Params.tmt.<rule_name>.<key>。type 被 quantification_tmt_reporter、
 # quantification_tmt 两 rule 共享 → 每 rule 独立键;其余仅
 # quantification_tmt_reporter 消费,同样挂 rule 名下。旧键
 # channel_mass_tolerance/channel_annotation 为兼容回退键,已删除。
-_tmt_type_reporter = rule_param(tmt_params, "quantification_tmt_reporter", "type", "tmt16plex")
-_reporter_mass_shift = rule_param(tmt_params, "quantification_tmt_reporter", "reporter_mass_shift", 0.003)
-_isotope_correction = rule_param(tmt_params, "quantification_tmt_reporter", "isotope_correction", True)
-_tmt_normalization = rule_param(tmt_params, "quantification_tmt_reporter", "normalization", False)
-_reference_channel = rule_param(tmt_params, "quantification_tmt_reporter", "reference_channel", "")
-_correction_matrix = rule_param(tmt_params, "quantification_tmt_reporter", "correction_matrix", [])
-_channel_descriptions = rule_param(tmt_params, "quantification_tmt_reporter", "channel_descriptions", {})
-_tmt_type_tmt = rule_param(tmt_params, "quantification_tmt", "type", "tmt16plex")
+_tmt_type_reporter = config.get("Params", {}).get("tmt", {}).get("quantification_tmt_reporter", {}).get("type", "tmt16plex")
+_reporter_mass_shift = config.get("Params", {}).get("tmt", {}).get("quantification_tmt_reporter", {}).get("reporter_mass_shift", 0.003)
+_isotope_correction = config.get("Params", {}).get("tmt", {}).get("quantification_tmt_reporter", {}).get("isotope_correction", True)
+_tmt_normalization = config.get("Params", {}).get("tmt", {}).get("quantification_tmt_reporter", {}).get("normalization", False)
+_reference_channel = config.get("Params", {}).get("tmt", {}).get("quantification_tmt_reporter", {}).get("reference_channel", "")
+_correction_matrix = config.get("Params", {}).get("tmt", {}).get("quantification_tmt_reporter", {}).get("correction_matrix", [])
+_channel_descriptions = config.get("Params", {}).get("tmt", {}).get("quantification_tmt_reporter", {}).get("channel_descriptions", {})
+_tmt_type_tmt = config.get("Params", {}).get("tmt", {}).get("quantification_tmt", {}).get("type", "tmt16plex")
 
 def _plfq_summarization_cmd(quant_method, protein_inference, top_n, top_aggregate,
                             best_charge_and_fraction, fdr, picked, quantify_decoys):
@@ -160,6 +156,7 @@ rule quantification_lfq:
             rule_logger.info(f"Start LFQ quantification at {current_time}")
             os.makedirs(outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"quantification_lfq_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"quantification_lfq.sh")
             cmd = [
                 params.proteomicslfq,
@@ -180,7 +177,8 @@ rule quantification_lfq:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f"echo 'LFQ quantification completed at {current_time}'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during LFQ quantification: {str(e)}\n")
             raise RuntimeError(f"Error during LFQ quantification: {str(e)}\n")
@@ -205,8 +203,8 @@ rule quantification_tmt_reporter:
     container:
         sif("../openms.yaml", "quantification_tmt_reporter")
     params:
+        proteinquantifier = proteinquantifier,
         isobaric_analyzer = isobaric_analyzer,
-        id_mapper = id_mapper,
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -217,6 +215,7 @@ rule quantification_tmt_reporter:
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"quantification_tmt_reporter_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"quantification_tmt_reporter.sh")
             extract_cmd = [
                 params.isobaric_analyzer,
@@ -248,7 +247,8 @@ rule quantification_tmt_reporter:
                 f.write(" ".join(shlex.quote(str(x)) for x in map_cmd) + "\n")
                 f.write(f"echo 'Isobaric reporter extraction for {wildcards.sample_id} completed at {current_time}'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during isobaric reporter extraction: {str(e)}\n")
             raise RuntimeError(f"Error during isobaric reporter extraction: {str(e)}\n")
@@ -285,7 +285,7 @@ rule quantification_tmt:
     container:
         sif("../openms.yaml", "quantification_tmt")
     params:
-        proteinquantifier = proteinquantifier,
+        id_mapper = id_mapper,
         expdesign = config.get("expdesign", ""),
     run:
         log_path = str(log)
@@ -296,6 +296,7 @@ rule quantification_tmt:
             rule_logger.info(f"Start TMT quantification at {current_time}")
             os.makedirs(outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"quantification_tmt_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"quantification_tmt.sh")
             quant_cmds = []
             csvs = []
@@ -384,7 +385,8 @@ rule quantification_tmt:
                 f.write(stack_cmd + "\n")
                 f.write(f"echo 'TMT quantification completed at {current_time}'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during TMT quantification: {str(e)}\n")
             raise RuntimeError(f"Error during TMT quantification: {str(e)}\n")
@@ -411,7 +413,7 @@ rule quantification_dia:
     container:
         sif("../openms.yaml", "quantification_dia")
     params:
-        proteomicslfq = proteomicslfq,
+        file_merger = file_merger,
         expdesign = expdesign,
     run:
         log_path = str(log)
@@ -422,6 +424,7 @@ rule quantification_dia:
             rule_logger.info(f"Start DIA quantification at {current_time}")
             os.makedirs(outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"quantification_dia_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"quantification_dia.sh")
             cmd = [
                 params.proteomicslfq,
@@ -442,7 +445,8 @@ rule quantification_dia:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f"echo 'DIA quantification completed at {current_time}'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during DIA quantification: {str(e)}\n")
             raise RuntimeError(f"Error during DIA quantification: {str(e)}\n")
@@ -462,8 +466,3 @@ _RESULT_MZTAB = {
 rule quantification_result:
     input:
         mztab = _RESULT_MZTAB.get(quantification_method, outdir + "/lfq_quantification.mzTab")
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "quantification_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

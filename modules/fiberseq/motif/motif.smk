@@ -8,19 +8,14 @@ samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
 genome_cfg = config.get("genome", {})
-_motif_params = config.get("Params", {}).get("fiberseq_motif", {})
 # 参数精确到 rule:formats 按 rule 独立配置(Params.fiberseq_motif.<rule_name>.formats,
-# 无 module 级共享回退;rule_param 见 common.smk),每 rule 一个 parse 期变量。
-
-
-def _rule_formats(rule_name):
-    """Per-rule figure formats (parse 期解析,output 展开与 CLI 转发共用)。"""
-    fmts = rule_param(_motif_params, rule_name, "formats", ["pdf"])
-    return [fmts] if isinstance(fmts, str) else (fmts or ["pdf"])
-
-
-_formats_profile = _rule_formats("fiberseq_motif_profile")
-_formats_result = _rule_formats("fiberseq_motif_result")
+# 无 module 级共享回退),每 rule 一个 parse 期变量(config 全量路径读取 + str 规范化)。
+_formats_profile = config.get("Params", {}).get("fiberseq_motif", {}).get("fiberseq_motif_profile", {}).get("formats") or ["pdf"]
+if isinstance(_formats_profile, str):
+    _formats_profile = [_formats_profile]
+_formats_result = config.get("Params", {}).get("fiberseq_motif", {}).get("fiberseq_motif_result", {}).get("formats") or ["pdf"]
+if isinstance(_formats_result, str):
+    _formats_result = [_formats_result]
 
 rule fiberseq_motif_scan:
     """Scan a MEME motif file in FIRE peak sequences (any species)."""
@@ -44,7 +39,7 @@ rule fiberseq_motif_scan:
         sif("../fiberseq.yaml", "fiberseq_motif_scan")
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/motif_scan.py",
-        pwm_threshold = rule_param(_motif_params, "fiberseq_motif_scan", "pwm_threshold", 0.8),
+        pwm_threshold = config.get("Params", {}).get("fiberseq_motif", {}).get("fiberseq_motif_scan", {}).get("pwm_threshold", 0.8),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -55,6 +50,7 @@ rule fiberseq_motif_scan:
             sample_outdir = os.path.dirname(str(output.sites))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"fiberseq_motif_scan_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             # timestamped copy stays in log/cmd as history; the outdir copy
             # (no timestamp, overwritten each run) documents the current command
             # next to the results it produced
@@ -76,7 +72,8 @@ rule fiberseq_motif_scan:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "fiberseq_motif_scan for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during fiberseq_motif_scan for {wildcards.sample_id}: {e}\n")
             raise RuntimeError(f"Error occurred during fiberseq_motif_scan for {wildcards.sample_id}: {e}\n")
@@ -108,8 +105,8 @@ rule fiberseq_motif_profile:
         sif("../fiberseq.yaml", "fiberseq_motif_profile")
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/motif_profile.py",
-        flank = rule_param(_motif_params, "fiberseq_motif_profile", "flank", 250),
-        min_fibers = rule_param(_motif_params, "fiberseq_motif_profile", "min_fibers", 10),
+        flank = config.get("Params", {}).get("fiberseq_motif", {}).get("fiberseq_motif_profile", {}).get("flank", 250),
+        min_fibers = config.get("Params", {}).get("fiberseq_motif", {}).get("fiberseq_motif_profile", {}).get("min_fibers", 10),
         formats = _formats_profile,   # ③ 转发
     run:
         log_path = str(log)
@@ -121,6 +118,7 @@ rule fiberseq_motif_profile:
             sample_outdir = os.path.dirname(str(output.profile))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"fiberseq_motif_profile_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             # timestamped copy stays in log/cmd as history; the outdir copy
             # (no timestamp, overwritten each run) documents the current command
             # next to the results it produced
@@ -145,7 +143,8 @@ rule fiberseq_motif_profile:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "fiberseq_motif_profile for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during fiberseq_motif_profile for {wildcards.sample_id}: {e}\n")
             raise RuntimeError(f"Error occurred during fiberseq_motif_profile for {wildcards.sample_id}: {e}\n")
@@ -158,8 +157,3 @@ rule fiberseq_motif_result:
                          sample_id=samples),
         plots = expand(outdir + "/{sample_id}/{sample_id}.motif_profile.{fmt}",
                        sample_id=samples, fmt=_formats_result),
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "fiberseq_motif_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

@@ -115,6 +115,7 @@ rule somatic_spectrum:
             sample_outdir = os.path.dirname(str(output.stacked_bar[0]))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"somatic_spectrum_{wildcards.genome}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, "somatic_spectrum.sh")
             experiment_vcf_map_file = os.path.join(sample_outdir, "experiment_vcf_map.tsv")
             with open(experiment_vcf_map_file, "w") as f:
@@ -145,7 +146,8 @@ rule somatic_spectrum:
                 f.write('echo "somatic spectrum completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"Somatic spectrum completed for genome {wildcards.genome}")
         except Exception as e:
             rule_logger.error(f"Error occurred during somatic spectrum for genome {wildcards.genome}: {e}\n")
@@ -191,6 +193,7 @@ rule somatic_signature_refit:
             sample_outdir = os.path.dirname(str(output.exposures))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"somatic_signature_refit_{wildcards.genome}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, "somatic_signature_refit.sh")
             sig = params.cfg["signature"]
             cmd = ["python", params.refit_script,
@@ -215,7 +218,8 @@ rule somatic_signature_refit:
                 f.write('echo "somatic signature refit completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"Signature refit completed for genome {wildcards.genome}")
         except Exception as e:
             rule_logger.error(f"Error occurred during signature refit for genome {wildcards.genome}: {e}\n")
@@ -262,6 +266,7 @@ rule somatic_signature_nmf:
             sample_outdir = os.path.dirname(str(output.signatures))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"somatic_signature_nmf_{wildcards.genome}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, "somatic_signature_nmf.sh")
             sig = params.cfg["signature"]
             cmd = ["python", params.nmf_script,
@@ -287,7 +292,8 @@ rule somatic_signature_nmf:
                 f.write('echo "somatic signature NMF completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"Signature NMF completed for genome {wildcards.genome}")
         except Exception as e:
             rule_logger.error(f"Error occurred during signature NMF for genome {wildcards.genome}: {e}\n")

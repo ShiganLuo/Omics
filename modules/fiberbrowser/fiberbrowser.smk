@@ -12,17 +12,20 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 # schema 与 node.py,模块对配置只取值。
 # 参数精确到 rule:loci_map/variants/formats/sample_group_dict 挂 fiberbrowser
 # 名下(Params.fiberbrowser.fiberbrowser.*,单 plot rule 消费;无 module 级
-# 共享回退,rule_param 见 common.smk)。fiberbrowser_result 聚合 fiberbrowser
-# 输出文件名,locus/variant/format 展开同一 rule 键。
-fiberbrowser_params = config.get("Params", {}).get("fiberbrowser", {})
-# 每 rule 一个 parse 期变量
-loci_map = rule_param(fiberbrowser_params, "fiberbrowser", "loci_map", {}) or {}
-sample_group_dict = rule_param(fiberbrowser_params, "fiberbrowser", "sample_group_dict", {}) or {}
-variants = rule_param(fiberbrowser_params, "fiberbrowser", "variants", None) or ["plain", "zoom"]
-formats = rule_param(fiberbrowser_params, "fiberbrowser", "formats", None) or ["png"]
-loci_map_result = rule_param(fiberbrowser_params, "fiberbrowser", "loci_map", {}) or {}
-variants_result = rule_param(fiberbrowser_params, "fiberbrowser", "variants", None) or ["plain", "zoom"]
-formats_result = rule_param(fiberbrowser_params, "fiberbrowser", "formats", None) or ["png"]
+# 共享回退)。fiberbrowser_result 聚合 fiberbrowser 输出文件名,
+# locus/variant/format 展开同一 rule 键。
+# 每 rule 一个 parse 期变量(config 全量路径读取)
+loci_map = config.get("Params", {}).get("fiberbrowser", {}).get("fiberbrowser", {}).get("loci_map", {}) or {}
+sample_group_dict = config.get("Params", {}).get("fiberbrowser", {}).get("fiberbrowser", {}).get("sample_group_dict", {}) or {}
+variants = config.get("Params", {}).get("fiberbrowser", {}).get("fiberbrowser", {}).get("variants", None) or ["plain", "zoom"]
+formats = config.get("Params", {}).get("fiberbrowser", {}).get("fiberbrowser", {}).get("formats", None) or ["png"]
+if isinstance(formats, str):
+    formats = [formats]
+loci_map_result = config.get("Params", {}).get("fiberbrowser", {}).get("fiberbrowser", {}).get("loci_map", {}) or {}
+variants_result = config.get("Params", {}).get("fiberbrowser", {}).get("fiberbrowser", {}).get("variants", None) or ["plain", "zoom"]
+formats_result = config.get("Params", {}).get("fiberbrowser", {}).get("fiberbrowser", {}).get("formats", None) or ["png"]
+if isinstance(formats_result, str):
+    formats_result = [formats_result]
 
 
 rule fiberbrowser:
@@ -53,13 +56,13 @@ rule fiberbrowser:
         sample_group_dict = sample_group_dict,
         variants = variants,
         formats = formats,
-        max_fibers = fiberbrowser_params.get("max_fibers", 12),
-        zoom_bp = fiberbrowser_params.get("zoom_bp", 2100),
-        gtf = fiberbrowser_params.get("gtf"),
-        zoom_center = fiberbrowser_params.get("zoom_center"),
-        zoom_center_mode = fiberbrowser_params.get("zoom_center_mode"),
-        sample_order = fiberbrowser_params.get("sample_order"),
-        dpi = fiberbrowser_params.get("dpi", 200),
+        max_fibers = config.get("Params", {}).get("fiberbrowser", {}).get("max_fibers", 12),
+        zoom_bp = config.get("Params", {}).get("fiberbrowser", {}).get("zoom_bp", 2100),
+        gtf = config.get("Params", {}).get("fiberbrowser", {}).get("gtf"),
+        zoom_center = config.get("Params", {}).get("fiberbrowser", {}).get("zoom_center"),
+        zoom_center_mode = config.get("Params", {}).get("fiberbrowser", {}).get("zoom_center_mode"),
+        sample_order = config.get("Params", {}).get("fiberbrowser", {}).get("sample_order"),
+        dpi = config.get("Params", {}).get("fiberbrowser", {}).get("dpi", 200),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -109,7 +112,8 @@ rule fiberbrowser:
                         f'{current_time} completed successfully"\n')
             rule_logger.info("Executing: " + quoted)
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(
                 f"Error occurred during fiberbrowser for {wildcards.locus}: {e}\n")

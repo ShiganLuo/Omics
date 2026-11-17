@@ -471,9 +471,6 @@
         "max_mem_mb": 64000
       }
     },
-    "TEtranscripts_result": {
-      "mem_mb": 8000
-    },
     "VarientCalling": {
       "threads": 8,
       "mem_mb": 16000
@@ -491,9 +488,6 @@
       "mem_mb": 8000
     },
     "arriba_report": {
-      "mem_mb": 8000
-    },
-    "arriba_result": {
       "mem_mb": 8000
     },
     "bowtie2_align_paired": {
@@ -529,9 +523,6 @@
     },
     "featureCounts_paired_noMultiple": {
       "threads": 10,
-      "mem_mb": 8000
-    },
-    "featureCounts_result": {
       "mem_mb": 8000
     },
     "featureCounts_single_noMultiple": {
@@ -572,9 +563,6 @@
     },
     "gatk_population_joint_genotyping": {
       "threads": 8
-    },
-    "gatk_prepare_result": {
-      "mem_mb": 8000
     },
     "generate_report": {
       "threads": 1,
@@ -626,9 +614,6 @@
     "star_index": {
       "threads": 12,
       "mem_mb": 64000
-    },
-    "star_result": {
-      "mem_mb": 8000
     },
     "stringTie": {
       "threads": 5,

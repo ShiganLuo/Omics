@@ -49,20 +49,6 @@
           }
         }
       },
-      "seqprep_result": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
       "karrseq_chimeric_to_pairs": {
         "type": "dict",
         "required": false,
@@ -105,20 +91,6 @@
           }
         }
       },
-      "karrseq_result": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
       "sexcheck_idxstats": {
         "type": "dict",
         "required": false,
@@ -147,35 +119,7 @@
           }
         }
       },
-      "sexcheck_result": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
       "qc_summary": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "qc_summary_result": {
         "type": "dict",
         "required": false,
         "properties": {

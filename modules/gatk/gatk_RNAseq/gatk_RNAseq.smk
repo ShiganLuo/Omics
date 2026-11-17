@@ -4,8 +4,7 @@ indir = config.get("indir") or "input"
 outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
 # 参数精确到 rule:javaOptions/tmp-dir 按 rule 独立配置(Params.gatk.<rule_name>
-# .javaOptions/.tmp-dir),无 module 级共享;rule_param 见 common.smk。
-_gatk_params = config.get("Params", {}).get("gatk", {})
+# .javaOptions/.tmp-dir),无 module 级共享。
 
 def get_input_for_SplitNCigarReads(wildcards):
     logger.debug(f"[get_input_for_SplitNCigarReads] called with wildcards: {wildcards}")
@@ -31,8 +30,8 @@ rule SplitNCigarReads:
     output:
         bam = temp(outdir + "/{sample_id}/{sample_id}.split.bam"),
     params:
-        javaOptions = rule_param(_gatk_params, "SplitNCigarReads", "javaOptions", "-Xmx30g"),
-        tmp_dir = rule_param(_gatk_params, "SplitNCigarReads", "tmp-dir", None),
+        javaOptions = config.get("Params", {}).get("gatk", {}).get("SplitNCigarReads", {}).get("javaOptions", "-Xmx30g"),
+        tmp_dir = config.get("Params", {}).get("gatk", {}).get("SplitNCigarReads", {}).get("tmp-dir", None),
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
     conda: "../gatk.yaml"
     container:
@@ -54,6 +53,7 @@ rule SplitNCigarReads:
             rule_logger.info(f"Start SplitNCigarReads for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bam))
             script = os.path.join(RECEIPT_DIR, f"SplitNCigarReads_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"SplitNCigarReads.sh")
             if not input.dict_index or not os.path.exists(input.dict_index) or not input.fai_index or not os.path.exists(input.fai_index):
                 fasta = indir + "/index/genome.fa"
@@ -75,7 +75,8 @@ rule SplitNCigarReads:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'SplitNCigarReads completed successfully for sample {wildcards.sample_id}'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during SplitNCigarReads execution: {str(e)}")
             raise RuntimeError(f"Error occurred while running SplitNCigarReads for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")
@@ -91,8 +92,8 @@ rule VarientCalling:
     container:
         sif("../gatk.yaml", "VarientCalling")
     params:
-        javaOptions = rule_param(_gatk_params, "VarientCalling", "javaOptions", "-Xmx30g"),
-        tmp_dir = rule_param(_gatk_params, "VarientCalling", "tmp-dir", None),
+        javaOptions = config.get("Params", {}).get("gatk", {}).get("VarientCalling", {}).get("javaOptions", "-Xmx30g"),
+        tmp_dir = config.get("Params", {}).get("gatk", {}).get("VarientCalling", {}).get("tmp-dir", None),
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         fasta = config.get("genome", {}).get("fasta"),
         fai_index = config.get("genome", {}).get("fai_index")
@@ -111,6 +112,7 @@ rule VarientCalling:
             rule_logger.info(f"Start VarientCalling for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.vcf))
             script = os.path.join(RECEIPT_DIR, f"VarientCalling_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"VarientCalling.sh")
             if not params.fai_index or not os.path.exists(params.fai_index):
                 fasta = indir + "/index/genome.fa" # 依赖SplitNCigarReads真实执行
@@ -132,7 +134,8 @@ rule VarientCalling:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'VarientCalling completed successfully for sample {wildcards.sample_id}'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during VarientCalling for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred while running VarientCalling for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")
@@ -154,8 +157,8 @@ rule vcf_filter:
             "vcf_filter", input_size=input_size_named(input, 'vcf'),
             attempt=attempt).get("mem_mb", 8000),
     params:
-        javaOptions = rule_param(_gatk_params, "vcf_filter", "javaOptions", "-Xmx30g"),
-        tmp_dir = rule_param(_gatk_params, "vcf_filter", "tmp-dir", None),
+        javaOptions = config.get("Params", {}).get("gatk", {}).get("vcf_filter", {}).get("javaOptions", "-Xmx30g"),
+        tmp_dir = config.get("Params", {}).get("gatk", {}).get("vcf_filter", {}).get("tmp-dir", None),
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         bgzip = config.get("Procedure", {}).get("bgzip") or "bgzip",
         fasta = config.get("genome", {}).get("fasta"),
@@ -169,6 +172,7 @@ rule vcf_filter:
             rule_logger.info(f"Start vcf_filter for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.vcf))
             script = os.path.join(RECEIPT_DIR, f"vcf_filter_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"vcf_filter.sh")
             if not params.fai_index or not os.path.exists(params.fai_index):
                 fasta = indir + "/index/genome.fa" # 依赖SplitNCigarReads真实执行
@@ -195,7 +199,8 @@ rule vcf_filter:
                 f.write(f"{params.bgzip} {str(output.vcf).replace('.vcf.gz', '.vcf')}\n")
                 f.write(f"echo 'vcf_filter completed successfully for sample {wildcards.sample_id}'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during vcf_filter for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred while running vcf_filter for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")

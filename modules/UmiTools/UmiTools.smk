@@ -4,9 +4,8 @@ outdir = config.get("outdir", "output")
 indir = config.get("indir", "output")
 logdir = config.get("logdir", "log")
 
-# 参数精确到 rule:Params.umi_tools.<rule_name>.<key>(rule_param 见 common.smk;
+# 参数精确到 rule:Params.umi_tools.<rule_name>.<key>(config 全量路径直读;
 # 无 module 级共享回退,每 rule 各自独立键)。
-_umi_tools_params = config.get("Params", {}).get("umi_tools", {})
 
 rule umi_tools_dedup_for_hisat2:
     input:
@@ -16,7 +15,7 @@ rule umi_tools_dedup_for_hisat2:
         bai = temp(outdir + "/{sample_id}.dedup.bam.bai"),
     params:
         umi_tools = config.get('Procedure',{}).get('umi_tools') or 'umi_tools',
-        method = rule_param(_umi_tools_params, "umi_tools_dedup_for_hisat2", "method", 'unique'),
+        method = config.get("Params", {}).get("umi_tools", {}).get("umi_tools_dedup_for_hisat2", {}).get("method") or "unique",
         samtools = config.get('Procedure',{}).get('samtools') or 'samtools'
     threads: rule_res("umi_tools_dedup_for_hisat2").get("threads", 2)
     benchmark: logdir + "/{sample_id}/umi_tools_dedup_run.benchmark.txt",
@@ -40,6 +39,7 @@ rule umi_tools_dedup_for_hisat2:
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"umi_tools_dedup_for_hisat2_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"umi_tools_dedup_for_hisat2.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -50,7 +50,8 @@ rule umi_tools_dedup_for_hisat2:
                 f.write(f"{params.samtools} index {output.bam}\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"umi_tools_dedup_for_hisat2 for sample {wildcards.sample_id} completed")
         except Exception as e:
             rule_logger.error(f"Error occurred: {e}")
@@ -64,7 +65,7 @@ rule umi_tools_dedup_for_star:
         bai = temp(outdir + "/{sample_id}.dedup.bam.bai")
     params:
         umi_tools = config.get('Procedure',{}).get('umi_tools') or 'umi_tools',
-        method = rule_param(_umi_tools_params, "umi_tools_dedup_for_star", "method", 'unique'),
+        method = config.get("Params", {}).get("umi_tools", {}).get("umi_tools_dedup_for_star", {}).get("method") or "unique",
         samtools = config.get('Procedure',{}).get('samtools') or 'samtools'
     threads: rule_res("umi_tools_dedup_for_star").get("threads", 2)
     benchmark: logdir + "/{sample_id}/umi_tools_dedup_run.benchmark.txt",
@@ -88,6 +89,7 @@ rule umi_tools_dedup_for_star:
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"umi_tools_dedup_for_star_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"umi_tools_dedup_for_star.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -96,7 +98,8 @@ rule umi_tools_dedup_for_star:
                 f.write(f"{params.samtools} index {output.bam}\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"umi_tools_dedup_for_star for sample {wildcards.sample_id} completed")
         except Exception as e:
             rule_logger.error(f"Error occurred: {e}")

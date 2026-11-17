@@ -575,14 +575,8 @@
     "bigwig_ratio": {
       "threads": 4
     },
-    "bigwig_ratio_result": {
-      "threads": 1
-    },
     "centromere_extract": {
       "threads": 1,
-      "mem_mb": 8000
-    },
-    "centromere_result": {
       "mem_mb": 8000
     },
     "chromosome_sizes": {
@@ -606,9 +600,6 @@
     "decoil_reconstruct": {
       "threads": 16,
       "mem_mb": 32000
-    },
-    "decoil_result": {
-      "mem_mb": 8000
     },
     "decoil_structure": {
       "threads": 4,
@@ -748,9 +739,6 @@
       "mem_mb": 16000
     },
     "sv_oncoprint": {
-      "mem_mb": 8000
-    },
-    "sv_result": {
       "mem_mb": 8000
     },
     "telogator2_run": {

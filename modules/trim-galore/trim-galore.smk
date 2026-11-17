@@ -5,9 +5,8 @@ indir = config.get("indir", "output/raw_fastq")
 logdir = config.get("logdir", "log")
 mode = config.get("mode") or None
 
-# 参数精确到 rule:Params.trim_galore.<rule_name>.<key>(rule_param 见 common.smk;
+# 参数精确到 rule:Params.trim_galore.<rule_name>.<key>(config 全量路径直读;
 # 无 module 级共享回退,trimming_Paired / trimming_Single 各自独立键)。
-_trim_galore_params = config.get("Params", {}).get("trim_galore", {})
 def get_input_for_trimming_Paired(wildcards):
     logger.debug(f"Getting input for trimming_Paired with mode: {mode}")
     if mode == "UMI":
@@ -31,9 +30,9 @@ rule trimming_Paired:
         report2 = outdir + "/{sample_id}/trimming_statistics_2.txt"
     params:
         outdir = outdir + "/{sample_id}",
-        quality = rule_param(_trim_galore_params, "trimming_Paired", "quality", 25),
+        quality = config.get("Params", {}).get("trim_galore", {}).get("trimming_Paired", {}).get("quality") or 25,
         trim_galore = config.get('Procedure',{}).get('trim_galore') or 'trim_galore',
-        adapters = rule_param(_trim_galore_params, "trimming_Paired", "adapters", None)
+        adapters = config.get("Params", {}).get("trim_galore", {}).get("trimming_Paired", {}).get("adapters", None)
     threads: rule_res("trimming_Paired").get("threads", 6)
     benchmark: logdir + "/{sample_id}/trimming.benchmark.txt",
     resources:
@@ -87,7 +86,8 @@ rule trimming_Paired:
                 f.write(" ".join(cmd5) + "\n")
                 f.write(f'echo "trimming_Paired for sample {wildcards.sample_id} successfully completed !"\n')
             shutil.copyfile(script_path, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"trimming_Paired failed for {wildcards.sample_id}: {e}")
             raise RuntimeError(f"trimming_Paired failed for {wildcards.sample_id}: {e}\n")
@@ -107,9 +107,9 @@ rule trimming_Single:
         report = outdir + "/{sample_id}/trimming_statistics.txt"
     params:
         outdir = outdir + "/{sample_id}",
-        quality = rule_param(_trim_galore_params, "trimming_Single", "quality", 25),
+        quality = config.get("Params", {}).get("trim_galore", {}).get("trimming_Single", {}).get("quality") or 25,
         trim_galore = config.get('Procedure',{}).get('trim_galore') or 'trim_galore',
-        adapters = rule_param(_trim_galore_params, "trimming_Single", "adapters", None)
+        adapters = config.get("Params", {}).get("trim_galore", {}).get("trimming_Single", {}).get("adapters", None)
     threads: rule_res("trimming_Single").get("threads", 6)
     benchmark: logdir + "/{sample_id}/trimming.benchmark.txt",
     resources:
@@ -152,7 +152,8 @@ rule trimming_Single:
                 f.write(" ".join(cmd3) + "\n")
                 f.write(f'echo "trimming_Single for sample {wildcards.sample_id} successfully completed !"\n')
             shutil.copyfile(script_path, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"trimming_Single failed for {wildcards.sample_id}: {e}")
             raise RuntimeError(f"trimming_Single failed for {wildcards.sample_id}: {e}\n")

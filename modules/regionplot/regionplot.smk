@@ -5,7 +5,6 @@ outdir = config.get("outdir", "output/regionplot")
 logdir = config.get("logdir", "log/group")
 ROOT_DIR = config.get("ROOT_DIR", ".")
 samples = config.get("samples", [])
-p = config.get("Params", {}).get("regionplot", {})
 genome_cfg = config.get("genome", {})
 
 # tracks: [{label, dir, suffix}] — one track group per entry; per-sample bw
@@ -14,27 +13,22 @@ genome_cfg = config.get("genome", {})
 _track_defs = config.get("tracks", []) or []
 # regions: BED rows or a [NAME=]chrom:start-end list (auto-detected per row)
 # 参数精确到 rule:regions/formats/sample_order/sample_group_dict 挂 regionplot
-# 名下(Params.regionplot.regionplot.*,单 plot rule 消费;无 module 级共享回退,
-# rule_param 见 common.smk)。regionplot_result 聚合 regionplot 输出文件名,
+# 名下(Params.regionplot.regionplot.*,单 plot rule 消费;无 module 级共享回退),
+# config 全量路径读取。regionplot_result 聚合 regionplot 输出文件名,
 # 面板名与格式展开同一 rule 键。
-def _rule_formats(rule_name):
-    """Per-rule figure formats (parse 期解析,output 展开与 CLI 转发共用)。"""
-    fmts = rule_param(p, rule_name, "formats", ["png", "svg"])
-    fmts = [fmts] if isinstance(fmts, str) else fmts
-    if not isinstance(fmts, list) or not all(isinstance(f, str) for f in fmts):
-        raise ValueError(f"Params.regionplot.{rule_name}.formats must be a list of strings")
-    return fmts
-
-
 # 每 rule 一个 parse 期变量
-_regions = rule_param(p, "regionplot", "regions", None)
-_sample_order = rule_param(p, "regionplot", "sample_order", None) or list(samples)
+_regions = config.get("Params", {}).get("regionplot", {}).get("regionplot", {}).get("regions", None)
+_sample_order = config.get("Params", {}).get("regionplot", {}).get("regionplot", {}).get("sample_order", None) or list(samples)
 if isinstance(_sample_order, str):
     _sample_order = [_sample_order]
-_group_dict = rule_param(p, "regionplot", "sample_group_dict", {}) or {}
-_formats_regionplot = _rule_formats("regionplot")
-_regions_regionplot_result = rule_param(p, "regionplot", "regions", None)
-_formats_regionplot_result = _rule_formats("regionplot")
+_group_dict = config.get("Params", {}).get("regionplot", {}).get("regionplot", {}).get("sample_group_dict", {}) or {}
+_formats_regionplot = config.get("Params", {}).get("regionplot", {}).get("regionplot", {}).get("formats", None) or ["png", "svg"]
+if isinstance(_formats_regionplot, str):
+    _formats_regionplot = [_formats_regionplot]
+_regions_regionplot_result = config.get("Params", {}).get("regionplot", {}).get("regionplot", {}).get("regions", None)
+_formats_regionplot_result = config.get("Params", {}).get("regionplot", {}).get("regionplot", {}).get("formats", None) or ["png", "svg"]
+if isinstance(_formats_regionplot_result, str):
+    _formats_regionplot_result = [_formats_regionplot_result]
 
 
 def _regionplot_inputs(wildcards):
@@ -55,7 +49,7 @@ def _regionplot_inputs(wildcards):
         "regions": _regions,
     }
     gtf = genome_cfg.get("gtf")
-    if gtf and p.get("gtf_track", True):
+    if gtf and config.get("Params", {}).get("regionplot", {}).get("gtf_track", True):
         files["gtf"] = gtf
     return files
 
@@ -133,9 +127,9 @@ rule regionplot:
         sample_order = _sample_order,
         group_dict = _group_dict,
         formats = _formats_regionplot,
-        gtf_track = p.get("gtf_track", True),
-        track_height = p.get("plot_height_per_track", 1.5),
-        width = p.get("plot_width", 12),
+        gtf_track = config.get("Params", {}).get("regionplot", {}).get("gtf_track", True),
+        track_height = config.get("Params", {}).get("regionplot", {}).get("plot_height_per_track", 1.5),
+        width = config.get("Params", {}).get("regionplot", {}).get("plot_width", 12),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -147,6 +141,7 @@ rule regionplot:
             panel_outdir = os.path.dirname(str(output.plots[0]))
             os.makedirs(panel_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"regionplot_{wildcards.panel}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(panel_outdir, "regionplot.sh")
 
             # regions file copy delivered beside the plots (traceability)
@@ -194,7 +189,8 @@ rule regionplot:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "regionplot for {wildcards.panel} at {current_time} completed successfully"\n')
             _shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during regionplot for {wildcards.panel}: {e}\n")
             raise RuntimeError(f"Error occurred during regionplot for {wildcards.panel}: {e}\n")

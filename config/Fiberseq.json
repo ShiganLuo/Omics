@@ -876,9 +876,6 @@
     "bigwig_ratio": {
       "threads": 4
     },
-    "bigwig_ratio_result": {
-      "threads": 1
-    },
     "chromosome_sizes": {
       "threads": 1
     },
@@ -904,9 +901,6 @@
         "min_mem_mb": 16000,
         "max_mem_mb": 200000
       }
-    },
-    "decoil_result": {
-      "mem_mb": 8000
     },
     "decoil_structure": {
       "threads": 4,
@@ -1156,9 +1150,6 @@
       "mem_mb": 16000
     },
     "sv_oncoprint": {
-      "mem_mb": 8000
-    },
-    "sv_result": {
       "mem_mb": 8000
     }
   },

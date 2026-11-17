@@ -7,9 +7,8 @@ paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
 mode = config.get("mode") or None
 
-# 参数精确到 rule:Params.cutadapt.<rule_name>.<key>(rule_param 见 common.smk;
+# 参数精确到 rule:Params.cutadapt.<rule_name>.<key>(config 全量路径直读;
 # 无 module 级共享回退,trimming_Paired / trimming_Single 各自独立键)。
-_cutadapt_params = config.get("Params", {}).get("cutadapt", {})
 
 def get_cutadapt_input_paired(wildcards):
     """Return paired-end FASTQ inputs, with optional UMI suffix."""
@@ -44,15 +43,15 @@ rule trimming_Paired:
         mem_mb=rule_res("trimming_Paired").get("mem_mb", 8000),
     params:
         cutadapt     = config.get("Procedure", {}).get("cutadapt") or "cutadapt",
-        quality      = rule_param(_cutadapt_params, "trimming_Paired", "quality", 20),
-        adapter_r1   = rule_param(_cutadapt_params, "trimming_Paired", "adapter_r1", None),
-        adapter_r2   = rule_param(_cutadapt_params, "trimming_Paired", "adapter_r2", None),
-        minimum_length = rule_param(_cutadapt_params, "trimming_Paired", "minimum_length", None),
-        maximum_length = rule_param(_cutadapt_params, "trimming_Paired", "maximum_length", None),
-        match_read_wildcards = rule_param(_cutadapt_params, "trimming_Paired", "match_read_wildcards", False),
-        cut = rule_param(_cutadapt_params, "trimming_Paired", "cut", None),
-        trimmed_only = rule_param(_cutadapt_params, "trimming_Paired", "trimmed_only", False),
-        report = rule_param(_cutadapt_params, "trimming_Paired", "report", "full")
+        quality      = config.get("Params", {}).get("cutadapt", {}).get("trimming_Paired", {}).get("quality") or 20,
+        adapter_r1   = config.get("Params", {}).get("cutadapt", {}).get("trimming_Paired", {}).get("adapter_r1", None),
+        adapter_r2   = config.get("Params", {}).get("cutadapt", {}).get("trimming_Paired", {}).get("adapter_r2", None),
+        minimum_length = config.get("Params", {}).get("cutadapt", {}).get("trimming_Paired", {}).get("minimum_length", None),
+        maximum_length = config.get("Params", {}).get("cutadapt", {}).get("trimming_Paired", {}).get("maximum_length", None),
+        match_read_wildcards = config.get("Params", {}).get("cutadapt", {}).get("trimming_Paired", {}).get("match_read_wildcards", False),
+        cut = config.get("Params", {}).get("cutadapt", {}).get("trimming_Paired", {}).get("cut", None),
+        trimmed_only = config.get("Params", {}).get("cutadapt", {}).get("trimming_Paired", {}).get("trimmed_only", False),
+        report = config.get("Params", {}).get("cutadapt", {}).get("trimming_Paired", {}).get("report") or "full"
     conda:
         "cutadapt.yaml"
     container:
@@ -65,6 +64,7 @@ rule trimming_Paired:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start cutadapt paired trimming for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"cutadapt_paired_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/cutadapt_paired.sh")
             cmd = [
                 params.cutadapt,
@@ -98,7 +98,8 @@ rule trimming_Paired:
                 f.write(f"echo 'cutadapt paired trimming finished for {wildcards.sample_id}'\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} > {output.report} 2>> {log_path}")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} > {output.report} 2>> {log_path}")
             logger.info(f"Finished cutadapt paired trimming for sample {wildcards.sample_id}")
         except Exception as e:
             raise
@@ -117,14 +118,14 @@ rule trimming_Single:
         mem_mb=rule_res("trimming_Single").get("mem_mb", 4000),
     params:
         cutadapt       = config.get("Procedure", {}).get("cutadapt") or "cutadapt",
-        quality        = rule_param(_cutadapt_params, "trimming_Single", "quality", 20),
-        adapter_r1     = rule_param(_cutadapt_params, "trimming_Single", "adapter_r1", None),
-        minimum_length = rule_param(_cutadapt_params, "trimming_Single", "minimum_length", None),
-        maximum_length = rule_param(_cutadapt_params, "trimming_Single", "maximum_length", None),
-        match_read_wildcards = rule_param(_cutadapt_params, "trimming_Single", "match_read_wildcards", False),
-        cut = rule_param(_cutadapt_params, "trimming_Single", "cut", None),
-        trimmed_only = rule_param(_cutadapt_params, "trimming_Single", "trimmed_only", False),
-        report = rule_param(_cutadapt_params, "trimming_Single", "report", "full")
+        quality        = config.get("Params", {}).get("cutadapt", {}).get("trimming_Single", {}).get("quality") or 20,
+        adapter_r1     = config.get("Params", {}).get("cutadapt", {}).get("trimming_Single", {}).get("adapter_r1", None),
+        minimum_length = config.get("Params", {}).get("cutadapt", {}).get("trimming_Single", {}).get("minimum_length", None),
+        maximum_length = config.get("Params", {}).get("cutadapt", {}).get("trimming_Single", {}).get("maximum_length", None),
+        match_read_wildcards = config.get("Params", {}).get("cutadapt", {}).get("trimming_Single", {}).get("match_read_wildcards", False),
+        cut = config.get("Params", {}).get("cutadapt", {}).get("trimming_Single", {}).get("cut", None),
+        trimmed_only = config.get("Params", {}).get("cutadapt", {}).get("trimming_Single", {}).get("trimmed_only", False),
+        report = config.get("Params", {}).get("cutadapt", {}).get("trimming_Single", {}).get("report") or "full"
     conda:
         "cutadapt.yaml"
     container:
@@ -137,6 +138,7 @@ rule trimming_Single:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start cutadapt single trimming for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"cutadapt_single_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/cutadapt_single.sh")
             cmd = [
                 params.cutadapt,
@@ -166,7 +168,8 @@ rule trimming_Single:
                 f.write(f"echo 'cutadapt single trimming finished for {wildcards.sample_id}'\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} > {output.report} 2>> {log_path}")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} > {output.report} 2>> {log_path}")
             logger.info(f"Finished cutadapt single trimming for sample {wildcards.sample_id}")
         except Exception as e:
             raise

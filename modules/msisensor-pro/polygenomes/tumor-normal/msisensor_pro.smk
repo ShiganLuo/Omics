@@ -43,7 +43,8 @@ rule scan:
     container:
         sif("../../msisensor-pro.yaml", "scan")
     run:
-        shell("{msisensor_pro} scan -d {input} -o {output} 2>{log} 1>{log}")
+        if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            shell("{msisensor_pro} scan -d {input} -o {output} 2>{log} 1>{log}")
 
 rule msisensor_msi:
     input:
@@ -65,7 +66,8 @@ rule msisensor_msi:
     container:
         sif("../../msisensor-pro.yaml", "msisensor_msi")
     run:
-        shell("{msisensor_pro} msi -d {input.ms} -n {input.n} -t {input.t} -g {input.ref}  -o {output} 2>{log}")
+        if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            shell("{msisensor_pro} msi -d {input.ms} -n {input.n} -t {input.t} -g {input.ref}  -o {output} 2>{log}")
 
 rule merge_msi_result:
     input:

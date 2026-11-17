@@ -300,10 +300,6 @@
       "threads": 4,
       "mem_mb": 8000
     },
-    "bigwig_ratio_result": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
     "bowtie2_align_paired": {
       "threads": 8,
       "mem_mb": 16000

@@ -70,16 +70,22 @@ rule subsample_fastq:
                 sub_r2 = os.path.join(outdir_sample, f"{wildcards.sample_id}_2.sub.fq")
 
                 # Decompress
-                shell(f"zcat {input.r1} > {tmp_r1}")
-                shell(f"zcat {input.r2} > {tmp_r2}")
+                if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                    shell(f"zcat {input.r1} > {tmp_r1}")
+                if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                    shell(f"zcat {input.r2} > {tmp_r2}")
 
                 # Subsample with same seed for R1 and R2
-                shell(f"seqtk sample -s {params.seed} {tmp_r1} {params.n} > {sub_r1} 2>> {log_path}")
-                shell(f"seqtk sample -s {params.seed} {tmp_r2} {params.n} > {sub_r2} 2>> {log_path}")
+                if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                    shell(f"seqtk sample -s {params.seed} {tmp_r1} {params.n} > {sub_r1} 2>> {log_path}")
+                if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                    shell(f"seqtk sample -s {params.seed} {tmp_r2} {params.n} > {sub_r2} 2>> {log_path}")
 
                 # Compress output
-                shell(f"gzip -c {sub_r1} > {output.r1}")
-                shell(f"gzip -c {sub_r2} > {output.r2}")
+                if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                    shell(f"gzip -c {sub_r1} > {output.r1}")
+                if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                    shell(f"gzip -c {sub_r2} > {output.r2}")
 
                 # Cleanup
                 for f in [tmp_r1, tmp_r2, sub_r1, sub_r2]:

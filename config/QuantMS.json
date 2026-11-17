@@ -236,9 +236,6 @@
       "threads": 1,
       "mem_mb": 16000
     },
-    "msstats_result": {
-      "mem_mb": 8000
-    },
     "philosopher_database": {
       "threads": 1
     },
@@ -248,20 +245,11 @@
     "protein_inference": {
       "mem_mb": 32000
     },
-    "protein_inference_result": {
-      "mem_mb": 8000
-    },
     "psm_fdr": {
       "mem_mb": 16000
     },
-    "psm_fdr_result": {
-      "mem_mb": 8000
-    },
     "psm_rescoring": {
       "mem_mb": 32000
-    },
-    "psm_rescoring_result": {
-      "mem_mb": 8000
     },
     "quantification_dia": {
       "threads": 8,
@@ -270,9 +258,6 @@
     "quantification_lfq": {
       "threads": 8,
       "mem_mb": 16000
-    },
-    "quantification_result": {
-      "mem_mb": 8000
     },
     "quantification_tmt": {
       "threads": 8,
@@ -284,9 +269,6 @@
     },
     "raw2mzml": {
       "threads": 2,
-      "mem_mb": 8000
-    },
-    "raw2mzml_result": {
       "mem_mb": 8000
     },
     "search_engine_comet": {

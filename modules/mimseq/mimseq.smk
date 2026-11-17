@@ -72,8 +72,3 @@ rule mimseq_result:
         outdir = outdir + "/deseq.done",
     output:
         touch(outdir + "/mimseq.done"),
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "mimseq_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

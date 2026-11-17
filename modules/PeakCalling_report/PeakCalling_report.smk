@@ -20,18 +20,11 @@ heatmap_dir = outdir + "/results/heatmap"
 
 # 参数精确到 rule:generate_report 自己的参数挂 Params.report.generate_report.<key>
 # (原 Params.report.<key> 读点挂到消费 rule 名下;无 module 级共享回退,
-# rule_param 见 common.smk)。每 rule 一个 parse 期变量。
-_report = config.get("Params", {}).get("report", {}) or {}
-
-
-def _report_param(key, default):
-    """generate_report rule 参数(Params.report.generate_report.<key>)。"""
-    return rule_param(_report, "generate_report", key, default) or default
-
+# 读点写 config 全量路径字面链)。
 
 # 图片格式（report 模块 figures/<name>.<fmt> 多格式输出）① parse 期读入 +
 # 规范化（str 收成单元素 list；合法值由 schema 声明）
-_formats = _report_param("formats", ["png"])
+_formats = config.get("Params", {}).get("report", {}).get("generate_report", {}).get("formats") or ["png"]
 if isinstance(_formats, str):
     _formats = [_formats]
 
@@ -59,9 +52,13 @@ def _producer_fmt(formats):
 
 
 # ── 上游产出图变体键:跨模块消费,变体期望挂在消费 rule 名下
-# (Params.<producer>.generate_report.<key>;默认 ["png"])。
-_pto_formats = rule_param(config.get("Params", {}).get("peak_te_overlap") or {}, "generate_report", "formats", ["png"])
-_ph_formats = rule_param(config.get("Params", {}).get("plotHeatmap") or {}, "generate_report", "formats", ["png"])
+# (Params.<producer>.generate_report.<key>;读点写 config 全量路径字面链)。
+_pto_formats = config.get("Params", {}).get("peak_te_overlap", {}).get("generate_report", {}).get("formats") or ["png"]
+if isinstance(_pto_formats, str):
+    _pto_formats = [_pto_formats]
+_ph_formats = config.get("Params", {}).get("plotHeatmap", {}).get("generate_report", {}).get("formats") or ["png"]
+if isinstance(_ph_formats, str):
+    _ph_formats = [_ph_formats]
 
 REPORT_SCRIPT = os.path.join(ROOT_DIR, "modules", "PeakCalling_report", "bin", "generate_report.py")
 
@@ -122,12 +119,12 @@ rule generate_report:
         sif("PeakCalling_report.yaml", "generate_report")
     params:
         script = REPORT_SCRIPT,
-        title = _report_param("title", "ChIP-seq Peak Calling Report"),
-        subtitle = _report_param("subtitle", ""),
-        pipeline = _report_param("pipeline", ""),
-        genome = _report_param("genome", ""),
-        date = _report_param("date", ""),
-        top_n = _report_param("top_n", 5),
+        title = config.get("Params", {}).get("report", {}).get("generate_report", {}).get("title") or "ChIP-seq Peak Calling Report",
+        subtitle = config.get("Params", {}).get("report", {}).get("generate_report", {}).get("subtitle") or "",
+        pipeline = config.get("Params", {}).get("report", {}).get("generate_report", {}).get("pipeline") or "",
+        genome = config.get("Params", {}).get("report", {}).get("generate_report", {}).get("genome") or "",
+        date = config.get("Params", {}).get("report", {}).get("generate_report", {}).get("date") or "",
+        top_n = config.get("Params", {}).get("report", {}).get("generate_report", {}).get("top_n") or 5,
         sample_ip_input_map = sample_ip_input_map,
         formats = _formats,   # ③ 转发
         img_dir = outdir + "/figures",
@@ -175,13 +172,15 @@ rule generate_report:
                 cmd += ["--format", str(fmt)]
 
             script = os.path.join(RECEIPT_DIR, f"generate_report_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(report_dir, f"generate_report.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} > {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} > {log_path} 2>&1")
         except Exception as e:
             logger.error(f"Error occurred during generate_report: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
@@ -192,8 +191,3 @@ rule report_result:
         report = outdir + "/PeakCalling_report.pptx",
         excel = outdir + "/PeakCalling_report.xlsx",
         figures_manifest = outdir + "/figures/manifest.tsv",
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "report_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

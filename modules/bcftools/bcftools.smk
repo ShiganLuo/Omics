@@ -32,6 +32,7 @@ rule bcftools_sort:
             sample_outdir = os.path.dirname(str(output.vcf))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"bcftools_sort_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"bcftools_sort.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -43,7 +44,8 @@ rule bcftools_sort:
                 f.write(f"    > {log} 2>&1\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             logger.error(f"Error occurred during bcftools sort for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
@@ -76,13 +78,15 @@ rule bcftools_index_csi:
             sample_outdir = os.path.dirname(str(output.csi))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"bcftools_index_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"bcftools_index.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(f"{params.bcftools} index {input.vcf} > {log} 2>&1\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             logger.error(f"Error occurred during bcftools index for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
@@ -91,8 +95,3 @@ rule bcftools_result:
     input:
         vcf = outdir + "/sort/{sample_id}/{sample_id}.sorted.vcf.gz",
         csi = outdir + "/{sample_id}/{sample_id}.vcf.gz.csi"
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "bcftools_result", input_size=input_size_named(input, 'vcf'),
-            attempt=attempt).get("mem_mb", 8000),

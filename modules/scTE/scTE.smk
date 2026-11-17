@@ -68,7 +68,8 @@ rule scTE_build_index:
                 f.write(f'echo "scTE index built at {output.index} successfully"\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(command_script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"scTE_build_index failed: {e}\n")
             raise RuntimeError(f"scTE_build_index failed: {e}\n")
@@ -139,7 +140,8 @@ rule scTE_quantify:
                 f.write(" ".join(str(item) for item in cmd) + "\n")
                 f.write(f'echo "scTE quantification for sample {wildcards.sample_id} completed successfully"\n')
             shutil.copyfile(command_script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"scTE_quantify failed: {e}\n")
             raise RuntimeError(f"scTE_quantify failed: {e}\n")

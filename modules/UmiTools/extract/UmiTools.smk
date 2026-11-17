@@ -4,9 +4,8 @@ outdir = config.get("outdir", "output")
 indir = config.get("indir", "output")
 logdir = config.get("logdir", "log")
 
-# 参数精确到 rule:Params.umi_tools.<rule_name>.<key>(rule_param 见 common.smk;
+# 参数精确到 rule:Params.umi_tools.<rule_name>.<key>(config 全量路径直读;
 # 无 module 级共享回退,UmiTools_extract_single / UmiTools_extract_paired 各自独立键)。
-_umi_tools_params = config.get("Params", {}).get("umi_tools", {})
 
 rule UmiTools_extract_single:
     input:
@@ -16,7 +15,7 @@ rule UmiTools_extract_single:
     params:
         umi_tools = config.get('Procedure',{}).get('umi_tools') or 'umi_tools',
         extract_method = config.get('Procedure',{}).get('extract_method') or 'string',
-        bc_pattern = rule_param(_umi_tools_params, "UmiTools_extract_single", "bc_pattern", 'NNNXXXXNN')
+        bc_pattern = config.get("Params", {}).get("umi_tools", {}).get("UmiTools_extract_single", {}).get("bc_pattern") or "NNNXXXXNN"
     log:
         logdir + "/{sample_id}/umi_tools_extract_single_run.txt"
     conda:
@@ -39,6 +38,7 @@ rule UmiTools_extract_single:
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"UmiTools_extract_single_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"UmiTools_extract_single.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -49,7 +49,8 @@ rule UmiTools_extract_single:
                 f.write(f"    -S {output.fastq} \\\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"UmiTools_extract_single for sample {wildcards.sample_id} completed")
         except Exception as e:
             rule_logger.error(f"Error occurred: {e}")
@@ -65,8 +66,8 @@ rule UmiTools_extract_paired:
     params:
         umi_tools = config.get('Procedure',{}).get('umi_tools') or 'umi_tools',
         extract_method = config.get('Procedure',{}).get('extract_method') or 'string',
-        bc_pattern = rule_param(_umi_tools_params, "UmiTools_extract_paired", "bc_pattern", 'NNNXXXXNN'),
-        bc_pattern2 = rule_param(_umi_tools_params, "UmiTools_extract_paired", "bc_pattern2", 'NNNXXXXNN')
+        bc_pattern = config.get("Params", {}).get("umi_tools", {}).get("UmiTools_extract_paired", {}).get("bc_pattern") or "NNNXXXXNN",
+        bc_pattern2 = config.get("Params", {}).get("umi_tools", {}).get("UmiTools_extract_paired", {}).get("bc_pattern2") or "NNNXXXXNN"
     log:
         logdir + "/{sample_id}/umi_tools_extract_paired_run.txt"
     threads: rule_res("UmiTools_extract_paired").get("threads", 2)
@@ -89,6 +90,7 @@ rule UmiTools_extract_paired:
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"UmiTools_extract_paired_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"UmiTools_extract_paired.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -101,7 +103,8 @@ rule UmiTools_extract_paired:
                 f.write(f"    --read2-out={output.fastq2} \\\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"UmiTools_extract_paired for sample {wildcards.sample_id} completed")
         except Exception as e:
             rule_logger.error(f"Error occurred: {e}")

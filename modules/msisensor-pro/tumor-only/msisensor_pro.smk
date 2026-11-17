@@ -47,7 +47,8 @@ rule scan:
     container:
         sif("../msisensor-pro.yaml", "scan")
     run:
-        shell("{msisensor_pro} scan -d {input} -o {output} 2>{log} 1>{log}")
+        if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            shell("{msisensor_pro} scan -d {input} -o {output} 2>{log} 1>{log}")
 
 rule pro_pre:
     input:
@@ -69,7 +70,8 @@ rule pro_pre:
     container:
         sif("../msisensor-pro.yaml", "pro_pre")
     run:
-        shell("{msisensor_pro} pro -d {input.ms} -t {input.bam} -g {input.ref} -o {output} >> {log} 2>&1")
+        if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            shell("{msisensor_pro} pro -d {input.ms} -t {input.bam} -g {input.ref} -o {output} >> {log} 2>&1")
 
 rule merge:
     input:
@@ -110,7 +112,8 @@ rule baseline:
     container:
         sif("../msisensor-pro.yaml", "baseline")
     run:
-        shell(f"{msisensor_pro} baseline  -d {input.ms} -i {input.conf} -o {output} -s 1 >> {log} 2>&1")
+        if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            shell(f"{msisensor_pro} baseline  -d {input.ms} -i {input.conf} -o {output} -s 1 >> {log} 2>&1")
 rule run_pro:
     input:
         ms = outdir + "baselines/{genome_version}.baseline.tsv",
@@ -130,7 +133,8 @@ rule run_pro:
     container:
         sif("../msisensor-pro.yaml", "run_pro")
     run:
-        shell("{msisensor_pro} pro -d {input.ms} -t {input.t} -g {input.ref}  -o {output} 2>{log}")
+        if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            shell("{msisensor_pro} pro -d {input.ms} -t {input.t} -g {input.ref}  -o {output} 2>{log}")
 
 rule merge_msi_result:
     input:

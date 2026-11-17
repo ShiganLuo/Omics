@@ -9,8 +9,6 @@ STAR = config.get("Procedure", {}).get("STAR") or "STAR"
 SAMTOOLS = config.get("Procedure", {}).get("samtools") or "samtools"
 BEDTOOLS = config.get("Procedure", {}).get("bedtools") or "bedtools"
 smallrna_bed = config.get("genome", {}).get("smallrna_bed")
-three_pass_params = config.get("Params", {}).get("star_3pass", {})
-HELPER = os.path.join(config["ROOT_DIR"], "modules/star/star_3pass/bin/three_pass_align.py")
 
 def fq_inputs(wildcards):
     """Resolve paired- or single-end preprocessed FASTQ inputs."""
@@ -55,6 +53,15 @@ rule star_3p_align:
         "../star.yaml"
     container:
         sif("../star.yaml", "star_3p_align")
+    params:
+        # 工具与 pass 参数挂 Params 的 rule 子键(config 全量路径直读,run 只碰 params)
+        HELPER = os.path.join(config["ROOT_DIR"], "modules/star/star_3pass/bin/three_pass_align.py"),
+        STAR = STAR,
+        SAMTOOLS = SAMTOOLS,
+        BEDTOOLS = BEDTOOLS,
+        pass1 = config.get("Params", {}).get("star_3pass", {}).get("pass1", {}),
+        pass2 = config.get("Params", {}).get("star_3pass", {}).get("pass2", {}),
+        pass3 = config.get("Params", {}).get("star_3pass", {}).get("pass3", {}),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -67,13 +74,14 @@ rule star_3p_align:
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(os.path.dirname(log_path), exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"three_pass_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"three_pass.sh")
 
-            p1 = three_pass_params.get("pass1", {})
-            p2 = three_pass_params.get("pass2", {})
-            p3 = three_pass_params.get("pass3", {})
+            p1 = params.pass1
+            p2 = params.pass2
+            p3 = params.pass3
             cmd = [
-                "python", HELPER,
+                "python", params.HELPER,
                 "--fastq", *[str(p) for p in input.fastq],
                 "--genome-index", str(input.genome_index),
                 "--smallrna-index", str(input.smallrna_index),
@@ -89,9 +97,9 @@ rule star_3p_align:
                 "--bam", str(output.bam),
                 "--log", log_path,
                 "--threads", str(threads),
-                "--star", STAR,
-                "--samtools", SAMTOOLS,
-                "--bedtools", BEDTOOLS,
+                "--star", params.STAR,
+                "--samtools", params.SAMTOOLS,
+                "--bedtools", params.BEDTOOLS,
             ]
             # Pass 1 parameters
             if "outFilterMultimapNmax" in p1:
@@ -142,7 +150,8 @@ rule star_3p_align:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f"echo 'star_3p_align for sample {wildcards.sample_id} genome {wildcards.genome} completed successfully at {current_time}'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
 
             rule_logger.info(f"star_3p_align for sample {wildcards.sample_id} completed")
         except Exception as e:

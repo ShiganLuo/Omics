@@ -7,10 +7,9 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
 genome_cfg = config.get("genome", {})
 genome_name = config.get("genome_name") or "genome"
-_censatbuild_params = config.get("Params", {}).get("censatbuild", {})
 # 参数精确到 rule(2026-11 规范):整段 p 已按 key 拆到消费 rule 名下
-# (Params.censatbuild.<rule_name>.<key>,无 module 级共享回退;rule_param 见
-# common.smk):species → censatbuild_repeatmasker_run,gap/major_pattern/
+# (Params.censatbuild.<rule_name>.<key>,无 module 级共享回退;config 全量
+# 路径内联读取):species → censatbuild_repeatmasker_run,gap/major_pattern/
 # minor_pattern/class_pattern → censatbuild_arrays,flank → censatbuild_flank,
 # bam → censatbuild_mcg_pileup。
 
@@ -39,8 +38,7 @@ centromere_config = {
     "samples": [genome_name],
     "Procedure": {},
     "Params": {"RepeatMasker": {
-        "species": rule_param(_censatbuild_params, "censatbuild_repeatmasker_run",
-                              "species", "Mus musculus")}},
+        "species": config.get("Params", {}).get("censatbuild", {}).get("censatbuild_repeatmasker_run", {}).get("species", "Mus musculus")}},
 }
 
 module centromere:
@@ -101,10 +99,10 @@ rule censatbuild_arrays:
         sif("censatbuild.yaml", "censatbuild_arrays")
     params:
         script = ROOT_DIR + "/modules/censatbuild/bin/censatbuild_rm2bed.py",
-        gap = rule_param(_censatbuild_params, "censatbuild_arrays", "gap", 10000),
-        major_pattern = rule_param(_censatbuild_params, "censatbuild_arrays", "major_pattern", "major"),
-        minor_pattern = rule_param(_censatbuild_params, "censatbuild_arrays", "minor_pattern", "minor"),
-        class_pattern = rule_param(_censatbuild_params, "censatbuild_arrays", "class_pattern", "Satellite"),
+        gap = config.get("Params", {}).get("censatbuild", {}).get("censatbuild_arrays", {}).get("gap", 10000),
+        major_pattern = config.get("Params", {}).get("censatbuild", {}).get("censatbuild_arrays", {}).get("major_pattern", "major"),
+        minor_pattern = config.get("Params", {}).get("censatbuild", {}).get("censatbuild_arrays", {}).get("minor_pattern", "minor"),
+        class_pattern = config.get("Params", {}).get("censatbuild", {}).get("censatbuild_arrays", {}).get("class_pattern", "Satellite"),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -114,6 +112,7 @@ rule censatbuild_arrays:
             rule_logger.info(f"Start satellite clustering for {genome_name} at {current_time}")
             os.makedirs(outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"censatbuild_arrays_{genome_name}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"censatbuild_arrays_{genome_name}.sh")
             cmd = [
                 "python", params.script,
@@ -131,13 +130,11 @@ rule censatbuild_arrays:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "censatbuild_arrays for {genome_name} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during censatbuild_arrays for {genome_name}: {e}\n")
             raise RuntimeError(f"Error occurred during censatbuild_arrays for {genome_name}: {e}\n")
-
-# censatbuild_flank 的 flank 与派生 flank_name 共用一个 parse 期读点
-_flank_censatbuild_flank = rule_param(_censatbuild_params, "censatbuild_flank", "flank", 10000)
 
 rule censatbuild_flank:
     """Add flanking regions and write the final censat region-class BED."""
@@ -160,8 +157,8 @@ rule censatbuild_flank:
     container:
         sif("censatbuild.yaml", "censatbuild_flank")
     params:
-        flank = _flank_censatbuild_flank,
-        flank_name = f"flank_{_flank_censatbuild_flank // 1000}kb",
+        flank = config.get("Params", {}).get("censatbuild", {}).get("censatbuild_flank", {}).get("flank", 10000),
+        flank_name = f"flank_{config.get('Params', {}).get('censatbuild', {}).get('censatbuild_flank', {}).get('flank', 10000) // 1000}kb",
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -170,6 +167,7 @@ rule censatbuild_flank:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start flank/merge for {genome_name} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"censatbuild_flank_{genome_name}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"censatbuild_flank_{genome_name}.sh")
             flank_bed = outdir + f"/{genome_name}.sat_flank.bed"
             with open(script, "w") as f:
@@ -183,7 +181,8 @@ rule censatbuild_flank:
                         f"{output.bed} > {output.stats}\n")
                 f.write(f'echo "censatbuild_flank for {genome_name} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during censatbuild_flank for {genome_name}: {e}\n")
             raise RuntimeError(f"Error occurred during censatbuild_flank for {genome_name}: {e}\n")
@@ -196,7 +195,7 @@ rule censatbuild_mcg_pileup:
     """
     input:
         bam = lambda wildcards: _require(
-            rule_param(_censatbuild_params, "censatbuild_mcg_pileup", "bam"),
+            config.get("Params", {}).get("censatbuild", {}).get("censatbuild_mcg_pileup", {}).get("bam"),
             "Params.censatbuild.censatbuild_mcg_pileup.bam", "censatbuild"),
     output:
         bedgraph = outdir + f"/{genome_name}.mcpg_pileup.bedGraph",
@@ -220,6 +219,7 @@ rule censatbuild_mcg_pileup:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start modkit CpG pileup at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"censatbuild_mcg_pileup_{genome_name}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"censatbuild_mcg_pileup_{genome_name}.sh")
             tmp_bed = outdir + f"/{genome_name}.mcpg_pileup.bedMethyl"
             with open(script, "w") as f:
@@ -230,7 +230,8 @@ rule censatbuild_mcg_pileup:
                         f"{tmp_bed} > {output.bedgraph}\n")
                 f.write(f'echo "censatbuild_mcg_pileup at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during censatbuild_mcg_pileup: {e}\n")
             raise RuntimeError(f"Error occurred during censatbuild_mcg_pileup: {e}\n")

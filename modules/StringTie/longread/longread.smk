@@ -36,6 +36,7 @@ rule stringtie_lr_assemble:
             sample_outdir = os.path.dirname(str(output.gtf))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"stringtie_lr_assemble_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"stringtie_lr_assemble_{wildcards.sample_id}.sh")
             cmd = [
                 params.stringtie, "-L",
@@ -49,7 +50,8 @@ rule stringtie_lr_assemble:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "StringTie LR assembly for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during StringTie LR assembly for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error during StringTie LR assembly for sample {wildcards.sample_id}: {e}\n")
@@ -81,6 +83,7 @@ rule stringtie_lr_merge:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start StringTie merge at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"stringtie_lr_merge_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"stringtie_lr_merge.sh")
             cmd = [params.stringtie, "--merge"] + list(input.gtfs) + ["-o", output.gtf, "-G", params.gtf]
             with open(script, "w") as f:
@@ -88,7 +91,8 @@ rule stringtie_lr_merge:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "StringTie merge at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during StringTie merge: {e}")
             raise RuntimeError(f"Error during StringTie merge: {e}\n")
@@ -125,6 +129,7 @@ rule stringtie_lr_quant:
             sample_outdir = os.path.dirname(str(output.gtf))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"stringtie_lr_quant_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"stringtie_lr_quant_{wildcards.sample_id}.sh")
             cmd = [
                 params.stringtie, "-e", "-B", "-L",
@@ -139,7 +144,8 @@ rule stringtie_lr_quant:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "StringTie quantification for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during StringTie quantification for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error during StringTie quantification for sample {wildcards.sample_id}: {e}\n")
@@ -149,8 +155,3 @@ rule stringtie_lr_result:
         merged_gtf = outdir + "/stringtie_merged.gtf",
         abund = expand(outdir + "/{sid}/{sid}.gene_abund.tab", sid=samples),
         quant_gtf = expand(outdir + "/{sid}/{sid}.quant.gtf", sid=samples)
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "stringtie_lr_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

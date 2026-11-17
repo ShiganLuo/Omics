@@ -8,10 +8,9 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 sample_snv_vcf_dict = config.get("sample_snv_vcf_dict") or {}
 sample_sv_vcf_dict = config.get("sample_sv_vcf_dict") or {}
 sample_cnv_dict = config.get("sample_cnv_dict") or {}
-burden_params = config.get("Params", {}).get("burden", {}) or {}
 # 参数精确到 rule:Params.burden.<rule_name>.<key> — burden_snv_indel /
-# burden_cnv 各自配置(无 module 级共享回退,rule_param 见 common.smk)。
-_annotate_burden_snv_indel = rule_param(burden_params, "burden_snv_indel", "annotate", True)
+# burden_cnv 各自配置(无 module 级共享回退),config 全量路径读取。
+_annotate_burden_snv_indel = config.get("Params", {}).get("burden", {}).get("burden_snv_indel", {}).get("annotate", True)
 targets_bed = config.get("genome", {}).get("targets") or None
 gtf = config.get("genome", {}).get("gtf") or None
 SNV_TSV = outdir + "/{sample_id}/{sample_id}.snv_indel_burden.tsv"
@@ -45,14 +44,14 @@ rule burden_snv_indel:
             attempt=attempt).get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/burden/bin/burden.py"),
-        min_vaf = rule_param(burden_params, "burden_snv_indel", "min_vaf", 0.05),
-        size_mb = rule_param(burden_params, "burden_snv_indel", "size_mb", 34.0),
-        gtf_feature = rule_param(burden_params, "burden_snv_indel", "gtf_feature", "exon"),
-        include_sex = rule_param(burden_params, "burden_snv_indel", "include_sex_chroms", False),
+        min_vaf = config.get("Params", {}).get("burden", {}).get("burden_snv_indel", {}).get("min_vaf", 0.05),
+        size_mb = config.get("Params", {}).get("burden", {}).get("burden_snv_indel", {}).get("size_mb", 34.0),
+        gtf_feature = config.get("Params", {}).get("burden", {}).get("burden_snv_indel", {}).get("gtf_feature", "exon"),
+        include_sex = config.get("Params", {}).get("burden", {}).get("burden_snv_indel", {}).get("include_sex_chroms", False),
         annotate = _annotate_burden_snv_indel,
-        vep_cache = rule_param(burden_params, "burden_snv_indel", "vep_cache", "~/.vep") or "~/.vep",
-        vep_species = rule_param(burden_params, "burden_snv_indel", "vep_species", "mus_musculus") or "mus_musculus",
-        vep_assembly = rule_param(burden_params, "burden_snv_indel", "vep_assembly", "GRCm39") or "GRCm39",
+        vep_cache = config.get("Params", {}).get("burden", {}).get("burden_snv_indel", {}).get("vep_cache", "~/.vep") or "~/.vep",
+        vep_species = config.get("Params", {}).get("burden", {}).get("burden_snv_indel", {}).get("vep_species", "mus_musculus") or "mus_musculus",
+        vep_assembly = config.get("Params", {}).get("burden", {}).get("burden_snv_indel", {}).get("vep_assembly", "GRCm39") or "GRCm39",
         targets_bed = targets_bed,
         gtf = gtf,
     conda:
@@ -69,6 +68,7 @@ rule burden_snv_indel:
             sample_outdir = os.path.dirname(str(output.tsv))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"burden_snv_indel_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"burden_snv_indel_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.script, "snv-indel",
@@ -102,7 +102,8 @@ rule burden_snv_indel:
                 f.write(f'echo "burden snv-indel for {wildcards.sample_id} completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during burden snv-indel for sample {wildcards.sample_id}: {e}\n")
             raise RuntimeError(f"Error occurred during burden snv-indel for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.\n")
@@ -140,6 +141,7 @@ rule burden_sv:
             sample_outdir = os.path.dirname(str(output.tsv))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"burden_sv_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"burden_sv_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.script, "sv",
@@ -159,7 +161,8 @@ rule burden_sv:
                 f.write(f'echo "burden sv for {wildcards.sample_id} completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during burden sv for sample {wildcards.sample_id}: {e}\n")
             raise RuntimeError(f"Error occurred during burden sv for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.\n")
@@ -183,7 +186,7 @@ rule burden_cnv:
             attempt=attempt).get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/burden/bin/burden.py"),
-        min_abs_log2 = rule_param(burden_params, "burden_cnv", "min_abs_log2", 0.3),
+        min_abs_log2 = config.get("Params", {}).get("burden", {}).get("burden_cnv", {}).get("min_abs_log2", 0.3),
     conda:
         "burden.yaml"
     container:
@@ -198,6 +201,7 @@ rule burden_cnv:
             sample_outdir = os.path.dirname(str(output.tsv))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"burden_cnv_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"burden_cnv_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.script, "cnv",
@@ -218,7 +222,8 @@ rule burden_cnv:
                 f.write(f'echo "burden cnv for {wildcards.sample_id} completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during burden cnv for sample {wildcards.sample_id}: {e}\n")
             raise RuntimeError(f"Error occurred during burden cnv for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.\n")
@@ -255,6 +260,7 @@ rule burden_aggregate:
             rule_logger.info(f"Start burden aggregate at {current_time}")
             os.makedirs(os.path.dirname(str(output.summary)), exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"burden_aggregate_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(os.path.dirname(str(output.summary)), "burden_aggregate.sh")
             # One flag carries every value per table type (nargs-style option).
             cmd = ["python", params.script, "aggregate", "-o", str(output.summary), "-w"]
@@ -275,7 +281,8 @@ rule burden_aggregate:
                 f.write('echo "burden aggregate completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during burden aggregate: {e}\n")
             raise RuntimeError(f"Error occurred during burden aggregate: {e}, you can check the log file {log_path} for more details.\n")
@@ -288,8 +295,3 @@ rule burden_result:
         sv = [SV_TSV.format(sample_id=s) for s in sample_sv_vcf_dict],
         cnv = [CNV_TSV.format(sample_id=s) for s in sample_cnv_dict],
         summary = SUMMARY_TSV
-
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "burden_result", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 8000),

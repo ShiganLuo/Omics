@@ -41,7 +41,9 @@ rule XenofilteR:
         tempBai = lambda wildcards: f"{outdir}/{wildcards.sample_id}/Filtered_bams/{wildcards.sample_id}_Filtered.bam.bai",
         MM = config.get('Parameters', {}).get('XenofilteR', {}).get('MM', 8),
         script = ROOT_DIR + "/modules/XenofilteR/bin/XenofilteR.r",
-        Rscript = config.get('Procedure',{}).get('Rscript') or 'Rscript'
+        Rscript = config.get('Procedure',{}).get('Rscript') or 'Rscript',
+        host_genome = lambda wildcards: config.get("Params", {}).get("XenofilteR", {}).get("sample_contamination", {}).get(wildcards.sample_id, {}).get("host"),
+        contaminant_genome = lambda wildcards: config.get("Params", {}).get("XenofilteR", {}).get("sample_contamination", {}).get(wildcards.sample_id, {}).get("contaminant"),
     conda:
         "XenofilteR.yaml"
     container:
@@ -56,6 +58,7 @@ rule XenofilteR:
             sample_outdir = os.path.dirname(str(output.csvIn))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"XenofilteR_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"XenofilteR.sh")
             cmd1 = [
                 "echo", f"{input.host_bam},{input.contaminant_bam}", ">", output.csvIn
@@ -83,8 +86,6 @@ rule XenofilteR:
             cmd7 = [
                 "ln", "-s", input.host_bam + ".bai", output.outBai
             ]
-            host_genome = config.get('Params', {}).get('XenofilteR', {}).get('sample_contamination', {}).get(wildcards.sample_id, {}).get('host')
-            contaminant_genome = config.get('Params', {}).get('XenofilteR', {}).get('sample_contamination', {}).get(wildcards.sample_id, {}).get('contaminant')
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write("set -euo pipefail\n")
@@ -94,14 +95,15 @@ rule XenofilteR:
                     f.write(" ".join(cmd6) + "\n")
                     f.write(" ".join(cmd7) + "\n")
                 else:
-                    rule_logger.info(f"Running XenofilteR for sample {wildcards.sample_id} with host genome {host_genome} and pollution source genome {contaminant_genome}.")
+                    rule_logger.info(f"Running XenofilteR for sample {wildcards.sample_id} with host genome {params.host_genome} and pollution source genome {params.contaminant_genome}.")
                     f.write(" ".join(cmd1) + "\n")
                     f.write(" ".join(cmd2) + "\n")
                     f.write(" ".join(cmd3) + "\n")
                     f.write(" ".join(cmd4) + "\n")
                 f.write(f"echo 'XenofilteR completed successfully for sample {wildcards.sample_id}'\n")
             shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during XenofilteR for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred during XenofilteR for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")

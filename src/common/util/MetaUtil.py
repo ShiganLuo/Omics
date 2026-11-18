@@ -100,6 +100,14 @@ class MetadataUtils:
         sep = "\t" if head.count("\t") >= head.count(",") else ","
         df = pd.read_csv(meta, sep=sep)
 
+        # 相对路径以 meta 文件所在目录为基准(绝对路径不动):meta 记载的路径
+        # 是唯一依据,与调用时的 cwd 无关。
+        base = os.path.dirname(os.path.abspath(str(meta)))
+        for col in df.columns:
+            df[col] = df[col].map(
+                lambda v: os.path.join(base, str(v))
+                if isinstance(v, str) and "/" in v and not os.path.isabs(v) else v)
+
         return df
 
     def build_design_pairs(

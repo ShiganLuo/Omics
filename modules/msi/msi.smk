@@ -74,7 +74,9 @@ rule msi_scan:
                 f.write(f'echo "msi scan was completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during msi scan: {e}\n")
@@ -130,7 +132,9 @@ rule msi_call:
                 f.write(f'echo "msi call for {wildcards.sample_id} was completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during msi call for sample {wildcards.sample_id}: {e}\n")
@@ -194,7 +198,9 @@ rule msi_plot:
                 f.write(f'echo "msi plot was completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during msi plot: {e}\n")

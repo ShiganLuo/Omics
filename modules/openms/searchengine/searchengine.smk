@@ -193,7 +193,9 @@ rule search_engine_comet:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f'echo "rule search_engine_comet called for {wildcards.sample_id} was successfully completed"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"rule search_engine_comet was call failed,error: {e}")
@@ -249,7 +251,9 @@ rule search_engine_msgf:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f'echo "rule search_engine_msgf called for {wildcards.sample_id} was successfully completed"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"rule search_engine_msgf was call failed,error: {e}")
@@ -302,7 +306,9 @@ rule search_engine_sage:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f'echo "rule search_engine_sage called for {wildcards.sample_id} was successfully completed"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"rule search_engine_sage was call failed,error: {e}")

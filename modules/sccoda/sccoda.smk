@@ -135,7 +135,9 @@ rule sccoda_run:
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scCODA differential abundance for {wildcards.tissue} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during scCODA differential abundance for tissue {wildcards.tissue}: {e}")

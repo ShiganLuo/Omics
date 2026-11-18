@@ -52,9 +52,10 @@ rule pbsv_discover:
             f.write(" ".join(cmd) + "\n")
             f.write(f'echo "script completed successfully"\n')
         shutil.copyfile(script, plain_script)
-        if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+        if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            script_only_touch(output)
+        else:
             shell("bash {plain_script} > {log} 2>&1")
-
 rule pbsv_call:
     input:
         svsig = outdir + "/{genome}/{sample_id}/{sample_id}.svsig.gz",
@@ -110,9 +111,10 @@ rule pbsv_call:
             f.write(" ".join(cmd4) + "\n")
             f.write(f'echo "script completed successfully"\n')
         shutil.copyfile(script, plain_script)
-        if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+        if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            script_only_touch(output)
+        else:
             shell("bash {plain_script} > {log} 2>&1")
-
 rule pbsv_result:
     input:
         vcf = outdir + "/{genome}/{sample_id}/{sample_id}.sv.vcf.gz",

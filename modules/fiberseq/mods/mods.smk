@@ -176,7 +176,9 @@ rule fiberseq_mods_longtable:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f'echo "fiberseq_mods_longtable at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during fiberseq_mods_longtable: {e}\n")
@@ -247,7 +249,9 @@ rule fiberseq_mods_split:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f'echo "fiberseq_mods_split for {wildcards.contrast} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during fiberseq_mods_split for {wildcards.contrast}: {e}\n")
@@ -331,7 +335,9 @@ rule fiberseq_mods_top_loci:
                     f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                     f.write(f'echo "fiberseq_mods_top_loci for {wildcards.contrast} completed successfully"\n')
                 shutil.copyfile(script, plain_script)
-                if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                    script_only_touch(output)
+                else:
                     shell(f"bash {plain_script} >> {log_path} 2>&1")
             except Exception as e:
                 rule_logger.error(f"Error occurred during fiberseq_mods_top_loci for {wildcards.contrast}: {e}\n")

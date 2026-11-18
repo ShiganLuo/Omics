@@ -98,7 +98,9 @@ rule trimming_Paired:
                 f.write(f"echo 'cutadapt paired trimming finished for {wildcards.sample_id}'\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} > {output.report} 2>> {log_path}")
             logger.info(f"Finished cutadapt paired trimming for sample {wildcards.sample_id}")
         except Exception as e:
@@ -133,10 +135,10 @@ rule trimming_Single:
     run:
         log_path = str(log)
         open(log_path, "w").close()
-        logger = setup_logger(logger_name="cutadapt_single", log_file=log_path)
+        rule_logger = setup_logger(logger_name="cutadapt_single", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            logger.info(f"Start cutadapt single trimming for sample {wildcards.sample_id} at {current_time}")
+            rule_logger.info(f"Start cutadapt single trimming for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"cutadapt_single_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/cutadapt_single.sh")
@@ -168,8 +170,10 @@ rule trimming_Single:
                 f.write(f"echo 'cutadapt single trimming finished for {wildcards.sample_id}'\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} > {output.report} 2>> {log_path}")
-            logger.info(f"Finished cutadapt single trimming for sample {wildcards.sample_id}")
         except Exception as e:
+            rule_logger.error()
             raise

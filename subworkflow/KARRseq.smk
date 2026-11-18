@@ -188,9 +188,10 @@ rule KARRseq_star_align:
         samtools = config.get("Procedure", {}).get("samtools") or "samtools"
     run:
         import time
-        current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start STAR alignment for sample {wildcards.sample_id} at {current_time}")
         script = os.path.join(outdir, f"{wildcards.sample_id}/STAR_align_{current_time}.sh")
+        os.makedirs(os.path.dirname(script), exist_ok=True)  # 回执目录不随产物走,先建
         input_params = " ".join(input.fastq)
         cmd = [
             params.STAR,
@@ -217,10 +218,10 @@ rule KARRseq_star_align:
             f.write("#!/bin/bash\n")
             f.write(" ".join(cmd) + "\n")
             f.write(" ".join(cmd_index) + "\n")
-        if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+        if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            script_only_touch(output)
+        else:
             shell(f"bash {script} > {log} 2>&1")
-
-
 # =================
 # Module 3: KARRseq Chimeric Processing
 # =================

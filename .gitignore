@@ -14,3 +14,7 @@ test.log
 **/out
 data
 **/.java
+# 测试模式运行时自动创建的输入占位文件(见 run.py touch_test_inputs),不进版本库
+/assests/test/fastq/
+/assests/test/bam/
+/assests/test/ms/

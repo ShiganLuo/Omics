@@ -103,7 +103,9 @@ rule scanpy_qc:
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy QC for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during scanpy QC for sample {wildcards.sample_id}: {e}")
@@ -177,7 +179,9 @@ rule scanpy_merge:
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy merge for {wildcards.tissue} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during scanpy merge for tissue {wildcards.tissue}: {e}")
@@ -301,7 +305,9 @@ rule scanpy_auto:
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy auto for {wildcards.tissue} at {current_time} completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during scanpy auto for tissue {wildcards.tissue}: {e}")
@@ -406,7 +412,9 @@ rule scanpy_reannotate:
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy reannotate for {wildcards.tissue} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
             with open(str(output.marker), "w") as f:
                 f.write(f"reannotated at {current_time}\n")
@@ -499,7 +507,9 @@ rule scanpy_advanced:
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy advanced analysis for {wildcards.tissue} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during scanpy advanced analysis for tissue {wildcards.tissue}: {e}")
@@ -614,7 +624,9 @@ rule scanpy_pseudobulk:
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy pseudobulk for {wildcards.tissue} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during scanpy pseudobulk for tissue {wildcards.tissue}: {e}")

@@ -75,7 +75,9 @@ rule hifiasm_assemble:
                 f.write(" ".join(cmd3) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log[0]} 2>&1")
         except Exception as e:
             raise f"hifiasm assembly failed for sample {wildcards.sample_id} with error: {e}"
@@ -155,7 +157,9 @@ rule repeatmasker_init:
                 f.write(" ".join(cmd4) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log[0]} 2>&1")
         except Exception as e:
             raise f"RepeatMasker init failed with error: {e}"
@@ -214,7 +218,9 @@ rule repeatmasker_run:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log[0]} 2>&1")
         except Exception as e:
             raise f"RepeatMasker failed for sample {wildcards.sample_id} with error: {e}"
@@ -258,7 +264,9 @@ rule centromere_extract:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log[0]} 2>&1")
         except Exception as e:
             raise f"Centromere stats extraction failed for sample {wildcards.sample_id} with error: {e}"

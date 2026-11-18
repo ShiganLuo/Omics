@@ -68,7 +68,9 @@ rule gatk_index:
                 f.write(" ".join(cmd3) + "\n")
                 f.write(f"echo 'gatk_index was completed successfully for {input.fasta} !'\n")
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during gatk_index execution: {str(e)}\n")
@@ -145,7 +147,9 @@ rule addReadsGroup:
                 f.write(" ".join(cmd2) + "\n")
                 f.write(f"echo 'addReadsGroup was completed successfully for {wildcards.sample_id} !'\n")
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during addReadsGroup execution for sample {wildcards.sample_id}: {str(e)}\n")
@@ -201,7 +205,9 @@ rule MarkDuplicates:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'MarkDuplicates was completed successfully for {wildcards.sample_id} !'\n")
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during MarkDuplicates execution for sample {wildcards.sample_id}: {str(e)}\n")
@@ -318,7 +324,9 @@ rule collectHsMetrics:
                     f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'collectHsMetrics was completed successfully for {wildcards.sample_id} !'\n")
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during collectHsMetrics execution for {wildcards.sample_id}: {str(e)}")

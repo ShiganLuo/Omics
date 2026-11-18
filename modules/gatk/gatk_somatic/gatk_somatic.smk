@@ -117,7 +117,9 @@ rule somaticMutect2:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'somaticMutect2 completed successfully for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id}'\n")
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during somaticMutect2 execution: {str(e)}")
@@ -197,7 +199,9 @@ rule germline_resource_strain:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "germline resource for strain {wildcards.strain} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during germline resource build for strain {wildcards.strain}: {e}")
@@ -263,7 +267,9 @@ rule filterMutectCalls:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "filterMutectCalls completed successfully for {wildcards.normal_sample_id} vs {wildcards.experimental_sample_id}"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during filterMutectCalls for {wildcards.experimental_sample_id}: {e}")

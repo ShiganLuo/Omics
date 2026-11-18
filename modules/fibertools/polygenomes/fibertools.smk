@@ -66,7 +66,9 @@ rule ft_predict_m6a:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "m6A prediction completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred: {e}")
@@ -118,7 +120,9 @@ rule ft_add_nucleosomes:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "Nucleosome calling completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred: {e}")
@@ -172,7 +176,9 @@ rule ft_fire:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "FIRE calling completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred: {e}")
@@ -230,7 +236,9 @@ rule ft_extract:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "Fiber-seq extraction completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred: {e}")

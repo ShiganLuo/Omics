@@ -47,7 +47,9 @@ rule chromosome_sizes:
                 f.write(f"cut -f1,2 {input.fasta}.fai > {output.chrom_sizes}\n")
                 f.write(f"echo 'chromosome_sizes completed for genome at {current_time}'\n")
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"chromosome_sizes completed")
         except Exception as e:
@@ -115,7 +117,9 @@ rule extract_smallrna:
                 f.write(f"    --bedtools {params.bedtools} \\\n")
                 f.write(f"echo 'extract_smallrna completed successfully at {current_time}'\n")
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"extract_smallrna completed")
         except Exception as e:
@@ -167,7 +171,9 @@ rule genome_index:
                 f.write(f"echo 'genone_index for {input.fasta} was successfuly build for {input.fasta}' \n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during genome_index: {e}")

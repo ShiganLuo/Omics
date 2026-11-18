@@ -106,7 +106,9 @@ rule star_index:
                 f.write(" ".join(cmd) + "\n")
                 f.write("echo 'STAR index generation completed successfully.'\n")
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during star_index for genome {wildcards.genome}: {e}")
@@ -304,7 +306,9 @@ rule star_align:
                 f.write(f"test -f {output.unmapped_r2} || touch {output.unmapped_r2}\n")
                 f.write(f"echo 'STAR alignment for {wildcards.sample_id} completed successfully.'\n")
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during STAR alignment for sample {wildcards.sample_id}: {str(e)}")

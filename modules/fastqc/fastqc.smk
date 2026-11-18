@@ -88,7 +88,9 @@ rule fastqc:
                 f.write(f"touch {output.flag}\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"fastqc for sample {wildcards.sample_id} completed")
         except Exception as e:

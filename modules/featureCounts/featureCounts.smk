@@ -56,7 +56,9 @@ rule featureCounts_single_noMultiple:
                 f.write(f"{params.featureCounts} -T {threads} -t exon -g gene_id -a {params.gtf} -o {output.outfile} {bams_str}\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"featureCounts_single_noMultiple completed")
         except Exception as e:
@@ -113,7 +115,9 @@ rule featureCounts_paired_noMultiple:
                 f.write(f"{params.featureCounts} -T {threads} -B -p --countReadPairs -t exon -g gene_id -a {params.gtf} -o {output.outfile} {bams_str}\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"featureCounts_paired_noMultiple completed")
         except Exception as e:

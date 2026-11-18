@@ -66,9 +66,10 @@ rule soapnuke_filter_paired:
                 f.write(f"mv {sample_outdir}/{params.clean_fastq2} {output.clean_fastq2}\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
-
             rule_logger.info(f"soapnuke_filter_paired for sample {wildcards.sample_id} completed")
         except Exception as e:
             rule_logger.error(f"Error occurred: {e}")
@@ -130,9 +131,10 @@ rule soapnuke_filter_single:
                 f.write(f"mv {sample_outdir}/{params.clean_fastq} {output.clean_fastq}\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
-
             rule_logger.info(f"soapnuke_filter_single for sample {wildcards.sample_id} completed")
         except Exception as e:
             rule_logger.error(f"Error occurred: {e}")

@@ -69,7 +69,9 @@ rule gatk_index:
                 f.write(" ".join(cmd3) + "\n")
                 f.write(f'echo "gatk_index for genome {wildcards.genome} successfully completed!"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred while running gatk_index for genome {wildcards.genome}: {e}")
@@ -144,7 +146,9 @@ rule addReadsGroup:
                 f.write(" ".join(cmd2) + "\n")
                 f.write(f'echo "addReadsGroup for sample {wildcards.sample_id} on genome {wildcards.genome} successfully completed!"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred while running addReadsGroup for sample {wildcards.sample_id} genome {wildcards.genome}: {e}.")
@@ -201,7 +205,9 @@ rule MarkDuplicates:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "MarkDuplicates for sample {wildcards.sample_id} on genome {wildcards.genome} successfully completed!"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred while running MarkDuplicates for sample {wildcards.sample_id} genome {wildcards.genome}: {e}.\n")

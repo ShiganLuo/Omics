@@ -102,7 +102,9 @@ rule function_go_kegg:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'GO/KEGG analysis completed for {wildcards.contrast}'\n")
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"GO/KEGG analysis failed: {e}")
@@ -198,7 +200,9 @@ rule function_gsea:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'GSEA analysis completed for {wildcards.contrast}'\n")
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"GSEA analysis failed: {e}")
@@ -330,7 +334,9 @@ rule function_gsva:
                 f.write(" ".join(shlex.quote(str(x)) for x in gsva_cmd) + "\n")
                 f.write(f"echo 'GSVA analysis completed for {params.species}'\n")
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"GSVA analysis failed: {e}")

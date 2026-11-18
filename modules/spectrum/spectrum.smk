@@ -134,7 +134,9 @@ rule somatic_spectrum:
                 f.write('echo "somatic spectrum completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"Somatic spectrum completed for output {params.outprefix}")
         except Exception as e:
@@ -206,7 +208,9 @@ rule somatic_signature_refit:
                 f.write('echo "somatic signature refit completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"Signature refit completed for output {params.outprefix}")
         except Exception as e:
@@ -280,7 +284,9 @@ rule somatic_signature_nmf:
                 f.write('echo "somatic signature NMF completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"Signature NMF completed for output {params.outprefix}")
         except Exception as e:

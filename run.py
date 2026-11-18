@@ -59,7 +59,7 @@ def _load_model_json(model_json_file: str) -> Dict[str, Any]:
     """Load model JSON template from disk."""
     with open(model_json_file, 'r', encoding='utf-8') as f:
         return json.load(f)
-    
+
 
 
 def _detect_total_mem_mb(default_mb: int = 470000) -> int:
@@ -210,13 +210,17 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="workflow")
     parser.add_argument('-m','--meta', type=str, default=None, help='meta input file or data dir which condatain fastq file')
     parser.add_argument('-w','--workflow_name', type=str, nargs='+',
-        choices=["CoCulture", "MERIP", "RNAseq", "ncRNAseq", "scRNAseq", "tRNAseq", "CLIP", "Mutation", "PacVar", "KARRseq", "PeakCalling", "QuantMS", "Fiberseq", "LRtranscriptome", "DR"],
-        default=['CoCulture'], help='workflow name(s), multiple for parallel execution')
+        choices=["all", "CoCulture", "MERIP", "RNAseq", "ncRNAseq", "scRNAseq", "tRNAseq", "CLIP", "Mutation", "PacVar", "KARRseq", "PeakCalling", "QuantMS", "Fiberseq", "LRtranscriptome", "DR", "Population_genomics", "spatial_transcriptomics"],
+        default=['CoCulture'], help='workflow name(s), multiple for parallel execution; "all" = every registered workflow')
     parser.add_argument('-o','--output_dir','--output-dir', dest='output_dir', type=str, default=None, help='output dir')
     parser.add_argument('-t','--threads', type=int, default=None,
         help='total threads passed to snakemake --cores (split across workflows); '
              'default: auto = host CPUs - 2 (capped at %d)' % AUTO_CORES_CAP)
-    parser.add_argument('--dry-run', action='store_true', help='dry run')
+    parser.add_argument('--dry-run', action='store_true',
+        help='dry run: build the DAG and exit without executing run-block code')
+    parser.add_argument('--script-only', action='store_true',
+        help='execute run-block code but only write each rule\'s shell receipt '
+             '(like --test, but with real -m/-o data; no tool is executed)')
     parser.add_argument('--touch', action='store_true', help='touch output files to update timestamps without re-running (cannot combine with --dry-run)')
     parser.add_argument('--test', type=str, nargs='?', const='all', metavar='WORKFLOW',
         help='test a workflow (or "all"): generate every rule\'s shell receipt without executing (see modules.md). Auto-sets meta/output from test/ directory')
@@ -245,7 +249,7 @@ def parse_args() -> argparse.Namespace:
         '--rerun-trigger', '--rerun-triggers',
         dest='rerun_trigger',
         nargs='+',
-        default=["code", "input", "mtime", "params", "software-env"],
+        default=["mtime"],
         choices=["code", "input", "mtime", "params", "software-env"],
         help='snakemake rerun-triggers, e.g. code input mtime params software-env'
     )
@@ -271,7 +275,7 @@ def parse_args() -> argparse.Namespace:
         default=[],
         help='additional arguments forwarded to snakemake; place them after this flag'
     )
-    
+
     # 支持 --key=value、--key value、--key v1 v2 v3 三种形式的额外参数
     # 多值参数在碰到下一个 --key 或到达末尾时停止收集
     args, unknown = parser.parse_known_args()
@@ -480,7 +484,11 @@ def build_snakemake_cmd(root_dir: str, smk: str, input_json: str, threads: int,
         cmd += ["--resources", f"mem_mb={mem_mb}"]
     if restart_times:
         cmd += ["--restart-times", str(restart_times)]
-    if not use_singularity:
+    if os.environ.get("OMICS_SCRIPT_ONLY", "") == "1":
+        # 测试/--script-only 模式:run 块只落盘 shell 回执不执行工具,
+        # conda/apptainer 环境构建纯属浪费(实测建环境远慢于回执生成),跳过后端。
+        pass
+    elif not use_singularity:
         cmd += [
             "--conda-prefix",
             conda_prefix,
@@ -562,7 +570,7 @@ def build_snakemake_cmd(root_dir: str, smk: str, input_json: str, threads: int,
     if list_rules:
         cmd.append("--list-rules")
     if snakemake_args:
-        cmd.extend(snakemake_args)    
+        cmd.extend(snakemake_args)
     return cmd
 
 def _prefix_forcerun_targets(targets: List[str], wf_name: str) -> List[str]:
@@ -772,6 +780,60 @@ WORKFLOW_DISPATCH = {
 # ============================================================
 
 
+def touch_test_inputs(meta_path: str) -> int:
+    """测试模式:为 meta 引用的输入路径创建占位空文件/目录。
+
+    只为通过存在性检查(MetaUtil 会跳过缺文件的样本),不放任何内容;
+    路径口径与 MetaUtil.load_meta 一致——相对路径以 meta 文件所在目录为基准。
+    占位文件是运行时产物,不进 git(见 .gitignore)。
+    """
+    import csv as _csv
+    base = os.path.dirname(os.path.abspath(meta_path))
+    created = 0
+    with open(meta_path, encoding="utf-8") as fh:
+        head = fh.read(2048)
+        fh.seek(0)
+        sep = "\t" if head.count("\t") >= head.count(",") else ","
+        for row in _csv.DictReader(fh, delimiter=sep):
+            for v in row.values():
+                if not isinstance(v, str) or "/" not in v:
+                    continue
+                p = v if os.path.isabs(v) else os.path.join(base, v)
+                if os.path.exists(p):
+                    continue
+                if v.endswith("/") or "." not in os.path.basename(v.rstrip("/")):
+                    os.makedirs(p, exist_ok=True)
+                else:
+                    os.makedirs(os.path.dirname(p), exist_ok=True)
+                    open(p, "a").close()
+                created += 1
+    return created
+
+
+def _cleanup_script_only_placeholders(outdir: str) -> None:
+    """删除测试/--script-only 模式留下的产物占位(清单由 common.smk 的
+    script_only_touch 维护于 log/cmd/.script_only_placeholders)。
+    只删清单内的缺失占位,真实输出目录零残留;正常运行无清单,直接返回。"""
+    manifest = os.path.join(outdir, "log", "cmd", ".script_only_placeholders")
+    if not os.path.isfile(manifest):
+        return
+    removed = 0
+    with open(manifest) as fh:
+        paths = [line.strip() for line in fh if line.strip()]
+    for p in paths:
+        try:
+            if os.path.isdir(p):
+                os.rmdir(p)  # 占位目录必为空,非空不动
+            elif os.path.isfile(p):
+                os.remove(p)
+            removed += 1
+        except OSError:
+            pass
+    os.remove(manifest)
+    if removed:
+        logger.info(f"script-only placeholders cleaned: {removed} ({outdir})")
+
+
 def setup_test_args(args: argparse.Namespace, root_dir: str) -> argparse.Namespace:
     """Configure args for --test mode.
 
@@ -839,6 +901,15 @@ def setup_test_args(args: argparse.Namespace, root_dir: str) -> argparse.Namespa
 
     args.meta = None  # will be resolved per-workflow via _get_meta()
 
+    # 测试模式自动为 meta 引用的输入创建占位空文件(见 touch_test_inputs);
+    # meta 记载的路径是唯一依据,缺什么补什么,不进 git。
+    total_placeholders = 0
+    for meta_path in set(args._test_meta_map.values()):
+        if meta_path and os.path.isfile(meta_path):
+            total_placeholders += touch_test_inputs(meta_path)
+    if total_placeholders:
+        logger.info(f"test input placeholders created: {total_placeholders}")
+
     # Store schema validator and test data for per-workflow path injection
     test_data = os.path.join(TEST_DIR, "data")
     GENOME = "GRCm39"
@@ -856,12 +927,21 @@ def setup_test_args(args: argparse.Namespace, root_dir: str) -> argparse.Namespa
 
 def setup_normal_args(args: argparse.Namespace) -> argparse.Namespace:
     """Validate args for normal (non-test) mode."""
+    if args.workflow_name and "all" in args.workflow_name:
+        args.workflow_name = list(WORKFLOW_DISPATCH)
     if not args.meta:
         logger.info("Error: -m/--meta is required (unless --test is used)")
         exit(1)
     if not args.output_dir:
         logger.info("Error: -o/--output_dir is required (unless --test is used)")
         exit(1)
+    if args.script_only and (args.dry_run or args.touch):
+        logger.info("Error: --script-only cannot combine with --dry-run/--touch")
+        exit(1)
+    if args.script_only:
+        # 第二种测试模式:执行 run 代码但只落盘 shell 回执,不执行工具
+        os.environ["OMICS_SCRIPT_ONLY"] = "1"
+        args.snakemake_args = list(args.snakemake_args or []) + ["--forceall", "--keep-going"]
     # Determine container backend: explicit --sdm flag, or legacy --snakemake-args --sdm
     use_singularity = args.sdm is not None or _detect_singularity(args.snakemake_args)
     if not use_singularity and not args.conda_prefix:
@@ -885,7 +965,7 @@ def print_test_summary(test_results: Dict[str, Tuple[bool, str]]) -> None:
     logger.info(f"\n  Passed: {len(passed)}, Failed: {len(failed)}, Total: {len(test_results)}")
     if failed:
         logger.error(f"  Failed workflows: {', '.join(failed)}")
-        exit(1)
+        # 不在此 exit:--test all 还要链模块 sweep,统一在末尾汇总退出
 
 
 def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.Logger) -> None:
@@ -1219,6 +1299,8 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
                 else:
                     test_results[wf] = (False, str(e)[:200])
                     exec_status[wf] = "failed"
+            finally:
+                _cleanup_script_only_placeholders(cwd)
 
         _write_run_summary(args.output_dir, _summary_payload(exec_status))
         print_test_summary(test_results)
@@ -1265,6 +1347,9 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
                     exec_status[wf] = "failed"
             _write_run_summary(args.output_dir, _summary_payload(exec_status))
             raise
+        finally:
+            for _, cwd in smk_cmds:
+                _cleanup_script_only_placeholders(cwd)
         _write_run_summary(args.output_dir, _summary_payload(exec_status))
 
 

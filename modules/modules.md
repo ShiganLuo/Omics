@@ -440,18 +440,26 @@ os.makedirs(os.path.join(logdir, "cmd", ...))                          # 目录�
 ## 测试模式：输出 shell 脚本但不执行
 
 `run.py --test <Workflow>`（或 `--test all`）给 snakemake 注入环境变量
-`OMICS_SCRIPT_ONLY=1`，common.smk 据此置 `SCRIPT_ONLY` 常量。测试模式下每条
-规则照常走完整个 run 块——命令列表构建、时间戳回执与 plain 回执双写落盘、
-日志与登记照旧——只在最后一行跳过执行：
+`OMICS_SCRIPT_ONLY=1`，common.smk 据此置 `SCRIPT_ONLY` 常量（真实数据下只想
+生成回执用 `--script-only`，同一机制）。测试模式下每条规则照常走完整个
+run 块——命令列表构建、时间戳回执与 plain 回执双写落盘、日志与登记照旧——
+只在最后一行跳过执行：
 
 ```python
 shutil.copyfile(script, plain_script)
-if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+    script_only_touch(output)
+else:
     shell(f"bash {plain_script} >> {log_path} 2>&1")
 ```
 
-单分支、无 `else`：测试模式**不做任何输出占位**，不 touch 任何输出文件，
-下游规则的回执同样只落盘；辅助函数内的 `shell()` 调用同样包这一判断。多命令
+`script_only_touch(output)`（common.smk）为产物写占位文件——不占位的话每个
+job 都以 MissingOutputException"失败"、下游被跳过，回执只能覆盖 DAG 根规则
+（实测 4/55）。约束：**只创建缺失的产物**（绝不 touch 已存在的真实产物，
+不污染其 mtime），占位登记进 `log/cmd/.script_only_placeholders` 清单，
+run.py 在 snakemake 结束后统一删除，真实输出目录**零残留**。输入侧同理：
+测试模式自动为 meta 引用的输入创建占位空文件（`run.py touch_test_inputs`，
+meta 记载的路径是唯一依据），同属运行时产物、不进 git。多命令
 回执（一个 `.sh` 内多条命令）只在唯一的 `shell()` 处判断一次，不要拆。配合
 `--forceall` 可全量重跑、让每条规则重新生成回执（不带 `--forceall` 时已
 up-to-date 的规则不会重生成）。

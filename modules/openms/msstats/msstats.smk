@@ -87,7 +87,9 @@ rule msstats:
                         f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                         f.write(f"echo 'MSstats input preparation completed at {current_time}'\n")
                     shutil.copyfile(script, plain_script)
-                    if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+                    if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                        script_only_touch(output)
+                    else:
                         shell(f"bash {plain_script} >> {log_path} 2>&1")
             else:
                 # ProteomicsLFQ -out_msstats already writes the MSstats input

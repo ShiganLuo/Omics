@@ -64,9 +64,10 @@ rule karrseq_chimeric_to_pairs:
             f.write(" ".join(cmd_merge) + "\n")
             f.write(" ".join(cmd_cleanup) + "\n")
             f.write(f'echo "script completed successfully"\n')
-        if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+        if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            script_only_touch(output)
+        else:
             shell("bash {plain_script} > {log} 2>&1")
-
 rule karrseq_remove_duplicates:
     input:
         pairs = outdir + "/{sample_id}/{sample_id}.txt.gz"
@@ -119,9 +120,10 @@ rule karrseq_remove_duplicates:
             f.write("sleep 120\n")
             f.write(" ".join(cmd_index) + "\n")
             f.write(f'echo "script completed successfully"\n')
-        if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+        if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            script_only_touch(output)
+        else:
             shell("bash {plain_script} > {log} 2>&1")
-
 rule karrseq_ligation:
     input:
         dedup = outdir + "/{sample_id}/{sample_id}.dedup.txt.gz"
@@ -162,9 +164,10 @@ rule karrseq_ligation:
             f.write("sleep 60\n")
             f.write(" ".join(cmd_index) + "\n")
             f.write(f'echo "script completed successfully"\n')
-        if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+        if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            script_only_touch(output)
+        else:
             shell("bash {plain_script} > {log} 2>&1")
-
 rule karrseq_result:
     input:
         pairs_gz = outdir + "/{sample_id}/{sample_id}.dedup.ligation.pairs.gz"

@@ -144,9 +144,10 @@ rule star_3pg_gene_specific:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f"echo 'star_3pg_gene_specific for sample {wildcards.sample_id} genome {wildcards.genome} completed successfully at {current_time}'\n")
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
-
             rule_logger.info(f"star_3pg_gene_specific for sample {wildcards.sample_id} genome {wildcards.genome} completed")
         except Exception as e:
             rule_logger.error(f"star_3pg_gene_specific failed for sample {wildcards.sample_id} genome {wildcards.genome}: {e}")

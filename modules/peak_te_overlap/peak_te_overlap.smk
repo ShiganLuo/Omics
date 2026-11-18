@@ -97,7 +97,9 @@ rule peak_te_overlap:
                 f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
                 f.write(f'echo "peak-TE overlap for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             logger.error(f"Error during peak-TE overlap for {wildcards.sample_id}: {e}")
@@ -156,7 +158,9 @@ rule peak_centric_overlap:
                 f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
                 f.write(f'echo "peak-centric TE overlap for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             logger.error(f"Error during peak-centric TE overlap for {wildcards.sample_id}: {e}")
@@ -242,7 +246,9 @@ rule peak_te_overlap_fig:
                 f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
             # For separate mode: create the expected combined chart per format
             # as symlink to the first pair's figure

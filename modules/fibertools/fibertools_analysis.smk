@@ -74,7 +74,9 @@ rule ft_extract:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "Fiber-seq extraction completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"ft_extract failed: {e}\n")
@@ -178,7 +180,9 @@ rule ft_call_peaks:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f'echo "FIRE peak calling completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"ft_call_peaks failed: {e}\n")
@@ -234,7 +238,9 @@ rule ft_qc:
                 f.write(f'echo "QC metrics collected for sample {wildcards.sample_id}"\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(command_script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"ft_qc failed: {e}\n")
@@ -300,7 +306,9 @@ rule ft_extract_fire:
                 f.write(f"rm -f {tmp_fire}\n")
                 f.write(f'echo "FIRE extraction completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"ft_extract_fire failed: {e}\n")
@@ -345,7 +353,9 @@ rule ft_split_hap:
                 f.write(f'samtools index {output.bam}\n')
                 f.write(f'echo "Haplotype split completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"ft_split_hap failed: {e}\n")
@@ -401,7 +411,9 @@ rule ft_extract_hap:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "Haplotype extraction completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"ft_extract_hap failed: {e}\n")

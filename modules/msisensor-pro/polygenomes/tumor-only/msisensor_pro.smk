@@ -47,9 +47,10 @@ rule scan:
     container:
         sif("../../msisensor-pro.yaml", "scan")
     run:
-        if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+        if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            script_only_touch(output)
+        else:
             shell("{msisensor_pro} scan -d {input} -o {output} 2>{log} 1>{log}")
-
 rule pro_pre:
     input:
         bam=lambda wildcards: baseline_samples.loc[wildcards.sample, "bam_path"],
@@ -70,9 +71,10 @@ rule pro_pre:
     container:
         sif("../../msisensor-pro.yaml", "pro_pre")
     run:
-        if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+        if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            script_only_touch(output)
+        else:
             shell("{msisensor_pro} pro -d {input.ms} -t {input.bam} -g {input.ref} -o {output} >> {log} 2>&1")
-
 rule merge:
     input:
         expand(outdir + "baselines/details/{sample}.{{genome_version}}.baseline.out",sample=baseline_samples.index)
@@ -112,7 +114,9 @@ rule baseline:
     container:
         sif("../../msisensor-pro.yaml", "baseline")
     run:
-        if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+        if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            script_only_touch(output)
+        else:
             shell(f"{msisensor_pro} baseline  -d {input.ms} -i {input.conf} -o {output} -s 1 >> {log} 2>&1")
 rule run_pro:
     input:
@@ -133,9 +137,10 @@ rule run_pro:
     container:
         sif("../../msisensor-pro.yaml", "run_pro")
     run:
-        if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+        if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            script_only_touch(output)
+        else:
             shell("{msisensor_pro} pro -d {input.ms} -t {input.t} -g {input.ref}  -o {output} 2>{log}")
-
 rule merge_msi_result:
     input:
         expand(outdir + "tumor_only_output/{case}/{case}.{{genome_version}}.msisensor-pro",case=samples.index)

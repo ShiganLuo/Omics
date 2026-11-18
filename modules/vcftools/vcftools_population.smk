@@ -23,7 +23,9 @@ if analysis.get("diversity",True):
    with open(str(log),"w") as h:h.write("")
    with open(script,"w") as h:h.write("#!/usr/bin/env bash\nset -euo pipefail\n"+"\n".join(" ".join(str(x) for x in c) for c in cmds)+"\n")
    shutil.copyfile(script, plain_script)
-   if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+   if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+       script_only_touch(output)
+   else:
        shell(f"bash {plain_script} >> {log} 2>&1")
 if analysis.get("fst",True) and len(pops)>1:
  rule vcftools_population_fst:
@@ -43,5 +45,7 @@ if analysis.get("fst",True) and len(pops)>1:
    with open(str(log),"w") as h:h.write("")
    with open(script,"w") as h:h.write("#!/usr/bin/env bash\nset -euo pipefail\n"+" ".join(str(x) for x in cmd)+"\n")
    shutil.copyfile(script, plain_script)
-   if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+   if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+       script_only_touch(output)
+   else:
        shell(f"bash {plain_script} >> {log} 2>&1")

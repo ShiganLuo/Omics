@@ -51,7 +51,9 @@ rule manta_config_germline:
                 f.write(' '.join(cmd) + '\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"manta_config failed for sample {wildcards.sample_id} with error: {e}")
@@ -97,7 +99,9 @@ rule manta_run_germline:
                 f.write(' '.join(cmd) + '\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"manta_run failed for sample {wildcards.sample_id} with error: {e}")
@@ -147,7 +151,9 @@ rule manta_config_somatic:
                 f.write(' '.join(cmd) + '\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"manta_config_somatic failed for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} with error: {e}")
@@ -194,7 +200,9 @@ rule manta_run_somatic:
                 f.write(' '.join(cmd) + '\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"manta_run_somatic failed for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} with error: {e}")

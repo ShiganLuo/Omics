@@ -87,11 +87,30 @@ python workflow/Omics/run.py -m data/meta.tsv -w scRNAseq -o output \
 
 ### 内置测试模式
 
-`--test <workflow>`（或 `--test all`）用自带测试数据生成全部回执 shell 脚本但不执行（run 块末尾 `SCRIPT_ONLY` 判断跳过 bash，见 modules.md「测试模式」），几秒钟验证流程接线并产出可跨版本 diff 的回执集。
+测试模式分两种，对应不同的验证深度：
+
+- **`--dry-run`**：只构建 DAG 就退出，不执行任何 run 块代码——看"要跑哪些 job"；
+- **只生成 shell 脚本不执行**：真实执行 run 块，但只落盘每条规则最终要执行的 shell 脚本（回执双写：输出目录 `<rule>_<sample>.sh` + `log/cmd/` 带时间戳备份），不执行任何工具、不产生真实结果。两个入口：
+  - `--test <workflow>`（或 `--test all`）：用自带测试数据验证流程接线（meta 与 schema 驱动的输入/产物占位自动创建、运行后清理、不进 git），几秒钟产出可跨版本 diff 的全量回执集；
+  - `--script-only`：同一机制，但配真实 `-m/-o` 数据使用；`-w` 选单个、多个流程或 `all`：
+
+```bash
+python run.py -m data/meta.tsv -w RNAseq -o output --dry-run       # 只看 DAG
+python run.py --test all                                           # 测试数据全量回执
+python run.py -m data/meta.tsv -w RNAseq -o output --script-only   # 真实数据,只出 shell 脚本
+python run.py -m data/meta.tsv -w all -o output --script-only      # 全流程
+```
+
+模块级同样支持：`run_module.py -m <模块> --script-only`（自动测试路径注入与输入占位，生成该模块全部回执）；`run_module.py --test all` 是全模块 dry-run 验证 sweep。机制细节见 modules.md「测试模式」。
 
 ### AI 友好，还带 LLM auto 模式
 
 所有信息都沉淀在 JSON（配置、`raw.json`、schema）和日志文件中，无需人肉翻代码即可掌握每次运行的完整上下文；配合专有 skill（目录名.md），AI 可直接排查失败原因、提升流程性能、增加分析模块。`scRNAseq` 更进一步提供 `auto` 模式——内置 LLM 决策，自动挑 PC 数、调整 clustering resolution、过滤低质量 cluster、调用 LLM 做细胞类型注释并产出审计报告，只需要提供数据和组织名：
+
+此外测试模式让 AI 迭代优化仓库后可以自证正确性，从原理上保证流程的完备与准确。AI 友好还体现在两点：
+
+- **DAG 能顺利构建**：`--dry-run` / `--test all` 一遍跑通，即证明规则接线、输入输出引用、config 读取全部完整，AI 改完代码不需要人工翻日志确认"流程还是通的"；
+- **对照检查实际执行参数有没有偏移**：回执 `.sh` 里是最终执行的命令与参数字面量。AI 改动配置读取、传参逻辑或模块接口后，用 `--forceall` 重新生成一套全量回执，与旧套 diff——逐字节不变即证明传参语义未变；有偏移立刻能定位到具体规则和参数，而不是等真实数据跑完才发现结果不对。
 
 ```bash
 python workflow/Omics/run.py -m data/meta/fastq -w scRNAseq -o output \

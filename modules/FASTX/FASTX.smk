@@ -54,7 +54,9 @@ rule fastx_quality_filter_single:
                 f.write(f'echo "fastx_quality_filter_single for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
             rule_logger.info("Executing: " + " ".join(cmd))
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"fastx_quality_filter_single for sample {wildcards.sample_id} completed")
         except Exception as e:

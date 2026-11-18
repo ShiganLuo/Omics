@@ -69,7 +69,9 @@ rule ldsc_annot:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "ldsc_annot at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during ldsc_annot: {e}\n")
@@ -125,7 +127,9 @@ rule ldsc_munge:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "ldsc_munge for {wildcards.trait} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during ldsc_munge for {wildcards.trait}: {e}\n")
@@ -179,7 +183,9 @@ rule ldsc_h2_cts:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "ldsc_h2_cts for {wildcards.trait} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during ldsc_h2_cts for {wildcards.trait}: {e}\n")

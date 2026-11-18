@@ -50,6 +50,7 @@ sys.path.insert(0, ROOT_DIR)
 
 from node import SERVER_DATABASE_DIR, _detect_current_server_db, _replace_server_paths  # noqa: E402
 from run import (  # noqa: E402
+    _cleanup_script_only_placeholders,
     _collect_bind_paths,
     _detect_singularity,
     _detect_total_mem_mb,
@@ -105,6 +106,10 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--genome", default=None,
                         help="restrict to this genome wildcard value")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--script-only", action="store_true",
+                        help="execute run-block code but only write each rule's "
+                             "shell receipt (no tool executed); same mechanism "
+                             "as run.py --script-only/--test")
     parser.add_argument("--list-rules", action="store_true",
                         help="list the module's rules and exit")
     parser.add_argument("--sdm", action="store_const", const="apptainer", default=None,
@@ -509,7 +514,13 @@ def build_cmd(wrapper: str, config_path: str, args: argparse.Namespace,
     ]
     if mem_mb:
         cmd += ["--resources", f"mem_mb={mem_mb}"]
-    if not use_singularity:
+    if os.environ.get("OMICS_SCRIPT_ONLY", "") == "1":
+        # 测试/--script-only 模式:run 块只落盘 shell 回执不执行工具,
+        # 无需构建 conda/apptainer 环境(与 run.py::build_snakemake_cmd 一致);
+        # --forceall 全量重新生成回执,--keep-going 单规则失败不连坐。
+        pass
+        cmd += ["--forceall", "--keep-going"]
+    elif not use_singularity:
         if not args.conda_prefix:
             raise SystemExit("--conda-prefix is required when not using --sdm apptainer")
         cmd += ["--conda-prefix", args.conda_prefix, "--use-conda",
@@ -531,6 +542,27 @@ def build_cmd(wrapper: str, config_path: str, args: argparse.Namespace,
         cmd.append(args.target)
     cmd += args.snakemake_args
     return cmd
+
+
+def inject_test_paths(cfg: Dict[str, Any], schema_path: str, test_data: str) -> None:
+    """schema 驱动的测试路径注入(与 run_module_tests sweep 相同):空的嵌套
+    路径字段(genome.fasta、index 前缀等)用 assests/test/data 下的占位补齐,
+    已有值优先不覆盖。"""
+    if not os.path.isfile(schema_path):
+        return
+    try:
+        gen = SchemaValidator()
+        gen._schema_dir = os.path.dirname(schema_path)
+        tp = gen.generate_test_paths(test_data, "GRCm39")
+        for key, val in tp.items():
+            if "." not in key:
+                continue  # keep indir/outdir/logdir overrides
+            head, tail = key.split(".", 1)
+            node = cfg.setdefault(head, {})
+            if isinstance(node, dict) and not node.get(tail):
+                node[tail] = val
+    except Exception as e:
+        logger.debug(f"test-path injection skipped: {e}")
 
 
 def infer_module_from_snakefile(snakefile: str) -> str:
@@ -601,20 +633,7 @@ def run_module_tests(test_name: str, base_out: Optional[str]) -> int:
             # framework test-path injection (same generator run.py --test
             # uses): fill empty nested path fields (genome.fasta, index
             # prefixes, ...) with placeholders under assests/test/data
-            if os.path.isfile(schema_path_):
-                try:
-                    gen = SchemaValidator()
-                    gen._schema_dir = os.path.dirname(schema_path_)
-                    tp = gen.generate_test_paths(test_data, "GRCm39")
-                    for key, val in tp.items():
-                        if "." not in key:
-                            continue  # keep indir/outdir/logdir test overrides
-                        head, tail = key.split(".", 1)
-                        node = cfg.setdefault(head, {})
-                        if isinstance(node, dict) and not node.get(tail):
-                            node[tail] = val
-                except Exception as e:
-                    logger.debug(f"test-path injection skipped for {rel}: {e}")
+            inject_test_paths(cfg, schema_path_, test_data)
 
             effective = os.path.join(run_dir, "config.json")
             with open(effective, "w", encoding="utf-8") as f:
@@ -694,6 +713,11 @@ def main(argv: List[str] | None = None) -> None:
     args = parse_args(argv)
     if getattr(args, "test", None) is not None:
         raise SystemExit(run_module_tests(args.test, args.outdir))
+    if getattr(args, "script_only", False):
+        if args.dry_run:
+            raise SystemExit("--script-only cannot combine with --dry-run")
+        # 第二种测试模式:执行 run 代码但只落盘 shell 回执,不执行工具
+        os.environ["OMICS_SCRIPT_ONLY"] = "1"
     if not args.module and not args.snakefile:
         raise SystemExit("--module or --snakefile is required")
     if not args.module:
@@ -762,6 +786,26 @@ def main(argv: List[str] | None = None) -> None:
                 cfg[key] = os.path.join(outdir, v)
     os.makedirs(cfg["outdir"], exist_ok=True)
     os.makedirs(cfg["logdir"], exist_ok=True)
+    # 回执 RECEIPT_DIR 与占位清单固定到 outdir/log/cmd(common.smk 从
+    # OUTDIR_ROOT 拼 RECEIPT_DIR,缺省会落到 cwd/output)
+    cfg["OUTDIR_ROOT"] = outdir
+    if getattr(args, "script_only", False):
+        # 模块没有固定输入:sweep 同款测试路径注入 + 输入占位(空文件,只为通过
+        # 存在性检查,不进 git)。用户显式给的 --indir/--samples 与 config
+        # 非空字段优先。
+        test_data = os.path.join(ROOT_DIR, "assests", "test", "data")
+        if not args.indir and not os.path.isdir(cfg.get("indir") or ""):
+            cfg["indir"] = os.path.join(test_data, "fastq")
+        if cfg["indir"] == os.path.join(test_data, "fastq"):
+            for s in ("TestSample1", "TestSample2"):
+                d = os.path.join(cfg["indir"], s)
+                os.makedirs(d, exist_ok=True)
+                # PE(_1/_2)与 SE(.single)两种命名约定都占位
+                for name in (f"{s}_1.fq.gz", f"{s}_2.fq.gz", f"{s}.single.fq.gz"):
+                    p = os.path.join(d, name)
+                    if not os.path.exists(p):
+                        open(p, "a").close()
+        inject_test_paths(cfg, schema_path, test_data)
 
     # write the effective config next to the module JSON's own copy? No — write
     # a run copy into outdir so the original module JSON stays pristine.
@@ -780,7 +824,9 @@ def main(argv: List[str] | None = None) -> None:
     wrapper = None
     if not args.target and not args.until and not args.list_rules:
         patterns = default_targets(snakefile, effective_config, cfg["outdir"],
-                                   args.samples or [], args.rules,
+                                   args.samples or (["TestSample1", "TestSample2"]
+                                                    if getattr(args, "script_only", False)
+                                                    else []), args.rules,
                                    _sample_genomes_from_config(effective_config),
                                    args.genome)
         if not patterns:
@@ -793,7 +839,11 @@ def main(argv: List[str] | None = None) -> None:
 
     cmd = build_cmd(wrapper or snakefile, effective_config, args, mem_mb)
     logger.info("%s", cmd)
-    _run_cmd(cmd, cwd=ROOT_DIR)
+    try:
+        _run_cmd(cmd, cwd=ROOT_DIR)
+    finally:
+        if os.environ.get("OMICS_SCRIPT_ONLY", "") == "1":
+            _cleanup_script_only_placeholders(outdir)
 
 
 if __name__ == "__main__":

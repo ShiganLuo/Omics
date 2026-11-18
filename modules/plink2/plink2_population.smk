@@ -17,9 +17,10 @@ def run_plink(rule_name, log_path, output_path, commands):
         handle.write("#!/usr/bin/env bash\nset -euo pipefail\n")
         for command in commands: handle.write(" ".join(str(x) for x in command)+"\n")
     shutil.copyfile(script, plain_script)
-    if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+    if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+        script_only_touch(output)
+    else:
         shell(f"bash {plain_script} >> {log_path} 2>&1")
-
 rule plink2_population_pgen:
     input: vcf=vcf, tbi=vcf+".tbi"
     output:
@@ -91,5 +92,7 @@ if config.get("Params", {}).get("analysis", {}).get("gwas",False):
             with open(str(log),"w") as h: h.write("")
             with open(script,"w") as h: h.write("#!/usr/bin/env bash\nset -euo pipefail\n"+" ".join(str(x) for x in cmd)+"\ntouch "+str(output.done)+"\necho \"plink2 completed successfully\"\n")
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log} 2>&1")

@@ -55,7 +55,9 @@ rule ucsc_track_single:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "ucsc_track_bedtools successfully completed !"'+ "\n")
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             logger.error(f"ucsc_track_bedtools failed with error: {e}")
@@ -106,7 +108,9 @@ rule ucsc_track_iclip:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "ucsc_track_iclip successfully completed !"'+ "\n")
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             logger.error(f"ucsc_track_iclip failed with error: {e}")
@@ -169,7 +173,9 @@ rule igv_track_single:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "igv_track_bedtools successfully completed !"'+ "\n")
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             logger.error(f"igv_track_bedtools failed with error: {e}")
@@ -234,7 +240,9 @@ rule igv_track_iclip:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "igv_track_iclip successfully completed !"'+ "\n")
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             logger.error(f"igv_track_iclip failed with error: {e}")

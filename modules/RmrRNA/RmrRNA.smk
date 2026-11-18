@@ -39,6 +39,7 @@ rule extract_rRNA:
             f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
             f.write(" ".join(cmd) + "\n")
             f.write(f'echo "script completed successfully"\n')
-        if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+        if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            script_only_touch(output)
+        else:
             shell("bash {plain_script} > {log} 2>&1")
-

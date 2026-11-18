@@ -50,9 +50,10 @@ rule tailer_global:
 
             cmd = f"{params.Tailer} -a {params.gtf} -read {params.read_num} -t {params.threshold} {params.rev_comp} {input.bam} >> {log_path} 2>&1"
             rule_logger.info(f"Running: {cmd}")
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(cmd)
-
                 if not os.path.exists(generated_tail):
                     raise FileNotFoundError(
                         f"Tailer finished but did not create expected file: {generated_tail}"

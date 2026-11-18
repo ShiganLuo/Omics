@@ -130,7 +130,9 @@ rule censatbuild_arrays:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "censatbuild_arrays for {genome_name} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during censatbuild_arrays for {genome_name}: {e}\n")
@@ -181,7 +183,9 @@ rule censatbuild_flank:
                         f"{output.bed} > {output.stats}\n")
                 f.write(f'echo "censatbuild_flank for {genome_name} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during censatbuild_flank for {genome_name}: {e}\n")
@@ -230,7 +234,9 @@ rule censatbuild_mcg_pileup:
                         f"{tmp_bed} > {output.bedgraph}\n")
                 f.write(f'echo "censatbuild_mcg_pileup at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during censatbuild_mcg_pileup: {e}\n")

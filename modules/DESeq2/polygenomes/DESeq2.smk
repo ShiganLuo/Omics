@@ -139,7 +139,9 @@ rule DESeq2_TEcount:
                 f.write("echo 'DESeq2 TEcount analysis completed successfully'\n")
 
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during DESeq2 TEcount: {e}\n")
@@ -266,7 +268,9 @@ rule DESeq2_TElocal:
                 f.write("echo 'DESeq2 TElocal analysis completed successfully'\n")
 
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during DESeq2 TElocal: {e}\n")
@@ -370,7 +374,9 @@ rule DESeq2_TElocal_manhattan:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write("echo 'DESeq2 TElocal manhattan completed successfully'\n")
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during DESeq2 TElocal manhattan: {e}\n")
@@ -447,7 +453,9 @@ rule DESeq2_TElocal_locus_boxplot:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write("echo 'DESeq2 TElocal locus boxplot completed successfully'\n")
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during DESeq2 TElocal locus boxplot: {e}\n")
@@ -528,7 +536,9 @@ rule DESeq2_TElocal_subfamily_bar:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write("echo 'DESeq2 TElocal subfamily bar completed successfully'\n")
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during DESeq2 TElocal subfamily bar: {e}\n")

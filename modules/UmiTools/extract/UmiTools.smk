@@ -49,7 +49,9 @@ rule UmiTools_extract_single:
                 f.write(f"    -S {output.fastq} \\\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"UmiTools_extract_single for sample {wildcards.sample_id} completed")
         except Exception as e:
@@ -103,7 +105,9 @@ rule UmiTools_extract_paired:
                 f.write(f"    --read2-out={output.fastq2} \\\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"UmiTools_extract_paired for sample {wildcards.sample_id} completed")
         except Exception as e:

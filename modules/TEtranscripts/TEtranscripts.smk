@@ -46,7 +46,9 @@ rule TEcount:
                 f.write(f"    --project {params.project} --outdir {params.outdir}\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during TEcount for sample {wildcards.sample_id}: {e}")
@@ -97,7 +99,9 @@ rule combine_TEcount:
                 f.write(f"python {params.combineTE} -p TEcount -i {params.indir} -o {output.outfile}\n")
                 f.write(f"echo 'combine_TEcount was completed successfully'\n")
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during combine_TEcount: {e}")
@@ -144,7 +148,9 @@ rule TElocal:
                 f.write(f"mv {params.project}.cntTable {output.project}\n")
                 f.write(f"echo 'TElocal for sample {wildcards.sample_id} was completed successfully'\n")
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during TElocal for sample {wildcards.sample_id}: {e}")
@@ -195,7 +201,9 @@ rule combine_TElocal:
                 f.write(f"python {params.combineTE} -p TElocal -i {params.indir} -o {output.outfile}\n")
                 f.write(f"echo 'combine_TElocal was completed successfully'\n")
             shutil.copyfile(script, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during combine_TElocal: {e}")

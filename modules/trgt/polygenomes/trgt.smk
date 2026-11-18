@@ -76,7 +76,9 @@ rule trgt_genotype:
             f.write(" ".join(cmd) + "\n")
             f.write(f'echo "script completed successfully"\n')
         shutil.copyfile(script, plain_script)
-        if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+        if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            script_only_touch(output)
+        else:
             shell(f"bash {plain_script} > {log} 2>&1")
 rule trgt_plot:
     input:
@@ -124,7 +126,9 @@ rule trgt_plot:
                 f.write(" ".join(cmd + ["--image", params.out_base + "." + str(fmt)]) + "\n")
             f.write(f'echo "script completed successfully"\n')
         shutil.copyfile(script, plain_script)
-        if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+        if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            script_only_touch(output)
+        else:
             shell(f"bash {plain_script} > {log} 2>&1")
 rule trgt_result:
     input:

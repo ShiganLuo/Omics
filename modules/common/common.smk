@@ -33,11 +33,41 @@ OUTDIR_ROOT = config.get("OUTDIR_ROOT") or "output"
 RECEIPT_DIR = os.path.join(OUTDIR_ROOT, "log", "cmd")
 os.makedirs(RECEIPT_DIR, exist_ok=True)
 
-# 测试模式(run.py --test 置环境变量 OMICS_SCRIPT_ONLY=1):输出 shell 脚本
-# 但不执行——run 块末尾以 SCRIPT_ONLY 判断跳过 bash 执行,回执脚本照常双写
-# 落盘,供跨版本 diff 对照参数传递语义;不制造任何输出占位(占位会污染真实
-# 输出目录的 mtime)。
+# 测试模式(run.py --test / --script-only 置环境变量 OMICS_SCRIPT_ONLY=1):
+# 输出 shell 脚本但不执行——run 块末尾以 SCRIPT_ONLY 判断跳过 bash 执行,回执
+# 脚本照常双写落盘,供跨版本 diff 对照参数传递语义。
 SCRIPT_ONLY = os.environ.get("OMICS_SCRIPT_ONLY", "") == "1"
+
+
+def script_only_touch(out):
+    """测试模式:为产物写占位文件,保证 snakemake job 能"成功"走完整个 DAG。
+
+    不 touch 占位的话,每个 job 都以 MissingOutputException"失败",下游被
+    全部跳过,回执只能覆盖 DAG 根规则(实测 4/55)。约束:只创建缺失的产物
+    (绝不 touch 已存在的真实产物,不污染其 mtime);创建的占位登记进
+    <OUTDIR_ROOT>/log/cmd/.script_only_placeholders 清单,run.py 在 snakemake
+    结束后统一删除,真实输出目录零残留。
+    """
+    if not SCRIPT_ONLY:
+        return
+    manifest = os.path.join(RECEIPT_DIR, ".script_only_placeholders")
+    created = []
+    items = [out] if isinstance(out, str) else list(out)
+    for f in items:
+        f = str(f)
+        if f.endswith("/") or "." not in os.path.basename(f.rstrip("/")):
+            if not os.path.exists(f):
+                os.makedirs(f, exist_ok=True)
+                created.append(f)
+        elif not os.path.exists(f):
+            d = os.path.dirname(f)
+            if d:
+                os.makedirs(d, exist_ok=True)
+            open(f, "a").close()
+            created.append(f)
+    if created:
+        with open(manifest, "a") as fh:
+            fh.write("\n".join(created) + "\n")
 
 # Ensure src directory is in sys.path for importing common modules
 _src_dir = os.path.join(ROOT_DIR, "src")

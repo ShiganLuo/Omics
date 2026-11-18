@@ -121,7 +121,9 @@ rule sv_exp_specific:
                 f.write(" ".join(cmd) + "\n")
                 f.write("echo 'sv_exp_specific completed successfully.'\n")
             shutil.copyfile(script_path, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"sv_exp_specific failed for {wildcards.comparison}: {e}")
@@ -178,7 +180,9 @@ rule sv_exp_circos:
                 f.write(" ".join(cmd) + "\n")
                 f.write("echo 'sv_exp_circos completed successfully.'\n")
             shutil.copyfile(script_path, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"sv_exp_circos failed for {wildcards.comparison}: {e}")
@@ -237,7 +241,9 @@ rule sv_gene_model:
                 f.write(" ".join(cmd) + "\n")
                 f.write("echo 'sv_gene_model completed successfully.'\n")
             shutil.copyfile(script_path, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"sv_gene_model failed for {wildcards.comparison}: {e}")
@@ -294,7 +300,9 @@ rule sv_diff_analysis:
                 f.write(" ".join(cmd) + "\n")
                 f.write("echo 'sv_diff_analysis completed successfully.'\n")
             shutil.copyfile(script_path, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"sv_diff_analysis failed: {e}")
@@ -353,7 +361,9 @@ rule sv_oncoprint:
                 f.write(" ".join(cmd) + "\n")
                 f.write("echo 'sv_oncoprint completed successfully.'\n")
             shutil.copyfile(script_path, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"sv_oncoprint failed: {e}")
@@ -479,7 +489,9 @@ rule sv_mei:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "sv_mei completed successfully for {wildcards.comparison}"\n')
             shutil.copyfile(script_path, plain_script)
-            if not SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
             # completion marker: mei/ is NOT a directory() output, so the
             # script-level caches and artifacts inside survive reruns

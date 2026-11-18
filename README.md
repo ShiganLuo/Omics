@@ -87,21 +87,19 @@ python workflow/Omics/run.py -m data/meta.tsv -w scRNAseq -o output \
 
 ### 内置测试模式
 
-测试模式分两种，对应不同的验证深度：
+`--test [MODE]` 用自带测试数据验证工作流（meta 与 schema 驱动的输入/产物占位自动创建、运行后清理、不进 git），流程用 `-w` 选单个、多个或 `all`。MODE 只有两个值：
+  - `dag`（默认）：快速模式——只构建 DAG，验证流程接线与输入输出引用完整；
+  - `shell`：严格模式，包含 dag 的全部验证——完整构建 DAG 并真实执行 run 块，但只落盘每条规则最终要执行的 shell 脚本（回执双写：输出目录 `<rule>_<sample>.sh` + `log/cmd/` 带时间戳备份），不执行任何工具，产出可跨版本 diff 的全量回执集；
 
-- **`--dry-run`**：只构建 DAG 就退出，不执行任何 run 块代码——看"要跑哪些 job"；
-- **只生成 shell 脚本不执行**：真实执行 run 块，但只落盘每条规则最终要执行的 shell 脚本（回执双写：输出目录 `<rule>_<sample>.sh` + `log/cmd/` 带时间戳备份），不执行任何工具、不产生真实结果。两个入口：
-  - `--test <workflow>`（或 `--test all`）：用自带测试数据验证流程接线（meta 与 schema 驱动的输入/产物占位自动创建、运行后清理、不进 git），几秒钟产出可跨版本 diff 的全量回执集；
-  - `--script-only`：同一机制，但配真实 `-m/-o` 数据使用；`-w` 选单个、多个流程或 `all`：
+推荐用法（改了什么测什么）：只改 subworkflow 时，`--test -w <该 subworkflow>`（默认 dag）测这一个流程即可；改了 module 时，先 `--test -w <用到该 module 的所有 subworkflow>`（默认 dag）保证相关流程 DAG 正确，再对修改的 module 用 `run_module.py --test shell -m <该 module>` 做严格回执验证。
 
 ```bash
-python run.py -m data/meta.tsv -w RNAseq -o output --dry-run       # 只看 DAG
-python run.py --test all                                           # 测试数据全量回执
-python run.py -m data/meta.tsv -w RNAseq -o output --script-only   # 真实数据,只出 shell 脚本
-python run.py -m data/meta.tsv -w all -o output --script-only      # 全流程
+python run.py --test -w RNAseq                                  # 测试数据构建 DAG(默认档,= --test dag)
+python run.py --test shell -w RNAseq                            # 测试数据全量回执(严格档)
+python run.py --test shell -w all                               # 全流程全量回执
 ```
 
-模块级同样支持：`run_module.py -m <模块> --script-only`（自动测试路径注入与输入占位，生成该模块全部回执）；`run_module.py --test all` 是全模块 dry-run 验证 sweep。机制细节见 modules.md「测试模式」。
+模块级同样支持：`run_module.py --test dag -m <模块>` / `run_module.py --test shell -m <模块>`（自动测试路径注入与输入占位，`dag` 构建 DAG、`shell` 生成该模块全部回执）。机制细节见 modules.md「测试模式」。
 
 ### AI 友好，还带 LLM auto 模式
 
@@ -109,7 +107,7 @@ python run.py -m data/meta.tsv -w all -o output --script-only      # 全流程
 
 此外测试模式让 AI 迭代优化仓库后可以自证正确性，从原理上保证流程的完备与准确。AI 友好还体现在两点：
 
-- **DAG 能顺利构建**：`--dry-run` / `--test all` 一遍跑通，即证明规则接线、输入输出引用、config 读取全部完整，AI 改完代码不需要人工翻日志确认"流程还是通的"；
+- **DAG 能顺利构建**：`--test dag -w all` 一遍跑通，即证明规则接线、输入输出引用、config 读取全部完整，AI 改完代码不需要人工翻日志确认"流程还是通的"；
 - **对照检查实际执行参数有没有偏移**：回执 `.sh` 里是最终执行的命令与参数字面量。AI 改动配置读取、传参逻辑或模块接口后，用 `--forceall` 重新生成一套全量回执，与旧套 diff——逐字节不变即证明传参语义未变；有偏移立刻能定位到具体规则和参数，而不是等真实数据跑完才发现结果不对。
 
 ```bash
@@ -151,7 +149,7 @@ python workflow/Omics/run.py -m data/meta/fastq -w scRNAseq -o output \
      --rerun-triggers mtime
    ```
 
-先加 `--dry-run` 看一遍要执行的 job 再放开跑；不放心流程本身，可先 `--test CLIP` 用自带测试数据做一次无副作用的验证（详见「运行指南」）。
+先加 `--dry-run` 看一遍要执行的 job 再放开跑；不放心流程本身，可先 `--test shell -w CLIP` 用自带测试数据做一次无副作用的验证（详见「运行指南」）。
 
 ## 支持的工作流
 
@@ -417,37 +415,44 @@ python workflow/Omics/run.py \
 
 ### 测试模式（`--test`）
 
-`run.py` 支持内置测试模式，用于快速检查某个工作流是否能正确解析配置、生成 `raw.json` 并完成 Snakemake dry-run。
+`run.py` 支持内置测试模式，用自带测试数据验证工作流（流程选择用 `-w`）：
 
 ```bash
-# 测试单个工作流
+# 测试单个工作流:构建 DAG(默认档,可省略 MODE)
 python workflow/Omics/run.py \
-  --test ncRNAseq \
+  --test -w ncRNAseq \
   -o output
 
-# 测试所有工作流
+# 测试所有工作流:每条规则输出 shell 回执脚本但不执行(严格档)
 python workflow/Omics/run.py \
-  --test all \
+  --test shell -w all \
   -o output
 ```
+
+MODE 只有两个值（其它一律非法）：
+
+- `dag`（默认）：快速模式——只构建 DAG，验证配置解析、`raw.json` 生成、规则接线完整；
+- `shell`：严格模式，包含 dag 的全部验证——完整构建 DAG 并真实执行 run 块，但只落盘每条规则最终要执行的 shell 脚本（回执双写），不执行任何工具。
+
+推荐用法（改了什么测什么）：只改 subworkflow 时，`--test -w <该 subworkflow>`（默认 dag）测这一个流程即可；改了 module 时，先 `--test -w <用到该 module 的所有 subworkflow>`（默认 dag）保证相关流程 DAG 正确，再对修改的 module 用 `run_module.py --test shell -m <该 module>` 做严格回执验证。
 
 测试模式会自动：
 
 - 使用 `workflow/Omics/assests/test/meta_<workflow>.tsv`
-- 从 `workflow/Omics/assests/test/data/` 生成测试路径
+- 从 `workflow/Omics/assests/test/data/` 生成测试路径，并为 meta 引用的输入自动创建占位空文件（运行后清理，不进 git）
 - 输出到 `output/test/`（或你指定的输出目录下的 `test/`）
-- 开启 `--dry-run`
-- 使用本地 `.conda` 前缀，避免污染共享环境
+- 模块级同语义：`run_module.py --test dag -m <模块>` / `run_module.py --test shell -m <模块>`
 
 如果某个工作流没有对应的测试 meta 文件，`run.py` 会跳过该工作流并提示警告。
 
 ### `run.py` 参数说明
 
 - `-m, --meta`：元信息文件或 fastq 目录。
-- `-w, --workflow_name`：工作流名称，可选 `CoCulture`、`MERIP`、`RNAseq`、`ncRNAseq`、`scRNAseq`、`tRNAseq`、`CLIP`、`Mutation`、`PacVar`、`KARRseq`、`PeakCalling`、`QuantMS`、`Fiberseq`、`LRtranscriptome`（`Population_genomics`、`spatial_transcriptomics` 见「支持的工作流」脚注）。
+- `-w, --workflow_name`：工作流名称，可选 `CoCulture`、`MERIP`、`RNAseq`、`ncRNAseq`、`scRNAseq`、`tRNAseq`、`CLIP`、`Mutation`、`PacVar`、`KARRseq`、`PeakCalling`、`QuantMS`、`Fiberseq`、`LRtranscriptome`（`Population_genomics`、`spatial_transcriptomics` 见「支持的工作流」脚注），或 `all` 选全部；可多个并行。
 - `-o, --output_dir`：输出目录。
 - `-t, --threads`：Snakemake 线程数。
 - `--dry-run`：只生成计划，不执行。
+- `--test [dag|shell]`：测试模式（见「测试模式」一节），流程用 `-w` 选。
 - `--log`：日志文件路径。
 - `--conda-prefix`：conda 包缓存目录（conda 模式必需，容器模式下省略）。
 - `--sdm`：使用 Apptainer 容器后端（SIF 镜像）。设置后 `run.py` 不添加 `--use-conda`，改用 `container:` 指令解析的 SIF 运行。自动从配置 JSON 提取路径生成 `--singularity-args --bind ...`。
@@ -608,4 +613,4 @@ python workflow/Omics/run_module.py --test all -o /path/to/module_test
 - [x] 支持多基因组并行运行
 - [x] 根据数据量，确保资源消耗平衡，不会出现耗尽主机内存或者爆满 CPU 的情况，需要将数据量和计算资源联系起来
 - [x] 所有图片输出支持多种格式可选
-- [ ] 测试模式生成shell脚本，方便检查
+- [x] 测试模式生成shell脚本，方便检查

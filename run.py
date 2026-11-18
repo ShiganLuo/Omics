@@ -218,12 +218,12 @@ def parse_args() -> argparse.Namespace:
              'default: auto = host CPUs - 2 (capped at %d)' % AUTO_CORES_CAP)
     parser.add_argument('--dry-run', action='store_true',
         help='dry run: build the DAG and exit without executing run-block code')
-    parser.add_argument('--script-only', action='store_true',
-        help='execute run-block code but only write each rule\'s shell receipt '
-             '(like --test, but with real -m/-o data; no tool is executed)')
     parser.add_argument('--touch', action='store_true', help='touch output files to update timestamps without re-running (cannot combine with --dry-run)')
-    parser.add_argument('--test', type=str, nargs='?', const='all', metavar='WORKFLOW',
-        help='test a workflow (or "all"): generate every rule\'s shell receipt without executing (see modules.md). Auto-sets meta/output from test/ directory')
+    parser.add_argument('--test', type=str, nargs='?', const='dag', choices=['dag', 'shell'], metavar='MODE',
+        help='test mode with built-in fixtures; workflow(s) via -w. '
+             'dag = only build the DAG; shell = execute run-block code and write '
+             "each rule's shell receipt without running tools (see modules.md). "
+             'Default MODE: dag')
     parser.add_argument('--log', type=str, default='workflow.log', help='log file')
     parser.add_argument('--callback-url', type=str, default=None,
         help='execution callback endpoint (default: env BIPLATFORM_CALLBACK_URL '
@@ -835,25 +835,30 @@ def _cleanup_script_only_placeholders(outdir: str) -> None:
 
 
 def setup_test_args(args: argparse.Namespace, root_dir: str) -> argparse.Namespace:
-    """Configure args for --test mode.
+    """Configure args for --test (dag|shell) mode.
 
-    Resolves workflow names, output directory, meta files, and test paths.
+    Workflow selection comes from -w (args.workflow_name); MODE picks the
+    depth: dag = build the DAG only, shell = execute run-block code and write
+    shell receipts without running tools.
     Modifies args in-place and returns it.
     """
     import shutil
 
     TEST_DIR = os.path.join(root_dir, "assests", "test")
 
-    # All registered workflows
-    ALL_WORKFLOWS = list(WORKFLOW_DISPATCH.keys())
-    if args.test == "all":
-        args.workflow_name = ALL_WORKFLOWS
-    elif args.test in ALL_WORKFLOWS:
-        args.workflow_name = [args.test]
-    else:
-        logger.info(f"Unknown workflow: {args.test}")
-        logger.info(f" Available: {ALL_WORKFLOWS} or 'all'")
-        exit(1)
+    # "all" 展开为全部已注册流程(与 setup_normal_args 一致)
+    if args.workflow_name and "all" in args.workflow_name:
+        args.workflow_name = list(WORKFLOW_DISPATCH)
+
+    # MODE 分叉:dag = 只构建 DAG;shell = 执行 run 块只落盘回执不执行工具
+    # (见 modules.md「测试模式」);--forceall 每次全量重新生成回执,保证跨
+    # 版本对照的回执集合完整。
+    if args.test == "shell":
+        args.dry_run = False
+        os.environ["OMICS_SCRIPT_ONLY"] = "1"
+        args.snakemake_args = list(args.snakemake_args or []) + ["--forceall", "--keep-going"]
+    else:  # dag
+        args.dry_run = True
 
     # Output to {cwd or --output-dir}/test
     base_out = args.output_dir if args.output_dir else os.getcwd()
@@ -863,12 +868,6 @@ def setup_test_args(args: argparse.Namespace, root_dir: str) -> argparse.Namespa
     os.makedirs(args.output_dir, exist_ok=True)
     logger.info(f"Output: {args.output_dir}")
 
-    # 测试模式:输出 shell 脚本但不执行(见 modules.md「测试模式」)。真实
-    # 执行 DAG,run 块末尾按 SCRIPT_ONLY 判断只落盘回执,不 touch 任何输出
-    # 占位;--forceall 每次全量重新生成回执,保证跨版本对照的回执集合完整。
-    args.dry_run = False
-    os.environ["OMICS_SCRIPT_ONLY"] = "1"
-    args.snakemake_args = list(args.snakemake_args or []) + ["--forceall", "--keep-going"]
     args.log = os.path.join(args.output_dir, "test.log")
     os.makedirs(args.output_dir, exist_ok=True)
 
@@ -896,8 +895,7 @@ def setup_test_args(args: argparse.Namespace, root_dir: str) -> argparse.Namespa
         logger.info(
             f"{len(variants)} meta variants for {wf}: "
             + ", ".join(os.path.basename(v) for v in variants)
-            + f" (default: {os.path.basename(variants[0])}; "
-            + f"select with --test {wf}:{os.path.basename(variants[1])} ... )")
+            + f" (default: {os.path.basename(variants[0])})")
 
     args.meta = None  # will be resolved per-workflow via _get_meta()
 
@@ -935,13 +933,6 @@ def setup_normal_args(args: argparse.Namespace) -> argparse.Namespace:
     if not args.output_dir:
         logger.info("Error: -o/--output_dir is required (unless --test is used)")
         exit(1)
-    if args.script_only and (args.dry_run or args.touch):
-        logger.info("Error: --script-only cannot combine with --dry-run/--touch")
-        exit(1)
-    if args.script_only:
-        # 第二种测试模式:执行 run 代码但只落盘 shell 回执,不执行工具
-        os.environ["OMICS_SCRIPT_ONLY"] = "1"
-        args.snakemake_args = list(args.snakemake_args or []) + ["--forceall", "--keep-going"]
     # Determine container backend: explicit --sdm flag, or legacy --snakemake-args --sdm
     use_singularity = args.sdm is not None or _detect_singularity(args.snakemake_args)
     if not use_singularity and not args.conda_prefix:
@@ -1304,32 +1295,10 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
 
         _write_run_summary(args.output_dir, _summary_payload(exec_status))
         print_test_summary(test_results)
-
-        # Module-scope tests: run_module.py --test sweeps every standalone
-        # module (smk+json unit) with the same test-path generator. Modules
-        # carry no fixed inputs, so the sweep checks config/schema/target
-        # plumbing and tolerates DAG stops on missing inputs.
-        # Scope: only the full sweep (--test all) chains the module sweep —
-        # a single-workflow --test (e.g. --test DR) must not pay for (nor
-        # fail on) 180+ unrelated modules.
-        if args.test == "all":
-            import subprocess as _sp
-            import sys as _sys
-            mod_cmd = [_sys.executable, os.path.join(ROOT_DIR, "run_module.py"),
-                       "--test", "all", "-o", os.path.join(args.output_dir, "module_test")]
-            logger.info("[modules] running: %s", " ".join(mod_cmd))
-            mod = _sp.run(mod_cmd, cwd=ROOT_DIR)
-            wf_failed = [k for k, (ok, _) in test_results.items() if not ok]
-            if wf_failed or mod.returncode != 0:
-                logger.error("[test] FAILED: %s%s",
-                             f"workflows: {', '.join(wf_failed)}; " if wf_failed else "",
-                             "modules (run_module.py --test)" if mod.returncode != 0 else "")
-                raise SystemExit(1)
-        else:
-            wf_failed = [k for k, (ok, _) in test_results.items() if not ok]
-            if wf_failed:
-                logger.error("[test] FAILED: workflows: %s", ", ".join(wf_failed))
-                raise SystemExit(1)
+        wf_failed = [k for k, (ok, _) in test_results.items() if not ok]
+        if wf_failed:
+            logger.error("[test] FAILED: workflows: %s", ", ".join(wf_failed))
+            raise SystemExit(1)
     else:
         exec_status = {p["wf"]: "not-run" for p in pending}
         try:

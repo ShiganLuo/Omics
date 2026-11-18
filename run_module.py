@@ -106,10 +106,6 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--genome", default=None,
                         help="restrict to this genome wildcard value")
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--script-only", action="store_true",
-                        help="execute run-block code but only write each rule's "
-                             "shell receipt (no tool executed); same mechanism "
-                             "as run.py --script-only/--test")
     parser.add_argument("--list-rules", action="store_true",
                         help="list the module's rules and exit")
     parser.add_argument("--sdm", action="store_const", const="apptainer", default=None,
@@ -124,14 +120,12 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
                         action="store_false", default=True,
                         help="skip module config schema validation")
     parser.add_argument("--snakemake-args", nargs=argparse.REMAINDER, default=[])
-    parser.add_argument("--test", nargs="?", const="all", default=None,
-                        metavar="MODULE",
-                        help="test mode: dry-run validate every standalone "
-                             "module (or one named module) against the "
-                             "assests/test placeholder inputs. Modules have "
-                             "no fixed inputs, so missing-input DAG stops are "
-                             "tolerated; parse/config/wiring errors fail. "
-                             "Exits non-zero on any failure.")
+    parser.add_argument("--test", nargs="?", const="dag", default=None,
+                        choices=["dag", "shell"], metavar="MODE",
+                        help="test mode with built-in fixtures; module via -m: "
+                             "dag = only build the DAG; shell = execute "
+                             "run-block code and write each rule's shell "
+                             "receipt without running tools. Default MODE: dag")
     parser.add_argument("--log", default=None)
     args, unknown = parser.parse_known_args(argv)
     # dotted overrides: --Params.cutadapt.quality 30 / --key=value
@@ -520,6 +514,9 @@ def build_cmd(wrapper: str, config_path: str, args: argparse.Namespace,
         # --forceall 全量重新生成回执,--keep-going 单规则失败不连坐。
         pass
         cmd += ["--forceall", "--keep-going"]
+    elif args.dry_run:
+        # dry-run 不执行任何 job,无需环境后端
+        pass
     elif not use_singularity:
         if not args.conda_prefix:
             raise SystemExit("--conda-prefix is required when not using --sdm apptainer")
@@ -545,7 +542,7 @@ def build_cmd(wrapper: str, config_path: str, args: argparse.Namespace,
 
 
 def inject_test_paths(cfg: Dict[str, Any], schema_path: str, test_data: str) -> None:
-    """schema 驱动的测试路径注入(与 run_module_tests sweep 相同):空的嵌套
+    """schema 驱动的测试路径注入(测试模式用):空的嵌套
     路径字段(genome.fasta、index 前缀等)用 assests/test/data 下的占位补齐,
     已有值优先不覆盖。"""
     if not os.path.isfile(schema_path):
@@ -578,146 +575,15 @@ def infer_module_from_snakefile(snakefile: str) -> str:
     raise SystemExit(f"Cannot infer module name from snakefile: {snakefile}")
 
 
-def run_module_tests(test_name: str, base_out: Optional[str]) -> int:
-    """Dry-run test sweep over standalone modules.
-
-    Modules carry no fixed test inputs (unlike workflow meta fixtures), so
-    the contract checked here is: config loads + schema-validates, targets
-    expand, the wrapper/module parse, and the DAG builds as far as the
-    available placeholder inputs allow. A DAG stop on missing INPUT files
-    is an expected PASS (naming conventions differ per module); any other
-    snakemake error (syntax, config wiring, undefined names) is a FAIL.
-    """
-    import json
-    import subprocess
-    import shutil
-
-    modules_root = os.path.join(ROOT_DIR, "modules")
-    test_data = os.path.join(ROOT_DIR, "assests", "test", "data")
-    indir_default = os.path.join(test_data, "fastq")  # placeholder convention
-    samples = ["TestSample1", "TestSample2"]
-
-    # every standalone unit = <smk> with a sibling <stem>.json
-    units = []
-    for smk in sorted(glob := __import__("glob").glob(os.path.join(modules_root, "**", "*.smk"), recursive=True)):
-        stem_json = os.path.splitext(smk)[0] + ".json"
-        if os.path.isfile(stem_json):
-            units.append((os.path.relpath(smk, modules_root), smk, stem_json))
-    if test_name != "all":
-        units = [u for u in units if u[0].split(os.sep)[0] == test_name or u[0].startswith(test_name)]
-        if not units:
-            raise SystemExit(f"No testable module matched: {test_name}")
-
-    out_root = os.path.abspath(base_out or os.path.join(os.getcwd(), "module_test"))
-    units_total = len(units)
-    results = {}
-    for idx, (rel, smk, cfg_path) in enumerate(units, 1):
-        tag = rel[:-4].replace(os.sep, "_")  # e.g. polygenomes__star
-        run_dir = os.path.join(out_root, tag)
-        shutil.rmtree(run_dir, ignore_errors=True)
-        os.makedirs(run_dir, exist_ok=True)
-        try:
-            module = infer_module_from_snakefile(smk)
-            cfg = load_module_config(cfg_path, module)
-            schema_path_ = os.path.splitext(cfg_path)[0] + ".schema.json"
-            cfg["indir"] = indir_default
-            cfg["outdir"] = run_dir
-            cfg["logdir"] = os.path.join(run_dir, "log")
-            cfg["OUTDIR_ROOT"] = run_dir
-            for key in list(cfg):
-                if "logdir" in key and key != "logdir":
-                    v = cfg.get(key)
-                    if isinstance(v, str) and v and not os.path.isabs(v):
-                        cfg[key] = os.path.join(run_dir, v)
-            os.makedirs(cfg["logdir"], exist_ok=True)
-            # framework test-path injection (same generator run.py --test
-            # uses): fill empty nested path fields (genome.fasta, index
-            # prefixes, ...) with placeholders under assests/test/data
-            inject_test_paths(cfg, schema_path_, test_data)
-
-            effective = os.path.join(run_dir, "config.json")
-            with open(effective, "w", encoding="utf-8") as f:
-                json.dump(cfg, f, indent=2, ensure_ascii=False)
-
-            schema_path = os.path.splitext(cfg_path)[0] + ".schema.json"
-            if os.path.isfile(schema_path):
-                sv = SchemaValidator()
-                sv.load(schema_path)
-                errs = sv.validate(cfg)
-                # "required but empty" = fill-in template fields in the module
-                # default JSON (e.g. vcf_dir); only hard type mismatches fail
-                hard = [e for e in errs if "Required field is empty" not in e]
-                if hard:
-                    results[rel] = (False, f"schema: {hard[0]}")
-                    continue
-
-            patterns = default_targets(smk, effective, run_dir, samples, None,
-                                      _sample_genomes_from_config(effective), None)
-            if not patterns:
-                results[rel] = (True, "no resolvable targets (wildcarded outputs need --samples/--rules)")
-                continue
-            wrapper = write_wrapper(smk, patterns, run_dir)
-            test_args = argparse.Namespace(
-                sdm="apptainer", snakemake_args=[], conda_prefix=None,
-                conda_frontend="mamba", dry_run=True, list_rules=False,
-                until=None, target=None, samples=samples, rules=None, genome=None,
-                rerun_trigger=["code", "input", "mtime"], mem_mb=None,
-                threads=1, singularity_args=None,
-            )
-            cmd = build_cmd(wrapper, effective, test_args, None)
-            r = subprocess.run(cmd, cwd=ROOT_DIR, capture_output=True, text=True,
-                               timeout=300)
-            out = (r.stdout or "") + (r.stderr or "")
-            if r.returncode == 0:
-                results[rel] = (True, "dry-run clean")
-            elif ("MissingInput" in out or "Missing input" in out
-                  or "InputFunctionException" in out
-                  or "WildcardError" in out
-                  or "No values given for wildcard" in out
-                  or "UndefinedPathvar" in out
-                  or "RuleException" in out
-                  or "requires" in out  # config-gated _require() messages
-                  or "FASTA file not found" in out  # config-gated reference checks
-                  or "Required field is empty" in out  # module json = fill-in template
-                  or "schema" in out.lower() and "expects type" in out):
-                # modules carry no fixed inputs: DAG stops on missing inputs,
-                # unbound non-sample wildcards, or config-gated requirements
-                # are all expected without real data
-                note = "input/wildcard/config-gated stop (expected: no fixed inputs)"
-                results[rel] = (True, note)
-            else:
-                tail = " | ".join(out.strip().splitlines()[-2:])[:200]
-                results[rel] = (False, tail)
-        except SystemExit as e:
-            results[rel] = (False, f"{e}"[:200])
-        except Exception as e:
-            results[rel] = (False, f"{type(e).__name__}: {e}"[:200])
-        # stream each result as it completes; summary prints at the end
-        _ok, _note = results[rel]
-        print(f"  [{idx}/{units_total}] [{'PASS' if _ok else 'FAIL'}] {rel}"
-              + (f" — {_note}" if not _ok else ""), flush=True)
-
-    passed = [k for k, (ok, _) in results.items() if ok]
-    failed = [k for k, (ok, _) in results.items() if not ok]
-    print(f"[run_module --test] {len(results)} modules: "
-          f"passed {len(passed)}, failed {len(failed)}")
-    if failed:
-        print("  failed modules:")
-        for k in sorted(failed):
-            _, note = results[k]
-            print(f"  [FAIL] {k}" + (f" — {note}" if note else ""))
-    return 1 if failed else 0
-
-
 def main(argv: List[str] | None = None) -> None:
     args = parse_args(argv)
-    if getattr(args, "test", None) is not None:
-        raise SystemExit(run_module_tests(args.test, args.outdir))
-    if getattr(args, "script_only", False):
+    if args.test == "shell":
+        # 测试模式(shell):执行 run 代码但只落盘 shell 回执,不执行工具
         if args.dry_run:
-            raise SystemExit("--script-only cannot combine with --dry-run")
-        # 第二种测试模式:执行 run 代码但只落盘 shell 回执,不执行工具
+            raise SystemExit("--test shell cannot combine with --dry-run")
         os.environ["OMICS_SCRIPT_ONLY"] = "1"
+    elif args.test == "dag":
+        args.dry_run = True
     if not args.module and not args.snakefile:
         raise SystemExit("--module or --snakefile is required")
     if not args.module:
@@ -789,10 +655,10 @@ def main(argv: List[str] | None = None) -> None:
     # 回执 RECEIPT_DIR 与占位清单固定到 outdir/log/cmd(common.smk 从
     # OUTDIR_ROOT 拼 RECEIPT_DIR,缺省会落到 cwd/output)
     cfg["OUTDIR_ROOT"] = outdir
-    if getattr(args, "script_only", False):
-        # 模块没有固定输入:sweep 同款测试路径注入 + 输入占位(空文件,只为通过
-        # 存在性检查,不进 git)。用户显式给的 --indir/--samples 与 config
-        # 非空字段优先。
+    if args.test is not None:
+        # 测试模式(dag|shell):模块没有固定输入,sweep 同款测试路径注入 +
+        # 输入占位(空文件,只为通过存在性检查,不进 git)。用户显式给的
+        # --indir/--samples 与 config 非空字段优先。
         test_data = os.path.join(ROOT_DIR, "assests", "test", "data")
         if not args.indir and not os.path.isdir(cfg.get("indir") or ""):
             cfg["indir"] = os.path.join(test_data, "fastq")
@@ -825,7 +691,7 @@ def main(argv: List[str] | None = None) -> None:
     if not args.target and not args.until and not args.list_rules:
         patterns = default_targets(snakefile, effective_config, cfg["outdir"],
                                    args.samples or (["TestSample1", "TestSample2"]
-                                                    if getattr(args, "script_only", False)
+                                                    if args.test is not None
                                                     else []), args.rules,
                                    _sample_genomes_from_config(effective_config),
                                    args.genome)

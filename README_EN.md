@@ -86,11 +86,29 @@ The `resources` field controls threads and memory per rule (`resources.default` 
 
 ### Built-in test mode
 
-`--test <workflow>` (or `--test all`) runs config parsing, `raw.json` generation, and a dry-run on bundled test data without real execution. A few seconds to verify a workflow works.
+`--test [MODE]` verifies a workflow on bundled test data (meta- and schema-driven input/output placeholders are created automatically and cleaned up afterwards, never committed); pick workflows with `-w` (single, several, or `all`). MODE has exactly two values:
+
+- `dag` (default): fast mode — build the DAG only, verifying rule wiring and input/output references;
+- `shell`: strict mode, a superset of `dag` — build the full DAG and execute every run block, but only write each rule's shell receipt (dual-write: `<rule>_<sample>.sh` in the output dir + timestamped backups under `log/cmd/`) without running any tool, producing a full receipt set that can be diffed across versions.
+
+Recommended workflow (test what you changed): if only a subworkflow changed, `--test -w <that subworkflow>` (default `dag`) is enough; if a module changed, first run `--test -w <every subworkflow using that module>` (default `dag`) to keep those pipelines' DAGs sound, then `run_module.py --test shell -m <that module>` for strict receipt verification of the modified module.
+
+```bash
+python run.py --test -w RNAseq            # build the DAG on test data (default, = --test dag)
+python run.py --test shell -w RNAseq      # full shell receipts on test data (strict)
+python run.py --test shell -w all         # full receipts for every workflow
+```
+
+Module level is the same: `run_module.py --test dag -m <module>` / `run_module.py --test shell -m <module>` (automatic test-path injection and input placeholders; `dag` builds the DAG, `shell` writes every rule's receipt). See modules.md "Test mode" for the mechanics.
 
 ### AI-friendly, with an LLM auto mode
 
 All information is persisted in JSON (configs, `raw.json`, schemas) and log files, so the full context of every run is available without digging through code. Combined with dedicated skills (`<dirname>.md`), AI can diagnose failures, improve performance, and add analysis modules. `scRNAseq` goes further with an `auto` mode: built-in LLM decisions pick the number of PCs, tune clustering resolution, filter low-quality clusters, run LLM cell-type annotation, and produce an audit report. Just provide the data and tissue name:
+
+The test mode also lets AI prove correctness after iterating on the repo, guaranteeing pipeline completeness and accuracy in principle. Two more aspects of AI-friendliness:
+
+- **The DAG builds cleanly**: one pass of `--test dag -w all` proves rule wiring, input/output references, and config reads are complete — no manual log digging to confirm the pipeline still runs;
+- **Cross-check that executed parameters have not drifted**: the receipt `.sh` files hold the final commands and parameter literals. After AI changes config reads, parameter passing, or module interfaces, regenerate a full receipt set and diff it against the previous one — byte-identical receipts prove the parameter semantics unchanged; any drift is pinpointed to the exact rule and parameter instead of surfacing after a real data run.
 
 ```bash
 python workflow/Omics/run.py -m data/meta/fastq -w scRNAseq -o output \
@@ -131,7 +149,7 @@ python workflow/Omics/run.py -m data/meta/fastq -w scRNAseq -o output \
      --rerun-triggers mtime
    ```
 
-Add `--dry-run` first to review the jobs before letting it run. To sanity-check the workflow itself, `--test CLIP` does a side-effect-free pass on bundled test data (see [Running Guide](#running-guide)).
+Add `--dry-run` first to review the jobs before letting it run. To sanity-check the workflow itself, `--test shell -w CLIP` does a side-effect-free pass on bundled test data (see [Running Guide](#running-guide)).
 
 ## Supported Workflows
 
@@ -414,10 +432,11 @@ If a workflow has no corresponding test meta file, `run.py` skips it with a warn
 ### `run.py` Parameters
 
 - `-m, --meta`: metadata file or fastq directory.
-- `-w, --workflow_name`: workflow name; one of `CoCulture`, `MERIP`, `RNAseq`, `ncRNAseq`, `scRNAseq`, `tRNAseq`, `CLIP`, `Mutation`, `PacVar`, `KARRseq`, `PeakCalling`, `QuantMS`, `Fiberseq`, `LRtranscriptome` (`Population_genomics` and `spatial_transcriptomics`: see the Supported Workflows footnote).
+- `-w, --workflow_name`: workflow name; one of `CoCulture`, `MERIP`, `RNAseq`, `ncRNAseq`, `scRNAseq`, `tRNAseq`, `CLIP`, `Mutation`, `PacVar`, `KARRseq`, `PeakCalling`, `QuantMS`, `Fiberseq`, `LRtranscriptome` (`Population_genomics` and `spatial_transcriptomics`: see the Supported Workflows footnote), or `all` for every registered workflow; multiple names run in parallel.
 - `-o, --output_dir`: output directory.
 - `-t, --threads`: Snakemake thread count.
 - `--dry-run`: generate the plan only, no execution.
+- `--test [dag|shell]`: test mode (see Built-in test mode); workflows via `-w`.
 - `--log`: log file path.
 - `--conda-prefix`: conda package cache directory (required in conda mode, omitted in container mode).
 - `--sdm`: use the Apptainer container backend (SIF images). When set, `run.py` does not add `--use-conda` and instead runs via SIF images resolved from `container:` directives. Bind paths are auto-generated from the config JSON as `--singularity-args --bind ...`.

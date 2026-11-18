@@ -439,11 +439,11 @@ os.makedirs(os.path.join(logdir, "cmd", ...))                          # 目录�
 
 ## 测试模式：输出 shell 脚本但不执行
 
-`run.py --test <Workflow>`（或 `--test all`）给 snakemake 注入环境变量
-`OMICS_SCRIPT_ONLY=1`，common.smk 据此置 `SCRIPT_ONLY` 常量（真实数据下只想
-生成回执用 `--script-only`，同一机制）。测试模式下每条规则照常走完整个
-run 块——命令列表构建、时间戳回执与 plain 回执双写落盘、日志与登记照旧——
-只在最后一行跳过执行：
+`run.py --test shell -w <Workflow|all>`（`--test dag` 则只构建 DAG）给 snakemake
+注入环境变量 `OMICS_SCRIPT_ONLY=1`，common.smk 据此置 `SCRIPT_ONLY` 常量
+（模块级同语义：`run_module.py --test shell -m <模块>`）。shell 模式下每条
+规则照常走完整个 run 块——命令列表构建、时间戳回执与 plain 回执双写落盘、
+日志与登记照旧——只在最后一行跳过执行：
 
 ```python
 shutil.copyfile(script, plain_script)
@@ -849,17 +849,18 @@ fiberseq_footprint_config = {
 
 # 模块测试（run_module.py --test）
 
-模块没有固定输入（不走 meta.tsv），但必须可独立加载、可建 DAG。测试框架
-`run.py --test all` 会自动追加模块阶段（内部调 `run_module.py --test all`），
-对每个 `modules/**/<stem>.smk + <stem>.json` 单元检查：
+模块没有固定输入（不走 meta.tsv），但必须可独立加载、可建 DAG。
+`run_module.py --test [dag|shell] -m <模块>` 用自带测试数据验证单个模块
+（自动测试路径注入：复用 `SchemaValidator.generate_test_paths` 填空路径
+字段，输入自动创建占位空文件，与 workflow 测试同一机制）：
 
-- config 加载 + schema 校验（"Required field is empty" 视为待填模板，不判失败）
-- `default_targets()` 目标展开 + wrapper 生成 + snakemake 干跑
-- 测试路径自动注入（复用 `SchemaValidator.generate_test_paths`，与 workflow
-  测试同一机制）；输入缺失/InputFunction/未绑定通配符/配置门控的 DAG 停止
-  算通过（无固定输入的预期），语法/接线/配置名错误判失败
+- `dag`（默认）：快速模式——只构建 DAG，验证 config 加载 + schema 校验（"Required
+  field is empty" 视为待填模板，不判失败）+ `default_targets()` 目标展开
+  + wrapper 生成 + snakemake 干跑；
+- `shell`：严格模式，包含 dag 的全部验证——真实执行 run 块，生成
+  该模块全部规则的 shell 回执（双写落盘），但不执行任何工具。
 
-单独跑：`python run_module.py --test all`（或 `--test <module>`）。
+不再提供全模块遍历测试（原 `run_module.py --test all` sweep 已取消）。
 
 # Conda 环境模板（.yaml）
 

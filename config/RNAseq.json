@@ -428,7 +428,7 @@
     },
     "MarkDuplicates": {
       "threads": 8,
-      "mem_mb": 32000,
+      "mem_mb": 30882,
       "scale": {
         "size_metric": "bam_mb",
         "ref_input_size": 1900,
@@ -439,7 +439,7 @@
     },
     "SplitNCigarReads": {
       "threads": 8,
-      "mem_mb": 16000
+      "mem_mb": 11200
     },
     "TEChimericPlot": {
       "threads": 1,
@@ -447,11 +447,11 @@
     },
     "TEChimericTranscripts": {
       "threads": 5,
-      "mem_mb": 8000
+      "mem_mb": 5600
     },
     "TEcount": {
       "threads": 2,
-      "mem_mb": 32000,
+      "mem_mb": 22400,
       "scale": {
         "size_metric": "bam_mb",
         "ref_input_size": 1900,
@@ -462,7 +462,7 @@
     },
     "TElocal": {
       "threads": 2,
-      "mem_mb": 32000,
+      "mem_mb": 22400,
       "scale": {
         "size_metric": "bam_mb",
         "ref_input_size": 1900,
@@ -473,26 +473,26 @@
     },
     "VarientCalling": {
       "threads": 8,
-      "mem_mb": 16000
+      "mem_mb": 11200
     },
     "XenofilteR": {
       "threads": 8,
-      "mem_mb": 16000
+      "mem_mb": 11200
     },
     "addReadsGroup": {
       "threads": 8,
-      "mem_mb": 16000
+      "mem_mb": 11200
     },
     "arriba": {
       "threads": 4,
-      "mem_mb": 8000
+      "mem_mb": 5600
     },
     "arriba_report": {
       "mem_mb": 8000
     },
     "bowtie2_align_paired": {
       "threads": 8,
-      "mem_mb": 16000
+      "mem_mb": 11200
     },
     "bowtie2_align_single": {
       "threads": 8,
@@ -573,7 +573,7 @@
     },
     "hisat2_align": {
       "threads": 12,
-      "mem_mb": 32000
+      "mem_mb": 22400
     },
     "hisat2_index": {
       "threads": 8,
@@ -589,7 +589,7 @@
     },
     "sexcheck_idxstats": {
       "threads": 1,
-      "mem_mb": 8000
+      "mem_mb": 5600
     },
     "somaticMutect2": {
       "threads": 10
@@ -602,7 +602,7 @@
     },
     "star_align": {
       "threads": 12,
-      "mem_mb": 32000,
+      "mem_mb": 36078,
       "scale": {
         "size_metric": "fastq_mb",
         "ref_input_size": 5000,
@@ -617,7 +617,7 @@
     },
     "stringTie": {
       "threads": 5,
-      "mem_mb": 16000
+      "mem_mb": 11200
     },
     "stringTieMerge": {
       "threads": 1,
@@ -635,7 +635,7 @@
     },
     "trimming_Paired": {
       "threads": 6,
-      "mem_mb": 8000
+      "mem_mb": 5600
     },
     "trimming_Single": {
       "threads": 6,
@@ -651,7 +651,7 @@
     },
     "vcf_filter": {
       "threads": 8,
-      "mem_mb": 8000
+      "mem_mb": 5863
     }
   },
   "Procedure": {

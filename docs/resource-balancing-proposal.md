@@ -25,7 +25,8 @@
    二者改善不必然改善 makespan,冲突时以实测 makespan 为准。
 
 **非目标**(明确不做):多用户公平调度;集群/SLURM 级调度(本方案只管
-单机 snakemake 进程);自动改写 config(建议表必须人工审核合入);
+单机 snakemake 进程);无护栏的自动改写 config(合入只走
+calibrate_resources.py --apply 的护栏:n≥3、±30% 限幅,见 §5.4);
 追求声明值"精确"本身(只在影响 makespan 的范围内校准)。
 
 **由目标推出的自查条款**:
@@ -279,7 +280,7 @@ fixed_frac≈0.9 时公式近似 no-op,验证通过也证明不了价值):
   其他错误照常报错(需小 wrapper 或 Snakemake 侧失败分类);
 - 价值:B 公式估偏也不会一次失败,代价是重跑该规则。
 
-### 5.4 方案 D:benchmark 自学习闭环(未开始,长期)
+### 5.4 方案 D:benchmark 自学习闭环(已落地,每轮运行后校准)
 
 #### D.1 数据积累
 
@@ -304,7 +305,8 @@ makespan 由两条路径受声明值影响:过低 → OOM 重试浪费时间;
 2. 两段式最小二乘 → fixed_frac 建议值;残差 >±30% → 改仿射
    `a + b×size` 或标注"行为不规则,保持静态";
 3. 输出 `resources_suggest.tsv`(rule、当前值、建议值、样本数、输入范围、
-   残差),**人工审核后**合入 config,git 留痕,脚本绝不自动改;
+   残差),由 `calibrate_resources.py --apply` 按护栏合入 config
+   (n≥3、±30% 限幅、取整、无变化不动),git 留痕可回滚;
 4. 合入后按 §7 指标验收(makespan 不劣化、浪费率降、OOM=0)。
 
 #### D.4 节奏与防震荡
@@ -329,7 +331,7 @@ makespan 由两条路径受声明值影响:过低 → OOM 重试浪费时间;
 | 1 = 方案 A | cores auto、预算切分、clamp、统一 rule_res | **代码已落地,验收未完成** | dry-run 无超预算声明;160 核机 auto 用 ≥150 核;并发预算和 = 94% 不超卖;P3 反例被 clamp 且告警 |
 | 2 = 方案 B | 试点 8-10 规则配 scale,悬殊数据集实测 | **全量接线完成(417 处声明→lambda;RNAseq 试点 6 规则配 scale),实测验证待真实数据** | §5.2.7 三条 + 小数据声明值显著低于静态、无 OOM |
 | 3 = 方案 C | --restart-times + OOM 分类 + attempt 翻倍 | **代码已落地(--restart-times 2 + attempt 翻倍);OOM-only 分类偏差见进展 11** | 注入低估场景自动重试成功,无人工干预 |
-| 4 = 方案 D | benchmark 常态化,季度校准 | **代码已落地(376 规则 benchmark + tools/calibrate_resources.py),数据积累待真实运行** | 建议值 vs 实际峰值偏差中位 ≤20%,建议表可审 |
+| 4 = 方案 D | benchmark 常态化,季度校准 | **代码已落地(376 规则 benchmark + src/common/util/calibrate_resources.py),2026-11-17 RNAseq 首轮校准完成(16 规则合入)** | 建议值 vs 实际峰值偏差中位 ≤20%,建议表可审 |
 
 **⚠ 阶段 1 流程债:改前基线未跑**(§7.1 要求基线先行,代码却已落地)。
 补救:改动未 commit,HEAD 仍是旧代码——`git stash` 后跑基线再
@@ -452,8 +454,8 @@ makespan 由两条路径受声明值影响:过低 → OOM 重试浪费时间;
   ref=2 样本,fixed_frac=0)→ 试点共 6 规则。
   ②D 前置:376 个执行型规则加 `benchmark: <log 路径>.benchmark.tsv`
   (与 log 同 wildcards,天然防多 job 写同一文件;128 个聚合/dummy 规则不配);
-  `tools/calibrate_resources.py`(D.1 历史 append + D.3 建议:p90×安全系数、
-  ≥3 点才动、±30% 限幅、.OOM 标记删失下界;只出建议表,人工合入)。
+  `src/common/util/calibrate_resources.py`(D.1 历史 append + D.3 建议:p90×安全系数、
+  ≥3 点才动、±30% 限幅、.OOM 标记删失下界;--apply 按护栏合入 config)。
   ③C:`--restart-times`(默认 2)透传 snakemake;attempt 翻倍已在 rule_res。
   偏差记录:OOM-only 重试分类未做(snakemake 无原生按因重试;.OOM 标记
   机制留给 wrapper,当前 v1 对所有失败重试,attempt 升级仅影响 mem_mb)。

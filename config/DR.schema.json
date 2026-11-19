@@ -410,6 +410,555 @@
             "required": false
           }
         }
+      },
+      "bam_sort": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "该规则并行线程数"
+          }
+        }
+      },
+      "burden_aggregate": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "该规则并行线程数"
+          },
+          "mem_mb": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "burden_cnv": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "该规则并行线程数"
+          },
+          "mem_mb": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "burden_snv_indel": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "该规则并行线程数"
+          },
+          "mem_mb": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "burden_sv": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "该规则并行线程数"
+          },
+          "mem_mb": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "cnvkit_batch": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "该规则并行线程数"
+          },
+          "mem_mb": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
+          }
+        }
+      },
+      "cnvkit_paired": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "该规则并行线程数"
+          },
+          "mem_mb": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "cnvkit_reference": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "该规则并行线程数"
+          },
+          "mem_mb": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "gatk_population_haplotype_caller": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "该规则并行线程数"
+          }
+        }
+      },
+      "gatk_population_joint_genotyping": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "该规则并行线程数"
+          }
+        }
+      },
+      "generate_report": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "该规则并行线程数"
+          },
+          "mem_mb": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "getFragmentSize": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "mem_mb": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "manta_config": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "该规则并行线程数"
+          },
+          "mem_mb": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "manta_config_somatic": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "mem_mb": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "manta_run": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "该规则并行线程数"
+          },
+          "mem_mb": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
+          }
+        }
+      },
+      "manta_run_germline": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "mem_mb": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "manta_run_somatic": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "mem_mb": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "msi_call": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "该规则并行线程数"
+          },
+          "mem_mb": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "msi_plot": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "该规则并行线程数"
+          },
+          "mem_mb": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "msi_scan": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "该规则并行线程数"
+          },
+          "mem_mb": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "plotFragmentSize": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "mem_mb": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "qc_summary": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "该规则并行线程数"
+          },
+          "mem_mb": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "samtools_stats": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "该规则并行线程数"
+          },
+          "mem_mb": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "sexcheck": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "该规则并行线程数"
+          },
+          "mem_mb": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "sexcheck_idxstats": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "该规则并行线程数"
+          },
+          "mem_mb": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "somatic_signature_nmf": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "该规则并行线程数"
+          },
+          "mem_mb": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "somatic_signature_refit": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "该规则并行线程数"
+          },
+          "mem_mb": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "somatic_spectrum": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "该规则并行线程数"
+          },
+          "mem_mb": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "star_3p_align": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "该规则并行线程数"
+          }
+        }
+      },
+      "star_3pg_gene_specific": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "该规则并行线程数"
+          }
+        }
       }
     }
   },
@@ -467,32 +1016,6 @@
             "nullable": true,
             "required": false
           },
-          "wes_indir": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
-          "somatic_normal": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
-          "wes_paired_samples": {
-            "type": "list",
-            "nullable": true,
-            "required": false,
-            "items": {
-              "type": "str"
-            }
-          },
-          "wes_single_samples": {
-            "type": "list",
-            "nullable": true,
-            "required": false,
-            "items": {
-              "type": "str"
-            }
-          },
           "paired_design": {
             "type": "list",
             "nullable": true,
@@ -517,6 +1040,42 @@
             "type": "dict",
             "nullable": true,
             "required": false
+          },
+          "raw_files": {
+            "type": "list",
+            "nullable": true,
+            "required": false
+          },
+          "control_samples": {
+            "type": "list",
+            "nullable": true,
+            "required": false,
+            "description": "正常对照样本列表(CNVkit pooled 参考面板);配对设计下 node.py 自动清空"
+          },
+          "aligner_TEtranscripts": {
+            "type": "str",
+            "required": true
+          },
+          "dna_indir": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "dna_paired_samples": {
+            "type": "list",
+            "nullable": true,
+            "required": false,
+            "items": {
+              "type": "str"
+            }
+          },
+          "dna_single_samples": {
+            "type": "list",
+            "nullable": true,
+            "required": false,
+            "items": {
+              "type": "str"
+            }
           }
         }
       },
@@ -524,19 +1083,66 @@
         "type": "dict",
         "nullable": true,
         "required": false,
-        "properties": {}
+        "properties": {
+          "quality": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
       },
       "samtools": {
         "type": "dict",
         "nullable": true,
         "required": false,
-        "properties": {}
+        "properties": {
+          "onlykeep_properpair": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          }
+        }
       },
       "gatk": {
         "type": "dict",
         "nullable": true,
         "required": false,
-        "properties": {}
+        "properties": {
+          "addReadsGroup": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "RGLB": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "RGPL": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "RGPU": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "Mutect2": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "panel_of_normals": {
+                "type": "null",
+                "nullable": true,
+                "required": false
+              }
+            }
+          }
+        }
       },
       "cutadapt": {
         "type": "dict",
@@ -548,7 +1154,1114 @@
         "type": "dict",
         "nullable": true,
         "required": false,
-        "properties": {}
+        "properties": {
+          "drclass_pileup": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "min_mq": {
+                "type": "int",
+                "nullable": true,
+                "required": false,
+                "description": "目标区推导: 最小比对质量"
+              },
+              "min_bq": {
+                "type": "int",
+                "nullable": true,
+                "required": false,
+                "description": "目标区推导: 最小碱基质量"
+              }
+            }
+          },
+          "drclass_classify": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "min_af": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_ad": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "min_dp": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "germline_af": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "germline_dp": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "splice_window": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "drclass_summary": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "max_r4_fraction": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              }
+            }
+          }
+        }
+      },
+      "derive_targets": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "min_depth": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "目标区推导: 最小覆盖深度"
+          },
+          "min_bq": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "目标区推导: 最小碱基质量"
+          },
+          "min_mq": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "目标区推导: 最小比对质量"
+          },
+          "min_gap": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "目标区推导: 相邻区合并的最大间隔(bp)"
+          },
+          "min_region": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "目标区推导: 最小区段长度(bp)"
+          }
+        }
+      },
+      "somatic_spectrum": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "sample_somatic_vcf_dict": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {}
+          },
+          "sample_group_dict": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {}
+          },
+          "signature": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "enabled": {
+                "type": "bool",
+                "nullable": true,
+                "required": false,
+                "description": "是否启用该分析模块(false 时 node.py 不注册产出,DAG 跳过)"
+              },
+              "mode": {
+                "type": "str",
+                "nullable": true,
+                "required": false,
+                "description": "签名分析模式: refit(COSMIC 拟合)/ nmf(从头提取)/ both"
+              },
+              "min_mutations": {
+                "type": "int",
+                "nullable": true,
+                "required": false,
+                "description": "签名拟合所需最小突变数,低于该值的样本跳过"
+              },
+              "min_exposure_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false,
+                "description": "低于该暴露占比的签名不计入结果"
+              },
+              "family_map": {
+                "type": "null",
+                "nullable": true,
+                "required": false,
+                "description": "签名->家族映射表文件;留空=脚本默认"
+              },
+              "max_rank": {
+                "type": "int",
+                "nullable": true,
+                "required": false,
+                "description": "NMF 秩搜索上限"
+              },
+              "restarts": {
+                "type": "int",
+                "nullable": true,
+                "required": false,
+                "description": "NMF 随机重启次数"
+              },
+              "seed": {
+                "type": "int",
+                "nullable": true,
+                "required": false,
+                "description": "随机种子,保证 NMF 可复现"
+              },
+              "rank": {
+                "type": "null",
+                "nullable": true,
+                "required": false,
+                "description": "手动指定 NMF 秩;留空=自动选择最优秩"
+              },
+              "formats": {
+                "type": "list",
+                "items": {
+                  "type": "str"
+                },
+                "nullable": true,
+                "required": false,
+                "description": "图片输出格式列表,多种格式同时输出(留空=png)"
+              }
+            }
+          },
+          "plot": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "formats": {
+                "type": "list",
+                "items": {
+                  "type": "str"
+                },
+                "nullable": true,
+                "required": false,
+                "description": "图片输出格式列表,多种格式同时输出(留空=png)"
+              }
+            }
+          }
+        }
+      },
+      "fragment_size": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "enabled": {
+            "type": "bool",
+            "nullable": true,
+            "required": false,
+            "description": "是否启用该分析模块(false 时 node.py 不注册产出,DAG 跳过)"
+          },
+          "plotFragmentSize": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "formats": {
+                "type": "list",
+                "items": {
+                  "type": "str"
+                },
+                "nullable": true,
+                "required": false,
+                "description": "图片输出格式列表,多种格式同时输出(留空=png)"
+              }
+            }
+          }
+        }
+      },
+      "manta": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "enabled": {
+            "type": "bool",
+            "nullable": true,
+            "required": false,
+            "description": "是否启用该分析模块(false 时 node.py 不注册产出,DAG 跳过)"
+          },
+          "manta_run_germline": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "threads": {
+                "type": "int",
+                "nullable": true,
+                "required": false,
+                "description": "该规则并行线程数"
+              }
+            }
+          },
+          "manta_run_somatic": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "threads": {
+                "type": "int",
+                "nullable": true,
+                "required": false,
+                "description": "该规则并行线程数"
+              }
+            }
+          }
+        }
+      },
+      "msi": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "enabled": {
+            "type": "bool",
+            "nullable": true,
+            "required": false,
+            "description": "是否启用该分析模块(false 时 node.py 不注册产出,DAG 跳过)"
+          },
+          "msi_plot": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "formats": {
+                "type": "list",
+                "default": [
+                  "jpg"
+                ],
+                "nullable": true,
+                "required": false,
+                "description": "图片输出格式列表,多种格式同时输出(留空=png)"
+              }
+            }
+          }
+        }
+      },
+      "cnvkit": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "enabled": {
+            "type": "bool",
+            "nullable": true,
+            "required": false,
+            "description": "是否启用该分析模块(false 时 node.py 不注册产出,DAG 跳过)"
+          },
+          "cnvkit_reference": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "method": {
+                "type": "str",
+                "nullable": true,
+                "required": false,
+                "description": "cnvkit --seq-method: hybrid/wgs/amplicon;WES 链默认 hybrid,meta assay 列存在时由 node.py 覆盖"
+              },
+              "mode": {
+                "type": "str",
+                "nullable": true,
+                "required": false,
+                "description": "签名分析模式: refit(COSMIC 拟合)/ nmf(从头提取)/ both"
+              }
+            }
+          },
+          "cnvkit_batch": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "method": {
+                "type": "str",
+                "nullable": true,
+                "required": false,
+                "description": "cnvkit --seq-method: hybrid/wgs/amplicon;WES 链默认 hybrid,meta assay 列存在时由 node.py 覆盖"
+              },
+              "mode": {
+                "type": "str",
+                "nullable": true,
+                "required": false,
+                "description": "签名分析模式: refit(COSMIC 拟合)/ nmf(从头提取)/ both"
+              }
+            }
+          },
+          "cnvkit_paired": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "method": {
+                "type": "str",
+                "nullable": true,
+                "required": false,
+                "description": "cnvkit --seq-method: hybrid/wgs/amplicon;WES 链默认 hybrid,meta assay 列存在时由 node.py 覆盖"
+              },
+              "mode": {
+                "type": "str",
+                "nullable": true,
+                "required": false,
+                "description": "签名分析模式: refit(COSMIC 拟合)/ nmf(从头提取)/ both"
+              }
+            }
+          }
+        }
+      },
+      "burden": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "enabled": {
+            "type": "bool",
+            "nullable": true,
+            "required": false,
+            "description": "是否启用该分析模块(false 时 node.py 不注册产出,DAG 跳过)"
+          },
+          "sample_snv_vcf_dict": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {}
+          },
+          "sample_sv_vcf_dict": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {}
+          },
+          "sample_cnv_dict": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {}
+          },
+          "burden_snv_indel": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "min_vaf": {
+                "type": "float",
+                "nullable": true,
+                "required": false,
+                "description": "计入负荷的最小 VAF"
+              },
+              "size_mb": {
+                "type": "float",
+                "nullable": true,
+                "required": false,
+                "description": "外显子组有效大小(Mb),TMB 分母"
+              },
+              "gtf_feature": {
+                "type": "enum",
+                "nullable": true,
+                "required": false,
+                "description": "用于有效大小统计的 GTF feature 类型"
+              },
+              "include_sex_chroms": {
+                "type": "bool",
+                "nullable": true,
+                "required": false,
+                "description": "是否把性染色体计入负荷统计"
+              },
+              "annotate": {
+                "type": "bool",
+                "nullable": true,
+                "required": false,
+                "description": "是否用 VEP 注释负荷变异(true 时需 vep_species/vep_assembly)"
+              },
+              "vep_cache": {
+                "type": "str",
+                "nullable": true,
+                "required": false,
+                "description": "VEP cache 目录"
+              },
+              "vep_species": {
+                "type": "str",
+                "nullable": true,
+                "required": false,
+                "description": "VEP species;留空=按 genome 自动推导(未映射 genome 会报错)"
+              },
+              "vep_assembly": {
+                "type": "str",
+                "nullable": true,
+                "required": false,
+                "description": "VEP assembly;留空=按 genome 自动推导"
+              }
+            }
+          },
+          "burden_cnv": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "min_abs_log2": {
+                "type": "float",
+                "nullable": true,
+                "required": false,
+                "description": "CNV 计数的最小 |log2| 拷贝比"
+              }
+            }
+          }
+        }
+      },
+      "sexcheck": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "ratio_xy_threshold": {
+            "type": "null",
+            "nullable": true,
+            "required": false,
+            "description": "X/Y 覆盖比值判型阈值;留空=脚本默认"
+          },
+          "y_min_frac": {
+            "type": "null",
+            "nullable": true,
+            "required": false,
+            "description": "Y 覆盖最小占比阈值;留空=脚本默认"
+          }
+        }
+      },
+      "report": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "enabled": {
+            "type": "bool",
+            "nullable": true,
+            "required": false,
+            "description": "是否启用该分析模块(false 时 node.py 不注册产出,DAG 跳过)"
+          },
+          "generate_report": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "formats": {
+                "type": "list",
+                "items": {
+                  "type": "str"
+                },
+                "nullable": true,
+                "required": false,
+                "description": "图片输出格式列表,多种格式同时输出(留空=png)"
+              },
+              "title": {
+                "type": "null",
+                "nullable": true,
+                "required": false,
+                "description": "报告标题;留空=模块默认"
+              },
+              "pipeline": {
+                "type": "null",
+                "nullable": true,
+                "required": false,
+                "description": "报告标注的流程名;留空=模块默认 Mutation"
+              },
+              "genome": {
+                "type": "null",
+                "nullable": true,
+                "required": false,
+                "description": "报告标注的基因组名;留空=自动取 genome.default"
+              },
+              "date": {
+                "type": "null",
+                "nullable": true,
+                "required": false,
+                "description": "报告生成日期;留空=由 node.py 写入运行当天"
+              }
+            }
+          }
+        }
+      },
+      "DESeq2": {
+        "type": "dict",
+        "required": true,
+        "properties": {
+          "group_pairs": {
+            "type": "dict",
+            "required": true,
+            "additionalProperties": {
+              "type": "dict",
+              "additionalProperties": {
+                "type": "dict",
+                "properties": {
+                  "control_group_name": {
+                    "type": "str",
+                    "required": true
+                  },
+                  "experimental_group_name": {
+                    "type": "str",
+                    "required": true
+                  },
+                  "control_samples": {
+                    "type": "list",
+                    "required": true,
+                    "items": {
+                      "type": "str"
+                    }
+                  },
+                  "experimental_samples": {
+                    "type": "list",
+                    "required": true,
+                    "items": {
+                      "type": "str"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "DESeq2_TElocal_manhattan": {
+            "type": "dict",
+            "required": false,
+            "properties": {
+              "label_top": {
+                "type": "int",
+                "required": false
+              },
+              "ylabel": {
+                "type": "str",
+                "required": false
+              },
+              "highlight_families": {
+                "type": "dict",
+                "required": false
+              }
+            },
+            "formats": {
+              "type": "list",
+              "required": false,
+              "default": [
+                "png"
+              ],
+              "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+            }
+          },
+          "DESeq2_TElocal_locus_boxplot": {
+            "type": "dict",
+            "required": false,
+            "properties": {
+              "match_field": {
+                "type": "str",
+                "required": false
+              },
+              "match_mode": {
+                "type": "str",
+                "required": false
+              },
+              "normalize": {
+                "type": "str",
+                "required": false
+              },
+              "kind": {
+                "type": "str",
+                "required": false
+              },
+              "families": {
+                "type": "dict",
+                "required": false
+              }
+            },
+            "formats": {
+              "type": "list",
+              "required": false,
+              "default": [
+                "png"
+              ],
+              "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+            }
+          },
+          "DESeq2_TElocal_subfamily_bar": {
+            "type": "dict",
+            "required": false,
+            "properties": {
+              "match_field": {
+                "type": "str",
+                "required": false
+              },
+              "match_mode": {
+                "type": "str",
+                "required": false
+              },
+              "value": {
+                "type": "str",
+                "required": false
+              },
+              "normalize": {
+                "type": "str",
+                "required": false
+              },
+              "yscale": {
+                "type": "str",
+                "required": false
+              },
+              "ylabel": {
+                "type": "str",
+                "required": false
+              },
+              "families": {
+                "type": "dict",
+                "required": false
+              }
+            },
+            "formats": {
+              "type": "list",
+              "required": false,
+              "default": [
+                "png"
+              ],
+              "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+            }
+          }
+        },
+        "DESeq2_TEcount": {
+          "type": "dict",
+          "required": false,
+          "properties": {
+            "formats": {
+              "type": "list",
+              "required": false,
+              "default": [
+                "png"
+              ],
+              "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+            }
+          }
+        },
+        "DESeq2_TElocal": {
+          "type": "dict",
+          "required": false,
+          "properties": {
+            "formats": {
+              "type": "list",
+              "required": false,
+              "default": [
+                "png"
+              ],
+              "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+            }
+          }
+        }
+      },
+      "STAR_TEtranscripts": {
+        "type": "dict",
+        "required": false,
+        "additionalProperties": {
+          "type": [
+            "str",
+            "int",
+            "float"
+          ]
+        }
+      },
+      "STAR_fusion": {
+        "type": "dict",
+        "required": false,
+        "additionalProperties": {
+          "type": [
+            "str",
+            "int",
+            "float"
+          ]
+        }
+      },
+      "StringTie": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "sample_groups": {
+            "type": "dict",
+            "required": false
+          },
+          "generate_report": {
+            "type": "dict",
+            "required": false,
+            "formats": {
+              "type": "list",
+              "required": false,
+              "default": [
+                "png"
+              ],
+              "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+            }
+          }
+        },
+        "formats": {
+          "type": "list",
+          "required": false,
+          "default": [
+            "png"
+          ],
+          "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+        }
+      },
+      "TEcount": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "enabled": {
+            "type": "bool",
+            "required": false
+          }
+        }
+      },
+      "TElocal": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "enabled": {
+            "type": "bool",
+            "required": false
+          }
+        }
+      },
+      "arriba": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "blacklist": {
+            "type": "str",
+            "required": false,
+            "path": "file"
+          },
+          "known_fusions": {
+            "type": "str",
+            "required": false,
+            "path": "file"
+          },
+          "t": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "d": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "E": {
+            "type": "float",
+            "required": false
+          },
+          "generate_report": {
+            "type": "dict",
+            "required": false,
+            "formats": {
+              "type": "list",
+              "required": false,
+              "default": [
+                "png"
+              ],
+              "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+            }
+          }
+        },
+        "formats": {
+          "type": "list",
+          "required": false,
+          "default": [
+            "png"
+          ],
+          "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+        }
+      },
+      "function": {
+        "type": "dict",
+        "required": false,
+        "additionalProperties": {
+          "type": "dict",
+          "properties": {
+            "enabled": {
+              "type": "bool",
+              "required": true
+            },
+            "function_go_kegg": {
+              "type": "dict",
+              "nullable": true,
+              "required": false,
+              "properties": {
+                "species": {
+                  "type": "str",
+                  "required": true
+                },
+                "lfc_cut": {
+                  "type": "float",
+                  "required": false
+                },
+                "p_cut": {
+                  "type": "float",
+                  "required": false
+                },
+                "top": {
+                  "type": "int",
+                  "required": false
+                },
+                "formats": {
+                  "type": "list",
+                  "required": false,
+                  "default": [
+                    "png"
+                  ],
+                  "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+                }
+              }
+            },
+            "function_gsea": {
+              "type": "dict",
+              "nullable": true,
+              "required": false,
+              "properties": {
+                "gmt": {
+                  "type": "str",
+                  "nullable": true,
+                  "required": false
+                },
+                "formats": {
+                  "type": "list",
+                  "required": false,
+                  "default": [
+                    "jpeg"
+                  ],
+                  "description": "图片格式(多种同时输出);R 侧 ggsave 设备集: png pdf svg ps eps tif tiff jpg jpeg(pgf/raw/rgba 为 matplotlib 专属,R 规则上快速失败)"
+                }
+              }
+            },
+            "function_gsva": {
+              "type": "dict",
+              "nullable": true,
+              "required": false,
+              "properties": {
+                "gmt": {
+                  "type": "str",
+                  "nullable": true,
+                  "required": false
+                },
+                "species": {
+                  "type": "str",
+                  "required": false
+                },
+                "formats": {
+                  "type": "list",
+                  "required": false,
+                  "default": [
+                    "png"
+                  ],
+                  "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+                }
+              }
+            },
+            "function_result": {
+              "type": "dict",
+              "nullable": true,
+              "required": false,
+              "properties": {
+                "go_kegg_formats": {
+                  "type": "list",
+                  "required": false,
+                  "default": [
+                    "png"
+                  ],
+                  "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+                },
+                "gsea_formats": {
+                  "type": "list",
+                  "required": false,
+                  "default": [
+                    "jpeg"
+                  ],
+                  "description": "图片格式(多种同时输出);R 侧 ggsave 设备集: png pdf svg ps eps tif tiff jpg jpeg(pgf/raw/rgba 为 matplotlib 专属,R 规则上快速失败)"
+                }
+              }
+            },
+            "generate_report": {
+              "type": "dict",
+              "nullable": true,
+              "required": false,
+              "properties": {
+                "go_kegg_formats": {
+                  "type": "list",
+                  "required": false,
+                  "default": [
+                    "png"
+                  ],
+                  "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+                },
+                "gsea_formats": {
+                  "type": "list",
+                  "required": false,
+                  "default": [
+                    "jpeg"
+                  ],
+                  "description": "图片格式(多种同时输出);R 侧 ggsave 设备集: png pdf svg ps eps tif tiff jpg jpeg(pgf/raw/rgba 为 matplotlib 专属,R 规则上快速失败)"
+                },
+                "gsva_formats": {
+                  "type": "list",
+                  "required": false,
+                  "default": [
+                    "png"
+                  ],
+                  "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+                }
+              }
+            }
+          }
+        }
+      },
+      "hisat2_TEtranscripts": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "score_min": {
+            "type": "str",
+            "required": false
+          },
+          "flag_params": {
+            "type": "str",
+            "required": false
+          },
+          "k": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "hisat2_stringtie": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "k": {
+            "type": "int",
+            "required": false
+          },
+          "flag_params": {
+            "type": "str",
+            "required": false
+          }
+        }
+      },
+      "trimmomatic": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "trimmomatic_Paired": {
+            "type": "dict",
+            "required": false,
+            "properties": {
+              "adapter_pe": {
+                "type": "str",
+                "required": true,
+                "path": "file"
+              }
+            }
+          },
+          "trimmomatic_Single": {
+            "type": "dict",
+            "required": false,
+            "properties": {
+              "adapter_se": {
+                "type": "str",
+                "required": true,
+                "path": "file"
+              }
+            }
+          }
+        }
+      },
+      "STAR_featureCounts": {
+        "type": "dict",
+        "nullable": true,
+        "required": false
+      },
+      "XenofilteR": {
+        "type": "dict",
+        "nullable": true,
+        "required": false
+      },
+      "gatk_RNAseq": {
+        "type": "dict",
+        "nullable": true,
+        "required": false
+      },
+      "RNAseq_report": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "generate_report": {
+            "type": "dict",
+            "required": false,
+            "properties": {
+              "title": {
+                "type": "str",
+                "required": false
+              },
+              "subtitle": {
+                "type": "str",
+                "required": false
+              },
+              "pipeline": {
+                "type": "str",
+                "required": false
+              },
+              "genome": {
+                "type": "str",
+                "required": false
+              },
+              "date": {
+                "type": "str",
+                "required": false
+              },
+              "lang": {
+                "type": "str",
+                "required": false
+              }
+            },
+            "formats": {
+              "type": "list",
+              "required": false,
+              "default": [
+                "png"
+              ],
+              "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+            }
+          }
+        }
+      },
+      "sexcheck_RNAseq": {
+        "type": "dict",
+        "nullable": true,
+        "required": false
       }
     }
   }

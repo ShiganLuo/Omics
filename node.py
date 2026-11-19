@@ -2994,6 +2994,7 @@ def runDR(
         datajson: Dict[str, Any],
         samples_info_dict: Dict[str, SampleInfo],
         designPairs: List[DesignPair],
+        group_pairs: List[CompareGroupPair],
         indir: str,
         outdir: str,
         raw_files: List[str],
@@ -3001,104 +3002,147 @@ def runDR(
     """Prepare input JSON for the DR workflow (DNA x RNA joint evidence).
 
     End-to-end pipeline (subworkflow/DR.smk):
-    0. WES somatic chain from raw WES fastq (wes_indir): fastqc -> cutadapt
-       -> bwa-mem2 -> gatk_prepare markdup -> targets -> Mutect2+Filter
-       -> gatk_germline. Outputs under {outdir}/WES/.
-    1. RNA chain from raw RNA fastq (meta indir): cutadapt -> star
-       -> gatk_prepare markdup -> gatk_RNAseq calling. Outputs under
-       {outdir}/RNA/.
+    0. DNA chain (data_type=DNA rows) from raw fastq (dna_indir) mirroring the
+       full Mutation.smk analysis set: fastqc -> cutadapt -> bwa-mem2 -> samtools
+       -> gatk_prepare markdup -> targets -> Mutect2+Filter -> msi ->
+       gatk_germline -> somatic spectrum/signature -> fragment_size ->
+       Manta (germline + somatic SV) -> CNVkit -> burden -> sexcheck ->
+       qc_summary -> Mutation_report. Outputs under {outdir}/DNA/.
+       Assay-aware via the meta assay column (WGS / Exome / Panel): it drives
+       CNVkit --seq-method and the exome capture targets BED; nothing is
+       WES-specific by default.
+    1. RNA chain (data_type=RNA rows) from raw fastq (indir), replicating the
+       full RNAseq.smk analysis set: trimmer -> TE quantification (TEtranscripts)
+       -> featureCounts -> DESeq2 -> function (GO/KEGG/GSEA/GSVA) ->
+       StringTie -> fusion (RmrRNA/bowtie2/STAR-chimera/arriba) -> RNA SNP
+       (star -> XenofilteR -> markdup -> gatk_RNAseq) -> RNAseq_report ->
+       sexcheck -> qc_summary. Outputs under {outdir}/RNA/.
     2. DRclass module: anchors -> bcftools pileup -> state-machine
        classification -> per-sample tables + summary ({outdir}/DRclass/).
 
     Meta conventions:
-      - ALL samples (WES and RNA) carry fastq paths in the meta; the
-        framework stages them into {outdir}/common/1_raw_data/ with
-        <ID>_{1,2}.fq.gz naming. Chain 0 reads WES ids from there, chain 1
-        reads RNA ids.
-      - design column pairs each RNA sample with its WES sample:
-        ctr_<tag> rows = WES sample ids, exp_<tag> rows = RNA sample ids
-        (tag token shared within a pair). A ctr_ row without exp partner
-        (e.g. ctr_normal E14-1) is the somatic calling normal.
-      - Params.workflow.somatic_normal overrides the normal auto-pick.
+      - Chain routing is by the meta data_type column (required on every row,
+        case-insensitive): DNA rows run chain 0, RNA rows run chain 1.
+        MetaUtil stages each row's fastq with <ID>_{1,2}.fq.gz naming into
+        {outdir}/DNA/common/1_raw_data/ or {outdir}/RNA/common/1_raw_data/.
+      - design keeps the project-wide ctr_<tag>/exp_<tag> semantics
+        (control/experiment, Mutation parity): DNA design pairs are matched
+        normal/tumor somatic pairs (control = normal). Design pairs are never
+        used for chain routing; mixed DNA-RNA pairs are ignored with a warning
+        (DRclass evidence pairing is expressed by group or Params.workflow
+        .dr_pairs instead).
+      - RNA differential expression contrasts: hand-filled
+        Params.DESeq2.group_pairs wins, else RNA-only design group pairs,
+        else all pairs of the RNA rows' group column (alphabetical first =
+        control).
+      - DRclass evidence pairing: a DNA sample and a RNA sample with the SAME
+        sample name (different data_type) are the two assays of one biological
+        sample and form one DRclass pairing; hand-filled Params.workflow
+        .dr_pairs ({dna_name: rna_name}) overrides. Entries need a somatic VCF,
+        so only somatic tumors of the DNA design pairs get classified.
     """
     root_dir = _init_raw_json(datajson, indir, outdir, raw_files, workflow="DR")
     _resolve_genome_ref(datajson, samples_info_dict, "DR")
 
-    # WES fastq come from the SAME meta raw-data staging as RNA: the
-    # framework links every meta sample's fastq into {outdir}/common/1_raw_data/
-    # with <ID>_{1,2}.fq.gz naming. WES rows (ctr_ role) and RNA rows (exp_
-    # role) are both staged there; chain 0 consumes WES ids, chain 1 RNA ids.
-    wes_raw_staging = os.path.join(outdir, "common", "1_raw_data")
+    # --- Chain routing by meta data_type (the ONLY routing axis) ---
+    dna_samples: List[str] = []
+    rna_samples: List[str] = []
+    for sample_id, info in samples_info_dict.items():
+        dt = (getattr(info, "data_type", None) or "").strip().upper()
+        if dt == "DNA":
+            dna_samples.append(sample_id)
+        elif dt == "RNA":
+            rna_samples.append(sample_id)
+        else:
+            raise ValueError(
+                f"DR: sample {sample_id} has data_type={getattr(info, 'data_type', None)!r}; "
+                "every DR meta row must carry data_type=DNA or data_type=RNA "
+                "(case-insensitive) — it is the only chain routing axis")
+    if not dna_samples or not rna_samples:
+        raise ValueError(
+            f"DR: meta must contain both data_type=DNA rows (got {len(dna_samples)}) "
+            f"and data_type=RNA rows (got {len(rna_samples)})")
+
+    # samples_dict keys are unique sample keys; modules/paths use the real
+    # sample name (display). The same display name under two data_types is one
+    # biological sample assayed twice — the DRclass pairing key.
+    def _disp(key: str) -> str:
+        return samples_info_dict[key].sample_id
+    dna_info = {_disp(k): samples_info_dict[k] for k in dna_samples}
+    rna_info_by_name = {_disp(k): samples_info_dict[k] for k in rna_samples}
 
     outfiles = []
-    dr_pairs = {}           # wes_sample_id -> rna_sample_id
+    dna_paired_samples: List[str] = []
+    dna_single_samples: List[str] = []
     genome_paired_samples = {}
     genome_single_samples = {}
-    wes_paired_samples = []
-    wes_single_samples = []
-    wes_all = []
-    paired_design = []
+    paired_design = []          # [{"control": normal_dna, "experimental": tumor_dna}]
     pair_strains = {}
     drclass_samples = {}
     strain_vcfs = datajson.get("Params", {}).get("workflow", {}).get("drclass_strain_vcfs", {})
 
-    # --- resolve WES<->RNA pairs from design; collect WES sample set ---
+    # --- DNA design pairs (standard ctr_/exp_ semantics, Mutation parity) ---
+    # Both endpoints DNA -> matched normal/tumor somatic pair. Cross-type or
+    # RNA-only pairs are not chain-routing devices; cross-type ones are ignored.
+    dna_set, rna_set = set(dna_samples), set(rna_samples)
+    dna_design_pairs = []
     for designPair in designPairs:
-        wes_id, rna_id = designPair.ctr_sample_id, designPair.exp_sample_id
-        rna_info = samples_info_dict.get(rna_id)
-        if rna_info is None:
-            raise ValueError(f"DR: RNA sample {rna_id} not found in meta samples")
-        dr_pairs[wes_id] = rna_id
-
-    # WES samples = every ctr_ sample in the design graph (controls without
-    # exp partners, e.g. the somatic calling normal E14-1, still need their
-    # WES chain products for Mutect2 pairing).
-    for sample_id, info in samples_info_dict.items():
-        design_val = (info.design or "").strip()
-        if design_val.startswith(("ctr_", "ctrl_")):
-            wes_all.append(sample_id)
-    for wes_id in dr_pairs:
-        if wes_id not in wes_all:
-            wes_all.append(wes_id)
-
-    # --- WES chain: verify staged fastq, register targets, build design ---
-    for wes_id in wes_all:
-        r1 = os.path.join(wes_raw_staging, wes_id, f"{wes_id}_1.fq.gz")
-        r2 = os.path.join(wes_raw_staging, wes_id, f"{wes_id}_2.fq.gz")
-        if os.path.exists(r2):
-            wes_paired_samples.append(wes_id)
-        elif os.path.exists(r1):
-            wes_single_samples.append(wes_id)
+        ctr_id, exp_id = designPair.ctr_sample_id, designPair.exp_sample_id
+        if ctr_id in dna_set and exp_id in dna_set:
+            dna_design_pairs.append(designPair)
+        elif ctr_id in rna_set and exp_id in rna_set:
+            continue  # RNA contrast pair; DE uses group_pairs below
         else:
-            raise ValueError(f"DR: WES fastq not staged for {wes_id} under {wes_raw_staging} "
-                             f"(expected {r1}; meta must carry fastq_1/fastq_2 for WES rows)")
-        info = samples_info_dict.get(wes_id)
-        strain = getattr(info, "strain", None) if info else None
+            logger.warning(
+                f"DR: ignoring mixed DNA/RNA design pair {ctr_id} vs {exp_id}; "
+                "design pairs never route chains (data_type does) and DRclass "
+                "evidence pairing comes from group or Params.workflow.dr_pairs")
+    for designPair in dna_design_pairs:
+        paired_design.append({"control": _disp(designPair.ctr_sample_id),
+                              "experimental": _disp(designPair.exp_sample_id)})
+        strain = getattr(samples_info_dict.get(designPair.exp_sample_id), "strain", None)
         if strain:
-            pair_strains[wes_id] = strain
+            pair_strains[_disp(designPair.exp_sample_id)] = strain
+    if pair_strains:
+        logger.info(f"DR: strain-aware germline filtering enabled for pairs: {pair_strains}")
 
-    # somatic paired design: each DR pair uses the shared normal from
-    # Params.workflow.somatic_normal (meta group or explicit), default = the
-    # single ctr_ sample that is not itself in dr_pairs (the E14-1 role).
-    somatic_normal = datajson.get("Params", {}).get("workflow", {}).get("somatic_normal") or ""
-    if not somatic_normal:
-        normals = [s for s in wes_all if s not in dr_pairs]
-        if len(normals) == 1:
-            somatic_normal = normals[0]
-        elif len(normals) == 0:
-            raise ValueError("DR: no somatic normal found — set Params.workflow.somatic_normal "
-                             "(the matched-normal WES sample, e.g. E14-1)")
+    # --- Raw staging roots (MetaUtil data_type routing) ---
+    # Derived from where the fastq were actually linked: MetaUtil is the
+    # single authority on the staging layout. Falls back to the shared root
+    # when nothing was staged (the per-sample verification below reports).
+    def _raw_staging_root(sample_ids: List[str]) -> str:
+        for sid in sample_ids:
+            info = samples_info_dict.get(sid)
+            if info and info.fastq_1:
+                return os.path.dirname(os.path.dirname(info.fastq_1))
+        return os.path.join(outdir, "common", "1_raw_data")
+
+    dna_raw_staging = _raw_staging_root(dna_samples)
+    rna_raw_staging = _raw_staging_root(rna_samples)
+    # Chain consumption: chain 1 reads indir (RNA root), chain 0 reads the
+    # dna_indir key (DNA root) — both rewritten here after staging.
+    datajson["Params"]["workflow"]["indir"] = rna_raw_staging
+    datajson["Params"]["workflow"]["dna_indir"] = dna_raw_staging
+
+    # --- DNA chain: verify staged fastq, classify layouts ---
+    for key in dna_samples:
+        dna_id = _disp(key)
+        info = samples_info_dict[key]
+        if info.layout == "PE":
+            dna_paired_samples.append(dna_id)
+        elif info.layout == "SE":
+            dna_single_samples.append(dna_id)
         else:
-            raise ValueError(f"DR: multiple normal candidates {normals} — set "
-                             "Params.workflow.somatic_normal explicitly")
-    if somatic_normal not in wes_all:
-        raise ValueError(f"DR: somatic_normal {somatic_normal} is not a ctr_ meta row")
-    for wes_id in dr_pairs:
-        paired_design.append({"control": somatic_normal, "experimental": wes_id})
+            raise ValueError(f"DR: unknown layout for DNA sample {dna_id}: {info.layout}")
+        staged = [info.fastq_1] + ([info.fastq_2] if info.layout == "PE" else [])
+        if not all(p and os.path.exists(p) for p in staged):
+            raise ValueError(f"DR: DNA fastq not staged for {dna_id} under {dna_raw_staging} "
+                             f"(expected {staged}; meta must carry fastq_1/fastq_2 for DNA rows)")
 
     # --- RNA chain sample grouping ---
-    for wes_id, rna_id in dr_pairs.items():
-        rna_info = samples_info_dict[rna_id]
+    for key in rna_samples:
+        rna_id = _disp(key)
+        rna_info = samples_info_dict[key]
         organism = rna_info.organism
         if rna_info.layout == "PE":
             genome_paired_samples.setdefault(organism, []).append(rna_id)
@@ -3107,42 +3151,573 @@ def runDR(
         else:
             raise ValueError(f"DR: unknown layout for RNA sample {rna_id}: {rna_info.layout}")
 
+    # --- RNA chain analysis products (RNAseq.smk parity) ---
+    # Counts / DE / enrichment / assembly / fusion / report / QC registration
+    # mirrored from runRNAseq, every path scoped under {outdir}/RNA. DE
+    # contrasts (DESeq2.group_pairs): config wins, else the RNA-only design
+    # group pairs, else all pairs of the RNA rows' group column (alphabetical
+    # first = control). Function enrichment stays gated by
+    # Params.function.<organism>.enabled like runRNAseq.
+    enable_te = _enabled(datajson, "TEtranscripts")
+    enable_fusion = _enabled(datajson, "arriba")
+    enable_deseq2 = _enabled(datajson, "DESeq2")
+    enable_TEcount = _enabled(datajson, "TEcount")
+    enable_TElocal = _enabled(datajson, "TElocal")
+    enable_report = _enabled(datajson, "RNAseq_report")
+    enable_StringTie = _enabled(datajson, "StringTie")
+
+    _deseq_params = datajson["Params"].setdefault("DESeq2", {})
+    if not _deseq_params.get("group_pairs"):
+        _derived = {}
+        # 1) RNA-only design group pairs (runRNAseq semantics)
+        for gp in group_pairs:
+            if set(gp.ctr_sample_ids) <= rna_set and set(gp.exp_sample_ids) <= rna_set:
+                _derived.setdefault(gp.organism, {})[f"{gp.ctr_group_name}_vs_{gp.exp_group_name}"] = {
+                    "control_group_name": gp.ctr_group_name,
+                    "experimental_group_name": gp.exp_group_name,
+                    "control_samples": [_disp(k) for k in gp.ctr_sample_ids],
+                    "experimental_samples": [_disp(k) for k in gp.exp_sample_ids],
+                }
+        _source = "RNA design group pairs"
+        # 2) fall back to all pairs of the RNA rows' group column
+        if not _derived:
+            _rna_groups = {}
+            for sid in rna_samples:
+                _g = (samples_info_dict[sid].group or "").strip()
+                if _g:
+                    _rna_groups.setdefault(samples_info_dict[sid].organism, {}).setdefault(_g, []).append(_disp(sid))
+            for _org, _gmap in _rna_groups.items():
+                _names = sorted(_gmap)
+                for _i, _ctr in enumerate(_names):
+                    for _exp in _names[_i + 1:]:
+                        _derived.setdefault(_org, {})[f"{_ctr}_vs_{_exp}"] = {
+                            "control_group_name": _ctr,
+                            "experimental_group_name": _exp,
+                            "control_samples": list(_gmap[_ctr]),
+                            "experimental_samples": list(_gmap[_exp]),
+                        }
+            _source = "group column"
+        _deseq_params["group_pairs"] = _derived
+        if _derived:
+            logger.info(f"DR: RNA DE contrasts derived from {_source}: "
+                        f"{ {o: list(v) for o, v in _derived.items()} } "
+                        "(override via Params.DESeq2.group_pairs)")
+    rna_group_pairs = _deseq_params.get("group_pairs") or {}
+    if not rna_group_pairs:
+        logger.info("DR: no RNA DE contrasts (need Params.DESeq2.group_pairs, RNA "
+                    "design pairs, or >=2 groups in the RNA rows' group column); "
+                    "DE/function pair outputs skipped")
+
+    # StringTie sample grouping from the RNA rows' group column
+    _sample_groups = {}
+    for sid in rna_samples:
+        _g = (samples_info_dict[sid].group or "").strip()
+        if _g:
+            _sample_groups.setdefault(_g, []).append(_disp(sid))
+    datajson["Params"].setdefault("StringTie", {})["sample_groups"] = _sample_groups
+
+    # XenofilteR host/contaminant map (runRNAseq parity; contaminant defaults
+    # to the host genome when the meta leaves contaminated_organism empty)
+    _sample_contamination = {}
+    for sid in rna_samples:
+        _info = samples_info_dict[sid]
+        _sample_contamination[_disp(sid)] = {
+            "host": _info.organism,
+            "contaminant": _info.contaminated_organism or _info.organism,
+        }
+    datajson["Params"].setdefault("XenofilteR", {})["sample_contamination"] = _sample_contamination
+
+    # per-contrast DE + function outputs
+    for _org, _pairs in rna_group_pairs.items():
+        for _pair_name in _pairs:
+            if enable_deseq2 and enable_TEcount:
+                outfiles.append(f"{outdir}/RNA/diff_expression/{_org}/{_pair_name}/TEcount/DESeq2.done")
+            if enable_deseq2 and enable_TElocal:
+                _te_dir = f"{outdir}/RNA/diff_expression/{_org}/{_pair_name}/TElocal"
+                outfiles.append(f"{_te_dir}/DESeq2.done")
+                _m_fmts = (datajson.get("Params", {}).get("DESeq2", {})
+                           .get("DESeq2_TElocal_manhattan", {}).get("formats") or ["png"])
+                if isinstance(_m_fmts, str):
+                    _m_fmts = [_m_fmts]
+                outfiles += _figs(f"{_te_dir}/manhattan/{_pair_name}.manhattan", _m_fmts)
+                # locus boxplot / subfamily bar only run when their per-contrast
+                # family patterns are configured (Params.DESeq2.<rule>.families)
+                for _te_fig_rule, _te_fig_dir in (("DESeq2_TElocal_locus_boxplot", "locus_box"),
+                                                  ("DESeq2_TElocal_subfamily_bar", "subfamily_bar")):
+                    _fam = (datajson.get("Params", {}).get("DESeq2", {}).get(_te_fig_rule, {}) or {}).get("families", {}) or {}
+                    if _fam.get(_org, {}).get(_pair_name):
+                        _f_fmts = (datajson.get("Params", {}).get("DESeq2", {}).get(_te_fig_rule, {}).get("formats") or ["png"])
+                        if isinstance(_f_fmts, str):
+                            _f_fmts = [_f_fmts]
+                        outfiles += _figs(f"{_te_dir}/{_te_fig_dir}/{_pair_name}.{_te_fig_dir}", _f_fmts)
+            if (datajson.get("Params", {}).get("function", {}).get(_org, {}) or {}).get("enabled", False):
+                _pair_dir = f"{outdir}/RNA/function/{_org}/{_pair_name}"
+                _go_fmts = (datajson.get("Params", {}).get("function", {}).get(_org, {})
+                            .get("function_go_kegg", {}).get("formats") or ["png"])
+                if isinstance(_go_fmts, str):
+                    _go_fmts = [_go_fmts]
+                outfiles += _figs(f"{_pair_dir}/go_back_to_back", _go_fmts)
+                outfiles += _figs(f"{_pair_dir}/kegg_back_to_back", _go_fmts)
+                _gsea_fmts = (datajson.get("Params", {}).get("function", {}).get(_org, {})
+                              .get("function_gsea", {}).get("formats") or ["jpeg"])
+                if isinstance(_gsea_fmts, str):
+                    _gsea_fmts = [_gsea_fmts]
+                outfiles += _figs(f"{_pair_dir}/GSEA/TEcount_Gene_GSEA", _gsea_fmts)
+                outfiles.append(f"{_pair_dir}/go_up.csv")
+                outfiles.append(f"{_pair_dir}/go_down.csv")
+                outfiles.append(f"{_pair_dir}/kegg_up.csv")
+                outfiles.append(f"{_pair_dir}/kegg_down.csv")
+                outfiles.append(f"{_pair_dir}/up_genes.txt")
+                outfiles.append(f"{_pair_dir}/down_genes.txt")
+                outfiles.append(f"{_pair_dir}/GSEA/TEcount_Gene_GSEA.csv")
+
+    # per-sample RNA products (the variation VCF + BAM are registered with the
+    # DRclass map below as chain evidence)
+    for key in rna_samples:
+        sid = _disp(key)
+        _org = samples_info_dict[key].organism
+        if enable_StringTie:
+            outfiles.append(f"{outdir}/RNA/transcripts/{_org}/raw/{sid}/{sid}_TE_chimeric_transcripts.txt")
+        if enable_fusion:
+            outfiles.append(f"{outdir}/RNA/fusion/{_org}/{sid}/{sid}_passed_fusions.tsv")
+
+    # per-organism RNA products
+    for _org in dict.fromkeys(samples_info_dict[sid].organism for sid in rna_samples):
+        # function species mirror runRNAseq (checked only when function is
+        # enabled for the organism; unsupported species hard-error like there)
+        _fn_org = datajson["Params"].setdefault("function", {}).setdefault(_org, {})
+        if _fn_org.get("enabled", False):
+            if _org in ("Homo sapiens", "human", "GRCh38"):
+                _fn_species = "human"
+            elif _org in ("Mus musculus", "mouse", "GRCm39"):
+                _fn_species = "mouse"
+            else:
+                raise ValueError(f"function module don't support {_org}, only support human or mouse(Homo sapiens or Mus musculus)")
+            for _fn_rule in ("function_go_kegg", "function_gsva"):
+                _fn_org.setdefault(_fn_rule, {})["species"] = _fn_species
+            outfiles.append(f"{outdir}/RNA/function/{_org}/gsva/gsva_scores.tsv")
+            _gsva_fmts = (_fn_org.get("function_gsva", {}).get("formats") or ["png"])
+            if isinstance(_gsva_fmts, str):
+                _gsva_fmts = [_gsva_fmts]
+            outfiles += _figs(f"{outdir}/RNA/function/{_org}/gsva/gsva_heatmap", _gsva_fmts)
+        if enable_fusion:
+            outfiles.append(f"{outdir}/RNA/fusion/{_org}/arriba_report/arriba_fusion_report.html")
+        if enable_StringTie:
+            outfiles.append(f"{outdir}/RNA/transcripts/{_org}/stringtie_merged.gtf")
+            if rna_group_pairs.get(_org):
+                _st_fmts = (datajson.get("Params", {}).get("StringTie", {}).get("formats") or ["png"])
+                if isinstance(_st_fmts, str):
+                    _st_fmts = [_st_fmts]
+                for _st_fig in ("TE_chimeric_group_stacked",
+                                "TE_chimeric_te_type_top",
+                                "TE_chimeric_te_type_by_group"):
+                    outfiles += _figs(f"{outdir}/RNA/transcripts/{_org}/TE_chimeric/{_st_fig}", _st_fmts)
+                outfiles.append(f"{outdir}/RNA/transcripts/{_org}/TE_chimeric/TE_chimeric_sample_summary.tsv")
+                outfiles.append(f"{outdir}/RNA/transcripts/{_org}/TE_chimeric/TE_chimeric_group_summary.tsv")
+                outfiles.append(f"{outdir}/RNA/transcripts/{_org}/TE_chimeric/TE_chimeric_te_type_counts.tsv")
+        if enable_te or enable_deseq2:
+            outfiles.append(f"{outdir}/RNA/counts/TEtranscripts/{_org}/{_org}_TEcount.tsv")
+            outfiles.append(f"{outdir}/RNA/counts/TEtranscripts/{_org}/{_org}_TEcount_name.tsv")
+        if enable_TElocal:
+            outfiles.append(f"{outdir}/RNA/counts/TEtranscripts/{_org}/{_org}_TElocal.tsv")
+            outfiles.append(f"{outdir}/RNA/counts/TEtranscripts/{_org}/{_org}_TElocal_name.tsv")
+        # gene expression quantification (always delivered)
+        outfiles.append(f"{outdir}/RNA/counts/featureCounts/{_org}/{_org}_featureCounts.tsv")
+        if enable_report:
+            outfiles.append(f"{outdir}/RNA/results/{_org}/RNAseq_report.pptx")
+            outfiles.append(f"{outdir}/RNA/results/{_org}/figures/manifest.tsv")
+
+    # RNA report Params (Params.RNAseq_report 段; runRNAseq 同款 genome/date 写回)
+    if enable_report:
+        _rna_report = datajson["Params"].setdefault("RNAseq_report", {}).setdefault("generate_report", {})
+        _rna_report["genome"] = "".join(dict.fromkeys(
+            samples_info_dict[s].organism for s in rna_samples))
+        _rna_report["date"] = time.strftime("%Y-%m-%d", time.localtime())
+
+    # Sex check + QC summary (modules/sexcheck, modules/qc_summary): mirrored
+    # from runRNAseq, registered unconditionally for the delivered output set.
+    outfiles.append(f"{outdir}/RNA/QC/sexcheck/sexcheck.tsv")
+    outfiles.append(f"{outdir}/RNA/QC/qc_summary/qc_summary.tsv")
+    outfiles.append(f"{outdir}/RNA/QC/qc_summary/qc_summary.html")
+
     # --- DRclass per-sample explicit file map (chain outputs) ---
-    for wes_id, rna_id in dr_pairs.items():
-        rna_info = samples_info_dict[rna_id]
+    # Evidence pairing rule: a DNA sample and a RNA sample sharing the same
+    # sample name (different data_type) are the two assays of one biological
+    # sample -> one DRclass pairing. Hand-filled Params.workflow.dr_pairs
+    # ({dna_name: rna_name}) overrides. Entries need a somatic VCF, so only
+    # somatic tumors of the DNA design pairs get classified.
+    _paired_map = {
+        rec["experimental"]: rec["control"]
+        for rec in paired_design
+        if rec.get("experimental") and rec.get("control")
+    }
+    dr_pairs_cfg = datajson.get("Params", {}).get("workflow", {}).get("dr_pairs") or {}
+    if dr_pairs_cfg:
+        dr_pairs = dict(dr_pairs_cfg)
+        for _dna_name, _rna_name in dr_pairs.items():
+            if _dna_name not in dna_info or _rna_name not in rna_info_by_name:
+                raise ValueError(
+                    f"DR: Params.workflow.dr_pairs entry {_dna_name} -> {_rna_name} must map a "
+                    f"data_type=DNA sample name to a data_type=RNA sample name")
+        logger.info(f"DR: DRclass evidence pairing taken from Params.workflow.dr_pairs: {dr_pairs}")
+    else:
+        dr_pairs = {_n: _n for _n in sorted(dna_info) if _n in rna_info_by_name}
+        if dr_pairs:
+            logger.info(f"DR: DRclass pairing by same sample name across data_type: {dr_pairs}")
+        else:
+            logger.info("DR: no DNA/RNA sample-name matches, no DRclass pair (give the two "
+                        "assays of one sample the same name, or set Params.workflow.dr_pairs)")
+    _tumors_without_rna = [t for t in sorted(_paired_map) if t not in dr_pairs]
+    if _tumors_without_rna:
+        logger.warning(f"DR: somatic tumors without same-name RNA evidence, no DRclass "
+                       f"entry: {_tumors_without_rna}")
+
+    for tumor_name, rna_name in dr_pairs.items():
+        if tumor_name not in _paired_map:
+            logger.info(f"DR: {tumor_name} is not a somatic tumor of a DNA design pair "
+                        "(no somatic VCF), skipping DRclass entry")
+            continue
+        rna_info = rna_info_by_name[rna_name]
         organism = rna_info.organism
-        somatic_vcf = (f"{outdir}/WES/variation/somatic_snv_indel/"
-                       f"{somatic_normal}_vs_{wes_id}/{somatic_normal}_vs_{wes_id}.filtered.vcf.gz")
-        germline_vcf = (f"{outdir}/WES/variation/germline_snv_indel/"
-                        f"{wes_id}/{wes_id}.raw.vcf.gz")
+        control_id = _paired_map[tumor_name]
+        somatic_vcf = (f"{outdir}/DNA/variation/somatic_snv_indel/"
+                       f"{control_id}_vs_{tumor_name}/{control_id}_vs_{tumor_name}.filtered.vcf.gz")
+        germline_vcf = (f"{outdir}/DNA/variation/germline_snv_indel/"
+                        f"{tumor_name}/{tumor_name}.raw.vcf.gz")
         rna_vcf = (f"{outdir}/RNA/variation/germline_snv_indel_RNAseq/"
-                   f"{organism}/{rna_id}/{rna_id}.filtered.vcf.gz")
+                   f"{organism}/{rna_name}/{rna_name}.filtered.vcf.gz")
         rna_bam = (f"{outdir}/RNA/common/10_markdup_deContaimation_bam/"
-                   f"{organism}/{rna_id}/{rna_id}.sorted_markdup.bam")
-        drclass_samples[wes_id] = {
+                   f"{organism}/{rna_name}/{rna_name}.sorted_markdup.bam")
+        drclass_samples[tumor_name] = {
             "somatic_vcf": somatic_vcf,
             "germline_vcf": germline_vcf,
             "rna_vcf": rna_vcf,
             "rna_bam": rna_bam,
             "rna_bam_index": rna_bam.replace(".bam", ".bai"),
-            "strain_vcf": strain_vcfs.get(wes_id) or strain_vcfs.get("*") or [],
+            "strain_vcf": strain_vcfs.get(tumor_name) or strain_vcfs.get("*") or [],
             "splice_bed": [],
             "editing_bed": [],
         }
         outfiles += [
-            f"{outdir}/DRclass/{wes_id}/{wes_id}.dna_anchored.tsv",
-            f"{outdir}/DRclass/{wes_id}/{wes_id}.rna_anchored.tsv",
+            f"{outdir}/DRclass/{tumor_name}/{tumor_name}.dna_anchored.tsv",
+            f"{outdir}/DRclass/{tumor_name}/{tumor_name}.rna_anchored.tsv",
         ]
         # chain-1 RNA products (so the DAG builds them)
         outfiles += [rna_vcf, rna_bam]
-    # chain-0 WES products (somatic + germline for every pair member)
+
+    # --- chain-0 DNA products: full Mutation.smk analysis set ---
+    # Sequencing assay -> CNVkit --seq-method (Mutation parity; judged over the
+    # DNA rows only — RNA rows share the meta). The meta `assay` column wins
+    # over the config value; all DNA rows must share one assay. DNA is not
+    # assumed to be WES: an absent assay column keeps the config value as-is.
+    _ref_entry = datajson["genome"]["references"][datajson["genome"]["default"]]
+    _ASSAY_TO_CNVKIT_METHOD = {
+        "wgs": "wgs", "exome": "hybrid", "wes": "hybrid",
+        "panel": "amplicon", "amplicon": "amplicon",
+    }
+    _dna_assays = sorted({
+        (getattr(samples_info_dict.get(sid), "assay", "") or "").strip().lower()
+        for sid in dna_samples
+    } - {""})
+    if len(_dna_assays) > 1:
+        raise ValueError(
+            f"DR: meta assay column holds mixed assay types {_dna_assays}; "
+            "CNVkit needs a single sequencing method per run."
+        )
+    _dna_assay_method = (_ASSAY_TO_CNVKIT_METHOD.get(_dna_assays[0])
+                         if _dna_assays else None)
+    if _dna_assays and _dna_assay_method is None:
+        raise ValueError(
+            f"DR: unknown meta assay '{_dna_assays[0]}'; expected one of "
+            f"{sorted(_ASSAY_TO_CNVKIT_METHOD)}"
+        )
+    # Capture region (Mutation parity): an explicit genome.references.<g>.targets
+    # BED wins; exome/hybrid assays derive it from markdup BAM coverage
+    # (DR.smk derive_targets), registered here for GATK -L, CNVkit --targets
+    # and burden. wgs/amplicon assays and an absent assay column have no
+    # capture region (DNA is not assumed to be WES).
+    if _ref_entry.get("targets"):
+        _targets = _ref_entry["targets"]
+    elif _dna_assay_method == "hybrid":
+        _targets = f"{outdir}/DNA/common/5_targets_bed/targets.bed"
+        outfiles.append(_targets)
+        _ref_entry["targets"] = _targets
+    else:
+        _targets = None
+        _ref_entry["targets"] = None
+
+    # Somatic (Mutect2) outputs per design pair + the sample -> file maps the
+    # spectrum/burden modules consume.
+    sample_somatic_vcf_dict = {}
+    sample_group_dict = {}
     for rec in paired_design:
-        outfiles.append(f"{outdir}/WES/variation/somatic_snv_indel/"
+        somatic_file = (f"{outdir}/DNA/variation/somatic_snv_indel/"
                         f"{rec['control']}_vs_{rec['experimental']}/"
                         f"{rec['control']}_vs_{rec['experimental']}.filtered.vcf.gz")
-    for wes_id in wes_all:
-        outfiles.append(f"{outdir}/WES/variation/germline_snv_indel/"
-                        f"{wes_id}/{wes_id}.raw.vcf.gz")
+        sample_somatic_vcf_dict[rec["experimental"]] = somatic_file
+        sample_group_dict[rec["experimental"]] = (
+            getattr(dna_info.get(rec["experimental"]), "group", "") or "")
+        outfiles.append(somatic_file)
+    # Germline (HaplotypeCaller) raw + filtered VCF for every DNA sample:
+    # raw is the DRclass anchor, filtered completes the Mutation germline
+    # analysis for delivery.
+    for key in dna_samples:
+        dna_id = _disp(key)
+        outfiles.append(f"{outdir}/DNA/variation/germline_snv_indel/"
+                        f"{dna_id}/{dna_id}.raw.vcf.gz")
+        outfiles.append(f"{outdir}/DNA/variation/germline_snv_indel/"
+                        f"{dna_id}/{dna_id}.filtered.vcf.gz")
+
+    # Alignment QC (samtools flagstat) + hybrid-selection QC (CollectHsMetrics
+    # over the capture region; Mutation parity — also the qc_summary anchors).
+    for key in dna_samples:
+        dna_id = _disp(key)
+        outfiles.append(f"{outdir}/DNA/common/3_sorted_bam/{dna_id}/{dna_id}_flagstat.txt")
+        if _targets:
+            outfiles.append(f"{outdir}/DNA/common/4_markdup_bam/{dna_id}/{dna_id}.hs_metrics.txt")
+
+    # Somatic mutation spectrum (modules/spectrum) — wired whenever design
+    # pairs exist; signature analysis follows Params.somatic_spectrum
+    # .signature.enabled (default off), mode selects which outputs register.
+    if paired_design:
+        _spectrum_fmts = (datajson.get("Params", {}).get("somatic_spectrum", {})
+                          .get("plot", {}).get("formats") or ["png"])
+        if isinstance(_spectrum_fmts, str):
+            _spectrum_fmts = [_spectrum_fmts]
+        outfiles += _figs(f"{outdir}/DNA/stability/spectrum/somatic_spectrum_stacked_bar",
+                          _spectrum_fmts)
+        outfiles += _figs(f"{outdir}/DNA/stability/spectrum/somatic_spectrum_heatmap",
+                          _spectrum_fmts)
+        outfiles.append(f"{outdir}/DNA/stability/spectrum/somatic_spectrum.csv")
+        outfiles.append(f"{outdir}/DNA/stability/spectrum/somatic_spectrum_per_sample.csv")
+        outfiles.append(f"{outdir}/DNA/stability/spectrum/somatic_spectrum_sample_stats.csv")
+        _sig_cfg = datajson["Params"].get("somatic_spectrum", {}).get("signature", {}) or {}
+        if _sig_cfg.get("enabled"):
+            _sig_mode = str(_sig_cfg.get("mode", "both")).lower()
+            if _sig_mode in ("refit", "both"):
+                _sig_fmts = (datajson.get("Params", {}).get("somatic_spectrum", {})
+                             .get("signature", {}).get("formats") or ["png"])
+                if isinstance(_sig_fmts, str):
+                    _sig_fmts = [_sig_fmts]
+                for _f in ("signature_refit_exposures.csv",
+                           "signature_refit_exposure_fractions.csv",
+                           "signature_refit_family_exposures.csv",
+                           "signature_refit_summary.csv"):
+                    outfiles.append(f"{outdir}/DNA/stability/spectrum/{_f}")
+                for _b in ("signature_refit_exposure_stacked_bar",
+                           "signature_refit_exposure_heatmap",
+                           "signature_refit_signature_cosine"):
+                    outfiles += _figs(f"{outdir}/DNA/stability/spectrum/{_b}",
+                                      _sig_fmts)
+            if _sig_mode in ("nmf", "both"):
+                _sig_fmts = (datajson.get("Params", {}).get("somatic_spectrum", {})
+                             .get("signature", {}).get("formats") or ["png"])
+                if isinstance(_sig_fmts, str):
+                    _sig_fmts = [_sig_fmts]
+                for _f in ("signature_nmf_signatures.csv",
+                           "signature_nmf_exposures.csv",
+                           "signature_nmf_rank_diagnostics.csv",
+                           "signature_nmf_cosmic_similarity.csv",
+                           "signature_nmf_cosmic_best_match.csv"):
+                    outfiles.append(f"{outdir}/DNA/stability/spectrum/{_f}")
+                for _b in ("signature_nmf_rank_diagnostics",
+                           "signature_nmf_exposures_stacked_bar",
+                           "signature_nmf_cosmic_match"):
+                    outfiles += _figs(f"{outdir}/DNA/stability/spectrum/{_b}",
+                                      _sig_fmts)
+
+    # Fragment size (cfDNA) gate: Params.fragment_size.enabled.
+    if _enabled(datajson, "fragment_size"):
+        outfiles.append(f"{outdir}/DNA/results/fragment_size/fragment/FragmentSize.txt")
+        _frag_fmts = (datajson.get("Params", {}).get("fragment_size", {})
+                      .get("plotFragmentSize", {}).get("formats") or ["png"])
+        if isinstance(_frag_fmts, str):
+            _frag_fmts = [_frag_fmts]
+        outfiles += _figs(f"{outdir}/DNA/results/fragment_size/fragment/FragmentSize",
+                          _frag_fmts)
+
+    # Structural variants (Manta) gate: Params.manta.enabled. Matched-normal
+    # design pairs get somatic SV (mirroring the Mutect2 pair judgment);
+    # samples outside the pairs get germline SV.
+    _pair_members = ({rec["control"] for rec in paired_design}
+                     | {rec["experimental"] for rec in paired_design})
+    if _enabled(datajson, "manta"):
+        for rec in paired_design:
+            outfiles.append(f"{outdir}/DNA/variation/somatic_sv/"
+                            f"{rec['control']}_vs_{rec['experimental']}/"
+                            f"results/variants/somaticSV.vcf.gz")
+        for key in dna_samples:
+            dna_id = _disp(key)
+            if dna_id in _pair_members:
+                logger.info(f"Sample {dna_id} is involved in manta somatic analysis, skipping germline SV workflow for this sample.")
+                continue
+            outfiles.append(f"{outdir}/DNA/variation/germline_sv/{dna_id}/results/variants/candidateSV.vcf.gz")
+
+    # MSI (msisensorpro) gate: Params.msi.enabled, tumor of each design pair.
+    if _enabled(datajson, "msi") and paired_design:
+        for rec in paired_design:
+            outfiles.append(
+                f"{outdir}/DNA/stability/msi/{rec['experimental']}/"
+                f"{rec['experimental']}_msi_pro.tsv")
+        outfiles.append(f"{outdir}/DNA/stability/msi/msi_input.txt")
+        # formats 精确到 rule:Params.msi.msi_plot.formats(config 全量路径读取,
+        # 无 module 级共享回退)。
+        _msi_fmts = (datajson.get("Params", {}).get("msi", {})
+                     .get("msi_plot", {}).get("formats") or ["jpg"])
+        if isinstance(_msi_fmts, str):
+            _msi_fmts = [_msi_fmts]
+        outfiles += _figs(f"{outdir}/DNA/stability/msi/msi_barplot", _msi_fmts)
+
+    # CNVkit gate: Params.cnvkit.enabled. The assay-resolved method computed
+    # with the targets gating above is applied here (Mutation parity; judged
+    # over the DNA rows only — RNA rows share the meta).
+    _cnv_cfg = datajson["Params"].setdefault("cnvkit", {})
+    if _dna_assays:
+        configured = _cnv_cfg.get("method")
+        if configured != _dna_assay_method:
+            logger.info(
+                f"DR: meta assay '{_dna_assays[0]}' -> Params.cnvkit.method "
+                f"'{configured}' overridden to '{_dna_assay_method}'"
+            )
+        _cnv_cfg["method"] = _dna_assay_method
+    # Calling mode resolution (Mutation parity): matched normals in the
+    # design pairs -> paired; else a normal panel
+    # (Params.workflow.control_samples) -> pooled; else flat. An explicit
+    # mode wins over "auto"; impossible combos hard-error below.
+    _cnv_mode = _cnv_cfg.get("mode") or "auto"
+    if _cnv_mode == "auto":
+        _cnv_mode = "paired" if _paired_map else (
+            "pooled" if (datajson["Params"]["workflow"].get("control_samples") or []) else "flat"
+        )
+        _cnv_cfg["mode"] = _cnv_mode
+        logger.info(f"DR: cnvkit mode auto -> {_cnv_mode} "
+                    f"(design pairs: {len(_paired_map)}, "
+                    f"control_samples: {len(datajson['Params']['workflow'].get('control_samples') or [])})")
+    if _cnv_mode == "paired" and not _paired_map:
+        raise ValueError(
+            "DR: Params.cnvkit.mode 'paired' requires matched normal "
+            "samples in the meta design; none found. Use mode 'pooled' (with "
+            "control_samples) or 'flat'."
+        )
+    if _cnv_mode == "pooled" and not (datajson["Params"]["workflow"].get("control_samples") or []):
+        raise ValueError(
+            "DR: Params.cnvkit.mode 'pooled' requires "
+            "Params.workflow.control_samples; none found. Use mode 'flat' "
+            "or provide a normal panel."
+        )
+    if _cnv_mode == "paired":
+        # Paired mode must not also build a pooled reference alongside the
+        # per-pair references (conflicting reference semantics).
+        datajson["Params"]["workflow"]["control_samples"] = []
+    # 参数精确到 rule:resolve 结果(以及 meta assay 推导的 method)镜像写入
+    # rule 子段——modules/cnvkit 只读 Params.cnvkit.<rule>.mode/.method
+    # (rule_param,无 module 级回退),扁平键仅留作 node.py 自身门控/兼容。
+    for _cnv_rule in ("cnvkit_reference", "cnvkit_batch", "cnvkit_paired"):
+        _cnv_sub = _cnv_cfg.setdefault(_cnv_rule, {})
+        _cnv_sub["mode"] = _cnv_mode
+        if _cnv_cfg.get("method"):
+            _cnv_sub["method"] = _cnv_cfg["method"]
+    if _enabled(datajson, "cnvkit"):
+        # Mode-aware registration: paired -> per-pair tumors only (no pooled
+        # reference); pooled -> all samples + shared reference.cnn; flat ->
+        # all samples, no reference.
+        if _cnv_mode == "paired":
+            for sample_id in _paired_map:
+                outfiles.append(f"{outdir}/DNA/variation/cnv/{sample_id}/{sample_id}.cnr")
+                outfiles.append(f"{outdir}/DNA/variation/cnv/{sample_id}/{sample_id}.cns")
+        else:
+            for sample_id in [_disp(k) for k in dna_samples]:
+                outfiles.append(f"{outdir}/DNA/variation/cnv/{sample_id}/{sample_id}.cnr")
+                outfiles.append(f"{outdir}/DNA/variation/cnv/{sample_id}/{sample_id}.cns")
+            if _cnv_mode == "pooled":
+                outfiles.append(f"{outdir}/DNA/variation/cnv/reference/reference.cnn")
+
+    # Mutation burden (modules/burden): SNV/InDel TMB + SV + CNV burden for
+    # each tumor sample (Mutation parity). The three sample -> file maps
+    # derive from the somatic and CNV outputs above (hand-filled Params.burden
+    # entries win); the CNV sample set follows the resolved CNVkit mode.
+    if _enabled(datajson, "burden"):
+        burden_cfg = datajson["Params"].setdefault("burden", {})
+        snv_vcf_dict = dict(sample_somatic_vcf_dict)  # {tumor: somatic SNV VCF}
+        sv_vcf_dict = {
+            rec["experimental"]:
+                f"{outdir}/DNA/variation/somatic_sv/"
+                f"{rec['control']}_vs_{rec['experimental']}/"
+                f"results/variants/somaticSV.vcf.gz"
+            for rec in paired_design
+        }
+        if _cnv_mode == "paired":
+            burden_cnv_samples = list(_paired_map)
+        else:
+            burden_cnv_samples = [_disp(k) for k in dna_samples]
+        cnv_dict = {
+            sample_id: f"{outdir}/DNA/variation/cnv/{sample_id}/{sample_id}.cns"
+            for sample_id in burden_cnv_samples
+        }
+        for key, derived in (("sample_snv_vcf_dict", snv_vcf_dict),
+                             ("sample_sv_vcf_dict", sv_vcf_dict),
+                             ("sample_cnv_dict", cnv_dict)):
+            if not burden_cfg.get(key):
+                burden_cfg[key] = derived
+        # VEP annotation settings (Params.burden.burden_snv_indel.annotate,
+        # default on; config 全量路径读取,无 module 级共享回退):
+        # species/assembly are derived from the genome; an explicit config
+        # value wins and an unmapped genome hard-errors instead of guessing.
+        _burden_snvi = burden_cfg.setdefault("burden_snv_indel", {})
+        if _burden_snvi.get("annotate", True):
+            if not _burden_snvi.get("vep_species") \
+                    or not _burden_snvi.get("vep_assembly"):
+                _genome_key = str(datajson["genome"]["default"])
+                mapped = GENOME_VEP_SPECIES.get(_genome_key)
+                if not mapped:
+                    raise ValueError(
+                        f"DR: genome '{_genome_key}' has no known VEP "
+                        f"species/assembly for the burden annotation; set "
+                        f"'Params.burden.burden_snv_indel.vep_species' and "
+                        f"'Params.burden.burden_snv_indel.vep_assembly' in the config JSON, or "
+                        f"disable annotation with Params.burden.burden_snv_indel.annotate=false."
+                    )
+                _burden_snvi.setdefault("vep_species", mapped[0])
+                _burden_snvi.setdefault("vep_assembly", mapped[1])
+                logger.info(
+                    f"DR: burden VEP settings auto-filled for genome "
+                    f"'{_genome_key}': species={mapped[0]} assembly={mapped[1]}"
+                )
+        for sample_id in burden_cfg["sample_snv_vcf_dict"]:
+            outfiles.append(f"{outdir}/DNA/stability/burden/{sample_id}/{sample_id}.snv_indel_burden.tsv")
+        for sample_id in burden_cfg["sample_sv_vcf_dict"]:
+            outfiles.append(f"{outdir}/DNA/stability/burden/{sample_id}/{sample_id}.sv_burden.tsv")
+        for sample_id in burden_cfg["sample_cnv_dict"]:
+            outfiles.append(f"{outdir}/DNA/stability/burden/{sample_id}/{sample_id}.cnv_burden.tsv")
+        if (burden_cfg["sample_snv_vcf_dict"] or burden_cfg["sample_sv_vcf_dict"]
+                or burden_cfg["sample_cnv_dict"]):
+            outfiles.append(f"{outdir}/DNA/stability/burden/burden_summary.tsv")
+
+    datajson["Params"].setdefault("somatic_spectrum", {})["sample_somatic_vcf_dict"] = sample_somatic_vcf_dict
+    datajson["Params"]["somatic_spectrum"]["sample_group_dict"] = sample_group_dict
+
+    # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
+    # coverage over the markdup BAMs (Mutation parity).
+    outfiles.append(f"{outdir}/DNA/QC/sexcheck/sexcheck.tsv")
+
+    # QC summary module (modules/qc_summary): cross-sample metric table +
+    # HTML summary; always part of the delivered output set.
+    outfiles.append(f"{outdir}/DNA/QC/qc_summary/qc_summary.tsv")
+    outfiles.append(f"{outdir}/DNA/QC/qc_summary/qc_summary.html")
+
+    # Final PPT report + results workbook (modules/Mutation_report), gated
+    # by Params.report.enabled like the other report modules.
+    if _enabled(datajson, "report"):
+        # 写回精确到 rule:Params.report.generate_report.date(与
+        # runMutation/runPeakCalling/runRIPseq/runRNAseq 的写回同一键形)
+        datajson["Params"].setdefault("report", {}).setdefault(
+            "generate_report", {}).setdefault(
+            "date", time.strftime("%Y-%m-%d", time.localtime()))
+        outfiles.append(f"{outdir}/DNA/Mutation_report.pptx")
+        outfiles.append(f"{outdir}/DNA/Mutation_report.xlsx")
+        # 报告自有图导出清单(报告模块规范:figures/<name>.<fmt> 条件产出,
+        # 以 manifest.tsv 锚定 DAG 与磁盘一致)
+        outfiles.append(f"{outdir}/DNA/figures/manifest.tsv")
 
     outfiles.append(f"{outdir}/DRclass/DRclass_summary.tsv")
 
@@ -3150,10 +3725,11 @@ def runDR(
     datajson["Params"]["workflow"]["drclass_samples"] = drclass_samples
     datajson["Params"]["workflow"]["genome_paired_samples"] = genome_paired_samples
     datajson["Params"]["workflow"]["genome_single_samples"] = genome_single_samples
-    datajson["Params"]["workflow"]["wes_paired_samples"] = wes_paired_samples
-    datajson["Params"]["workflow"]["wes_single_samples"] = wes_single_samples
+    datajson["Params"]["workflow"]["dna_paired_samples"] = dna_paired_samples
+    datajson["Params"]["workflow"]["dna_single_samples"] = dna_single_samples
     datajson["Params"]["workflow"]["paired_design"] = paired_design
     datajson["Params"]["workflow"]["pair_strains"] = pair_strains
+    datajson["Params"]["workflow"]["control_samples"] = datajson["Params"]["workflow"].get("control_samples", []) or []
     datajson["outfiles"] = outfiles
     return _write_raw_json(datajson, outdir)
 

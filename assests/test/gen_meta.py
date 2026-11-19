@@ -9,10 +9,21 @@ src/common/util/MetaUtil.py (fastq / bam+pbi / ms_file):
   - fastq   : sample_id/data_id/design/fastq_1/fastq_2 (fastq_2 empty for SE)
   - bam_pbi : sample_id/data_id/design/bam/pbi (Fiberseq, PacBio)
   - ms      : sample_id/data_id/design/ms_file (QuantMS, .raw/.mzML/.mgf)
+  - data_type column (DR): DNA/RNA, filled via --data-type / --data-type-map
+    and routing raw staging into {outdir}/{DNA|RNA}/common/1_raw_data
+  - assay column (Mutation, DR): WGS / Exome / Panel — node.py derives CNVkit
+    --seq-method and the exome capture targets BED from it; DR fills it on DNA
+    rows only (RNA rows empty) via --assay / --assay-map
 
 Rules:
   - data_id identifies one unique sequencing file (read pair / single file / bam / ms file)
   - sample_id defaults to data_id (override via --sample-map to merge replicates)
+  - -d may be repeated; every directory is scanned (-d A -d B == -d A B);
+    a search dir may be tagged with its data_type: -d DIR=DNA / -d DIR=RNA
+  - duplicate-name detection is scoped per data_type: the same name under two
+    data_types is ONE sample assayed twice (a DRclass pairing) and passes
+    through untouched; within one data_type every colliding member gets a
+    numbered suffix in scan order, first -1 then -2/-3/...
   - only relevant columns are emitted; optional fields stay empty unless given
   - paths are written absolute (meta_tsv_filling.md pitfall #4)
 """
@@ -39,6 +50,9 @@ FASTQ_COLS = ["sample_id", "data_id", "design", "fastq_1", "fastq_2"]
 # columns match assests/test/meta_*.tsv
 WORKFLOWS = {
     "CoCulture":       {"kind": "fastq", "columns": FASTQ_COLS},
+    "DR":              {"kind": "fastq", "columns": ["sample_id", "organism", "group", "data_id",
+                                                     "design", "data_type", "assay", "fastq_1", "fastq_2",
+                                                     "contaminated_organism", "strain"]},
     "KARRseq":         {"kind": "fastq", "columns": FASTQ_COLS},
     "MERIP":           {"kind": "fastq", "columns": FASTQ_COLS},
     "Mutation":        {"kind": "fastq", "columns": ["sample_id", "organism", "data_id", "design",
@@ -149,8 +163,9 @@ def load_map(path):
 def main():
     ap = argparse.ArgumentParser(description="Generate metadata TSV for a subworkflow")
     ap.add_argument("-w", "--workflow", required=True, choices=sorted(WORKFLOWS))
-    ap.add_argument("-d", "--search-dir", required=True, nargs="+",
-                    help="one or more directories to scan recursively")
+    ap.add_argument("-d", "--search-dir", required=True, nargs="+", action="extend",
+                    help="one or more directories to scan recursively; repeatable "
+                         "(-d A -d B == -d A B); tag with data_type as DIR=DNA / DIR=RNA")
     ap.add_argument("-o", "--out", default=None, help="output TSV (default meta_<workflow>.tsv)")
     ap.add_argument("--kind", choices=["fastq", "bam_pbi", "ms"], default=None,
                     help="override default input kind (e.g. --kind fastq for QuantMS test data)")
@@ -159,9 +174,17 @@ def main():
     ap.add_argument("--organism", default="", help="fill organism column (workflows that have it)")
     ap.add_argument("--contaminated-organism", default="", help="fill contaminated_organism (RNAseq)")
     ap.add_argument("--group", default="", help="fill group column (RNAseq, Mutation)")
-    ap.add_argument("--assay", default="", help="fill assay column, e.g. WGS / Exome / Panel (Mutation)")
-    ap.add_argument("--strain", default="", help="fill strain column, e.g. 129P2_OlaHsd (Mutation; "
+    ap.add_argument("--assay", default="", help="fill assay column, e.g. WGS / Exome / Panel "
+                                               "(Mutation, DR DNA rows; drives CNVkit --seq-method "
+                                               "and exome capture targets)")
+    ap.add_argument("--assay-map", default=None, help="TSV: data_id or sample_id<TAB>assay "
+                                                      "(DR: fill DNA rows only, RNA rows stay empty)")
+    ap.add_argument("--strain", default="", help="fill strain column, e.g. 129P2_OlaHsd (Mutation, DR; "
                                                   "enables strain-aware germline filtering, empty = all-strain resource)")
+    ap.add_argument("--data-type", default="", help="fill data_type column: DNA or RNA (DR; "
+                                                    "per-sample override via --data-type-map)")
+    ap.add_argument("--data-type-map", default=None, help="TSV: data_id or sample_id<TAB>DNA|RNA "
+                                                          "(DR metas mix DNA and RNA rows)")
     ap.add_argument("--sample-map", default=None, help="TSV: data_id<TAB>sample_id (merge replicates)")
     ap.add_argument("--design-map", default=None, help="TSV: data_id or sample_id<TAB>design")
     ap.add_argument("--group-map", default=None, help="TSV: data_id or sample_id<TAB>group")
@@ -181,13 +204,28 @@ def main():
         extras = [c for c in columns if c not in base + ["fastq_1", "fastq_2", "bam", "pbi", "ms_file"]]
         columns = base + file_cols + extras
 
+    # search dirs may carry a data_type tag: -d DIR=DNA / -d DIR=RNA
+    search_specs = []
+    for d in args.search_dir:
+        base, eq, tag = d.rpartition("=")
+        if eq and tag.strip().upper() in ("DNA", "RNA"):
+            search_specs.append((base, tag.strip().upper()))
+        else:
+            search_specs.append((d, ""))
+
     def scan_with(k):
         found = []
-        for d in args.search_dir:
-            sd = Path(d).resolve()
+        seen_dirs = set()
+        for base, dt in search_specs:
+            sd = Path(base).resolve()
             if not sd.is_dir():
                 die(f"search directory not found: {sd}")
-            found.extend({"fastq": find_fastq_units, "bam_pbi": find_bam_pbi_units, "ms": find_ms_units}[k](sd))
+            if sd in seen_dirs:
+                logger.warning(f"search directory listed twice, ignoring repeat: {sd}")
+                continue
+            seen_dirs.add(sd)
+            for unit in {"fastq": find_fastq_units, "bam_pbi": find_bam_pbi_units, "ms": find_ms_units}[k](sd):
+                found.append(tuple(unit) + (dt,))
         return found
 
     units = scan_with(kind)
@@ -213,23 +251,72 @@ def main():
     if not units:
         die(f"no {kind} sequencing files found under {', '.join(args.search_dir)}")
 
-    seen = set()
-    for did, _, _ in units:
-        if did in seen:
-            die(f"duplicate data_id: {did}")
-        seen.add(did)
-
     sample_map = load_map(args.sample_map)
     design_map = load_map(args.design_map)
     group_map = load_map(args.group_map)
+    data_type_map = load_map(args.data_type_map)
+    assay_map = load_map(args.assay_map)
+
+    def norm_data_type(value, what):
+        v = (value or "").strip().upper()
+        if v and v not in ("DNA", "RNA"):
+            die(f"data_type '{value}' ({what}): expected DNA or RNA, or empty")
+        return v
+
+    default_data_type = norm_data_type(args.data_type, "--data-type")
+
+    # Resolve data_type per unit (map > per-dir tag > --data_type). It scopes
+    # duplicate-name detection: the same name under two data_types is ONE
+    # sample assayed twice (a DRclass pairing), never a duplicate.
+    typed = []
+    for did, f1, f2, dir_dt in units:
+        dt = norm_data_type(data_type_map.get(did) or dir_dt or default_data_type,
+                            f"data_type for {did}")
+        typed.append((did, f1, f2, dt))
+
+    # Drop identical file pairs re-found via overlapping search dirs, then make
+    # names unique WITHIN one data_type scope: a name appearing k>1 times under
+    # the same data_type gets numbered suffixes in scan order, the first -1
+    # then -2/-3/... (two DNA E14-2 -> E14-2-1, E14-2-2).
+    deduped = []
+    seen_files = set()
+    for did, f1, f2, dt in typed:
+        key = (str(f1), str(f2) if f2 else "")
+        if key in seen_files:
+            logger.info(f"{did}: identical files already collected, skipping repeat scan hit")
+            continue
+        seen_files.add(key)
+        deduped.append((did, f1, f2, dt))
+
+    total = {}
+    for did, _, _, dt in deduped:
+        total[(dt, did)] = total.get((dt, did), 0) + 1
+    reserved = set(total)  # real names renames must never steal
+    emitted = set()
+    next_no = {}
+    units = []
+    for did, f1, f2, dt in deduped:
+        final = did
+        scope = (dt, did)
+        if total[scope] > 1:
+            n = next_no.get(scope, 0) + 1
+            final = f"{did}-{n}"
+            while (dt, final) in reserved or (dt, final) in emitted:
+                n += 1
+                final = f"{did}-{n}"
+            next_no[scope] = n
+            logger.warning(f"duplicate data_id '{did}' under data_type '{dt or '-'}' "
+                           f"({os.path.dirname(os.path.abspath(f1))}) -> renamed to '{final}'")
+        emitted.add((dt, final))
+        units.append((did, final, dt, f1, f2))
 
     out = Path(args.out) if args.out else Path(f"meta_{args.workflow}.tsv")
     n = 0
     with open(out, "w", encoding="utf-8", newline="") as fh:
         w = csv.writer(fh, delimiter="\t", lineterminator="\n")
         w.writerow(columns)
-        for did, f1, f2 in units:
-            sid = sample_map.get(did, did)  # sample_id defaults to data_id
+        for did, final_did, dt, f1, f2 in units:
+            sid = sample_map.get(did, final_did)  # sample_id defaults to data_id
             if re.search(r"\s", sid):
                 die(f"sample_id '{sid}' contains whitespace (MetaUtil rejects it)")
             design = design_map.get(did) or design_map.get(sid) or ""
@@ -238,7 +325,7 @@ def main():
             group = group_map.get(did) or group_map.get(sid) or ""
             if not group and args.group_strip_rep:
                 group = REP_SUFFIX_RE.sub("", sid)
-            row = {"sample_id": sid, "data_id": did, "design": design, "group": group}
+            row = {"sample_id": sid, "data_id": final_did, "design": design, "group": group}
             if kind == "fastq":
                 row["fastq_1"] = os.path.abspath(f1)
                 row["fastq_2"] = os.path.abspath(f2) if f2 else ""  # SE: leave empty, never "NA"
@@ -247,8 +334,9 @@ def main():
             else:
                 row["ms_file"] = os.path.abspath(f1)
             row["organism"] = args.organism
-            row["assay"] = args.assay
+            row["assay"] = "" if dt == "RNA" else (assay_map.get(did) or assay_map.get(sid) or args.assay)
             row["strain"] = args.strain
+            row["data_type"] = dt
             if not row.get("group"):
                 row["group"] = args.group
             row["contaminated_organism"] = args.contaminated_organism

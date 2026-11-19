@@ -35,15 +35,24 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 #     --Params.workflow.aligner star \
 #     --sdm
 
+# python ${SCRIPT_DIR}/run.py \
+#     -m /data/16T/luosg/data/meta_Exome_Totipotency.tsv \
+#     -w Mutation \
+#     -o /data/16T/luosg/output/Totipotency \
+#     -t 48 \
+#     --log /data/16T/luosg/log/Exome_Totipotency.log \
+#     --sdm \
+#     --rerun-triggers mtime \
+#     --forcerun somatic_spectrum somatic_signature_refit somatic_signature_nmf
+
 python ${SCRIPT_DIR}/run.py \
-    -m /data/16T/luosg/data/meta_Exome_Totipotency.tsv \
-    -w Mutation \
+    -m /data/16T/luosg/data/meta_DR_Totipotency.tsv \
+    -w DR \
     -o /data/16T/luosg/output/Totipotency \
-    -t 48 \
-    --log /data/16T/luosg/log/Exome_Totipotency.log \
+    --log /data/16T/luosg/log/DR_Totipotency.log \
     --sdm \
-    --rerun-triggers mtime \
-    --forcerun somatic_spectrum somatic_signature_refit somatic_signature_nmf
+    --rerun-triggers mtime
+
 # python ${SCRIPT_DIR}/run.py \
 #     -m /data/pub/zhousha/20260207_Exome/data/tRNA/meta.tsv \
 #     -w tRNAseq \

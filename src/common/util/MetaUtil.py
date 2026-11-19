@@ -80,6 +80,9 @@ class MetadataUtils:
         self.cellranger_input_dict: Dict[str, CellrangerInput] = {}
         self.raw_fq_dir = os.path.join(self.outdir, "common", "1_raw_data")
         self.raw_bam_dir = os.path.join(self.outdir, "common", "2_raw_bam")
+        # Per-data_type staging roots actually used (data_type routing in
+        # prepare_fastq_meta); scanned alongside raw_fq_dir by _collect_raw_files.
+        self._data_type_raw_dirs: set = set()
 
 
     def load_meta(self, meta:Union[Path,str]) -> pd.DataFrame:
@@ -135,81 +138,92 @@ class MetadataUtils:
 
         return a list of DesignPair objects and a list of CompareGroupPair objects
         """
-        group_dict: Dict[str, Dict[str, List[SampleInfo]]] = defaultdict(lambda: defaultdict(list))
+        # Design pairs are built per data_type partition (DR 分 data_type):
+        # DNA rows pair with DNA rows (somatic normal/tumor), RNA rows with RNA
+        # rows (DE contrasts); cross-data_type pairs never form. Dict keys are
+        # unique sample keys (sample_id, or "<sample_id>|<data_type>" when a
+        # name spans data_types), so DesignPair/CompareGroupPair carry keys.
+        group_dict: Dict[Tuple[str, str], Dict[str, List[Tuple[str, SampleInfo]]]] = defaultdict(lambda: defaultdict(list))
         design_col = self.design_col
-        for sample_id, info in self.samples_dict.items():
+        for sample_key, info in self.samples_dict.items():
             design_val = getattr(info, design_col, "")
             if design_val is None:
-                logger.info(f"{sample_id} design value is None, skipping it")
+                logger.info(f"{sample_key} design value is None, skipping it")
                 continue
             if isinstance(design_val, bytes):
                 design_val = design_val.decode("utf-8")
 
             if isinstance(design_val, float) and math.isnan(design_val):
-                logger.info(f"{sample_id} design value is None, skipping it")
+                logger.info(f"{sample_key} design value is None, skipping it")
                 continue
             design_val = str(design_val).strip()
             m  = DESIGN_PATTERN.match(design_val)
             if not m:
-                logger.warning(f"Invalid design format for {sample_id}: {design_val}")
+                logger.warning(f"Invalid design format for {sample_key}: {design_val}")
                 continue
             role, contrast = m.groups()
             # normalise role: "ctrl" -> "ctr" for uniform key
             role = "ctr" if role in ("ctr", "ctrl") else "exp"
-            group_dict[contrast][role].append(info)
+            dt = (getattr(info, "data_type", None) or "").strip().upper()
+            group_dict[(dt, contrast)][role].append((sample_key, info))
         # Pre-compute token sets for each tag
-        ctr_contrast_tokens = {contrast: set(contrast.split("_")) for contrast, role in group_dict.items() if "ctr" in role}
-        exp_contrast_tokens = {contrast: set(contrast.split("_")) for contrast, role in group_dict.items() if "exp" in role}
-        logger.debug("group_dict: %s", group_dict)
+        ctr_contrast_tokens = {key: set(key[1].split("_")) for key, roles in group_dict.items() if "ctr" in roles}
+        exp_contrast_tokens = {key: set(key[1].split("_")) for key, roles in group_dict.items() if "exp" in roles}
+        logger.debug(f"group_dict: {group_dict}")
         sample_pairs = []
         group_pairs = []
-        seen = set()  # deduplicate (ctr_sample_id, exp_sample_id)
-        for exp_contrast, exp_token_set in exp_contrast_tokens.items():
-            # Every control whose tokens intersect the experiment's tokens
-            # yields a comparison (exp_E14_KSR matches both ctr_E14 and ctr_KSR).
-            matched_ctr_contrasts: List[str] = []
-            for ctr_contrast, ctr_token_set in ctr_contrast_tokens.items():
+        seen = set()  # deduplicate (ctr_key, exp_key)
+        for exp_key, exp_token_set in exp_contrast_tokens.items():
+            exp_dt, exp_contrast = exp_key
+            # Every control of the SAME data_type whose tokens intersect the
+            # experiment's tokens yields a comparison (exp_E14_KSR matches both
+            # ctr_E14 and ctr_KSR); cross-data_type matches never form.
+            matched_ctr_keys: List[Tuple[str, str]] = []
+            for ctr_key, ctr_token_set in ctr_contrast_tokens.items():
+                if ctr_key[0] != exp_dt:
+                    continue
                 shared_tokens = exp_token_set & ctr_token_set
                 if shared_tokens:  # non-empty intersection
                     non_rep_shared = {t for t in shared_tokens if not REP_PATTERN.match(t)}
                     if not non_rep_shared:
                         logger.warning(
-                            f"Suspicious match: exp '{exp_contrast}' and ctr '{ctr_contrast}' "
+                            f"Suspicious match: exp '{exp_contrast}' and ctr '{ctr_key[1]}' "
                             f"share only rep-like tokens {shared_tokens}. "
                             "Consider providing a 'group' column or adjusting design format."
                         )
-                    matched_ctr_contrasts.append(ctr_contrast)
-            if not matched_ctr_contrasts:
+                    matched_ctr_keys.append(ctr_key)
+            if not matched_ctr_keys:
                 logger.warning(f"No matching control found for exp group '{exp_contrast}'")
                 continue
-            for ctr_contrast in matched_ctr_contrasts:
-                ctr_samples = group_dict[ctr_contrast]["ctr"]
-                for exp_sample_info in group_dict[exp_contrast]["exp"]:
-                    pair_key = (ctr_samples[0].sample_id, exp_sample_info.sample_id)
+            for ctr_key in matched_ctr_keys:
+                ctr_contrast = ctr_key[1]
+                ctr_samples = group_dict[ctr_key]["ctr"]
+                for exp_sample_key, exp_sample_info in group_dict[exp_key]["exp"]:
+                    pair_key = (ctr_samples[0][0], exp_sample_key)
                     if pair_key in seen:
                         continue
                     seen.add(pair_key)
                     designPair = DesignPair(
                         organism=exp_sample_info.organism,
-                        ctr_sample_id=ctr_samples[0].sample_id,
-                        exp_sample_id=exp_sample_info.sample_id,
+                        ctr_sample_id=ctr_samples[0][0],
+                        exp_sample_id=exp_sample_key,
                         exp_group=exp_sample_info.group
                     )
                     sample_pairs.append(designPair)
 
-                ctr_samples = group_dict[ctr_contrast]["ctr"]
-                exp_samples = group_dict[exp_contrast]["exp"]
-                ctr_group_name = ctr_samples[0].group if ctr_samples else f"{ctr_contrast}_ctr"
-                exp_group_name = exp_samples[0].group if exp_samples else f"{exp_contrast}_exp"
+                ctr_samples = group_dict[ctr_key]["ctr"]
+                exp_samples = group_dict[exp_key]["exp"]
+                ctr_group_name = ctr_samples[0][1].group if ctr_samples else f"{ctr_contrast}_ctr"
+                exp_group_name = exp_samples[0][1].group if exp_samples else f"{exp_contrast}_exp"
 
                 compare_group_pair = CompareGroupPair(
-                    organism=exp_samples[0].organism if exp_samples else "UNKNOWN",
+                    organism=exp_samples[0][1].organism if exp_samples else "UNKNOWN",
                     ctr_group_token=ctr_contrast,
                     exp_group_token=exp_contrast,
                     ctr_group_name=ctr_group_name,
                     exp_group_name=exp_group_name,
-                    ctr_sample_ids=[s.sample_id for s in ctr_samples],
-                    exp_sample_ids=[s.sample_id for s in exp_samples]
+                    ctr_sample_ids=[k for k, _ in ctr_samples],
+                    exp_sample_ids=[k for k, _ in exp_samples]
                 )
                 group_pairs.append(compare_group_pair)
 
@@ -226,8 +240,8 @@ class MetadataUtils:
                     "group_pairs will collapse into a single key."
                 )
 
-        logger.debug("group_pairs: %s", group_pairs)
-        logger.debug("sample_pairs: %s", sample_pairs)
+        logger.debug(f"group_pairs: {group_pairs}")
+        logger.debug(f"sample_pairs: {sample_pairs}")
         return sample_pairs, group_pairs
 
 
@@ -257,27 +271,59 @@ class MetadataUtils:
         s = str(strain_raw).strip()
         return s or None
 
-    def _collect_raw_files(self) -> List[str]:
-        """Collect resolved input file paths from raw_fq_dir.
+    @staticmethod
+    def _parse_data_type(data_type_raw: Any) -> Optional[str]:
+        """Resolve one sample's data type (DNA/RNA) from a raw meta cell.
 
-        Scans raw_fq_dir/{sample_id}/ for input files and returns
+        Case-insensitive; returns the normalized upper-case token ("DNA" or
+        "RNA"), or None when the cell is absent/empty/NaN. Unknown tokens
+        raise immediately so typos do not silently fall back to the shared
+        staging dir.
+        """
+        if data_type_raw is None or (isinstance(data_type_raw, float) and math.isnan(data_type_raw)):
+            return None
+        s = str(data_type_raw).strip().upper()
+        if not s:
+            return None
+        if s not in ("DNA", "RNA"):
+            raise ValueError(f"Unknown data_type '{data_type_raw}'; expected DNA or RNA")
+        return s
+
+    def _raw_fq_dir_for(self, data_type: Optional[str]) -> str:
+        """Raw staging root for one sample's data_type.
+
+        DNA/RNA rows route to {outdir}/{DNA|RNA}/common/1_raw_data (the
+        multi-chain workflows' layout, e.g. DR); rows without a data_type
+        keep the shared {outdir}/common/1_raw_data so single-chain workflows
+        are unaffected. Used roots are remembered for _collect_raw_files.
+        """
+        if data_type in ("DNA", "RNA"):
+            raw_dir = os.path.join(self.outdir, data_type, "common", "1_raw_data")
+            self._data_type_raw_dirs.add(raw_dir)
+            return raw_dir
+        return self.raw_fq_dir
+
+    def _collect_raw_files(self) -> List[str]:
+        """Collect resolved input file paths from the raw staging dirs.
+
+        Scans the shared raw_fq_dir plus every per-data_type staging root
+        (e.g. {outdir}/DNA/common/1_raw_data) that received links, and returns
         resolved paths for container bind-mounting.
         """
         result: List[str] = []
-        raw_fq_dir = os.fspath(self.raw_fq_dir)
-
-        if not os.path.isdir(raw_fq_dir):
-            return result
-
-        for sample_id in sorted(os.listdir(raw_fq_dir)):
-            sample_dir = os.path.join(raw_fq_dir, sample_id)
-            if not os.path.isdir(sample_dir):
+        for raw_fq_dir in [self.raw_fq_dir, *sorted(self._data_type_raw_dirs)]:
+            raw_fq_dir = os.fspath(raw_fq_dir)
+            if not os.path.isdir(raw_fq_dir):
                 continue
+            for sample_id in sorted(os.listdir(raw_fq_dir)):
+                sample_dir = os.path.join(raw_fq_dir, sample_id)
+                if not os.path.isdir(sample_dir):
+                    continue
 
-            for filename in sorted(os.listdir(sample_dir)):
-                filepath = os.path.join(sample_dir, filename)
-                if os.path.isfile(filepath):
-                    result.append(os.path.realpath(filepath))
+                for filename in sorted(os.listdir(sample_dir)):
+                    filepath = os.path.join(sample_dir, filename)
+                    if os.path.isfile(filepath):
+                        result.append(os.path.realpath(filepath))
         return result
 
 
@@ -325,6 +371,7 @@ class MetadataUtils:
             fastq_r1_col:str = 'fastq_1',
             fastq_r2_col:str = "fastq_2",
             assay_col:str = "assay",
+            data_type_col:str = "data_type",
             organism_col:str = "organism",
             workflow_col:str = "workflow",
             group_col:str = "group",
@@ -336,8 +383,11 @@ class MetadataUtils:
           - One-to-one: symlink the FASTQ to raw_fq_dir/{sample_id}/{sample_id}_{1,2}.fq.gz
           - One-to-many: cat-merge multiple data_id FASTQs into a single file per read
 
+        data_type routing: rows carrying a data_type cell (DNA/RNA) stage into
+        {outdir}/{DNA|RNA}/common/1_raw_data instead of the shared raw_fq_dir.
+
         Populates samples_dict with sample_id, layout (PE/SE), fastq_1, fastq_2,
-        design, organism, workflow, and group.
+        design, organism, workflow, data_type, and group.
 
         Args:
             df: Metadata dataframe with at least sample_id, fastq_1, fastq_2 columns.
@@ -357,45 +407,73 @@ class MetadataUtils:
         if not self.fastq_required_cols.issubset(df.columns):
             raise ValueError(f"Metadata must contain columns: {self.fastq_required_cols}")
 
+        # Sample identity for multi-chain metas (DR) is (sample_id, data_type):
+        # the same name under two data_types is one biological sample assayed
+        # twice (a DRclass pairing), not a replicate merge and not a duplicate.
+        # Replicate merging (one-to-many data_id) still applies within one
+        # (sample_id, data_type). The samples_dict key equals sample_id unless
+        # a name spans several data_types, then "<sample_id>|<data_type>";
+        # SampleInfo.sample_id keeps the real name (staging/output naming).
+        _name_dts: Dict[str, set] = {}
+        if data_type_col in df.columns:
+            df = df.copy()
+            df["__data_type_norm"] = [
+                self._parse_data_type(v) or "" for v in df[data_type_col].values
+            ]
+            for _sid, _dt in zip(df[sample_id_col].values, df["__data_type_norm"].values):
+                _name_dts.setdefault(str(_sid).strip(), set()).add(_dt)
+            df_group = df.groupby([sample_id_col, "__data_type_norm"])
+        else:
+            df_group = df.groupby(sample_id_col)
 
-        raw_fq_dir = self.raw_fq_dir
-
-        df_group = df.groupby(sample_id_col)
-
-        for sample_id, df_sample in df_group:
-            sample_id = str(sample_id).strip()
+        for group_key, df_sample in df_group:
+            if isinstance(group_key, tuple):
+                sample_id = str(group_key[0]).strip()
+                group_dt = group_key[1]
+            else:
+                sample_id = str(group_key).strip()
+                group_dt = ""
             if ' ' in sample_id or '\t' in sample_id:
                 raise ValueError(f"sample_id '{sample_id}' contains whitespace, please remove it from meta file")
+            sample_key = (f"{sample_id}|{group_dt}"
+                          if len(_name_dts.get(sample_id, {group_dt})) > 1 else sample_id)
             data_ids = df_sample[data_id_col].values
             if len(data_ids) < 1:
                 raise ValueError(f"something wrong: {sample_id} have no {data_id_col} meta")
-            
-            self.samples_dict[sample_id].sample_id = sample_id
+
+            self.samples_dict[sample_key].sample_id = sample_id
             design_value, group_value = self._parse_design(
                 df_sample[design_col].values[0] if design_col in df_sample.columns else None,
                 df_sample[group_col].values[0] if group_col in df_sample.columns else None,
             )
-            self.samples_dict[sample_id].design = design_value
-            self.samples_dict[sample_id].group = group_value
-            self.samples_dict[sample_id].assay = self._parse_assay(
+            self.samples_dict[sample_key].design = design_value
+            self.samples_dict[sample_key].group = group_value
+            self.samples_dict[sample_key].assay = self._parse_assay(
                 df_sample[assay_col].values[0] if assay_col in df_sample.columns else None)
-            self.samples_dict[sample_id].strain = self._parse_strain(df_sample["strain"].values[0] if "strain" in df_sample.columns else None)
+            self.samples_dict[sample_key].strain = self._parse_strain(df_sample["strain"].values[0] if "strain" in df_sample.columns else None)
+            # data_type 条件分支:DNA/RNA 行分别软链到 {outdir}/{DNA|RNA}/common/
+            # 1_raw_data;无该列/留空保持共享 {outdir}/common/1_raw_data
+            # (单链工作流不受影响)。
+            data_type_value = self._parse_data_type(
+                df_sample[data_type_col].values[0] if data_type_col in df_sample.columns else None)
+            self.samples_dict[sample_key].data_type = data_type_value
+            raw_fq_dir = self._raw_fq_dir_for(data_type_value)
             host_organism_value = "UNKNOWN"
             try:
                 host_organism_value = str(df_sample[organism_col].values[0]) if organism_col in df_sample.columns else "UNKNOWN"
                 contaminated_organism_raw = df_sample[contaminated_organism_col].values[0] if contaminated_organism_col in df_sample.columns else None
-                self.samples_dict[sample_id].organism = resolve_genome(host_organism_value)
+                self.samples_dict[sample_key].organism = resolve_genome(host_organism_value)
                 if contaminated_organism_raw is not None and not pd.isna(contaminated_organism_raw) and str(contaminated_organism_raw).strip():
-                    self.samples_dict[sample_id].contaminated_organism = resolve_genome(str(contaminated_organism_raw))
+                    self.samples_dict[sample_key].contaminated_organism = resolve_genome(str(contaminated_organism_raw))
                 else:
-                    self.samples_dict[sample_id].contaminated_organism = None 
+                    self.samples_dict[sample_key].contaminated_organism = None 
             except ValueError as e:
                 logger.error(f"Failed to resolve genome for organism '{host_organism_value}' in sample '{sample_id}': {e}")
                 # some pipeline may not rely on organism, so we can set it to UNKNOWN and continue
-                self.samples_dict[sample_id].organism = "UNKNOWN"
-                self.samples_dict[sample_id].contaminated_organism = None
+                self.samples_dict[sample_key].organism = "UNKNOWN"
+                self.samples_dict[sample_key].contaminated_organism = None
             workflow_value = str(df_sample[workflow_col].values[0]) if workflow_col in df_sample.columns else None
-            self.samples_dict[sample_id].workflow = workflow_value
+            self.samples_dict[sample_key].workflow = workflow_value
             if len(data_ids) == 1:
                 logger.info(f"Detect the relationship between {sample_id} and {data_ids[0]} is one-to-one")
                 origin_r1 = str(df_sample[fastq_r1_col].values[0]) if fastq_r1_col in df_sample.columns else None
@@ -405,19 +483,19 @@ class MetadataUtils:
 
                 if origin_r1 and origin_r2:
                     logger.info(f"Detect {data_ids[0]} is Paired END")
-                    self.samples_dict[sample_id].layout = Layout.PE
-                    rename_r1 = os.path.join(self.raw_fq_dir, sample_id, f"{sample_id}_1.fq.gz")
-                    rename_r2 = os.path.join(self.raw_fq_dir, sample_id, f"{sample_id}_2.fq.gz")
+                    self.samples_dict[sample_key].layout = Layout.PE
+                    rename_r1 = os.path.join(raw_fq_dir, sample_id, f"{sample_id}_1.fq.gz")
+                    rename_r2 = os.path.join(raw_fq_dir, sample_id, f"{sample_id}_2.fq.gz")
                     self._link_file(origin_r1,rename_r1)
                     self._link_file(origin_r2,rename_r2)
-                    self.samples_dict[sample_id].fastq_1 = rename_r1
-                    self.samples_dict[sample_id].fastq_2 = rename_r2
+                    self.samples_dict[sample_key].fastq_1 = rename_r1
+                    self.samples_dict[sample_key].fastq_2 = rename_r2
                 elif origin_r1:
                     logger.info(f"Detect {data_ids[0]} is Single End")
-                    self.samples_dict[sample_id].layout = Layout.SE
-                    rename_r1 = os.path.join(self.raw_fq_dir, sample_id, f"{sample_id}.single.fq.gz")
+                    self.samples_dict[sample_key].layout = Layout.SE
+                    rename_r1 = os.path.join(raw_fq_dir, sample_id, f"{sample_id}.single.fq.gz")
                     self._link_file(origin_r1,rename_r1)
-                    self.samples_dict[sample_id].fastq_1 = rename_r1
+                    self.samples_dict[sample_key].fastq_1 = rename_r1
                 else:
                     logger.warning(f"{sample_id} have no fastqs, skip it")
                     continue
@@ -431,19 +509,19 @@ class MetadataUtils:
 
                 if len(origin_r1_list_path) > 0 and len(origin_r2_list_path) > 0:
                     logger.info(f"Detect the fastq of {sample_id} is Paired END")
-                    self.samples_dict[sample_id].layout = Layout.PE
-                    merge_rename_r1 = os.path.join(self.raw_fq_dir, sample_id, f"{sample_id}_1.fq.gz")
-                    merge_rename_r2 = os.path.join(self.raw_fq_dir, sample_id, f"{sample_id}_2.fq.gz")
+                    self.samples_dict[sample_key].layout = Layout.PE
+                    merge_rename_r1 = os.path.join(raw_fq_dir, sample_id, f"{sample_id}_1.fq.gz")
+                    merge_rename_r2 = os.path.join(raw_fq_dir, sample_id, f"{sample_id}_2.fq.gz")
                     self._merge_files(origin_r1_list_path, merge_rename_r1)
                     self._merge_files(origin_r2_list_path, merge_rename_r2)
-                    self.samples_dict[sample_id].fastq_1 = merge_rename_r1
-                    self.samples_dict[sample_id].fastq_2 = merge_rename_r2
+                    self.samples_dict[sample_key].fastq_1 = merge_rename_r1
+                    self.samples_dict[sample_key].fastq_2 = merge_rename_r2
                 elif len(origin_r1_list_path) > 0:
                     logger.info(f"Detect the fastq of {sample_id} is Single END")
-                    self.samples_dict[sample_id].layout = Layout.SE
-                    merge_rename_r1 = os.path.join(self.raw_fq_dir, sample_id, f"{sample_id}.single.fq.gz")
+                    self.samples_dict[sample_key].layout = Layout.SE
+                    merge_rename_r1 = os.path.join(raw_fq_dir, sample_id, f"{sample_id}.single.fq.gz")
                     self._merge_files(origin_r1_list_path, merge_rename_r1)
-                    self.samples_dict[sample_id].fastq_1 = merge_rename_r1
+                    self.samples_dict[sample_key].fastq_1 = merge_rename_r1
                 else:
                     logger.warning(f"{sample_id} have no fastqs, skip it")
                     continue

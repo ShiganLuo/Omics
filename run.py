@@ -769,7 +769,7 @@ WORKFLOW_DISPATCH = {
     "scRNAseq":   lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("scRNAseq.smk",  runscRNAseq(cfg, sid, indir, outdir, rf, ci)),
     "Fiberseq":   lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("Fiberseq.smk",  runFiberseq(cfg, sid, gp, indir, outdir, rf)),
     "LRtranscriptome": lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("LRtranscriptome.smk", runLRtranscriptome(cfg, sid, indir, outdir, rf)),
-    "DR":         lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("DR.smk",         runDR(cfg, sid, sp, indir, outdir, rf)),
+    "DR":         lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("DR.smk",         runDR(cfg, sid, sp, gp, indir, outdir, rf)),
     "Population_genomics": lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("Population_genomics.smk", runPopulation_genomics(cfg, sid, indir, outdir, rf)),
     "spatial_transcriptomics": lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("spatial_transcriptomics.smk", runspatial_transcriptomics(cfg, sid, indir, outdir, rf)),
 }

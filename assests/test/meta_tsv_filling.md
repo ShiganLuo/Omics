@@ -14,7 +14,9 @@ python /data/16T/luosg/workflow/Omics/assests/test/gen_meta.py -d /path/to/your/
 | `fastq_1` | R1 绝对路径（单端则为唯一定向文件） | 实际 fastq 文件路径 |
 | `fastq_2` | R2 绝对路径（单端留空） | 实际 fastq 文件路径，单端测序留空 |
 | `workflow` | 工作流名称 | 根据数据类型和 parametes.txt 判断 |
-| `strain` | 小鼠品系名（**目前仅支持小鼠**），如 `129P2_OlaHsd`、`C57BL_6NJ` | Mutation 工作流专用：填品系名启用品系感知的种系资源过滤（FilterMutectCalls 用品系专属 germline 资源替代全品系资源）；**仅当 `genome.references.<基因组>.strain_resource` 指向带分品系基因型的 VCF（如 MGP REL-2021）时生效**。品系名须与该 VCF 的样本列名完全一致（`bcftools query -l <vcf>` 查看）。非小鼠样本（人/猴等）或不确定品系时**留空**——留空自动退回全品系/人群种系资源，无任何副作用 |
+| `data_type` | 数据类型：`DNA` / `RNA`（大小写不敏感，自动规范为大写） | 多链工作流（如 DR）必填：决定原始数据软链落点，DNA 行→`{outdir}/DNA/common/1_raw_data`，RNA 行→`{outdir}/RNA/common/1_raw_data`；单链工作流留空，软链走共享 `{outdir}/common/1_raw_data` |
+| `assay` | 测序类型：`WGS` / `Exome`（同 `WES`）/ `Panel`（同 `amplicon`） | Mutation / DR 工作流（DR 仅 DNA 行填，RNA 行留空）：node.py 由此推导 CNVkit `--seq-method`（wgs→wgs、exome/wes→hybrid、panel/amplicon→amplicon）及外显子捕获区域 targets BED（供 GATK `-L`、CNVkit `--targets`）；同一批 WES 样本须同一 assay，混合或未知值直接报错。留空时回退 config 默认（DR 的 WES 链默认 hybrid） |
+| `strain` | 小鼠品系名（**目前仅支持小鼠**），如 `129P2_OlaHsd`、`C57BL_6NJ` | Mutation / DR 工作流：填品系名启用品系感知的种系资源过滤（FilterMutectCalls 用品系专属 germline 资源替代全品系资源）；**仅当 `genome.references.<基因组>.strain_resource` 指向带分品系基因型的 VCF（如 MGP REL-2021）时生效**。品系名须与该 VCF 的样本列名完全一致（`bcftools query -l <vcf>` 查看）。非小鼠样本（人/猴等）或不确定品系时**留空**——留空自动退回全品系/人群种系资源，无任何副作用 |
 
 ## 填充流程
 

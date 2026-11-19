@@ -32,6 +32,10 @@ class SampleInfo:
     group: Optional[str] = None
     design: Optional[str] = None
     assay: Optional[str] = None  # Sequencing assay type: WGS / Exome / Panel / RNA-seq etc.
+    data_type: Optional[str] = None  # Data type: DNA / RNA. Drives raw staging routing
+                                     # (DNA rows link into {outdir}/DNA/common/1_raw_data,
+                                     # RNA rows into {outdir}/RNA/common/1_raw_data);
+                                     # empty = shared {outdir}/common/1_raw_data.
     strain: Optional[str] = None  # Mouse strain (e.g. 129P2_OlaHsd) for strain-aware germline filtering
     pacbio_bam: Optional[str] = None # PacBio BAM file
     pacbio_pbi: Optional[str] = None # PacBio index file

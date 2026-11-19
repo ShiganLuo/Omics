@@ -723,7 +723,7 @@ qc_summary_config = {
     "logdir": f"{logdir}/group",
     "samples": [s for g in list(genome_paired_samples) + list(genome_single_samples) for s in genome_paired_samples.get(g, []) + genome_single_samples.get(g, [])],
     "qc_dirs": {
-        "cutadapt": trim_galore_config["outdir"],
+        "cutadapt": trimmed_fastq_dir,
         "markdup": gatk_prepare_config["outdir"],
         "sexcheck": sexcheck_config["outdir"],
     },

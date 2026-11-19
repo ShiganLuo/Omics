@@ -455,7 +455,24 @@
     "spectrum": "/data/16T/Database/env/spectrum/spectrum.sif",
     "qc_summary": "/data/16T/Database/env/report/report.sif",
     "Mutation_report": "/data/16T/Database/env/report/report.sif",
-    "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif"
+    "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif",
+    "DESeq2": "/data/16T/Database/env/DESeq2/DESeq2.sif",
+    "RNAseq_report": "/data/16T/Database/env/report/report.sif",
+    "RmrRNA": "/data/16T/Database/env/RmrRNA/RmrRNA.sif",
+    "StringTie": "/data/16T/Database/env/StringTie/StringTie.sif",
+    "TEtranscripts": "/data/16T/Database/env/TEtranscripts/TEtranscripts.sif",
+    "arriba": "/data/16T/Database/env/arriba/arriba.sif",
+    "bowtie2": "/data/16T/Database/env/bowtie2/bowtie2.sif",
+    "function": "/data/16T/Database/env/function/function.sif",
+    "hisat2": "/data/16T/Database/env/hisat2/hisat2.sif",
+    "trim-galore": "/data/16T/Database/env/trim-galore/trim-galore.sif",
+    "trimmomatic": "/data/16T/Database/env/trimmomatic/trimmomatic.sif",
+    "XenofilteR": "/data/16T/Database/env/XenofilteR/XenofilteR.sif",
+    "featureCounts": "/data/16T/Database/env/featureCounts/featureCounts.sif",
+    "DESeq2_TElocal_manhattan": "/data/16T/Database/env/DESeq2/tefig.sif",
+    "DESeq2_TElocal_locus_boxplot": "/data/16T/Database/env/DESeq2/tefig.sif",
+    "DESeq2_TElocal_subfamily_bar": "/data/16T/Database/env/DESeq2/tefig.sif",
+    "tefig": "/data/16T/Database/env/DESeq2/tefig.sif"
   },
   "resources": {
     "ApplyBQSR": {

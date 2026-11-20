@@ -41,7 +41,7 @@ rule featureCounts_single_noMultiple:
         featureCounts = config.get('Procedure',{}).get('featureCounts') or 'featureCounts',
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("featureCounts_single_noMultiple", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -110,7 +110,7 @@ rule featureCounts_paired_noMultiple:
         O = config.get("Params",{}).get("featureCounts",{}).get("O") or False,
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("featureCounts_paired_noMultiple", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -183,7 +183,7 @@ rule featureCounts_merge:
             attempt=attempt).get("mem_mb", 8000),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("featureCounts_merge", log_file=log_path)
         try:
             rule_logger.info(f"Start featureCounts merge for {wildcards.genome}")

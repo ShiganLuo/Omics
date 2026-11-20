@@ -60,7 +60,7 @@ rule peak_te_overlap:
         te_gtf = lambda wildcards: config['genome'][wildcards.genome]['te_gtf'],
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("peak_te_overlap", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -95,7 +95,7 @@ rule peak_te_overlap:
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"Error during peak-TE overlap for {wildcards.sample_id}: {e}")
+            rule_logger.error(f"Error during peak-TE overlap for {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule peak_centric_overlap:
@@ -126,7 +126,7 @@ rule peak_centric_overlap:
         script = os.path.join(MODULE_DIR, "bin", "peak_centric_overlap.py"),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("peak_centric_overlap", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -156,7 +156,7 @@ rule peak_centric_overlap:
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"Error during peak-centric TE overlap for {wildcards.sample_id}: {e}")
+            rule_logger.error(f"Error during peak-centric TE overlap for {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule peak_te_overlap_fig:
@@ -194,7 +194,7 @@ rule peak_te_overlap_fig:
         chart_base = lambda wildcards: outdir + f"/{wildcards.genome}/te_subfamily_overlap_combined",
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("peak_te_overlap_chart", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -246,7 +246,7 @@ rule peak_te_overlap_fig:
                     if os.path.exists(first_chart) and not os.path.exists(chart_out):
                         os.symlink(first_chart, chart_out)
         except Exception as e:
-            logger.error(f"Error during peak-TE overlap chart: {e}")
+            rule_logger.error(f"Error during peak-TE overlap chart: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule peak_te_overlap_result:

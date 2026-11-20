@@ -41,7 +41,7 @@ rule mimseq_mods:
         sif("../mimseq.yaml", "mimseq_mods")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             script_path = os.path.join(RECEIPT_DIR, f"mimseq_mods_{current_time}.sh")

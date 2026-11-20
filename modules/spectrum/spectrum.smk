@@ -95,7 +95,7 @@ rule somatic_spectrum:
         sif("spectrum.yaml", "somatic_spectrum")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("somatic_spectrum", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -175,7 +175,7 @@ rule somatic_signature_refit:
         sif("spectrum.yaml", "somatic_signature_refit")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("somatic_signature_refit", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -250,7 +250,7 @@ rule somatic_signature_nmf:
         sif("spectrum.yaml", "somatic_signature_nmf")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("somatic_signature_nmf", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

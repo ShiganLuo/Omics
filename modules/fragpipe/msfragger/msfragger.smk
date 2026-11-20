@@ -55,7 +55,7 @@ rule msfragger_run:
         workdir = outdir + "/{sample_id}",
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("msfragger", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -140,7 +140,7 @@ rule msfragger_idxml:
         unmatched_action = config.get("Params", {}).get("msfragger", {}).get("unmatched_action", "remove"),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("msfragger_idxml", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

@@ -37,7 +37,7 @@ rule trimmomatic_Paired:
         log = logdir + "/{sample_id}/trimmomatic.txt"
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("trimmomatic_Paired", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -96,7 +96,7 @@ rule trimmomatic_Single:
         log = logdir + "/{sample_id}/trimmomatic.txt"
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("trimmomatic_Single", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

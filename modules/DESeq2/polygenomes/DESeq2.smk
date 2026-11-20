@@ -77,7 +77,7 @@ rule DESeq2_TEcount:
         logdir + "/DESeq2/{genome}/{contrast}.log"
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("DESeq2_TEcount", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -205,7 +205,7 @@ rule DESeq2_TElocal:
         logdir + "/DESeq2/{genome}/{contrast}.log"
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("DESeq2_TElocal", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -336,7 +336,7 @@ rule DESeq2_TElocal_manhattan:
         logdir + "/DESeq2/{genome}/{contrast}.manhattan.log"
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("DESeq2_TElocal_manhattan", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -413,7 +413,7 @@ rule DESeq2_TElocal_locus_boxplot:
         logdir + "/DESeq2/{genome}/{contrast}.locus_box.log"
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("DESeq2_TElocal_locus_boxplot", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -494,7 +494,7 @@ rule DESeq2_TElocal_subfamily_bar:
         logdir + "/DESeq2/{genome}/{contrast}.subfamily_bar.log"
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("DESeq2_TElocal_subfamily_bar", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

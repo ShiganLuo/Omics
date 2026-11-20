@@ -52,7 +52,7 @@ rule cellranger_ref:
         cellranger_ref_dir = cellranger_ref_dir
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger(logger_name="cellranger_ref", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -125,7 +125,7 @@ rule cellranger_count:
         sample_prefix = lambda wildcards:cellranger_input_dict.get(wildcards.sample_id, {}).get("sample_prefix")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger(logger_name="cellranger_count", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -202,7 +202,7 @@ rule cellranger_to_h5ad:
         script = os.path.join(ROOT_DIR, "modules", "cellranger", "bin", "cellranger_to_h5ad.py")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("cellranger_to_h5ad", log_file = log_path)
         try:
             os.makedirs(os.path.dirname(output.h5ad), exist_ok=True)

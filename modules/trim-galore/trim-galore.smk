@@ -45,7 +45,7 @@ rule trimming_Paired:
         sif("trim-galore.yaml", "trimming_Paired")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("trimming_Paired", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -124,7 +124,7 @@ rule trimming_Single:
         sif("trim-galore.yaml", "trimming_Single")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("trimming_Single", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

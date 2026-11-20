@@ -50,7 +50,7 @@ rule ft_extract:
         ft = config.get("Procedure", {}).get("fibertools") or "ft"
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("ft_extract", log_file=log_path)
         try:
             rule_logger.info(f"Extracting Fiber-seq data for sample {wildcards.sample_id}")
@@ -143,7 +143,7 @@ rule ft_call_peaks:
         tmp_dir = config.get("tmp_dir") or os.path.join(outdir, "tmp"),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("ft_call_peaks", log_file=log_path)
         try:
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
@@ -215,7 +215,7 @@ rule ft_qc:
         use_acf = config.get("Params", {}).get("fibertools", {}).get("ft_qc", {}).get("acf", False),
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("ft_qc", log_file=log_path)
         try:
             rule_logger.info(f"Collecting QC metrics for sample {wildcards.sample_id}")
@@ -276,7 +276,7 @@ rule ft_extract_fire:
         is_ont = config.get("Params", {}).get("fibertools", {}).get("ft_extract_fire", {}).get("ont", False),
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("ft_extract_fire", log_file=log_path)
         try:
             rule_logger.info(f"Extracting FIRE elements for sample {wildcards.sample_id}")
@@ -337,7 +337,7 @@ rule ft_split_hap:
         hp_value = lambda wildcards: wildcards.hap[-1],
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger(f"ft_split_hap_{wildcards.hap}", log_file=log_path)
         try:
             rule_logger.info(f"Splitting {wildcards.hap} reads for sample {wildcards.sample_id}")
@@ -387,7 +387,7 @@ rule ft_extract_hap:
         ft = config.get("Procedure", {}).get("fibertools") or "ft",
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger(f"ft_extract_{wildcards.hap}", log_file=log_path)
         try:
             rule_logger.info(f"Extracting {wildcards.hap} elements for sample {wildcards.sample_id}")

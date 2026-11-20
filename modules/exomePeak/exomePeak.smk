@@ -50,7 +50,7 @@ rule diff_exomePeak:
         exomePeak_script = ROOT_DIR + "/modules/exomePeak/bin/exomePeak.r",
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("diff_exomePeak", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -69,7 +69,7 @@ rule diff_exomePeak:
                 f.write(f"    --treated_ip_bams {input.treated_ip_bams} \\\n")
                 f.write(f"    --treated_input_bams {input.treated_input_bams} \\\n")
                 f.write(f"    --outprefix {outdir} \\\n")
-                f.write(f"    > {log} 2>&1\n")
+                f.write(f"    >> {log} 2>&1\n")
                 f.write(f"\n")
                 f.write(f"Rscript bin/geneId2name.r \\\n")
                 f.write(f"    --infile {outdir}/diff_peaks.bed \\\n")
@@ -106,7 +106,7 @@ rule diff_exomePeak:
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"Error occurred during diff_exomePeak: {e}")
+            rule_logger.error(f"Error occurred during diff_exomePeak: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 def get_input_for_call_exomePeak():
@@ -143,7 +143,7 @@ rule call_exomePeak:
         gtf = config.get("gtf","")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("call_exomePeak", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -160,7 +160,7 @@ rule call_exomePeak:
                 f.write(f"--ip_bams {input.ip_bams} \\\n")
                 f.write(f"--input_bams {input.input_bams} \\\n")
                 f.write(f"--outprefix {outdir} \\\n")
-                f.write(f"> {log} 2>&1\n")
+                f.write(f">> {log} 2>&1\n")
                 f.write(f"\n")
                 f.write(f"Rscript {params.geneId2name_script} \\\n")
                 f.write(f"    --infile {outdir}/all_peaks.bed \\\n")
@@ -187,7 +187,7 @@ rule call_exomePeak:
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"Error occurred during call_exomePeak: {e}")
+            rule_logger.error(f"Error occurred during call_exomePeak: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule exomePeak_result:

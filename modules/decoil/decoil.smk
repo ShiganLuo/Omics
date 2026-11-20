@@ -171,7 +171,7 @@ rule decoil_reconstruct:
     run:
         log_path = str(log)
         rule_logger = setup_logger(logger_name="decoil_reconstruct", log_file=log_path)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(
@@ -281,7 +281,7 @@ rule decoil_plot:
     run:
         log_path = str(log)
         rule_logger = setup_logger(logger_name="decoil_plot", log_file=log_path)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start decoil_plot for sample {wildcards.sample_id} at {current_time}")
@@ -345,7 +345,7 @@ rule decoil_compare:
     run:
         log_path = str(log)
         rule_logger = setup_logger(logger_name="decoil_compare", log_file=log_path)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start decoil_compare for samples {samples} at {current_time}")
@@ -423,7 +423,7 @@ rule decoil_structure:
     run:
         log_path = str(log)
         rule_logger = setup_logger(logger_name="decoil_structure", log_file=log_path)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start decoil_structure for sample {wildcards.sample_id} at {current_time}")
@@ -493,7 +493,7 @@ rule decoil_igv:
     run:
         log_path = str(log)
         rule_logger = setup_logger(logger_name="decoil_igv", log_file=log_path)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         try:
             import json
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -579,7 +579,7 @@ rule decoil_ucsc:
     run:
         log_path = str(log)
         rule_logger = setup_logger(logger_name="decoil_ucsc", log_file=log_path)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start decoil_ucsc for sample {wildcards.sample_id} at {current_time}")

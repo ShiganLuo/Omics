@@ -49,7 +49,7 @@ rule deepvariant_run:
         sif("../deepvariant.yaml", "deepvariant_run")
     run:
         try:
-            open(log[0], "w").close()
+            open(log[0], "a").close()
             logger = setup_logger(logger_name="deepvariant_run", log_file=log[0])
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start DeepVariant for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
@@ -77,7 +77,7 @@ rule deepvariant_run:
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
-                shell("bash {plain_script} > {log} 2>&1")
+                shell("bash {plain_script} >> {log} 2>&1")
         except Exception as e:
             raise f"Error occurred while running DeepVariant for sample {wildcards.sample_id} genome {wildcards.genome}: {e}, you can check the log file {log[0]} for more details."
 

@@ -44,7 +44,7 @@ rule TEcount:
         sif("../TEtranscripts.yaml", "TEcount")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("TEcount", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -62,9 +62,9 @@ rule TEcount:
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
-                shell(f"bash {plain_script} > {log_path} 2>&1")
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"Error occurred during TEcount for sample {wildcards.sample_id} genome {wildcards.genome}: {e}")
+            rule_logger.error(f"Error occurred during TEcount for sample {wildcards.sample_id} genome {wildcards.genome}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 def get_cntTable_for_TEcount(wildcards):
@@ -101,7 +101,7 @@ rule combine_TEcount:
         logdir + "/all/TEtranscripts/{genome}_combine_TEcount.log"
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("combine_TEcount", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -118,9 +118,9 @@ rule combine_TEcount:
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
-                shell(f"bash {plain_script} > {log_path} 2>&1")
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"Error occurred during combine_TEcount for genome {wildcards.genome}: {e}")
+            rule_logger.error(f"Error occurred during combine_TEcount for genome {wildcards.genome}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 def get_input_for_TElocal(wildcards):
@@ -157,7 +157,7 @@ rule TElocal:
         sif("../TEtranscripts.yaml", "TElocal")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("TElocal", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -177,9 +177,9 @@ rule TElocal:
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
-                shell(f"bash {plain_script} > {log_path} 2>&1")
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"Error occurred during TElocal for sample {wildcards.sample_id} genome {wildcards.genome}: {e}")
+            rule_logger.error(f"Error occurred during TElocal for sample {wildcards.sample_id} genome {wildcards.genome}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 def get_cntTable_for_TElocal(wildcards):
@@ -217,7 +217,7 @@ rule combine_TElocal:
         logdir + "/all/TEtranscripts/{genome}_combine_TElocal.log"
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("combine_TElocal", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -234,9 +234,9 @@ rule combine_TElocal:
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
-                shell(f"bash {plain_script} > {log_path} 2>&1")
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"Error occurred during combine_TElocal for genome {wildcards.genome}: {e}")
+            rule_logger.error(f"Error occurred during combine_TElocal for genome {wildcards.genome}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule TEtranscripts_result:

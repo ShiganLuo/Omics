@@ -44,7 +44,7 @@ rule ldsc_annot:
         annot_cluster_from_name = config.get("Params", {}).get("ldsc", {}).get("annot_cluster_from_name"),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("ldsc_annot", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -102,7 +102,7 @@ rule ldsc_munge:
         merge_alleles = config.get("Params", {}).get("ldsc", {}).get("merge_alleles"),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("ldsc_munge", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -160,7 +160,7 @@ rule ldsc_h2_cts:
         w_ld = config.get("Params", {}).get("ldsc", {}).get("w_ld_chr"),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("ldsc_h2_cts", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

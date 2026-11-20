@@ -51,7 +51,7 @@ rule raw2mzml:
         peak_picking = config.get("Params", {}).get("raw_to_mzml", {}).get("raw2mzml", {}).get("peak_picking", True)
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("raw2mzml",log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

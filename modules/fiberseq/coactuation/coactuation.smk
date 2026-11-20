@@ -38,7 +38,7 @@ rule fiberseq_coactuation_run:
         alpha = config.get("Params", {}).get("fiberseq_coactuation", {}).get("fiberseq_coactuation_run", {}).get("alpha", 0.05),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("fiberseq_coactuation_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

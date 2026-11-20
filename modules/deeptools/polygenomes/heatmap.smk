@@ -87,7 +87,7 @@ rule bigwig_ratio:
     container: sif("../deeptools_heatmap.yaml", "bigwig_ratio")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("bigwig_ratio", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -116,7 +116,7 @@ rule bigwig_ratio:
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"Error occurred during bigwig_ratio for sample {wildcards.sample_id}: {e}")
+            rule_logger.error(f"Error occurred during bigwig_ratio for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule bigwig_ratio_result:
@@ -232,7 +232,7 @@ rule heatmap:
     container: sif("../deeptools_heatmap.yaml", "heatmap")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("heatmap", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -257,7 +257,7 @@ rule heatmap:
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"Error occurred during heatmap for sample {wildcards.sample_id}: {e}")
+            rule_logger.error(f"Error occurred during heatmap for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule heatmap_gene:
@@ -281,7 +281,7 @@ rule heatmap_gene:
     container: sif("../deeptools_heatmap.yaml", "heatmap_gene")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("heatmap_gene", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -308,7 +308,7 @@ rule heatmap_gene:
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"Error occurred during heatmap_gene for sample {wildcards.sample_id} {wildcards.gene_name}: {e}")
+            rule_logger.error(f"Error occurred during heatmap_gene for sample {wildcards.sample_id} {wildcards.gene_name}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
         # ============================================================

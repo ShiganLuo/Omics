@@ -32,7 +32,7 @@ rule protein_inference:
         greedy_group_resolution = config.get("Params", {}).get("protein_inference", {}).get("protein_inference", {}).get("greedy_group_resolution", "none")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("protein_inference", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

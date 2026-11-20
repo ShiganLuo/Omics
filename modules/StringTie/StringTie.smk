@@ -36,7 +36,7 @@ rule stringTie:
         sif("StringTie.yaml", "stringTie")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger(logger_name="stringTie_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -80,7 +80,7 @@ rule TEChimericTranscripts:
         sif("StringTie.yaml", "TEChimericTranscripts")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger(logger_name="TEChimericTranscripts_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
@@ -88,7 +88,7 @@ rule TEChimericTranscripts:
             script = os.path.join(RECEIPT_DIR, f"TEChimericTranscripts_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = f"...{wildcards.sample_id}/TEChimericTranscripts.sh"
-            cmd = f"python {params.TEChimericTranscripts} -s {input.gtf} -t {params.te_gtf} -o {output.txt} > {log} 2>&1"
+            cmd = f"python {params.TEChimericTranscripts} -s {input.gtf} -t {params.te_gtf} -o {output.txt} >> {log} 2>&1"
             with open(script, 'w') as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(cmd + "\n")
@@ -130,7 +130,7 @@ rule TEChimericPlot:
         sif("StringTie.yaml", "TEChimericPlot")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger(logger_name="TEChimericPlot_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
@@ -186,7 +186,7 @@ rule stringTieMerge:
         sif("StringTie.yaml", "stringTieMerge")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger(logger_name="stringTieMerge_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

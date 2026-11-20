@@ -65,7 +65,7 @@ rule HaplotypeCaller:
             attempt=attempt).get("mem_mb", 32000),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger(logger_name="HaplotypeCaller", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -140,7 +140,7 @@ rule filterHaplotypeCallerVcf:
         QUAL_threshold = config.get("Params", {}).get("gatk", {}).get("QUAL_threshold") or 20.0
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger(logger_name="filterHaplotypeCallerVcf", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

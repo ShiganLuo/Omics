@@ -78,7 +78,7 @@ rule generate_report:
         script = REPORT_SCRIPT,
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("ncRNAseq_generate_report", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -123,9 +123,9 @@ rule generate_report:
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
-                shell(f"bash {plain_script} > {log_path} 2>&1")
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"ncRNAseq report generation failed: {e}")
+            rule_logger.error(f"ncRNAseq report generation failed: {e}")
             raise
 
 rule report_result:

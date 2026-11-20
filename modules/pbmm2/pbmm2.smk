@@ -32,10 +32,10 @@ rule pbmm2_align:
     run:
         log_path = str(log)
         try:
-            open(log_path, 'w').close()  # Ensure the log file exists
-            logger = setup_logger("pbmm2_align")
+            open(log_path, 'a').close()  # Ensure the log file exists
+            rule_logger = setup_logger("pbmm2_align", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            logger.info(f"Start pbmm2 alignment for sample {wildcards.sample_id} at {current_time}")
+            rule_logger.info(f"Start pbmm2 alignment for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"pbmm2_align_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/pbmm2_align.sh")
@@ -76,7 +76,7 @@ rule pbmm2_align:
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"Error occurred during pbmm2 alignment for sample {wildcards.sample_id}: {e}")
+            rule_logger.error(f"Error occurred during pbmm2 alignment for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule pbmm2_result:

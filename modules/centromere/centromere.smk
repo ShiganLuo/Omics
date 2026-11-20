@@ -49,7 +49,7 @@ rule hifiasm_assemble:
         prefix = outdir + "/{sample_id}/assembly/asm"
     run:
         try:
-            open(log[0], "w").close()
+            open(log[0], "a").close()
             logger = setup_logger(logger_name="hifiasm_assemble", log_file=log[0])
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start hifiasm assembly for sample {wildcards.sample_id} at {current_time}")
@@ -104,9 +104,9 @@ rule repeatmasker_init:
             attempt=attempt).get("mem_mb", 8000),
     run:
         try:
-            open(log[0], "w").close()
-            logger = setup_logger(logger_name="repeatmasker_init", log_file=log[0])
-            logger.info("Building RepeatMasker library cache (one-time init)")
+            open(log[0], "a").close()
+            rule_logger = setup_logger(logger_name="repeatmasker_init", log_file=log[0])
+            rule_logger.info("Building RepeatMasker library cache (one-time init)")
             tmpdir = tempfile.mkdtemp()
             dummy_fa = os.path.join(tmpdir, "dummy.fa")
             with open(dummy_fa, "w") as f:
@@ -126,29 +126,29 @@ rule repeatmasker_init:
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(os.path.dirname(str(output[0])), "repeatmasker_init.sh")
             if input.dfam_h5 and os.path.exists(input.dfam_h5):
-                logger.warning("RepeatMasker don't support specifying custom Dfam h5 directly, pipeline will try to find the corresponding library dir and link your dfam h5 to the library dir with a name that RepeatMasker can recognize. Please ensure the Dfam h5 you provided is compatible with your RepeatMasker version and includes relevant satellite DNA for target species.")
+                rule_logger.warning("RepeatMasker don't support specifying custom Dfam h5 directly, pipeline will try to find the corresponding library dir and link your dfam h5 to the library dir with a name that RepeatMasker can recognize. Please ensure the Dfam h5 you provided is compatible with your RepeatMasker version and includes relevant satellite DNA for target species.")
                 RepeatMasker_lib_dir = ""
                 try:
                     RepeatMasker_dir = shell("which RepeatMasker", read=True)# Get RepeatMasker executable path, enviroment only play in shell
                     if RepeatMasker_dir is None:
-                        logger.error(f"RepeatMasker executable not found: {params.RepeatMasker}")
+                        rule_logger.error(f"RepeatMasker executable not found: {params.RepeatMasker}")
                         raise FileNotFoundError(f"RepeatMasker executable not found: {params.RepeatMasker}")
                     RepeatMasker_lib_dir = os.path.join(os.path.dirname(RepeatMasker_dir), "../share/RepeatMasker/Libraries/famdb")
                     target_h5_path = os.path.join(RepeatMasker_lib_dir, os.path.basename(input.dfam_h5))
                     if os.path.exists(target_h5_path):
-                        logger.info(f"Custom Dfam h5 already exists in RepeatMasker library directory: {target_h5_path}, skipping linking.")
+                        rule_logger.info(f"Custom Dfam h5 already exists in RepeatMasker library directory: {target_h5_path}, skipping linking.")
                     elif not os.path.exists(RepeatMasker_lib_dir):
                         # container env (sif): the lib dir is not host-visible/writable.
                         # Expect the FamDB to be provided inside the env (baked links)
                         # or via bind mount; linking from host is impossible.
-                        logger.warning(f"RepeatMasker library directory not visible from host (container env): {RepeatMasker_lib_dir}. Skipping linking; expecting FamDB inside the env or via bind mount.")
+                        rule_logger.warning(f"RepeatMasker library directory not visible from host (container env): {RepeatMasker_lib_dir}. Skipping linking; expecting FamDB inside the env or via bind mount.")
                     else:
                         os.symlink(input.dfam_h5, target_h5_path)
-                        logger.info(f"Linked custom Dfam h5 to RepeatMasker library directory: {target_h5_path}")
+                        rule_logger.info(f"Linked custom Dfam h5 to RepeatMasker library directory: {target_h5_path}")
                 except OSError as e:
-                    logger.warning(f"Could not link custom Dfam h5 into {RepeatMasker_lib_dir}: {e}. Continuing; expecting FamDB inside the env or via bind mount.")
+                    rule_logger.warning(f"Could not link custom Dfam h5 into {RepeatMasker_lib_dir}: {e}. Continuing; expecting FamDB inside the env or via bind mount.")
             else:
-                logger.warning("No valid Dfam h5 provided for RepeatMasker, using default libraries. please ensure the default libraries include relevant satellite DNA for target species.")
+                rule_logger.warning("No valid Dfam h5 provided for RepeatMasker, using default libraries. please ensure the default libraries include relevant satellite DNA for target species.")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd1) + "\n")
@@ -198,7 +198,7 @@ rule repeatmasker_run:
     run:
         # setup_logger is now available from common.smk
         try:
-            open(log[0], "w").close()
+            open(log[0], "a").close()
             logger = setup_logger(logger_name="repeatmasker_run", log_file=log[0])
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start RepeatMasker for sample {wildcards.sample_id} at {current_time}")
@@ -247,7 +247,7 @@ rule centromere_extract:
         sif("centromere.yaml", "centromere_extract")
     run:
         try:
-            open(log[0], "w").close()
+            open(log[0], "a").close()
             logger = setup_logger(logger_name="centromere_extract", log_file=log[0])
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start centromere stats extraction for sample {wildcards.sample_id} at {current_time}")

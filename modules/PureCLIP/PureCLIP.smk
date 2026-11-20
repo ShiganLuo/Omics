@@ -29,7 +29,7 @@ rule pureclip:
         log = logdir + "/{sample_id}/pureclip_run.txt"
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("pureclip", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -47,7 +47,7 @@ rule pureclip:
                 f.write(f"    -g {input.fasta} \\\n")
                 f.write(f"    -o {output.sites} \\\n")
                 f.write(f"    -or {output.region} \\\n")
-                f.write(f"    > {log} 2>&1\n")
+                f.write(f"    >> {log} 2>&1\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
@@ -55,5 +55,5 @@ rule pureclip:
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"Error occurred during pureclip for sample {wildcards.sample_id}: {e}")
+            rule_logger.error(f"Error occurred during pureclip for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")

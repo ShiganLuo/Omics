@@ -24,7 +24,7 @@ def aligntRNA(tRNAseqs, out, threads=1):
 		cpus = 0
 
 	cmcommand = ['cmalign', '-o', stkname, '--nonbanded', '--cpu', str(cpus), '-g', cmfile, tRNAseqs]
-	subprocess.check_call(cmcommand, stdout = open(out + 'cm.log', 'w'))
+	subprocess.check_call(cmcommand, stdout = open(out + 'cm.log', 'a'))
 
 def extraCCA():
 	# look for extra CCA's added spuriously that fall outside of canonical tRNA structure

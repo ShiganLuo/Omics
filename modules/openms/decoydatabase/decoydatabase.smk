@@ -38,7 +38,7 @@ rule decoy_database:
         shuffle_sequence_identity_threshold = config.get("Params", {}).get("decoy_database", {}).get("decoy_database", {}).get("shuffle_sequence_identity_threshold", 0.5)
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("decoy_database",log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

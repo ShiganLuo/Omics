@@ -38,7 +38,7 @@ rule fiberseq_haplotype_diff:
         alpha = config.get("Params", {}).get("fiberseq_haplotype", {}).get("fiberseq_haplotype_diff", {}).get("alpha", 0.05),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("fiberseq_haplotype_diff", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

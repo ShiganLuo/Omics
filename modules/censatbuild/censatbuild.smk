@@ -68,7 +68,7 @@ rule censatbuild_link_genome:
             attempt=attempt).get("mem_mb", 8000),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("censatbuild_link_genome", log_file=log_path)
         link_path = str(output.link)
         os.makedirs(os.path.dirname(link_path), exist_ok=True)
@@ -105,7 +105,7 @@ rule censatbuild_arrays:
         class_pattern = config.get("Params", {}).get("censatbuild", {}).get("censatbuild_arrays", {}).get("class_pattern", "Satellite"),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("censatbuild_arrays", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -163,7 +163,7 @@ rule censatbuild_flank:
         flank_name = f"flank_{config.get('Params', {}).get('censatbuild', {}).get('censatbuild_flank', {}).get('flank', 10000) // 1000}kb",
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("censatbuild_flank", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -217,7 +217,7 @@ rule censatbuild_mcg_pileup:
         sif("censatbuild.yaml", "censatbuild_mcg_pileup")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("censatbuild_mcg_pileup", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

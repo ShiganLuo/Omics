@@ -66,7 +66,7 @@ rule diann_run:
         extra = config.get("Params", {}).get("diann", {}).get("diann_run", {}).get("extra", ""),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("diann_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -141,7 +141,7 @@ rule diann_summary:
         script = ROOT_DIR + "/modules/diann/bin/diann_summary.py",
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("diann_summary", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

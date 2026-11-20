@@ -149,7 +149,7 @@ rule quantification_lfq:
         expdesign = expdesign,
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("quantification_lfq", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -209,7 +209,7 @@ rule quantification_tmt_reporter:
         isobaric_analyzer = isobaric_analyzer,
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("quantification_tmt_reporter", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -293,7 +293,7 @@ rule quantification_tmt:
         expdesign = config.get("expdesign", ""),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("quantification_tmt", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -424,7 +424,7 @@ rule quantification_dia:
     run:
         log_path = str(log)
         rule_logger = setup_logger("quantification_dia", log_file=log_path)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start DIA quantification at {current_time}")

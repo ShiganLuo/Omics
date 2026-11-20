@@ -30,7 +30,7 @@ rule iCLIP_bedtools:
         bedGraphToBigWig = config.get('Procedure',{}).get('bedGraphToBigWig') or 'bedGraphToBigWig'
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("iCLIP_bedtools", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -44,7 +44,7 @@ rule iCLIP_bedtools:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(f"sample_name=$(basename {output.bed} .bed)\n")
                 f.write(f"outdir=$(dirname {output.bed})\n")
-                f.write(f"echo \"Processing sample: ${{sample_name}}; output directory: ${{outdir}}\" > {log}\n")
+                f.write(f"echo \"Processing sample: ${{sample_name}}; output directory: ${{outdir}}\" >> {log}\n")
                 f.write(f"{params.bedtools} bamtobed -i {input.bam} > {output.bed} 2>> {log}\n")
                 f.write(f"\n")
                 f.write(f"{params.bedtools} shift -m 1 -p -1 -i {output.bed} -g {input.chromosome_sizes} > ${{outdir}}/${{sample_name}}.shifted.bed 2>> {log}\n")
@@ -63,5 +63,5 @@ rule iCLIP_bedtools:
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"Error occurred during iCLIP bedtools for sample {wildcards.sample_id}: {e}")
+            rule_logger.error(f"Error occurred during iCLIP bedtools for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")

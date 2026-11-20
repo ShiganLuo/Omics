@@ -45,7 +45,7 @@ rule subsample_fastq:
         seed = subsample_seed,
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("subsample", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -103,5 +103,5 @@ rule subsample_fastq:
 
             rule_logger.info(f"subsample completed for sample {wildcards.sample_id}")
         except Exception as e:
-            logger.error(f"Error occurred during subsample for sample {wildcards.sample_id}: {e}")
+            rule_logger.error(f"Error occurred during subsample for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")

@@ -42,7 +42,7 @@ rule samtools_stats:
         samtools = config.get("Procedure", {}).get("samtools") or "samtools"
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("samtools_stats", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -60,9 +60,9 @@ rule samtools_stats:
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
-                shell(f"bash {plain_script} > {log_path} 2>&1")
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"Error occurred during samtools_stats for sample {wildcards.sample_id}: {e}")
+            rule_logger.error(f"Error occurred during samtools_stats for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule getFragmentSize:
@@ -86,7 +86,7 @@ rule getFragmentSize:
         sif("fragment_size.yaml", "getFragmentSize")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("getFragmentSize", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -105,9 +105,9 @@ rule getFragmentSize:
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
-                shell(f"bash {plain_script} > {log_path} 2>&1")
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"Error occurred during getFragmentSize: {e}")
+            rule_logger.error(f"Error occurred during getFragmentSize: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule plotFragmentSize:
@@ -134,7 +134,7 @@ rule plotFragmentSize:
         sif("fragment_size.yaml", "plotFragmentSize")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("plotFragmentSize", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -152,9 +152,9 @@ rule plotFragmentSize:
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
-                shell(f"bash {plain_script} > {log_path} 2>&1")
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"Error during plotFragmentSize: {e}")
+            rule_logger.error(f"Error during plotFragmentSize: {e}")
             raise RuntimeError(f"Error occurred during plotFragmentSize: {e}, you can check the log file {log_path} for more details.")
 
 rule fragment_size_result:

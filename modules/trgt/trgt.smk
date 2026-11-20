@@ -82,7 +82,7 @@ rule trgt_genotype:
         if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
             script_only_touch(output)
         else:
-            shell(f"bash {plain_script} > {log} 2>&1")
+            shell(f"bash {plain_script} >> {log} 2>&1")
 def get_input_for_trgt_plot(wildcards):
     logger.debug(f"trgt_plot called with {wildcards}")
     in_dict = {}
@@ -144,7 +144,7 @@ rule trgt_plot:
         if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
             script_only_touch(output)
         else:
-            shell(f"bash {plain_script} > {log} 2>&1")
+            shell(f"bash {plain_script} >> {log} 2>&1")
 rule trgt_result:
     input:
         vcf = outdir + "/genotype/{sample_id}/{sample_id}.trgt.vcf.gz",

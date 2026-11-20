@@ -31,7 +31,7 @@ rule umi_tools_dedup_for_hisat2:
         log = logdir + "/{sample_id}/umi_tools_dedup_run.txt"
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("umi_tools_dedup_for_hisat2", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -83,7 +83,7 @@ rule umi_tools_dedup_for_star:
         log = logdir + "/{sample_id}/umi_tools_dedup_run.txt"
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("umi_tools_dedup_for_star", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

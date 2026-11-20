@@ -31,7 +31,7 @@ rule manta_config:
         sif("../manta.yaml", "manta_config")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         logger = setup_logger(logger_name="manta_config", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -85,7 +85,7 @@ rule manta_run:
         sif("../manta.yaml", "manta_run")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         logger = setup_logger(logger_name="manta_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

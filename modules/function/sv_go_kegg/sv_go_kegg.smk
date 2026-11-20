@@ -63,7 +63,7 @@ rule sv_go_kegg:
         formats=sg_formats,   # ③ 转发
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("sv_go_kegg", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

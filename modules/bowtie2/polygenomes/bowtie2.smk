@@ -45,7 +45,7 @@ rule bowtie2_index:
         sif("../bowtie2.yaml", "bowtie2_index")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("bowtie2_index", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
@@ -143,7 +143,7 @@ rule bowtie2_align_paired:
         sif("../bowtie2.yaml", "bowtie2_align_paired")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("bowtie2_align_paired", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
@@ -204,7 +204,7 @@ rule bowtie2_align_single:
         sif("../bowtie2.yaml", "bowtie2_align_single")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("bowtie2_align_single", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())

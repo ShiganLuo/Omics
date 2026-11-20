@@ -221,7 +221,7 @@ rule KARRseq_star_align:
         if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
             script_only_touch(output)
         else:
-            shell(f"bash {script} > {log} 2>&1")
+            shell(f"bash {script} >> {log} 2>&1")
 # =================
 # Module 3: KARRseq Chimeric Processing
 # =================

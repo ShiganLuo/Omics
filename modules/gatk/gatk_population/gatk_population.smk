@@ -46,7 +46,7 @@ rule gatk_population_haplotype_caller:
         interval=interval
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger(logger_name="gatk_population_haplotype_caller", log_file=log_path)
         try:
             os.makedirs(os.path.dirname(output.vcf), exist_ok=True)
@@ -104,7 +104,7 @@ rule gatk_population_joint_genotyping:
         workspace=outdir + "/variants/joint/genomicsdb"
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger(logger_name="gatk_population_joint_genotyping", log_file=log_path)
         try:
             os.makedirs(os.path.dirname(output.vcf), exist_ok=True)

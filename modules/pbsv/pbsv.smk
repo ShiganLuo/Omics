@@ -38,7 +38,7 @@ rule pbsv_discover:
         sif("pbsv.yaml", "pbsv_discover")
     run:
         log_path = str(log)
-        open(log_path,"w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("pbsv_discover",log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -90,7 +90,7 @@ rule pbsv_call:
         sif("pbsv.yaml", "pbsv_call")
     run:
         log_path = str(log)
-        open(log_path,"w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("pbsv_call", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

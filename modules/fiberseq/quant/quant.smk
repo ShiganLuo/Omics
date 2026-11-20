@@ -43,7 +43,7 @@ rule fiberseq_quant_run:
         script = ROOT_DIR + "/modules/fiberseq/bin/quant_matrix.py",
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("fiberseq_quant_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -106,7 +106,7 @@ rule fiberseq_quant_hap:
         script = ROOT_DIR + "/modules/fiberseq/bin/quant_matrix.py",
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger(f"fiberseq_quant_hap_{wildcards.hap}", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -169,7 +169,7 @@ rule fiberseq_quant_merge:
         script = ROOT_DIR + "/modules/fiberseq/bin/quant_matrix.py",
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("fiberseq_quant_merge", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

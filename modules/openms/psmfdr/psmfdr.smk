@@ -32,7 +32,7 @@ rule psm_fdr:
         method = config.get("Params", {}).get("psm_fdr_control", {}).get("psm_fdr", {}).get("method", "BH")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("psm_fdr", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

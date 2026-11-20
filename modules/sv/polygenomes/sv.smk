@@ -71,7 +71,7 @@ rule sv_exp_specific:
         sif("../sv.yaml", "sv_exp_specific")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             outprefix = f"{outdir}/{wildcards.genome}/{wildcards.comparison}/{wildcards.comparison}"
@@ -127,7 +127,7 @@ rule sv_exp_enrichment:
         sif("../sv.yaml", "sv_exp_enrichment")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             enrichment_outdir = f"{outdir}/{wildcards.genome}/{wildcards.comparison}/enrichment"
@@ -181,7 +181,7 @@ rule sv_exp_circos:
         sif("../sv.yaml", "sv_exp_circos")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             circos_outdir = f"{outdir}/{wildcards.genome}/{wildcards.comparison}/circos"
@@ -238,7 +238,7 @@ rule sv_gene_model:
         sif("../sv.yaml", "sv_gene_model")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             gene_outdir = f"{outdir}/{wildcards.genome}/{wildcards.comparison}/gene_model"
@@ -297,7 +297,7 @@ rule sv_diff_analysis:
         sif("../sv.yaml", "sv_diff_analysis")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             diff_outdir = f"{outdir}/{wildcards.genome}/sv_diff_analysis"
@@ -352,7 +352,7 @@ rule sv_oncoprint:
         sif("../sv.yaml", "sv_oncoprint")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             oncoprint_outdir = f"{outdir}/{wildcards.genome}/sv_oncoprint"

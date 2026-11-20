@@ -130,7 +130,7 @@ rule fiberseq_mods_longtable:
         tmp_dir = config.get("tmp_dir") or os.path.join(outdir, "tmp"),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("fiberseq_mods_longtable", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -224,7 +224,7 @@ rule fiberseq_mods_split:
         top_n = int(region_axis_split.get("options", {}).get("fire_peaks", {}).get("top_n", 0)),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("fiberseq_mods_split", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -302,7 +302,7 @@ rule fiberseq_mods_top_loci:
                 open(str(out), "w").close()
         else:
             log_path = str(log)
-            open(log_path, "w").close()
+            open(log_path, "a").close()
             rule_logger = setup_logger("fiberseq_mods_top_loci", log_file=log_path)
             try:
                 current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

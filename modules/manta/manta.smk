@@ -32,7 +32,7 @@ rule manta_config_germline:
         sif("manta.yaml", "manta_config")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger(logger_name="manta_config", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -82,7 +82,7 @@ rule manta_run_germline:
         sif("manta.yaml", "manta_run")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger(logger_name="manta_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -131,7 +131,7 @@ rule manta_config_somatic:
         sif("manta.yaml", "manta_config_somatic")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger(logger_name="manta_config_somatic", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -183,7 +183,7 @@ rule manta_run_somatic:
         sif("manta.yaml", "manta_run_somatic")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger(logger_name="manta_run_somatic", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

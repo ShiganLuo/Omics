@@ -48,7 +48,7 @@ rule ngs_disambiguate:
         logdir + "/{sample_id}/ngs_disambiguate.log"
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("ngs_disambiguate", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -75,7 +75,7 @@ rule ngs_disambiguate:
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"Error occurred during ngs_disambiguate for sample {wildcards.sample_id}: {e}")
+            rule_logger.error(f"Error occurred during ngs_disambiguate for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule disambiguate_sort_rename:
@@ -109,7 +109,7 @@ rule disambiguate_sort_rename:
         logdir + "/{sample_id}/sort_rename.log"
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("disambiguate_sort_rename", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -138,7 +138,7 @@ rule disambiguate_sort_rename:
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"Error occurred during disambiguate_sort_rename for sample {wildcards.sample_id}: {e}")
+            rule_logger.error(f"Error occurred during disambiguate_sort_rename for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule disambiguate_report:
@@ -162,7 +162,7 @@ rule disambiguate_report:
             attempt=attempt).get("mem_mb", 8000),
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("disambiguate_report", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -184,7 +184,7 @@ rule disambiguate_report:
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"Error occurred during disambiguate_report: {e}")
+            rule_logger.error(f"Error occurred during disambiguate_report: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule ngs_disambiguate_result:

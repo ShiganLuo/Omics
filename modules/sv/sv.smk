@@ -88,7 +88,7 @@ rule sv_exp_specific:
         sif("sv.yaml", "sv_exp_specific")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("sv_exp_specific",log_file = log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -154,7 +154,7 @@ rule sv_exp_circos:
         sif("sv.yaml", "sv_exp_circos")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("sv_exp_circos", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -214,7 +214,7 @@ rule sv_gene_model:
         sif("sv.yaml", "sv_gene_model")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("sv_gene_model", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -276,7 +276,7 @@ rule sv_diff_analysis:
         sif("sv.yaml", "sv_diff_analysis")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("sv_diff_analysis", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -333,7 +333,7 @@ rule sv_oncoprint:
         sif("sv.yaml", "sv_oncoprint")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("sv_oncoprint", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -439,7 +439,7 @@ rule sv_mei:
         sif("sv.yaml", "sv_mei")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("sv_mei", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

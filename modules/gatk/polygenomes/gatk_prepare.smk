@@ -37,7 +37,7 @@ rule gatk_index:
         tmp_dir = config.get("Params", {}).get("gatk", {}).get("gatk_index", {}).get("tmp-dir", None)
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger(logger_name="gatk_index", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -111,7 +111,7 @@ rule addReadsGroup:
         samtools = config.get("Procedure", {}).get("samtools") or "samtools"
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger(logger_name="addReadsGroup", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -179,7 +179,7 @@ rule MarkDuplicates:
         tmp_dir = config.get("Params", {}).get("gatk", {}).get("MarkDuplicates", {}).get("tmp-dir", None)
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger(logger_name="MarkDuplicates", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

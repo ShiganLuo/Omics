@@ -69,7 +69,7 @@ rule sigtest_run:
         sif("sigtest.yaml", "sigtest_run")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("sigtest_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

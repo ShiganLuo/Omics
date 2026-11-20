@@ -50,7 +50,7 @@ rule scan:
         if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
             script_only_touch(output)
         else:
-            shell("{msisensor_pro} scan -d {input} -o {output} 2>{log} 1>{log}")
+            shell("{msisensor_pro} scan -d {input} -o {output} 2>>{log} 1>>{log}")
 rule pro_pre:
     input:
         bam=lambda wildcards: baseline_samples.loc[wildcards.sample, "bam_path"],
@@ -140,7 +140,7 @@ rule run_pro:
         if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
             script_only_touch(output)
         else:
-            shell("{msisensor_pro} pro -d {input.ms} -t {input.t} -g {input.ref}  -o {output} 2>{log}")
+            shell("{msisensor_pro} pro -d {input.ms} -t {input.t} -g {input.ref}  -o {output} 2>>{log}")
 rule merge_msi_result:
     input:
         expand(outdir + "tumor_only_output/{case}/{case}.{{genome_version}}.msisensor-pro",case=samples.index)

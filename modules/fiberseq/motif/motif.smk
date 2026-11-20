@@ -42,7 +42,7 @@ rule fiberseq_motif_scan:
         pwm_threshold = config.get("Params", {}).get("fiberseq_motif", {}).get("fiberseq_motif_scan", {}).get("pwm_threshold", 0.8),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("fiberseq_motif_scan", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -112,7 +112,7 @@ rule fiberseq_motif_profile:
         formats = _formats_profile,   # ③ 转发
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("fiberseq_motif_profile", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

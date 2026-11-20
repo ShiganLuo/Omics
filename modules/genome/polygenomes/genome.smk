@@ -29,7 +29,7 @@ rule chromosome_sizes:
         samtools = config.get('Procedure', {}).get('samtools') or 'samtools'
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("chromosome_sizes", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -81,7 +81,7 @@ rule extract_smallrna:
         bedtools = config.get("Procedure", {}).get("bedtools") or "bedtools",
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("extract_smallrna", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

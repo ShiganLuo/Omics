@@ -34,7 +34,7 @@ rule bwaMem2_index:
         index_prefix = lambda wildcards: outdir + f"/index/{wildcards.genome}/{wildcards.genome}"
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("bwaMem2_index", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -59,7 +59,7 @@ rule bwaMem2_index:
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"Error occurred during bwa-mem2 index for genome {wildcards.genome}: {e}")
+            rule_logger.error(f"Error occurred during bwa-mem2 index for genome {wildcards.genome}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 def get_bwaMem2_index(wildcards):
@@ -135,7 +135,7 @@ rule bwaMem2_alignment:
             f"{input.fastq[0]} {input.fastq[1]}" if len(input.fastq) == 2 else f"{input.fastq[0]}"
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("bwaMem2_alignment", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

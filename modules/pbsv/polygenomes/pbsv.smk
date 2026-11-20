@@ -55,7 +55,7 @@ rule pbsv_discover:
         if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
             script_only_touch(output)
         else:
-            shell("bash {plain_script} > {log} 2>&1")
+            shell("bash {plain_script} >> {log} 2>&1")
 rule pbsv_call:
     input:
         svsig = outdir + "/{genome}/{sample_id}/{sample_id}.svsig.gz",
@@ -114,7 +114,7 @@ rule pbsv_call:
         if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
             script_only_touch(output)
         else:
-            shell("bash {plain_script} > {log} 2>&1")
+            shell("bash {plain_script} >> {log} 2>&1")
 rule pbsv_result:
     input:
         vcf = outdir + "/{genome}/{sample_id}/{sample_id}.sv.vcf.gz",

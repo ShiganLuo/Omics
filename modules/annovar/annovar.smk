@@ -31,7 +31,7 @@ rule TEcoutCPM:
         sif("annovar.yaml", "TEcoutCPM")
     run:
         log_path = str(log.log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         logger = setup_logger(logger_name="TEcoutCPM_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -75,7 +75,7 @@ rule commonExpression:
         script = MODULE_DIR + "scripts/SNP/commonExpression.py"
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         logger = setup_logger(logger_name="commonExpression", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -124,7 +124,7 @@ rule getBed:
         TE_gtf = config.get('bed', {}).get('human', {}).get('TE_gtf')
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         logger = setup_logger(logger_name="getBed", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -172,7 +172,7 @@ rule vcfIntersectBed:
             attempt=attempt).get("mem_mb", 8000),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         logger = setup_logger(logger_name="vcfIntersectBed", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -223,7 +223,7 @@ rule annovar_convert:
         sif("annovar.yaml", "annovar_convert")
     run:
         log_path = str(log.log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         logger = setup_logger(logger_name="annovar_convert_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -274,7 +274,7 @@ rule annovar_table:
         sif("annovar.yaml", "annovar_table")
     run:
         log_path = str(log.log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         logger = setup_logger(logger_name="annovar_table_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

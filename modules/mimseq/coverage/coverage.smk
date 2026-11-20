@@ -41,7 +41,7 @@ rule mimseq_coverage:
         sif("../mimseq.yaml", "mimseq_coverage")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             script_path = os.path.join(RECEIPT_DIR, f"mimseq_coverage_{current_time}.sh")

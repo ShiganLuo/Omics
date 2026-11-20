@@ -37,7 +37,7 @@ rule drclass_anchors:
         mem_mb=rule_res("drclass_anchors").get("mem_mb", 2000),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.dirname(str(output.tsv))
@@ -86,7 +86,7 @@ rule drclass_pileup:
     threads: rule_res("drclass_pileup").get("threads", 4)
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.dirname(str(output.tsv))
@@ -145,7 +145,7 @@ rule drclass_classify:
         mem_mb=rule_res("drclass_classify").get("mem_mb", 4000),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.dirname(str(output.dna))
@@ -208,7 +208,7 @@ rule drclass_summary:
         mem_mb=rule_res("drclass_summary").get("mem_mb", 2000),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.dirname(str(output.tsv))

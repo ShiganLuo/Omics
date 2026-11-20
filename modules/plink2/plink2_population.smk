@@ -12,7 +12,7 @@ def run_plink(rule_name, log_path, output_path, commands):
     script = os.path.join(RECEIPT_DIR, f"{rule_name}_{time.strftime('%Y%m%d_%H%M%S')}.sh")
     os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
     plain_script=os.path.join(os.path.dirname(output_path), f"{rule_name}.sh")
-    with open(log_path,"w") as log_handle: log_handle.write("")
+    with open(log_path, "a") as log_handle: log_handle.write("")
     with open(script,"w") as handle:
         handle.write("#!/usr/bin/env bash\nset -euo pipefail\n")
         for command in commands: handle.write(" ".join(str(x) for x in command)+"\n")

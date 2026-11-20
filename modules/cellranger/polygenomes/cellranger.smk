@@ -47,7 +47,7 @@ rule cellranger_ref:
         nthreads = 16,
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger(logger_name="cellranger_ref", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -128,7 +128,7 @@ rule cellranger_count:
         sample_prefix = lambda wildcards: cellranger_input_dict.get(wildcards.sample_id, {}).get("sample_prefix")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger(logger_name="cellranger_count", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

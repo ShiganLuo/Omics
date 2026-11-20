@@ -31,7 +31,7 @@ rule hisat2_index:
         sif("hisat2.yaml", "hisat2_index")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger(logger_name="hisat2_index", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -136,7 +136,7 @@ rule hisat2_align:
         sif("hisat2.yaml", "hisat2_align")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("hisat2_align", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())

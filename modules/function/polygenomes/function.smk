@@ -125,7 +125,7 @@ rule function_go_kegg:
         sif("../function.yaml", "function_go_kegg")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("function_go_kegg", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -210,7 +210,7 @@ rule function_gsea:
         sif("../function.yaml", "function_gsea")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("function_gsea", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -315,7 +315,7 @@ rule function_gsva:
         sif("../function.yaml", "function_gsva")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("function_gsva", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

@@ -46,7 +46,7 @@ rule stringTie:
         sif("../StringTie.yaml", "stringTie")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger(logger_name="stringTie_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -100,7 +100,7 @@ rule TEChimericTranscripts:
         sif("../StringTie.yaml", "TEChimericTranscripts")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger(logger_name="TEChimericTranscripts_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
@@ -166,7 +166,7 @@ rule TEChimericPlot:
         sif("../StringTie.yaml", "TEChimericPlot")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger(logger_name="TEChimericPlot_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
@@ -242,7 +242,7 @@ rule stringTieMerge:
         sif("../StringTie.yaml", "stringTieMerge")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger(logger_name="stringTieMerge_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

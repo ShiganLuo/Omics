@@ -42,7 +42,7 @@ rule bowtie2_index:
         sif("bowtie2.yaml", "bowtie2_index")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("bowtie2_index", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
@@ -141,7 +141,8 @@ rule bowtie2_align_paired:
         sif("bowtie2.yaml", "bowtie2_align_paired")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
+        rule_logger = setup_logger("bowtie2_align_paired", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             sample_outdir = os.path.dirname(str(output.bam))
@@ -174,7 +175,7 @@ rule bowtie2_align_paired:
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"error occurred in bowtie2_align_paired for sample {wildcards.sample_id}, error: {e}\n")
+            rule_logger.error(f"error occurred in bowtie2_align_paired for sample {wildcards.sample_id}, error: {e}\n")
             raise RuntimeError(f"error occurred in bowtie2_align_paired for sample {wildcards.sample_id}, error: {e}\n")
 
 rule bowtie2_align_single:
@@ -204,7 +205,8 @@ rule bowtie2_align_single:
         sif("bowtie2.yaml", "bowtie2_align_single")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
+        rule_logger = setup_logger("bowtie2_align_single", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             sample_outdir = os.path.dirname(str(output.bam))
@@ -234,5 +236,5 @@ rule bowtie2_align_single:
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"error occured in rule bowtie2_align_single for sample {wildcards.sample_id}, error: {e}\n")
+            rule_logger.error(f"error occured in rule bowtie2_align_single for sample {wildcards.sample_id}, error: {e}\n")
             raise RuntimeError(f"error occured in rule bowtie2_align_single for sample {wildcards.sample_id}, error: {e}\n")

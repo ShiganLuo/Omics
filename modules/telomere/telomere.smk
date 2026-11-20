@@ -107,7 +107,7 @@ rule telogator2_run:
             attempt=attempt).get("mem_mb", 16000),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         logger = setup_logger(logger_name="telogator2_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -167,7 +167,7 @@ rule assembly_telomere_scan:
             attempt=attempt).get("mem_mb", 8000),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         logger = setup_logger(logger_name="assembly_telomere_scan", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -225,7 +225,7 @@ rule read_density_telomere:
         sif("telomere.yaml", "read_density_telomere")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         logger = setup_logger(logger_name="read_density_telomere", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -274,7 +274,7 @@ rule tidk_init:
         sif("telomere.yaml", "tidk_init")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         logger = setup_logger(logger_name="tidk_init", log_file=log_path)
         try:
             logger.info("Building tidk reference database (one-time init)")
@@ -322,7 +322,7 @@ rule tidk_scan:
         sif("telomere.yaml", "tidk_scan")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         logger = setup_logger(logger_name="tidk_scan", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

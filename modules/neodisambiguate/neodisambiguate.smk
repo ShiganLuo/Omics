@@ -36,7 +36,7 @@ rule neodisambiguate:
         sif("neodisambiguate.yaml", "neodisambiguate")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         logger = setup_logger(logger_name="neodisambiguate", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

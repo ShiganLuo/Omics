@@ -24,7 +24,7 @@ rule bcftools_sort:
         bcftools = config.get("Procedure", {}).get("bcftools") or "bcftools"
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("bcftools_sort", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -34,23 +34,24 @@ rule bcftools_sort:
             script = os.path.join(RECEIPT_DIR, f"bcftools_sort_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"bcftools_sort.sh")
-            with open(script, "w") as f:
-                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
-                f.write(f"mkdir -p $(dirname {output.vcf})\n")
-                f.write(f"{params.bcftools} sort \\\n")
-                f.write(f"    -O z \\\n")
-                f.write(f"    -o {output.vcf} \\\n")
-                f.write(f"    {input.vcf} \\\n")
-                f.write(f"    > {log} 2>&1\n")
-                f.write(f'echo "script completed successfully"\n')
+            cmd = [
+                params.bcftools, "sort",
+                "-O", "z",
+                "-o", str(output.vcf),
+                str(input.vcf),
+            ]
+            with open(script, 'w') as f:
+                f.write("#!/bin/bash\nset -euo pipefail\n")
+                f.write(" ".join(cmd) + "\n")
+                f.write(f"echo 'bcftools sort for {wildcards.sample_id} was completed successfully at {current_time}'")
             shutil.copyfile(script, plain_script)
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"Error occurred during bcftools sort for sample {wildcards.sample_id}: {e}")
-            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
+            rule_logger.error(f"bcftools sort failed for sample {wildcards.sample_id}: {e}")
+            raise RuntimeError(f"bcftools sort failed for sample {wildcards.sample_id}: {e}")
 
 rule bcftools_index_csi:
     input:
@@ -72,7 +73,7 @@ rule bcftools_index_csi:
         bcftools = config.get("Procedure", {}).get("bcftools") or "bcftools"
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("bcftools_index", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -82,18 +83,22 @@ rule bcftools_index_csi:
             script = os.path.join(RECEIPT_DIR, f"bcftools_index_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"bcftools_index.sh")
-            with open(script, "w") as f:
-                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
-                f.write(f"{params.bcftools} index {input.vcf} > {log} 2>&1\n")
-                f.write(f'echo "script completed successfully"\n')
+            cmd = [
+                params.bcftools, "index",
+                str(input.vcf),
+            ]
+            with open(script, 'w') as f:
+                f.write("#!/bin/bash\nset -euo pipefail\n")
+                f.write(" ".join(cmd) + "\n")
+                f.write(f"echo 'bcftools index for {wildcards.sample_id} was completed successfully at {current_time}'")
             shutil.copyfile(script, plain_script)
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"Error occurred during bcftools index for sample {wildcards.sample_id}: {e}")
-            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
+            rule_logger.error(f"bcftools index failed for sample {wildcards.sample_id}: {e}")
+            raise RuntimeError(f"bcftools index failed for sample {wildcards.sample_id}: {e}")
 
 rule bcftools_result:
     input:

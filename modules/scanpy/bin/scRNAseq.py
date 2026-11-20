@@ -3971,7 +3971,7 @@ def _generate_audit_report(
             "完整执行上下文请参见 [`audit_report.json`](./audit_report.json)。\n"
         )
     decision_log_path = os.path.join(report_dir, "decision_log.md")
-    with open(decision_log_path, "w", encoding="utf-8") as f:
+    with open(decision_log_path, "a", encoding="utf-8") as f:
         f.write(decision_log_md)
     logger.info("Decision log: %s", decision_log_path)
 

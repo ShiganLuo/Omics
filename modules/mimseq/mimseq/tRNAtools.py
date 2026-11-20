@@ -842,7 +842,7 @@ def generateGSNAPIndices(species, name, out_dir, map_round, snp_tolerance = Fals
 		genome_file = out_dir + name + "_tRNATranscripts.fa"
 
 	index_cmd = ["gmap_build", "-q", "1", "-D", out_dir, "-d", species + "_tRNAgenome", genome_file]
-	subprocess.check_call(index_cmd, stderr = open(out_dir + "genomeindex.log", "w"), stdout = subprocess.DEVNULL)
+	subprocess.check_call(index_cmd, stderr = open(out_dir + "genomeindex.log", "a"), stdout = subprocess.DEVNULL)
 	log.info("Genome indices done...")
 
 	snp_index_path = out_dir + species + "snp_index"
@@ -858,11 +858,11 @@ def generateGSNAPIndices(species, name, out_dir, map_round, snp_tolerance = Fals
 		snp_index_name = snp_file.split("/")[-1]. split(".txt")[0]
 		ps = subprocess.Popen(('cat', snp_file), stdout = subprocess.PIPE, stderr = subprocess.DEVNULL)
 		index_cmd = ["iit_store", "-o", snp_index_path + "/" + snp_index_name]
-		subprocess.check_call(index_cmd, stdin = ps.stdout, stdout = open(out_dir + "snpindex.log", "w"), stderr = subprocess.DEVNULL)
+		subprocess.check_call(index_cmd, stdin = ps.stdout, stdout = open(out_dir + "snpindex.log", "a"), stderr = subprocess.DEVNULL)
 		index_cmd = ["snpindex", "-q", "1", "-D", genome_index_path, "-d", species + "_tRNAgenome", "-V", snp_index_path, \
 					"-v", name + "_modificationSNPs", snp_index_path + "/" + name + \
 					"_modificationSNPs.iit"]
-		subprocess.check_call(index_cmd, stderr = open(out_dir + "snpindex.log", "w"), stdout = subprocess.DEVNULL)
+		subprocess.check_call(index_cmd, stderr = open(out_dir + "snpindex.log", "a"), stdout = subprocess.DEVNULL)
 		log.info("SNP indices done...")
 		return(genome_index_path, genome_index_name, snp_index_path, snp_index_name)
 
@@ -892,11 +892,11 @@ def generateSNPIndex(experiment_name, out_dir, snp_tolerance = False):
 		snp_index_name = snp_file.split("/")[-1]. split(".txt")[0]
 		ps = subprocess.Popen(('cat', snp_file), stdout = subprocess.PIPE)
 		index_cmd = ["iit_store", "-o", snp_index_path + "/" + snp_index_name]
-		subprocess.check_call(index_cmd, stdin = ps.stdout, stdout = open(out_dir + "snpindex.log", "w"))
+		subprocess.check_call(index_cmd, stdin = ps.stdout, stdout = open(out_dir + "snpindex.log", "a"))
 		index_cmd = ["snpindex", "-q", "1", "-D", genome_index_path, "-d", experiment_name + "_tRNAgenome", "-V", snp_index_path, \
 					"-v", experiment_name + "_modificationSNPs", snp_index_path + "/" + experiment_name + \
 					"_modificationSNPs.iit"]
-		subprocess.check_call(index_cmd, stderr = open(out_dir + "snpindex.log", "w"))
+		subprocess.check_call(index_cmd, stderr = open(out_dir + "snpindex.log", "a"))
 		log.info("SNP indices done...")
 
 	elif not snp_tolerance:

@@ -46,7 +46,7 @@ rule SplitNCigarReads:
         logdir + "/{sample_id}/SplitNCigarReads.log"
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger(logger_name="SplitNCigarReads", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -107,7 +107,7 @@ rule VarientCalling:
             attempt=attempt).get("mem_mb", 16000),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger(logger_name="VarientCalling", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -169,7 +169,7 @@ rule vcf_filter:
         fai_index = config.get("genome", {}).get("fai_index")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger(logger_name="vcf_filter", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

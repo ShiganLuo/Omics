@@ -223,7 +223,7 @@ def main() -> None:
     )
 
     try:
-        with open(log_path, "w", encoding="utf-8") as log_handle:
+        with open(log_path, "a", encoding="utf-8") as log_handle:
             log_handle.write(f"gene_specific_align.py - {stamp}\n")
 
             all_cmds: list[str] = []
@@ -426,7 +426,7 @@ def main() -> None:
             log_handle.write(f"\n{'=' * 60}\nconcatenated {len(gene_tails)} tail CSVs > {args.output_tail}\n")
             log_handle.write(f"\n{'=' * 60}\nAll steps completed successfully.\n")
 
-            with open(cmd_log, "w", encoding="utf-8") as cmd_handle:
+            with open(cmd_log, "a", encoding="utf-8") as cmd_handle:
                 cmd_handle.write(f"# gene_specific_align.py command log - {stamp}\n")
                 cmd_handle.write(f"# genes processed: {len(gene_bams)}\n")
                 for line in all_cmds:

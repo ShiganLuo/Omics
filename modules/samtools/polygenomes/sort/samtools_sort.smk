@@ -58,7 +58,7 @@ rule bam_sort:
         if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
             script_only_touch(output)
         else:
-            shell("bash {plain_script} > {log} 2>&1")
+            shell("bash {plain_script} >> {log} 2>&1")
 rule samtools_sort_index_result:
     input:
         bam = outdir + "/{genome}/{sample_id}/{sample_id}.bam",

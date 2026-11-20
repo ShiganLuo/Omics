@@ -58,7 +58,7 @@ rule trimming_Paired:
         sif("cutadapt.yaml", "trimming_Paired")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         logger = setup_logger(logger_name="cutadapt_paired", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -134,7 +134,7 @@ rule trimming_Single:
         sif("cutadapt.yaml", "trimming_Single")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger(logger_name="cutadapt_single", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

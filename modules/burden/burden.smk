@@ -60,7 +60,7 @@ rule burden_snv_indel:
         sif("burden.yaml", "burden_snv_indel")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("burden_snv_indel", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -135,7 +135,7 @@ rule burden_sv:
         sif("burden.yaml", "burden_sv")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("burden_sv", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -197,7 +197,7 @@ rule burden_cnv:
         sif("burden.yaml", "burden_cnv")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("burden_cnv", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -259,7 +259,7 @@ rule burden_aggregate:
         sif("burden.yaml", "burden_aggregate")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("burden_aggregate", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

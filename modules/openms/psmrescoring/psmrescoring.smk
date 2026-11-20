@@ -53,7 +53,7 @@ rule psm_rescoring:
         test_FDR = config.get("Params", {}).get("psm_rescoring", {}).get("percolator", {}).get("psm_rescoring", {}).get("test_FDR", 0.05),
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("psm_rescoring", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

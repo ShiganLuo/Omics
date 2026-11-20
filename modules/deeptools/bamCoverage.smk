@@ -44,7 +44,7 @@ rule bamCoverage:
         outdir_sample = outdir + "/{sample_id}"
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger(logger_name="bamCoverage", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

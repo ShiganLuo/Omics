@@ -36,7 +36,7 @@ rule tailer_global:
         Tailer = config.get("Procedure", {}).get("tailer") or config.get("Procedure", {}).get("Tailer") or "Tailer"
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("tailer_global", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -62,5 +62,5 @@ rule tailer_global:
 
             rule_logger.info(f"tailer_global completed for sample {wildcards.sample_id}")
         except Exception as e:
-            logger.error(f"Error occurred during tailer_global for sample {wildcards.sample_id}: {e}")
+            rule_logger.error(f"Error occurred during tailer_global for sample {wildcards.sample_id}: {e}")
             raise e

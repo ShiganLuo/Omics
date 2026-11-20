@@ -437,12 +437,12 @@ def main() -> None:
     cmd_log = os.path.join(os.path.dirname(args.bam), f"three_pass_{stamp}.cmd.log")
 
     try:
-        with open(log_path, "w", encoding="utf-8") as log_handle:
+        with open(log_path, "a", encoding="utf-8") as log_handle:
             log_handle.write(f"three_pass_align.py — {stamp}\n")
             log_handle.write(f"paired={paired}\n")
 
             # Write command log header
-            with open(cmd_log, "w", encoding="utf-8") as cmd_handle:
+            with open(cmd_log, "a", encoding="utf-8") as cmd_handle:
                 cmd_handle.write(f"# three_pass_align.py command log — {stamp}\n")
                 cmd_handle.write(f"# paired={paired}\n")
                 for step in steps:

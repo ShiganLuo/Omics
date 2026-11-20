@@ -64,7 +64,7 @@ rule star_3p_align:
         pass3 = config.get("Params", {}).get("star_3pass", {}).get("pass3", {}),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("star_3p_align", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

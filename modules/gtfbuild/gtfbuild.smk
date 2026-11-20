@@ -57,7 +57,7 @@ rule gtfbuild_liftoff:
         add_genes = ROOT_DIR + "/modules/gtfbuild/bin/gtfbuild_add_gene_features.py",
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("gtfbuild_liftoff", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -124,7 +124,7 @@ rule gtfbuild_qc:
         script = ROOT_DIR + "/modules/gtfbuild/bin/gtfbuild_qc.py",
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("gtfbuild_qc", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -201,7 +201,7 @@ rule gtfbuild_wga:
         preset = p.get("wga_preset", "asm5"),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("gtfbuild_wga", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -260,7 +260,7 @@ rule gtfbuild_liftover_bed:
         restore = ROOT_DIR + "/modules/gtfbuild/bin/gtfbuild_restore_bed.py",
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("gtfbuild_liftover_bed", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

@@ -35,7 +35,7 @@ if analysis.get("ld_decay", False):
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(os.path.dirname(str(output.stat)), f"PopLDdecay_{wildcards.population}.sh")
             cmd = [params.tool, "-InVCF", input.vcf, "-OutStat", params.prefix, "-SubPop", input.popfile, "-MaxDist", str(params.max_dist)]
-            with open(log_path, "w") as handle:
+            with open(log_path, "a") as handle:
                 pass
             with open(script, "w") as handle:
                 handle.write("#!/usr/bin/env bash\nset -euo pipefail\n")

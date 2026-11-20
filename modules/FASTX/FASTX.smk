@@ -30,7 +30,7 @@ rule fastx_quality_filter_single:
         logdir + "/{sample_id}/fastx_quality_filter_single.log"
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("fastx_quality_filter_single", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

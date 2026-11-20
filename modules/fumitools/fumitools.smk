@@ -40,7 +40,7 @@ rule fumitools_copy_umi_paired:
         sif("fumitools.yaml", "fumitools_copy_umi_paired")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger = setup_logger(logger_name="fumitools_copy_umi_paired", log_file=log_path)
@@ -108,7 +108,7 @@ rule fumitools_copy_umi_single:
         sif("fumitools.yaml", "fumitools_copy_umi_single")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger = setup_logger(logger_name="fumitools_copy_umi_single", log_file=log_path)
@@ -176,7 +176,7 @@ rule fumitools_dedup:
         sif("fumitools.yaml", "fumitools_dedup")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             script_path = os.path.join(RECEIPT_DIR, f"fumitools_dedup_{wildcards.sample_id}_{current_time}.sh")

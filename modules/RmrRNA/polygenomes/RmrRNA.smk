@@ -39,7 +39,8 @@ rule extract_rRNA:
     run:
         log_path = str(log)
         try:
-            open(log_path,'w').close()
+            open(log_path,'a').close()
+            rule_logger = setup_logger("extract_rRNA", log_file=log_path)
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             script = os.path.join(RECEIPT_DIR, f"extract_rRNA.{wildcards.genome}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
@@ -61,5 +62,5 @@ rule extract_rRNA:
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"Error occurred during extract_rRNA for genome {wildcards.genome}: {e}")
-            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
+            rule_logger.error(f"Error occurred during extract_rRNA for genome {wildcards.genome}: {e}")
+            raise RuntimeError(f"extract_rRNA failed for genome {wildcards.genome}: {e}")

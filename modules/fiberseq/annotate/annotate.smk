@@ -50,7 +50,7 @@ rule fiberseq_annotate_run:
         repeat_frac = config.get("Params", {}).get("fiberseq_annotate", {}).get("fiberseq_annotate_run", {}).get("repeat_frac", 0.25),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("fiberseq_annotate_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

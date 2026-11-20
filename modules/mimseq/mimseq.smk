@@ -33,7 +33,7 @@ rule mimseq_prepare_sample_data:
         sif("mimseq.yaml", "mimseq_prepare_sample_data")
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         try:
             sample_condition_dict = extract_condition(input.meta)
             os.makedirs(outdir, exist_ok=True)

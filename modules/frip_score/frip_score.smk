@@ -37,7 +37,7 @@ rule frip_score:
         sif("frip_score.yaml", "frip_score")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("frip_score", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -89,11 +89,11 @@ echo "FRiP score: $FRIP"
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
-                shell(f"bash {plain_script} > {log_path} 2>&1")
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"FRiP score calculation for sample {wildcards.sample_id} completed successfully")
             
         except Exception as e:
-            logger.error(f"Error occurred during FRiP score calculation for sample {wildcards.sample_id}: {e}")
+            rule_logger.error(f"Error occurred during FRiP score calculation for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule frip_score_result:

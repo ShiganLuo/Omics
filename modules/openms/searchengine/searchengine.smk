@@ -159,7 +159,7 @@ rule search_engine_comet:
         variable_modifications = _variable_comet
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("search_engine_comet",log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -227,7 +227,7 @@ rule search_engine_msgf:
         isotope_error_range = config.get("Params", {}).get("search_engine", {}).get("msgf", {}).get("search_engine_msgf", {}).get("isotope_error_range", "0,1")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("search_engine_msgf",log_file = log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -283,7 +283,7 @@ rule search_engine_sage:
         fragment_mass_tolerance = config.get("Params", {}).get("search_engine", {}).get("sage", {}).get("search_engine_sage", {}).get("fragment_mass_tolerance", 0.02)
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("search_engine_sage",log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

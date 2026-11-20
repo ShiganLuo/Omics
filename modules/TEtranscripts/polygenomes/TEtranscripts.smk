@@ -46,7 +46,7 @@ rule TEcount:
         sif("../TEtranscripts.yaml", "TEcount")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("TEcount", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -118,7 +118,7 @@ rule combine_TEcount:
         logdir_combine + "/TEtranscripts/{genome}/combine_TEcount.log"
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("combine_TEcount", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -192,7 +192,7 @@ rule TElocal:
         sif("../TEtranscripts.yaml", "TElocal")
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("TElocal", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -264,7 +264,7 @@ rule combine_TElocal:
         logdir_combine + "/TEtranscripts/{genome}/combine_TElocal.log"
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("combine_TElocal", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -293,7 +293,7 @@ rule combine_TElocal:
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
-                shell(f"bash {plain_script} > {log_path} 2>&1")
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during combine_TElocal: {e}")
             raise RuntimeError(f"Error occurred during combine_TElocal: {e}")

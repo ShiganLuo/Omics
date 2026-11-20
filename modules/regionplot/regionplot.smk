@@ -132,7 +132,7 @@ rule regionplot:
         width = config.get("Params", {}).get("regionplot", {}).get("plot_width", 12),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("regionplot", log_file=log_path)
         try:
             import json as _json

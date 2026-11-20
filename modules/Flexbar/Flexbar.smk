@@ -31,7 +31,7 @@ rule flexbar_demultiplex:
         log = logdir + "/{sample_id}/flexbar_demux_run.txt"
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("flexbar_demultiplex", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

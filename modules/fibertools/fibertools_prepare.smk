@@ -81,7 +81,7 @@ rule ft_predict_m6a:
         ft = config.get("Procedure", {}).get("fibertools") or "ft"
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("ft_predict_m6a", log_file=log_path)
         try:
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
@@ -155,7 +155,7 @@ rule ft_add_nucleosomes:
         ft = config.get("Procedure", {}).get("fibertools") or "ft"
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("ft_add_nucleosomes", log_file=log_path)
         try:
             rule_logger.info(f"Adding nucleosomes for sample {wildcards.sample_id}")
@@ -210,7 +210,7 @@ rule ft_fire:
         is_ont = config.get("Params", {}).get("fibertools", {}).get("ft_fire", {}).get("ont", False)
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("ft_fire", log_file=log_path)
         try:
             rule_logger.info(f"Calling FIREs for sample {wildcards.sample_id}")

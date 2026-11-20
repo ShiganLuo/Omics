@@ -78,7 +78,7 @@ rule macs3_callpeak:
         broad_cutoff = config.get("Params",{}).get("macs3", {}).get("broad_cutoff") or "0.1"
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("macs3_callpeak",log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -158,7 +158,7 @@ rule macs3_cutoff_plot:
         out_base = outdir + "/cutoff_analysis",
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("macs3_cutoff_plot", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -186,7 +186,7 @@ rule macs3_cutoff_plot:
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"Error during cutoff plot: {e}")
+            rule_logger.error(f"Error during cutoff plot: {e}")
             raise RuntimeError(f"Error during macs3 cutoff plot: {e}, you can check the log file {log_path} for more details.")
 
 rule macs3_result:

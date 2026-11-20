@@ -79,7 +79,7 @@ checkpoint function_pseudobulk_go_index:
         mem_mb=rule_res("function_pseudobulk_go").get("mem_mb", 8000),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("function_pseudobulk_go_index", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -144,7 +144,7 @@ rule function_pseudobulk_go:
         formats=pb_formats,   # ③ 转发
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("function_pseudobulk_go", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

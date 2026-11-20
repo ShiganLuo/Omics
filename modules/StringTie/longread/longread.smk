@@ -28,7 +28,7 @@ rule stringtie_lr_assemble:
         stringtie = config.get("Procedure", {}).get("stringtie") or "stringtie"
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("stringtie_lr_assemble", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -79,7 +79,7 @@ rule stringtie_lr_merge:
         stringtie = config.get("Procedure", {}).get("stringtie") or "stringtie"
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("stringtie_lr_merge", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -125,7 +125,7 @@ rule stringtie_lr_quant:
         stringtie = config.get("Procedure", {}).get("stringtie") or "stringtie"
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("stringtie_lr_quant", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

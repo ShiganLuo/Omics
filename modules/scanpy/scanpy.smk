@@ -63,7 +63,7 @@ rule scanpy_qc:
             config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_qc", {}).get("formats") or ["png"])
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("scanpy_qc", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -146,7 +146,7 @@ rule scanpy_merge:
             config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_merge", {}).get("formats") or ["png"])
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("scanpy_merge", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -239,7 +239,7 @@ rule scanpy_auto:
         species=species
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("scanpy_auto", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -389,7 +389,7 @@ rule scanpy_reannotate:
             config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_reannotate", {}).get("formats") or ["png"]),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("scanpy_reannotate", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -461,7 +461,7 @@ rule scanpy_advanced:
             config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_advanced", {}).get("formats") or ["png"])
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("scanpy_advanced", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -564,7 +564,7 @@ rule scanpy_pseudobulk:
         script = os.path.join(ROOT_DIR, "modules", "scanpy", "bin", "pseudobulk.py"),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("scanpy_pseudobulk", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

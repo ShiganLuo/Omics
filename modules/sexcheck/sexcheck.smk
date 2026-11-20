@@ -48,7 +48,7 @@ rule sexcheck_idxstats:
         samtools=config.get("Procedure", {}).get("samtools") or "samtools",
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("sexcheck_idxstats", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -138,7 +138,7 @@ rule sexcheck:
         samtools_cmd=config.get("Procedure", {}).get("samtools") or "samtools",
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("sexcheck", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

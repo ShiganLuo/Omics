@@ -83,7 +83,7 @@ rule somaticMutect2:
             attempt=attempt).get("mem_mb", 32000),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger(logger_name="somaticMutect2", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -167,7 +167,7 @@ rule germline_resource_strain:
         strain = lambda wildcards: wildcards.strain,
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("germline_resource_strain", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -244,7 +244,7 @@ rule filterMutectCalls:
         tmp_dir = config.get("tmp_dir") or None,
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("filterMutectCalls", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

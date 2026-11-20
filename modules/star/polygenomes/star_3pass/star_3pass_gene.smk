@@ -55,7 +55,7 @@ rule star_3pg_gene_specific:
         tailer_rev_comp = config.get("Params", {}).get("tailer", {}).get("star_3pg_gene_specific", {}).get("rev_comp", False),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("star_3pg_gene_specific", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

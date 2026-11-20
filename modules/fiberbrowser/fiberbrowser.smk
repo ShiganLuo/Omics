@@ -65,7 +65,7 @@ rule fiberbrowser:
         dpi = config.get("Params", {}).get("fiberbrowser", {}).get("dpi", 200),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("fiberbrowser", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

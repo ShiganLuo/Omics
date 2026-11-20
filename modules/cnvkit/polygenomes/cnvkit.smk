@@ -42,7 +42,7 @@ rule cnvkit_reference:
         control_bams = lambda wildcards: " ".join([f"{indir}/{sid}/{sid}.bam" for sid in control_samples])
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("cnvkit_reference", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -61,7 +61,7 @@ rule cnvkit_reference:
                 f.write(f"    --access {input.access} \\\n")
                 f.write(f"    --processes {threads} \\\n")
                 f.write(f"    --output-reference {output.ref} \\\n")
-                f.write(f"    > {log} 2>&1\n")
+                f.write(f"    >> {log} 2>&1\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
@@ -69,7 +69,7 @@ rule cnvkit_reference:
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"Error occurred during cnvkit reference build for genome {wildcards.genome}: {e}")
+            rule_logger.error(f"Error occurred during cnvkit reference build for genome {wildcards.genome}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule cnvkit_batch:
@@ -101,7 +101,7 @@ rule cnvkit_batch:
         batch_outdir = lambda wildcards: outdir + f"/{wildcards.genome}/cnv"
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("cnvkit_batch", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -119,7 +119,7 @@ rule cnvkit_batch:
                 f.write(f"        --processes {threads} \\\n")
                 f.write(f"        --output-dir {params.batch_outdir} \\\n")
                 f.write(f"        --scatter --diagram \\\n")
-                f.write(f"        > {log} 2>&1\n")
+                f.write(f"        >> {log} 2>&1\n")
                 f.write(f"else\n")
                 f.write(f"    {params.cnvkit} batch \\\n")
                 f.write(f"        {params.treat_bams} \\\n")
@@ -129,7 +129,7 @@ rule cnvkit_batch:
                 f.write(f"        --processes {threads} \\\n")
                 f.write(f"        --output-dir {params.batch_outdir} \\\n")
                 f.write(f"        --scatter --diagram \\\n")
-                f.write(f"        > {log} 2>&1\n")
+                f.write(f"        >> {log} 2>&1\n")
                 f.write(f"fi\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
@@ -138,7 +138,7 @@ rule cnvkit_batch:
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"Error occurred during cnvkit batch for genome {wildcards.genome}: {e}")
+            rule_logger.error(f"Error occurred during cnvkit batch for genome {wildcards.genome}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule cnvkit_result:

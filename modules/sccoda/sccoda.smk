@@ -81,7 +81,7 @@ rule sccoda_run:
             config.get("Params", {}).get("sccoda", {}).get(wildcards.counter, {}).get("sccoda_run", {}).get("formats") or ["png"]),
     run:
         log_path = str(log)
-        open(log_path, "w").close()
+        open(log_path, "a").close()
         rule_logger = setup_logger("sccoda_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

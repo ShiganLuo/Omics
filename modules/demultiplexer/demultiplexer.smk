@@ -34,7 +34,7 @@ rule demultiplex_trim_dedup:
         max_ham = max_ham,
     run:
         log_path = str(log)
-        open(log_path, 'w').close()
+        open(log_path, 'a').close()
         rule_logger = setup_logger("demultiplex_trim_dedup", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -80,5 +80,5 @@ rule demultiplex_trim_dedup:
 
             rule_logger.info(f"demultiplex_trim_dedup completed for sample {wildcards.sample_id}")
         except Exception as e:
-            logger.error(f"Error occurred during demultiplex_trim_dedup for sample {wildcards.sample_id}: {e}")
+            rule_logger.error(f"Error occurred during demultiplex_trim_dedup for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")

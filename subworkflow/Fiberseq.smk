@@ -541,6 +541,54 @@ module fiberseq_track:
 logger.debug(f"fiberseq_track config: {fiberseq_track_config}")
 use rule fiberseq_track_run from fiberseq_track as Fiberseq_track_run
 
+# ============================================================
+# Telomere length analysis (modules/telomere)
+#   indir = aligned fire.bam (telogator2 needs .bai). NOTE: read_density's
+#   reference-free k-mer method ideally consumes the RAW/unmapped HiFi BAM
+#   (loses pure-telomere reads in an aligned BAM — see module README §3.1/§3.4).
+#   Fiberseq has no hifiasm/centromere assembly, so default method omits
+#   assembly_scan/tidk (they need {assembly_dir}/{sample}/assembly/asm.bp.p_ctg.fa).
+#   Method selection lives in Params.telomere.method (node.py gates outputs).
+# ============================================================
+telomere_config = {
+    "resources": config.get("resources", {}),
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "indir": aligned_dir,
+    "outdir": f"{analysis_outdir}/telomere",
+    "logdir": f"{logdir}/sample",
+    "samples": samples,
+    "bam_substring": "fiberseq.fire.sorted",
+    "assembly_dir": "",  # Fiberseq has no hifiasm assembly; leave empty
+    # 字典模式输入(每方法一份 sample→path 字典,仿 sexcheck sample_bams):
+    # telogator2 用比对 fire.bam+.bai;read_density 用原始/unmapped HiFi BAM。
+    "inputs": {
+        "telogator2": {
+            "bam": {s: f"{aligned_dir}/{s}/{s}.fiberseq.fire.sorted.bam" for s in samples},
+            "bai": {s: f"{aligned_dir}/{s}/{s}.fiberseq.fire.sorted.bai" for s in samples},
+        },
+        "read_density": {
+            "bam": {s: f"{outdir}/common/1_raw_data/{s}/{s}.bam" for s in samples},
+        },
+    },
+    "Procedure": {
+        "telogator2": config.get("Procedure", {}).get("telogator2"),
+        "tidk": config.get("Procedure", {}).get("tidk")
+    },
+    "Params": {
+        "telomere": config.get("Params", {}).get("telomere", {})
+    },
+}
+module telomere:
+    snakefile: "../modules/telomere/telomere.smk"
+    config: telomere_config
+logger.debug(f"telomere_config: {telomere_config}")
+use rule telogator2_run from telomere as Fiberseq_telogator2_run
+use rule assembly_telomere_scan from telomere as Fiberseq_assembly_telomere_scan
+use rule read_density_telomere from telomere as Fiberseq_read_density_telomere
+use rule tidk_init from telomere as Fiberseq_tidk_init
+use rule tidk_scan from telomere as Fiberseq_tidk_scan
 
 
 # ============================================================
@@ -809,6 +857,37 @@ module fiberbrowser:
 logger.debug(f"fiberbrowser_config: {fiberbrowser_config}")
 use rule fiberbrowser from fiberbrowser as Fiberseq_fiberbrowser
 use rule fiberbrowser_result from fiberbrowser as Fiberseq_fiberbrowser_result
+
+# ============================================================
+# Single-fiber pattern clustering + report package (modules/fibercluster)
+#   Consumes this workflow's ft-extract element BEDs (extract_outdir, shape
+#   A suffix splicing) plus the user-provided regions BED; gated by
+#   Params.fibercluster.enabled in node.py (wiring is unconditional per
+#   repo convention; default off = 不主动调用,按参数决定是否输出).
+# ============================================================
+fibercluster_params = config.get("Params", {}).get("fibercluster", {})
+fibercluster_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": f"{outdir}/fibercluster",
+    "logdir": f"{logdir}/group",
+    "samples": samples,
+    "indir": extract_outdir,
+    "regions_bed": fibercluster_params.get("regions_bed") or "",
+    "settings": fibercluster_params.get("settings") or [],
+    "Params": {
+        "fibercluster": fibercluster_params
+    },
+    "resources": config.get("resources", {}),
+}
+module fibercluster:
+    snakefile: "../modules/fibercluster/fibercluster.smk"
+    config: fibercluster_config
+logger.debug(f"fibercluster_config: {fibercluster_config}")
+use rule fiber_cluster from fibercluster as Fiberseq_fiber_cluster
+use rule fiber_report from fibercluster as Fiberseq_fiber_report
+use rule fibercluster_result from fibercluster as Fiberseq_fibercluster_result
 
 decoil_config = {
     "resources": config.get("resources", {}),

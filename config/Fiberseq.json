@@ -763,9 +763,63 @@
       ],
       "dpi": 300
     },
+    "fibercluster": {
+      "enabled": false,
+      "regions_bed": null,
+      "settings": [
+        "fire_k2"
+      ],
+      "fiber_cluster": {
+        "msp_suffix": ".msp.bed.gz",
+        "nuc_suffix": ".nuc.bed.gz",
+        "fire_suffix": ".fire_peaks.bed",
+        "bin_size": 100,
+        "bin_mode": "any",
+        "min_msp_bp": 10,
+        "channel_by_setting": {
+          "fire_k2": "fire"
+        },
+        "k_by_setting": {
+          "fire_k2": 2
+        },
+        "method": "hierarchical",
+        "min_fibers": 10,
+        "min_span_frac": 0.8,
+        "bin_threshold": 0.5,
+        "max_fibers": 300,
+        "right_tracks": "fire,lnk,nuc",
+        "fire_fdr": 0.1,
+        "seed": 0,
+        "cache_dir": ""
+      },
+      "fiber_report": {
+        "canonical": "fire_k2"
+      }
+    },
     "sexcheck": {
       "ratio_xy_threshold": null,
       "y_min_frac": null
+    },
+    "telomere": {
+      "enabled": false,
+      "method": [
+        "telogator2",
+        "read_density"
+      ],
+      "formats": [
+        "png"
+      ],
+      "telogator2": {
+        "species": "human",
+        "threads": 16
+      },
+      "assembly_scan": {
+        "assembly_scan_length": 50000
+      },
+      "read_density": {
+        "n_chrom_arms": 40
+      },
+      "tidk": {}
     }
   },
   "genome": {
@@ -862,7 +916,8 @@
     "regionplot": "/data/16T/Database/env/regionplot/regionplot.sif",
     "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif",
     "qc_summary": "/data/16T/Database/env/report/report.sif",
-    "sigtest": "/data/16T/Database/env/sv/sv.sif"
+    "sigtest": "/data/16T/Database/env/sv/sv.sif",
+    "telomere": "/home/luosg/Database/env/telomere/telomere.sif"
   },
   "resources": {
     "default": {
@@ -1151,6 +1206,26 @@
     },
     "sv_oncoprint": {
       "mem_mb": 8000
+    },
+    "telogator2_run": {
+      "threads": 16,
+      "mem_mb": 16000
+    },
+    "assembly_telomere_scan": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "read_density_telomere": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "tidk_init": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "tidk_scan": {
+      "threads": 1,
+      "mem_mb": 16000
     }
   },
   "Procedure": {

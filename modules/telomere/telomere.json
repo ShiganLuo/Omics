@@ -1,20 +1,32 @@
 {
-    "indir": "input",
-    "outdir": "output",
-    "logdir": "logs",
-    "samples": [],
-    "assembly_dir": "",
-    "ROOT_DIR": ".",
-    "Procedure": {
-        "telogator2": null,
-        "tidk": null
-    },
-    "Params": {
-        "telogator2": {
-            "species": "human",
-            "threads": 16,
-            "assembly_scan_length": 50000,
-            "n_chrom_arms": 40
-        }
+  "indir": "input",
+  "outdir": "output",
+  "logdir": "logs",
+  "samples": [],
+  "assembly_dir": "",
+  "ROOT_DIR": ".",
+  "Procedure": {
+    "telogator2": null,
+    "tidk": null
+  },
+  "Params": {
+    "telomere": {
+      "enabled": false,
+      "method": [],
+      "formats": [
+        "png"
+      ],
+      "telogator2": {
+        "species": "human",
+        "threads": 16
+      },
+      "assembly_scan": {
+        "assembly_scan_length": 50000
+      },
+      "read_density": {
+        "n_chrom_arms": 40
+      },
+      "tidk": {}
     }
+  }
 }

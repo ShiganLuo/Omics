@@ -126,6 +126,62 @@ schema 校验器按嵌套路径取值;判别式对象在 schema 里同样给 `de
 - `ROOT_DIR`：项目根路径，**所有模块配置必须传入**（common.smk 依赖此变量定位 `src/` 和 `bin/` 脚本）
 - `env`：SIF 容器路径映射字典，**所有模块配置必须传入**（common.smk 的 `sif()` 函数依赖此字段解析 `.sif` 路径）
 
+## 传参规范:per-sample 输入的三种形态(与 modules.md「per-sample 输入的两种形态」对齐)
+
+subworkflow 把 per-sample 文件(BAM/VCF/表)交给模块,有三种传法,按"模块需知道多少路径"递增。
+modules.md 的**形态 A = 下面的形态二**、**形态 B = 形态三**;**形态一**是"仅通配符"的最简情形
+(modules.md 形态表未单列,以本节为准)。三者都遵循「模块衔接规范」的一个物理路径只写一次。
+
+### 形态一:wildcards(仅通配符推导)
+模块输入函数仅凭 `wildcards.sample_id` 定位文件——要么是上游规则的输出(同名 `sample_id`
+通配符,DAG 反推),要么是模块内固定约定路径。subworkflow **不传具体路径**,只传约定所需基础 config。
+- 适用:上下游同一布局、模块能从 `sample_id` 直接拼出 / 由 DAG 解析。
+- 接线:`input:` 直接引用上游规则(或 `lambda w: f"{upstream_outdir}/{w.sample_id}/..."`);
+  路径知识落在模块/上游规则,subworkflow 不重复。
+
+### 形态二:wildcards + suffix(通配符 + 后缀,= modules.md 形态 A)
+subworkflow 传 `indir`(基目录)+ `suffix`/`bam_substring`(布局后缀);模块输入函数拼
+`{indir}/{sample_id}/{sample_id}{suffix}.ext`。后缀是布局旋钮,`sample_id` 由通配符提供。
+- 适用:单一布局模块(参照 modules.md 形态 A:msi/cnvkit/fragment_size)。
+- 示例:
+  ```python
+  xxx_config = {
+      "indir": upstream_config["outdir"],   # 引用上游 outdir,勿手拼
+      "bam_substring": "sorted_markdup",
+      "samples": samples,
+      ...
+  }
+  ```
+
+### 形态三:dict(字典,= modules.md 形态 B)
+subworkflow 传「sample_id → 完整路径」字典(如 `sample_bams`);模块查
+`dict[wildcards.sample_id]`。布局差异由 subworkflow 知道,模块从布局解耦。
+- 适用:跨布局公用模块(参照 sexcheck/hiphase);或**同一模块内不同方法要不同输入**
+  (如 telomere:telogator2 要比对 BAM+.bai、read_density 要原始 BAM →
+  `inputs = {method: {sample_id: path}}`,每方法一份字典)。
+- **三条强制约束**(= modules.md 形态 B):① 字典值必须引用上游 config 的 `outdir`(f-string),
+  禁手拼裸路径;② 值指向的文件必须是某规则声明的 `output`(dry-run reason 见
+  "Input files updated by another job",否则依赖静默缺失);③ 键必须纯 `sample_id`
+  (per-genome 把 genome 放进**值**的路径段,禁用 `genome/sample` 斜杠键)。
+- 示例(sexcheck `sample_bams`;telomere 每方法一份):
+  ```python
+  sexcheck_config = {
+      ...
+      "sample_bams": {s: f"{pbmm2_config['outdir']}/{s}/{s}.sorted.bam" for s in samples},
+  }
+  telomere_config = {
+      ...
+      "inputs": {
+          "telogator2":   {"bam": {s: f"{aligned_dir}/{s}/{s}.fiberseq.fire.sorted.bam" for s in samples},
+                           "bai": {s: f"{aligned_dir}/{s}/{s}.fiberseq.fire.sorted.bai" for s in samples}},
+          "read_density": {"bam": {s: f"{raw_dir}/{s}/{s}.bam" for s in samples}},   # 原始/unmapped BAM
+      },
+  }
+  ```
+
+**选择原则**:模块只接一种上游布局 → 形态二;被布局互不相同的多流程复用 / 同模块内多方法
+要不同输入 → 形态三;上下游同布局、模块能自定位 → 形态一。
+
 ## 绘图模块的 formats 参数（强制）
 
 每个**产出图片**的模块（自家脚本画图，或转发格式给画图工具），其参数段必须提供

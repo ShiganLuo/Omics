@@ -421,6 +421,82 @@ def _register_fiberbrowser(
     return out
 
 
+def _register_fibercluster(
+        datajson: Dict[str, Any],
+        outdir: str,
+        workflow: str,
+    ) -> List[str]:
+    """Register fibercluster outputs under the Params.fibercluster gate.
+
+    Analysis deliverable, opt-in like fiberbrowser (default OFF — an
+    analysis that is not requested must not materialize). When enabled:
+    requires ``Params.fibercluster.regions_bed`` (a BED of
+    chrom/start/end/name rows; region names drive the per-region outputs),
+    a non-empty ``settings`` label list, a
+    ``channel_by_setting``/``k_by_setting`` entry for EVERY label (the
+    per-run -C/-k; a missing entry fails HERE naming the key instead of
+    mid-run), and ``fiber_report.canonical``. Returns the outfile paths:
+    one done marker per setting (the module tracks per-region outputs by
+    marker — region names live in the BED, not in wildcards) plus the
+    report-package files.
+
+    Parameters
+    ----------
+    datajson : the workflow config being materialized (read only).
+    outdir : workflow output root.
+    workflow : workflow name (for error messages).
+
+    Returns
+    -------
+    List[str]
+        Outfile paths to register; empty when the gate is off.
+    """
+    if not (datajson.get("Params", {}).get("fibercluster", {}) or {}).get("enabled"):
+        return []
+    p = datajson.get("Params", {}).get("fibercluster", {}) or {}
+    regions_bed = p.get("regions_bed")
+    if not regions_bed:
+        raise ValueError(
+            f"{workflow}: Params.fibercluster.enabled=true requires "
+            "Params.fibercluster.regions_bed (a BED of chrom/start/end/name "
+            "rows; region names drive the per-region outputs); set it in the "
+            "workflow config JSON, then rerun.")
+    settings = p.get("settings") or []
+    if isinstance(settings, str):
+        settings = [settings]
+    if not settings:
+        raise ValueError(
+            f"{workflow}: Params.fibercluster.enabled=true requires a non-empty "
+            "Params.fibercluster.settings label list (one engine run per label).")
+    fc = p.get("fiber_cluster", {}) or {}
+    for label in settings:
+        for key in ("channel_by_setting", "k_by_setting"):
+            if label not in (fc.get(key) or {}):
+                raise ValueError(
+                    f"{workflow}: Params.fibercluster.fiber_cluster.{key} has no "
+                    f"entry for settings label '{label}' — add it "
+                    + ("(msp|fire)." if key == "channel_by_setting" else "(int)."))
+    canonical = (p.get("fiber_report", {}) or {}).get("canonical")
+    if not canonical:
+        raise ValueError(
+            f"{workflow}: Params.fibercluster.enabled=true requires "
+            "Params.fibercluster.fiber_report.canonical (the settings label "
+            "whose figures/summary become the deliverable).")
+    if canonical not in settings:
+        raise ValueError(
+            f"{workflow}: Params.fibercluster.fiber_report.canonical "
+            f"'{canonical}' is not among the settings labels {settings}.")
+    base = f"{outdir}/fibercluster"
+    out = [f"{base}/{label}/fiber_cluster.done" for label in settings]
+    out += [
+        f"{base}/summary/loci_summary.tsv",
+        f"{base}/summary/cluster_proportions.png",
+        f"{base}/sensitivity/sensitivity_table.tsv",
+        f"{base}/figures.done",
+    ]
+    return out
+
+
 def _resolve_genome_ref(
         datajson: Dict[str, Any],
         samples_info_dict: Dict[str, SampleInfo],
@@ -953,18 +1029,47 @@ def runPacVar(
 
     # telomere & centromere analysis
     if enable_telomere:
+        # Which telomere-length methods to run (Params.telomere.method, list).
+        # The telomere module declares every rule unconditionally; this list
+        # decides which outputs (DAG leaves) are requested, so Snakemake runs
+        # only the selected methods (tool choice is a workflow concern, not the
+        # module's). Empty/absent => all four.
+        _TEL_METHODS = ("telogator2", "assembly_scan", "read_density", "tidk")
+        tel_methods = params.get("telomere", {}).get("method") or list(_TEL_METHODS)
+        if isinstance(tel_methods, str):
+            tel_methods = [tel_methods]
+        _bad = [m for m in tel_methods if m not in _TEL_METHODS]
+        if _bad:
+            raise ValueError(
+                f"PacVar: Params.telomere.method has unknown method(s) {_bad}; "
+                f"valid methods: {list(_TEL_METHODS)}."
+            )
+        # figure formats (Params.telomere.formats), for multi-format plot outputs
+        _tel_fmts = params.get("telomere", {}).get("formats") or ["png"]
+        if isinstance(_tel_fmts, str):
+            _tel_fmts = [_tel_fmts]
         for sample_id in samples:
             # Telogator2 (per-chromosome-arm)
-            outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/telogator2/tlens_by_allele.tsv")
-            outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/telogator2/all_final_alleles.png")
-            outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/telogator2/violin_atl.png")
+            if "telogator2" in tel_methods:
+                outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/telogator2/tlens_by_allele.tsv")
+                outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/telogator2/all_final_alleles.png")
+                outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/telogator2/violin_atl.png")
             # Approach A: Assembly contig end scanning
-            outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/assembly_scan/{sample_id}_assembly_telomere_stats.txt")
+            if "assembly_scan" in tel_methods:
+                outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/assembly_scan/{sample_id}_assembly_telomere_stats.txt")
+                for _f in _tel_fmts:
+                    outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/assembly_scan/{sample_id}_assembly_telomere_length.{_f}")
             # Approach B: Read-level k-mer density
-            outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/read_density/{sample_id}_read_telomere_stats.txt")
+            if "read_density" in tel_methods:
+                outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/read_density/{sample_id}_read_telomere_stats.txt")
+                for _f in _tel_fmts:
+                    outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/read_density/{sample_id}_read_telomere_content.{_f}")
             # Approach C: tidk
-            outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/tidk/{sample_id}_tidk_telomeres.tsv")
-            # Centromere
+            if "tidk" in tel_methods:
+                outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/tidk/{sample_id}_tidk_telomeres.tsv")
+                for _f in _tel_fmts:
+                    outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/tidk/{sample_id}_tidk_telomeres.{_f}")
+            # Centromere (separate module; not gated by telomere method)
             outfiles.append(f"{outdir}/repeat/centromere/{sample_id}/{sample_id}.centromere_stats.txt")
 
     # SV comparison analysis (modules/sv): DESeq2-style design —
@@ -2466,6 +2571,7 @@ def runFiberseq(
     enable_lsdc = _enabled(datajson, "ldsc")
     enable_function = _enabled(datajson, "function")
     enable_sv = _enabled(datajson, "sv")
+    enable_telomere = _enabled(datajson, "telomere")
     want_motif = enable_motif or enable_footprint
     want_quant = enable_quant or enable_diff or enable_haplotype
     want_eccdna = _enabled(datajson, "decoil") and default_ref.get("gtf")
@@ -2546,6 +2652,41 @@ def runFiberseq(
             outfiles += _figs(
                 f"{outdir}/fiberseq_analysis/censat/{sample_id}/{sample_id}.censat_profile",
                 _censat_fmts)
+
+        # Telomere length analysis (modules/telomere); method-gated.
+        # NOTE: read_density on the aligned fire.bam is alignment-biased (module
+        # README §3.1/§3.4) — ideally run on the raw HiFi BAM for unbiased ATL.
+        if enable_telomere:
+            _TEL_METHODS = ("telogator2", "assembly_scan", "read_density", "tidk")
+            _tel_methods = (datajson.get("Params", {}).get("telomere", {}).get("method")
+                            or ["telogator2", "read_density"])
+            if isinstance(_tel_methods, str):
+                _tel_methods = [_tel_methods]
+            _bad_tel = [m for m in _tel_methods if m not in _TEL_METHODS]
+            if _bad_tel:
+                raise ValueError(
+                    f"Fiberseq: Params.telomere.method has unknown method(s) {_bad_tel}; "
+                    f"valid methods: {list(_TEL_METHODS)}.")
+            _tel_fmts = (datajson.get("Params", {}).get("telomere", {})
+                         .get("formats") or ["png"])
+            if isinstance(_tel_fmts, str):
+                _tel_fmts = [_tel_fmts]
+            _tb = f"{outdir}/fiberseq_analysis/telomere/{sample_id}"
+            if "telogator2" in _tel_methods:
+                outfiles.append(f"{_tb}/telogator2/tlens_by_allele.tsv")
+                outfiles.append(f"{_tb}/telogator2/all_final_alleles.png")
+                outfiles.append(f"{_tb}/telogator2/violin_atl.png")
+            if "assembly_scan" in _tel_methods:
+                outfiles.append(f"{_tb}/assembly_scan/{sample_id}_assembly_telomere_stats.txt")
+                outfiles += _figs(
+                    f"{_tb}/assembly_scan/{sample_id}_assembly_telomere_length", _tel_fmts)
+            if "read_density" in _tel_methods:
+                outfiles.append(f"{_tb}/read_density/{sample_id}_read_telomere_stats.txt")
+                outfiles += _figs(
+                    f"{_tb}/read_density/{sample_id}_read_telomere_content", _tel_fmts)
+            if "tidk" in _tel_methods:
+                outfiles.append(f"{_tb}/tidk/{sample_id}_tidk_telomeres.tsv")
+                outfiles += _figs(f"{_tb}/tidk/{sample_id}_tidk_telomeres", _tel_fmts)
 
         # Step 5: haplotype chain
         if enable_haplotype:
@@ -2705,7 +2846,9 @@ def runFiberseq(
     # regions land in a regionplot-ready BED under fiberseq_analysis/mods.
     # Groups/contrasts come from the meta-derived group_pairs (same source
     # sv uses) — the meta is the single source of grouping, no design file.
-    enable_mods = _enabled(datajson, "fiberseq_mods") or _enabled(datajson, "mods")
+    # single config name (no compat alias per repo convention: a rename that
+    # unifies a key ships no fallback read — regenerate raw.json instead)
+    enable_mods = _enabled(datajson, "fiberseq_mods")
     if enable_mods:
         mods_params = (datajson.setdefault("Params", {}).get("fiberseq_mods")
                        or datajson["Params"].setdefault("fiberseq_mods", {}))
@@ -2915,6 +3058,9 @@ def runFiberseq(
     datajson["Params"]["workflow"]["raw_files"] = raw_files
     outfiles += _register_regionplot(datajson, samples_info_dict, samples, outdir, "Fiberseq")
     outfiles += _register_fiberbrowser(datajson, samples_info_dict, samples, outdir, "Fiberseq")
+    # Fiber pattern clustering + report package (modules/fibercluster):
+    # per-setting done markers + report files; gated by Params.fibercluster.
+    outfiles += _register_fibercluster(datajson, outdir, "Fiberseq")
     # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
     # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")

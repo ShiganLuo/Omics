@@ -333,7 +333,7 @@ telomere_config = {
         "tidk": config.get("Procedure", {}).get("tidk")
     },
     "Params": {
-        "telogator2": config.get("Params", {}).get("telogator2", {})
+        "telomere": config.get("Params", {}).get("telomere", {})
     },
 }
 module telomere:

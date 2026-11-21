@@ -19,9 +19,21 @@ import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import List, Optional
 
 import numpy as np
 import pysam
+try:
+    from .LogUtil import setup_logger
+    from .plot_util import normalize_formats, save_fig
+except ImportError:
+    from LogUtil import setup_logger
+    from plot_util import normalize_formats, save_fig
+
+import matplotlib.pyplot as plt
+
+logger = setup_logger("read_density_telomere", stream=sys.stdout)
+
 
 
 # ---------------------------------------------------------------------------
@@ -103,15 +115,15 @@ def find_terminal_telomere(seq: str, positions: list[tuple[int, int]],
 
 
 def analyze_reads(bam_path: str, min_read_length: int,
-                  min_tel_kmers: int) -> list[ReadTelStats]:
+                  min_tel_kmers: int) -> tuple[list[ReadTelStats], int]:
     """Analyze all reads in a BAM file for telomeric content."""
     results = []
     n_total = 0
     n_tel = 0
+    total_all_bp = 0
 
-    print(f"Reading BAM: {bam_path}", file=sys.stderr)
-    print(f"  min_read_length={min_read_length}, min_tel_kmers={min_tel_kmers}",
-          file=sys.stderr)
+    logger.info(f"Reading BAM: {bam_path}")
+    logger.info(f"  min_read_length={min_read_length}, min_tel_kmers={min_tel_kmers}")
 
     with pysam.AlignmentFile(bam_path, "rb", check_sq=False) as bam:
         for read in bam.fetch(until_eof=True):
@@ -119,13 +131,13 @@ def analyze_reads(bam_path: str, min_read_length: int,
                 continue
             n_total += 1
             if n_total % 500000 == 0:
-                print(f"  Processed {n_total:,} reads, {n_tel:,} with telomere...",
-                      file=sys.stderr)
+                logger.info(f"  Processed {n_total:,} reads, {n_tel:,} with telomere...")
 
             seq = read.query_sequence
             if seq is None or len(seq) < min_read_length:
                 continue
 
+            total_all_bp += len(seq)  # denominator pool for genome-wide fraction
             kmer_count, positions = count_tel_kmers(seq)
             if kmer_count < min_tel_kmers:
                 continue
@@ -147,13 +159,66 @@ def analyze_reads(bam_path: str, min_read_length: int,
                 terminal_tel_len=terminal_len
             ))
 
-    print(f"Done. Total reads: {n_total:,}, with telomere: {n_tel:,}",
-          file=sys.stderr)
-    return results
+    logger.info(f"Done. Total reads: {n_total:,}, with telomere: {n_tel:,}")
+    return results, total_all_bp
+
+
+def plot_telomere_content(results: list[ReadTelStats], sample_name: str,
+                          out_base: str, total_all_bp: int,
+                          n_chrom_arms: int,
+                          formats: Optional[List[str]] = None) -> List[str]:
+    """Figure 1: telomere content / length distribution (multi-format).
+
+    Panels: (1) per-read telomeric bp distribution (length proxy);
+    (2) terminal telomere length (anchored reads); (3) genome-wide telomeric
+    fraction (content). Deliberately separates content (panel 3) from length
+    (panels 1-2) — they are not the same quantity.
+    """
+    if not results:
+        return []
+    tel_bps = [r.tel_bp_estimate for r in results]
+    term = [r.terminal_tel_len for r in results
+            if r.has_terminal_tel and r.terminal_tel_len > 0]
+    total_tel_bp = sum(r.tel_bp_estimate for r in results)
+    gwf = total_tel_bp / total_all_bp if total_all_bp else 0.0
+
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4.6))
+
+    # Panel 1: per-read telomeric bp (length proxy)
+    ax = axes[0]
+    positive = [x for x in tel_bps if x > 0]
+    if positive:
+        ax.hist(positive, bins=60, color="#4C9F70", edgecolor="none")
+        ax.set_xscale("log")
+    ax.set_xlabel("Telomeric bp per read (log)")
+    ax.set_ylabel("Reads")
+    ax.set_title("Per-read telomeric tract\n(length proxy)")
+
+    # Panel 2: terminal telomere length (anchored reads)
+    ax = axes[1]
+    if term:
+        ax.hist(term, bins=40, color="#C0504D", edgecolor="none")
+    ax.set_xlabel("Terminal telomere length (bp)")
+    ax.set_ylabel("Reads")
+    ax.set_title(f"Terminal telomere length\n(anchored reads, n={len(term)})")
+
+    # Panel 3: genome-wide telomeric fraction (content)
+    ax = axes[2]
+    ax.bar([sample_name], [gwf], color="#3C6E9F")
+    ax.set_ylabel("Genome-wide telomeric fraction")
+    ax.set_title("Genome-wide telomere content\n(content ≠ length)")
+
+    fig.suptitle(f"Telomere content & length — {sample_name}", fontsize=12)
+    fig.tight_layout(rect=(0, 0, 1, 0.95))
+    written = save_fig(fig, out_base, formats)
+    plt.close(fig)
+    return written
 
 
 def write_results(results: list[ReadTelStats], sample_name: str,
-                  output_dir: Path, n_chrom_arms: int):
+                  output_dir: Path, n_chrom_arms: int,
+                  total_all_bp: int = 0,
+                  formats: Optional[List[str]] = None):
     """Write results to TSV and summary files."""
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -166,7 +231,7 @@ def write_results(results: list[ReadTelStats], sample_name: str,
             f.write(f"{r.read_name}\t{r.read_length}\t{r.tel_kmer_count}\t"
                     f"{r.tel_bp_estimate}\t{r.tel_fraction:.4f}\t"
                     f"{r.has_terminal_tel}\t{r.terminal_tel_len}\n")
-    print(f"Wrote: {detail_path}", file=sys.stderr)
+    logger.info(f"Wrote: {detail_path}")
 
     # 2. Statistical summary
     stats_path = output_dir / f"{sample_name}_read_telomere_stats.txt"
@@ -179,9 +244,9 @@ def write_results(results: list[ReadTelStats], sample_name: str,
 
         if not results:
             f.write("No reads with telomeric signal found.\n")
-            print(f"Wrote: {stats_path}", file=sys.stderr)
+            logger.info(f"Wrote: {stats_path}")
             with open(stats_path) as ff:
-                print(ff.read())
+                logger.info(ff.read())
             return
 
         total_tel_bp = sum(r.tel_bp_estimate for r in results)
@@ -191,6 +256,10 @@ def write_results(results: list[ReadTelStats], sample_name: str,
         f.write(f"  Total telomeric bp:     {total_tel_bp:>15,} bp\n")
         f.write(f"  Total read bp:          {total_read_bp:>15,} bp\n")
         f.write(f"  Telomeric fraction:     {total_tel_bp/total_read_bp:.6f}\n")
+        if total_all_bp:
+            f.write(f"  Total all read bp:      {total_all_bp:>15,} bp\n")
+            f.write(f"  Genome-wide tel frac:   {total_tel_bp/total_all_bp:.6e}"
+                    f"   (total_tel_bp / all_read_bp; coverage-independent)\n")
         f.write(f"  Avg telomere per arm:   {total_tel_bp / n_chrom_arms:>15,.0f} bp\n\n")
 
         # Per-read statistics
@@ -232,36 +301,53 @@ def write_results(results: list[ReadTelStats], sample_name: str,
             count = sum(1 for x in terminal_lens if x >= thresholds[-1])
             f.write(f"  >{thresholds[-1]:>7,} bp:  {count}\n")
 
-    print(f"Wrote: {stats_path}", file=sys.stderr)
+    logger.info(f"Wrote: {stats_path}")
 
     # Print summary to stdout
     with open(stats_path) as f:
-        print(f.read())
+        logger.info(f.read())
+
+    # Figure 1: telomere content / length distribution (multi-format)
+    plot_base = str(output_dir / f"{sample_name}_read_telomere_content")
+    for _p in plot_telomere_content(results, sample_name, plot_base,
+                                    total_all_bp, n_chrom_arms, formats):
+        logger.info(f"Wrote: {_p}")
 
 
 def main():
+    global logger
     parser = argparse.ArgumentParser(
         description="Estimate genome-wide telomere length from read-level k-mer density")
-    parser.add_argument("--bam", required=True,
+    parser.add_argument("-b", "--bam", required=True,
                         help="Input BAM file")
-    parser.add_argument("--sample_name", required=True,
+    parser.add_argument("-s", "--sample_name", required=True,
                         help="Sample name for output files")
-    parser.add_argument("--output_dir", default="results",
+    parser.add_argument("-o", "--output_dir", default="results",
                         help="Output directory")
-    parser.add_argument("--n_chrom_arms", type=int, default=DEFAULT_N_CHROM_ARMS,
+    parser.add_argument("-n", "--n_chrom_arms", type=int, default=DEFAULT_N_CHROM_ARMS,
                         help=f"Number of chromosome arms (default: {DEFAULT_N_CHROM_ARMS})")
-    parser.add_argument("--min_read_length", type=int, default=DEFAULT_MIN_READ_LENGTH,
+    parser.add_argument("-m", "--min_read_length", type=int, default=DEFAULT_MIN_READ_LENGTH,
                         help=f"Minimum read length (default: {DEFAULT_MIN_READ_LENGTH})")
-    parser.add_argument("--min_tel_kmers", type=int, default=DEFAULT_MIN_TEL_KMERS,
+    parser.add_argument("-k", "--min_tel_kmers", type=int, default=DEFAULT_MIN_TEL_KMERS,
                         help=f"Minimum telomeric k-mers per read (default: {DEFAULT_MIN_TEL_KMERS})")
+    parser.add_argument("-l", "--log", default="",
+                        help="Optional log file path (default: log to stdout only)")
+    parser.add_argument("-F", "--format", action="append", dest="formats", metavar="FMT",
+                        help="Output figure format(s), repeatable (default: png). "
+                             "e.g. -f png -f pdf -f svg")
     args = parser.parse_args()
 
-    results = analyze_reads(
+    if args.log:
+        Path(args.log).parent.mkdir(parents=True, exist_ok=True)
+        logger = setup_logger("read_density_telomere", log_file=args.log, stream=sys.stdout)
+
+    results, total_all_bp = analyze_reads(
         args.bam,
         min_read_length=args.min_read_length,
         min_tel_kmers=args.min_tel_kmers
     )
-    write_results(results, args.sample_name, Path(args.output_dir), args.n_chrom_arms)
+    write_results(results, args.sample_name, Path(args.output_dir),
+                  args.n_chrom_arms, total_all_bp, args.formats)
 
 
 if __name__ == "__main__":

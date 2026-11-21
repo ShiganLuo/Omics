@@ -1566,6 +1566,47 @@
         "type": "str",
         "required": false
       }
+    },
+    "telomere": {
+      "enabled": {
+        "type": "bool",
+        "required": false
+      },
+      "method": {
+        "type": "list",
+        "required": false
+      },
+      "formats": {
+        "type": "list",
+        "required": false
+      },
+      "telogator2": {
+        "species": {
+          "type": "str",
+          "required": false
+        },
+        "threads": {
+          "type": "int",
+          "required": false
+        }
+      },
+      "assembly_scan": {
+        "assembly_scan_length": {
+          "type": "int",
+          "required": false
+        }
+      },
+      "read_density": {
+        "n_chrom_arms": {
+          "type": "int",
+          "required": false
+        }
+      },
+      "tidk": {
+        "type": "dict",
+        "required": false,
+        "properties": {}
+      }
     }
   },
   "genome": {
@@ -1580,7 +1621,11 @@
   },
   "env": {
     "type": "dict",
-    "required": false
+    "required": false,
+    "telomere": {
+      "type": "str",
+      "required": false
+    }
   },
   "resources": {
     "type": "dict",
@@ -2216,6 +2261,169 @@
           }
         }
       },
+      "fibercluster": {
+        "enabled": {
+          "type": "bool",
+          "required": false,
+          "default": false,
+          "description": "Opt-in gate for the fibercluster module (single-fiber pattern clustering + report package over this workflow's ft-extract element BEDs). node.py registers the outputs only when true; default false = wired but not invoked."
+        },
+        "regions_bed": {
+          "type": "str",
+          "path": "file",
+          "required": false,
+          "default": null,
+          "description": "Regions BED (chrom<TAB>start<TAB>end<TAB>name rows; name = region label), required when enabled. Region names drive the per-region outputs."
+        },
+        "settings": {
+          "type": "list",
+          "required": false,
+          "default": [
+            "fire_k2"
+          ],
+          "description": "Setting labels = the module's {setting} wildcard values (one engine run each, the sigtest contrasts shape); every label needs a fiber_cluster.channel_by_setting and k_by_setting entry."
+        },
+        "fiber_cluster": {
+          "type": "dict",
+          "nullable": true,
+          "required": false,
+          "properties": {
+            "msp_suffix": {
+              "type": "str",
+              "nullable": true,
+              "required": false,
+              "default": ".msp.bed.gz",
+              "description": "MSP element BED suffix under {extract_outdir}/{sample}/ (-m)"
+            },
+            "nuc_suffix": {
+              "type": "str",
+              "nullable": true,
+              "required": false,
+              "default": ".nuc.bed.gz",
+              "description": "nuc element BED suffix; null disables the nucleosome overlay (-u)"
+            },
+            "fire_suffix": {
+              "type": "str",
+              "nullable": true,
+              "required": false,
+              "default": ".fire_peaks.bed",
+              "description": "FIRE peaks BED suffix; null disables the FIRE overlay/channel (-f)"
+            },
+            "bin_size": {
+              "type": "int",
+              "nullable": true,
+              "required": false,
+              "default": 100,
+              "description": "bin width in bp (-b)"
+            },
+            "bin_mode": {
+              "type": "str",
+              "nullable": true,
+              "required": false,
+              "default": "any",
+              "description": "bin open rule: any|frac (-B)"
+            },
+            "min_msp_bp": {
+              "type": "int",
+              "nullable": true,
+              "required": false,
+              "default": 10,
+              "description": "min MSP bp overlap for bin_mode=any (-P)"
+            },
+            "channel_by_setting": {
+              "type": "dict",
+              "nullable": true,
+              "required": false,
+              "default": {},
+              "description": "per-setting clustering channel msp|fire (feature_col_by_contrast shape); EVERY settings label must have an entry (-C)"
+            },
+            "k_by_setting": {
+              "type": "dict",
+              "nullable": true,
+              "required": false,
+              "default": {},
+              "description": "per-setting cluster count (feature_col_by_contrast shape); EVERY settings label must have an entry (-k)"
+            },
+            "method": {
+              "type": "str",
+              "nullable": true,
+              "required": false,
+              "default": "hierarchical",
+              "description": "clustering method hierarchical|kmeans (-e)"
+            },
+            "min_fibers": {
+              "type": "int",
+              "nullable": true,
+              "required": false,
+              "default": 10,
+              "description": "per-region minimum spanning fibers (-n)"
+            },
+            "min_span_frac": {
+              "type": "float",
+              "nullable": true,
+              "required": false,
+              "default": 0.8,
+              "description": "fiber must span this fraction of the region (-s)"
+            },
+            "bin_threshold": {
+              "type": "float",
+              "nullable": true,
+              "required": false,
+              "default": 0.5,
+              "description": "bin open fraction for bin_mode=frac (-t)"
+            },
+            "max_fibers": {
+              "type": "int",
+              "nullable": true,
+              "required": false,
+              "default": 300,
+              "description": "display subsample cap per figure (-a)"
+            },
+            "right_tracks": {
+              "type": "str",
+              "nullable": true,
+              "required": false,
+              "default": "fire,lnk,nuc",
+              "description": "right coverage-track layers, comma list or none (-T)"
+            },
+            "fire_fdr": {
+              "type": "float",
+              "nullable": true,
+              "required": false,
+              "default": 0.1,
+              "description": "keep FIRE peaks with FDR <= this (-q)"
+            },
+            "seed": {
+              "type": "int",
+              "nullable": true,
+              "required": false,
+              "default": 0,
+              "description": "k-means RNG seed (-x)"
+            },
+            "cache_dir": {
+              "type": "str",
+              "nullable": true,
+              "required": false,
+              "default": "",
+              "description": "extraction cache dir (-y); empty = no cache (tabix jump still applies)"
+            }
+          }
+        },
+        "fiber_report": {
+          "type": "dict",
+          "nullable": true,
+          "required": false,
+          "properties": {
+            "canonical": {
+              "type": "str",
+              "nullable": true,
+              "required": false,
+              "default": "fire_k2",
+              "description": "settings label whose figures/summary become the deliverable (-c); must be one of the settings labels"
+            }
+          }
+        }
+      },
       "sexcheck": {
         "type": "dict",
         "required": false,
@@ -2357,6 +2565,76 @@
         }
       },
       "sv_oncoprint": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "telogator2_run": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "assembly_telomere_scan": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "read_density_telomere": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "tidk_init": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "tidk_scan": {
         "type": "dict",
         "required": false,
         "properties": {

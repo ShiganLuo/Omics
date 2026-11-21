@@ -88,7 +88,9 @@ echo；引擎脚本自包含（规范 #0）、入口 `main()` 只编排、阶段
 - 该模块的 conda 环境是否混入了不相关的依赖？如果是，说明职责不单一。
 
 示例：
-- `telomere` 模块只调用 `telogator2`，conda 环境只有 `telogator2`
+- `telomere` 模块是"端粒长度分析"这一个原子分析步骤,内含 telogator2 / 组装扫描 /
+  读段密度 / tidk 多种**测量方法**(同一分析的多种实现,由 `Params.telomere.method` 选择),
+  合为一个模块合理
 - `centromere` 模块包含 `hifiasm` + `repeatmasker` 两步（组装→注释），但它们是同一个分析的上下游步骤，合为一个模块合理
 - 将 telomere 和 centromere 合为一个模块是**错误的**：两者工具链完全不同
 
@@ -217,6 +219,10 @@ pandas、json、gzip …）才在模块里 import。重复导入不报错、不�
 
 ## per-sample 输入的两种形态与选择（2026-11 sexcheck 定案）
 
+> 传参形态的完整三种写法(含"仅通配符"形态一)见 `subworkflow/subworkflow.md`
+> 「传参规范」:本节形态 A = 其形态二(wildcards+suffix)、形态 B = 其形态三(dict);
+> 形态一(wildcards 仅通配符推导)以 subworkflow.md 为准。
+
 模块消费 per-sample 文件（BAM/VCF/表）有两种合法形态，按**模块的复用面**选择：
 
 **形态 A：`indir` + 布局参数（单一布局模块）** —— `indir`（上游 config 的 `outdir`）+ `bam_suffix` 等布局参数 + 样本列表，模块 input 函数自己拼 `{indir}/{sample_id}/{sample_id}{suffix}`（参照 `msi.smk::_bam`、`cnvkit.smk`、`fragment_size.smk`）。适用于模块只接一种上游布局的场景。
@@ -286,6 +292,8 @@ pandas、json、gzip …）才在模块里 import。重复导入不报错、不�
     （参照 `modules/decoil/decoil.smk` 的 `structure`/`plot`/`compare`）。
     subworkflow 接线与 node.py 注册侧的规范见 `subworkflow/subworkflow.md`
     的「绘图模块的 formats 参数」。
+
+10. **坐标排序大文件随产随建索引（强制）** — 规则/脚本产出按坐标排序的大文件（BED/BED12、VCF、GFF 等，bgzip 压缩）时，必须同时产出对应索引（tabix `.tbi`/`.csi`、BAM `.bai` 等）并**声明为规则输出**（建索引命令写进回执脚本，随产物一起被 DAG 跟踪；索引与数据同目录、同命名 `<file>.tbi`）。消费方一律**按区域跳读**（pysam/tabix fetch），不得全文件流式扫描——本条优先于第 7 条：流式只是无索引、无缓存时的兜底路径。参照实现：产出侧 `modules/fibertools/fibertools_analysis.smk` 的 `ft_extract`/`ft_extract_hap`（`.tbi` 声明 + 回执 `tabix -f -p bed`）；消费侧 `modules/fibercluster/bin/fiber_cluster.py` 的三级访问顺序（索引跳读 → 区域缓存 → 流式兜底）。
 
 > 向量化与流式的取舍：向量化要求数据在内存——中小表格直接向量化；超大文件先流式过滤/聚合出小结果集，再对结果向量化。两者冲突时以"不整读大文件"优先。
 

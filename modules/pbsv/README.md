@@ -62,6 +62,24 @@ split/soft-clip/大插入片段信号,写成 svsig 证据文件;`call` 聚类证
 可直接进 IGV 核查或下游群体 SV 分析(pbsv call 支持多样本联合,本模块为
 单样本模式)。
 
+### 2.1 SV 检出长度范围
+
+pbsv 官方 README 标称的"最有效"检测区间(GitHub,pbsv 2.10+,本模块
+容器为 2.11.0):
+
+| SVTYPE | 官方有效范围 | 说明 |
+|---|---|---|
+| INS | 20 bp – 10 kb | 20 bp 为硬下限(默认参数下 VCF 中最短 INS 即 20 bp) |
+| DEL | 20 bp – 100 kb | 20 bp 为硬下限 |
+| DUP | 20 bp – 10 kb | 实际输出可短至 15 bp、长至 Mb 级,标称只是最优区间 |
+| INV | 200 bp – 10 kb | <200 bp 与 >10 kb 的 INV 仍可被调用 |
+| BND | 染色体间,或同染色体相距 >100 kb | 断点型,无 SVLEN 字段 |
+
+要点:官方区间是"最有效"而非硬界限——DEL/INS 的 20 bp 下限与官方一致,
+DUP/INV 的实测输出可超出标称范围;BND 记录只有断点坐标没有长度。下游
+分析若需严格长度区间,应按 INFO/SVLEN 自行过滤(参考实现:对本模块输出
+`zcat {s}.sv.vcf.gz | awk` 解析 SVTYPE/SVLEN,容器内执行)。
+
 ## 3. 参考文献
 
 1. pbsv(PacBio)— https://github.com/PacificBiosciences/pbsv

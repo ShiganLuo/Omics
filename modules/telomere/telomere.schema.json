@@ -53,30 +53,72 @@
     "nullable": true,
     "required": false,
     "properties": {
-      "telogator2": {
+      "telomere": {
         "type": "dict",
         "nullable": true,
         "required": false,
         "properties": {
-          "species": {
-            "type": "str",
+          "enabled": {
+            "type": "bool",
             "nullable": true,
             "required": false
           },
-          "threads": {
-            "type": "int",
+          "method": {
+            "type": "list",
             "nullable": true,
             "required": false
           },
-          "assembly_scan_length": {
-            "type": "int",
+          "formats": {
+            "type": "list",
             "nullable": true,
             "required": false
           },
-          "n_chrom_arms": {
-            "type": "int",
+          "telogator2": {
+            "type": "dict",
             "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "species": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "threads": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "assembly_scan": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "assembly_scan_length": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "read_density": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "n_chrom_arms": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "tidk": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {}
           }
         }
       }

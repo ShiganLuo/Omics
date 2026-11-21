@@ -1,0 +1,198 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true,
+    "description": "elements dir (common/4_elements); per-sample paths splice {indir}/{sample}/{sample}{suffix}"
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "ROOT_DIR": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": true,
+    "default": [],
+    "description": "sample ids; their order is the default --sample-order (reference first)"
+  },
+  "regions_bed": {
+    "type": "str",
+    "path": "file",
+    "nullable": true,
+    "required": true,
+    "description": "regions BED (>=4 cols, col4 = region name); region names drive the per-region outputs"
+  },
+  "settings": {
+    "type": "list",
+    "nullable": true,
+    "required": false,
+    "default": [],
+    "description": "setting labels = the {setting} wildcard values (one engine run each, the sigtest contrasts shape); per-label overrides in Params.fibercluster.fiber_cluster.{channel,k}_by_setting"
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "fibercluster": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "fiber_cluster": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "msp_suffix": {
+                "type": "str",
+                "nullable": true,
+                "required": false,
+                "default": ".msp.bed.gz",
+                "description": "MSP element BED suffix under {indir}/{sample}/"
+              },
+              "nuc_suffix": {
+                "type": "str",
+                "nullable": true,
+                "required": false,
+                "default": ".nuc.bed.gz",
+                "description": "nuc element BED suffix; null disables the nucleosome overlay"
+              },
+              "fire_suffix": {
+                "type": "str",
+                "nullable": true,
+                "required": false,
+                "default": ".fire_peaks.bed",
+                "description": "FIRE peaks BED suffix; null disables the FIRE overlay/channel"
+              },
+              "bin_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false,
+                "default": 100,
+                "description": "bin width in bp (-b)"
+              },
+              "bin_mode": {
+                "type": "str",
+                "nullable": true,
+                "required": false,
+                "default": "any",
+                "description": "bin open rule: any|frac (-B)"
+              },
+              "min_msp_bp": {
+                "type": "int",
+                "nullable": true,
+                "required": false,
+                "default": 10,
+                "description": "min MSP bp overlap for bin_mode=any (-P)"
+              },
+              "channel_by_setting": {
+                "type": "dict",
+                "nullable": true,
+                "required": false,
+                "default": {},
+                "description": "per-setting clustering channel msp|fire (feature_col_by_contrast shape); EVERY settings label must have an entry (-C)"
+              },
+              "k_by_setting": {
+                "type": "dict",
+                "nullable": true,
+                "required": false,
+                "default": {},
+                "description": "per-setting cluster count (feature_col_by_contrast shape); EVERY settings label must have an entry (-k)"
+              },
+              "method": {
+                "type": "str",
+                "nullable": true,
+                "required": false,
+                "default": "hierarchical",
+                "description": "clustering method hierarchical|kmeans (-e)"
+              },
+              "min_fibers": {
+                "type": "int",
+                "nullable": true,
+                "required": false,
+                "default": 10,
+                "description": "per-region minimum spanning fibers (-n)"
+              },
+              "min_span_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false,
+                "default": 0.8,
+                "description": "fiber must span this fraction of the region (-s)"
+              },
+              "bin_threshold": {
+                "type": "float",
+                "nullable": true,
+                "required": false,
+                "default": 0.5,
+                "description": "bin open fraction for bin_mode=frac (-t)"
+              },
+              "max_fibers": {
+                "type": "int",
+                "nullable": true,
+                "required": false,
+                "default": 300,
+                "description": "display subsample cap per figure (-a)"
+              },
+              "right_tracks": {
+                "type": "str",
+                "nullable": true,
+                "required": false,
+                "default": "fire,lnk,nuc",
+                "description": "right coverage-track layers, comma list or none (-T)"
+              },
+              "fire_fdr": {
+                "type": "float",
+                "nullable": true,
+                "required": false,
+                "default": 0.1,
+                "description": "keep FIRE peaks with FDR <= this (-q)"
+              },
+              "seed": {
+                "type": "int",
+                "nullable": true,
+                "required": false,
+                "default": 0,
+                "description": "k-means RNG seed (-x)"
+              },
+              "cache_dir": {
+                "type": "str",
+                "nullable": true,
+                "required": false,
+                "default": "",
+                "description": "extraction cache dir (-y); empty = no cache (tabix jump still applies)"
+              }
+            }
+          },
+          "fiber_report": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "canonical": {
+                "type": "str",
+                "nullable": true,
+                "required": false,
+                "default": "fire_k2",
+                "description": "setting label whose figures/summary become the deliverable (-c)"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

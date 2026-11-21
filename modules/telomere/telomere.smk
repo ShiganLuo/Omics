@@ -18,9 +18,20 @@ logdir = config.get("logdir", "log")
 indir = config.get("indir", "input")
 samples = config.get("samples", [])
 bam_substring = config.get("bam_substring") or ""
-species = config.get("Params", {}).get("telogator2", {}).get("species", "human")
-# Directory containing hifiasm assembly (from centromere module)
 assembly_dir = config.get("assembly_dir", "")
+# Per-method input dict (字典模式): inputs[method][file_key][sample_id].
+# Each method can point at its own file (e.g. telogator2→aligned BAM+.bai,
+# read_density→raw/unmapped BAM). Absent entry falls back to legacy shape A
+# (indir + bam_substring).
+_inputs = config.get("inputs", {}) or {}
+# Params.telomere: common fields (enabled/method/formats) at top; per-method
+# fields (species/assembly_scan_length/n_chrom_arms/…) under method keys.
+_tel = config.get("Params", {}).get("telomere", {})
+species = _tel.get("telogator2", {}).get("species", "human")
+# Plot output formats (common field; parse-期模块级变量,见 modules.md 出图多格式)。
+_tel_formats = _tel.get("formats") or ["png"]
+if isinstance(_tel_formats, str):
+    _tel_formats = [_tel_formats]
 
 def get_telogator2_ref():
     """Get species-specific subtelomere reference path."""
@@ -42,31 +53,48 @@ def get_telogator2_ref():
         logger.warning(f"Error finding telogator2 ref: {e}")
     return ""
 
+def _inp(method: str, key: str, sample_id: str):
+    """Dict-mode input: inputs[method][key][sample_id]; None if absent."""
+    d = _inputs.get(method, {})
+    if isinstance(d, dict):
+        k = d.get(key, {})
+        if isinstance(k, dict):
+            return k.get(sample_id)
+    return None
+
+
+def _shapeA_bam(sample_id: str, want_bai: bool = False) -> str:
+    """Legacy shape A: {indir}/{sample}/{sample}[.bam_substring].bam|.bai"""
+    base = (os.path.join(indir, f"{sample_id}/{sample_id}." + bam_substring)
+            if bam_substring != "" else os.path.join(indir, f"{sample_id}/{sample_id}"))
+    return base + (".bai" if want_bai else ".bam")
+
+
 def get_input_for_telogator2(wildcards):
+    """telogator2 needs an aligned BAM + .bai (dict-mode entry 'telogator2')."""
     logger.info(f"telogator2_run called with {wildcards}")
-    in_dict = {}
-    if bam_substring != "":
-        in_dict["bam"] = os.path.join(indir, f"{wildcards.sample_id}/{wildcards.sample_id}." + bam_substring + ".bam")
-        in_dict["bai"] = os.path.join(indir, f"{wildcards.sample_id}/{wildcards.sample_id}." + bam_substring + ".bai")
-    else:
-        in_dict["bam"] = os.path.join(indir, f"{wildcards.sample_id}/{wildcards.sample_id}.bam")
-        in_dict["bai"] = os.path.join(indir, f"{wildcards.sample_id}/{wildcards.sample_id}.bai")
-    return in_dict
+    bam = _inp("telogator2", "bam", wildcards.sample_id) or _shapeA_bam(wildcards.sample_id)
+    bai = _inp("telogator2", "bai", wildcards.sample_id) or _shapeA_bam(wildcards.sample_id, True)
+    return {"bam": bam, "bai": bai}
+
 
 def get_input_for_read_density(wildcards):
-    """Get BAM input for read-density telomere analysis."""
-    in_dict = {}
-    if bam_substring != "":
-        in_dict["bam"] = os.path.join(indir, f"{wildcards.sample_id}/{wildcards.sample_id}." + bam_substring + ".bam")
-    else:
-        in_dict["bam"] = os.path.join(indir, f"{wildcards.sample_id}/{wildcards.sample_id}.bam")
-    return in_dict
+    """read_density wants the RAW/unmapped BAM (all reads) — dict-mode
+    entry 'read_density' lets it point at a different BAM than telogator2."""
+    bam = _inp("read_density", "bam", wildcards.sample_id) or _shapeA_bam(wildcards.sample_id)
+    return {"bam": bam}
+
 
 def get_assembly_fasta(wildcards):
-    """Get assembly FASTA path from centromere module output."""
+    """Assembly FASTA for assembly_scan/tidk (dict-mode 'assembly_scan'/'tidk')."""
+    fa = (_inp("assembly_scan", "fasta", wildcards.sample_id)
+          or _inp("tidk", "fasta", wildcards.sample_id))
+    if fa:
+        return fa
     if assembly_dir:
         return os.path.join(assembly_dir, f"{wildcards.sample_id}/assembly/asm.bp.p_ctg.fa")
     return os.path.join(outdir, f"../centromere/{wildcards.sample_id}/assembly/asm.bp.p_ctg.fa")
+
 
 def get_tidk_scan_input(wildcards):
     """Get input dict for tidk_scan.
@@ -107,14 +135,14 @@ rule telogator2_run:
             attempt=attempt).get("mem_mb", 16000),
     run:
         log_path = str(log)
-        open(log_path, "a").close()
-        logger = setup_logger(logger_name="telogator2_run", log_file=log_path)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("telogator2_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            logger.info(f"Start telogator2 for sample {wildcards.sample_id} at {current_time}")
+            rule_logger.info(f"Start telogator2 for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"telogator2_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
-            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/telogator2.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/telogator2_run_{wildcards.sample_id}.sh")
             output_dir = os.path.join(outdir, f"{wildcards.sample_id}/telogator2")
             cmd = [
                 params.telogator2, "-i", input.bam,
@@ -125,16 +153,22 @@ rule telogator2_run:
             if params.ref:
                 cmd.extend(["-t", params.ref])
             with open(script, "w") as f:
-                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
+                f.write(f"export OMP_NUM_THREADS={threads}\n")
+                f.write(f"export OPENBLAS_NUM_THREADS={threads}\n")
+                f.write(f"export MKL_NUM_THREADS={threads}\n")
+                f.write(f"export NUMBA_NUM_THREADS={threads}\n")
+                f.write(f"export VECLIB_MAXIMUM_THREADS={threads}\n")
                 f.write(" ".join(cmd) + "\n")
-                f.write(f'echo "script completed successfully"\n')
+                f.write(f'echo "telogator2_run completed successfully"')
             shutil.copyfile(script, plain_script)
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            raise
+            rule_logger.error(f"Error occurred during telogator2_run for sample {wildcards.sample_id}: {e}\n")
+            raise RuntimeError(f"Error occurred during telogator2_run for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.\n")
 
         # ============================================================
         # Rule 2: Assembly-based telomere scan (Approach A)
@@ -149,7 +183,9 @@ rule assembly_telomere_scan:
         fasta = get_assembly_fasta
     output:
         tsv = os.path.join(outdir, "{sample_id}/assembly_scan/{sample_id}_assembly_telomere.tsv"),
-        stats = os.path.join(outdir, "{sample_id}/assembly_scan/{sample_id}_assembly_telomere_stats.txt")
+        stats = os.path.join(outdir, "{sample_id}/assembly_scan/{sample_id}_assembly_telomere_stats.txt"),
+        plots = [os.path.join(outdir, "{sample_id}/assembly_scan/{sample_id}_assembly_telomere_length." + fmt)
+                 for fmt in _tel_formats],
     log:
         logdir + "/{sample_id}/assembly_telomere_scan.log"
     conda: "telomere.yaml"
@@ -158,7 +194,8 @@ rule assembly_telomere_scan:
     params:
         script = os.path.join(ROOT_DIR, "modules/telomere/bin/scan_assembly_telomere.py"),
         output_dir = os.path.join(outdir, "{sample_id}/assembly_scan"),
-        scan_length = config.get("Params", {}).get("telogator2", {}).get("assembly_scan_length", 50000)
+        scan_length = _tel.get("assembly_scan", {}).get("assembly_scan_length", 50000),
+        formats = _tel_formats
     threads: rule_res("assembly_telomere_scan").get("threads", 1)
     benchmark: logdir + "/{sample_id}/assembly_telomere_scan.benchmark.tsv",
     resources:
@@ -167,14 +204,14 @@ rule assembly_telomere_scan:
             attempt=attempt).get("mem_mb", 8000),
     run:
         log_path = str(log)
-        open(log_path, "a").close()
-        logger = setup_logger(logger_name="assembly_telomere_scan", log_file=log_path)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("assembly_telomere_scan", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            logger.info(f"Start assembly telomere scan for sample {wildcards.sample_id} at {current_time}")
+            rule_logger.info(f"Start assembly telomere scan for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"assembly_telomere_scan_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
-            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/assembly_telomere_scan.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/assembly_telomere_scan_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.script,
                 "--fasta", input.fasta,
@@ -182,17 +219,25 @@ rule assembly_telomere_scan:
                 "--output_dir", params.output_dir,
                 "--scan_length", str(params.scan_length)
             ]
+            for _f in params.formats:  # multi-format figure output (规范 #9)
+                cmd += ["-F", _f]
             with open(script, "w") as f:
-                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
+                f.write(f"export OMP_NUM_THREADS={threads}\n")
+                f.write(f"export OPENBLAS_NUM_THREADS={threads}\n")
+                f.write(f"export MKL_NUM_THREADS={threads}\n")
+                f.write(f"export NUMBA_NUM_THREADS={threads}\n")
+                f.write(f"export VECLIB_MAXIMUM_THREADS={threads}\n")
                 f.write(" ".join(cmd) + "\n")
-                f.write(f'echo "script completed successfully"\n')
+                f.write(f'echo "assembly_telomere_scan completed successfully"')
             shutil.copyfile(script, plain_script)
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            raise
+            rule_logger.error(f"Error occurred during assembly_telomere_scan for sample {wildcards.sample_id}: {e}\n")
+            raise RuntimeError(f"Error occurred during assembly_telomere_scan for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.\n")
 
         # ============================================================
         # Rule 3: Read-level k-mer density (Approach B)
@@ -207,13 +252,16 @@ rule read_density_telomere:
         unpack(get_input_for_read_density)
     output:
         tsv = os.path.join(outdir, "{sample_id}/read_density/{sample_id}_read_telomere.tsv"),
-        stats = os.path.join(outdir, "{sample_id}/read_density/{sample_id}_read_telomere_stats.txt")
+        stats = os.path.join(outdir, "{sample_id}/read_density/{sample_id}_read_telomere_stats.txt"),
+        plots = [os.path.join(outdir, "{sample_id}/read_density/{sample_id}_read_telomere_content." + fmt)
+                 for fmt in _tel_formats],
     log:
         logdir + "/{sample_id}/read_density_telomere.log"
     params:
         script = os.path.join(ROOT_DIR, "modules/telomere/bin/read_density_telomere.py"),
         output_dir = os.path.join(outdir, "{sample_id}/read_density"),
-        n_chrom_arms = config.get("Params", {}).get("telogator2", {}).get("n_chrom_arms", 40)
+        n_chrom_arms = _tel.get("read_density", {}).get("n_chrom_arms", 40),
+        formats = _tel_formats
     threads: rule_res("read_density_telomere").get("threads", 1)
     benchmark: logdir + "/{sample_id}/read_density_telomere.benchmark.tsv",
     resources:
@@ -225,14 +273,14 @@ rule read_density_telomere:
         sif("telomere.yaml", "read_density_telomere")
     run:
         log_path = str(log)
-        open(log_path, "a").close()
-        logger = setup_logger(logger_name="read_density_telomere", log_file=log_path)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("read_density_telomere", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            logger.info(f"Start read density telomere for sample {wildcards.sample_id} at {current_time}")
+            rule_logger.info(f"Start read density telomere for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"read_density_telomere_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
-            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/read_density_telomere.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/read_density_telomere_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.script,
                 "--bam", input.bam,
@@ -240,17 +288,25 @@ rule read_density_telomere:
                 "--output_dir", params.output_dir,
                 "--n_chrom_arms", str(params.n_chrom_arms)
             ]
+            for _f in params.formats:  # multi-format figure output (规范 #9)
+                cmd += ["-F", _f]
             with open(script, "w") as f:
-                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
+                f.write(f"export OMP_NUM_THREADS={threads}\n")
+                f.write(f"export OPENBLAS_NUM_THREADS={threads}\n")
+                f.write(f"export MKL_NUM_THREADS={threads}\n")
+                f.write(f"export NUMBA_NUM_THREADS={threads}\n")
+                f.write(f"export VECLIB_MAXIMUM_THREADS={threads}\n")
                 f.write(" ".join(cmd) + "\n")
-                f.write(f'echo "script completed successfully"\n')
+                f.write(f'echo "read_density_telomere completed successfully"')
             shutil.copyfile(script, plain_script)
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            raise
+            rule_logger.error(f"Error occurred during read_density_telomere for sample {wildcards.sample_id}: {e}\n")
+            raise RuntimeError(f"Error occurred during read_density_telomere for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.\n")
 
         # ============================================================
         # Rule 4: tidk scan (Approach C)
@@ -274,27 +330,34 @@ rule tidk_init:
         sif("telomere.yaml", "tidk_init")
     run:
         log_path = str(log)
-        open(log_path, "a").close()
-        logger = setup_logger(logger_name="tidk_init", log_file=log_path)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("tidk_init", log_file=log_path)
         try:
-            logger.info("Building tidk reference database (one-time init)")
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info("Building tidk reference database (one-time init)")
             script = os.path.join(RECEIPT_DIR, f"tidk_init_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, "tidk_init.sh")
             cmd = [params.tidk, "build"]
             cmd_touch = ["touch", output[0]]
             with open(script, "w") as f:
-                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
+                f.write(f"export OMP_NUM_THREADS={threads}\n")
+                f.write(f"export OPENBLAS_NUM_THREADS={threads}\n")
+                f.write(f"export MKL_NUM_THREADS={threads}\n")
+                f.write(f"export NUMBA_NUM_THREADS={threads}\n")
+                f.write(f"export VECLIB_MAXIMUM_THREADS={threads}\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(" ".join(cmd_touch) + "\n")
-                f.write(f'echo "script completed successfully"\n')
+                f.write(f'echo "tidk_init completed successfully"')
             shutil.copyfile(script, plain_script)
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            raise
+            rule_logger.error(f"Error occurred during tidk_init: {e}\n")
+            raise RuntimeError(f"Error occurred during tidk_init: {e}, you can check the log file {log_path} for more details.\n")
 
 rule tidk_scan:
     """Scan assembly for telomeric repeats using tidk community tool.
@@ -304,13 +367,17 @@ rule tidk_scan:
     input:
         unpack(get_tidk_scan_input)
     output:
-        tsv = os.path.join(outdir, "{sample_id}/tidk/{sample_id}_tidk_telomeres.tsv")
+        tsv = os.path.join(outdir, "{sample_id}/tidk/{sample_id}_tidk_telomeres.tsv"),
+        plots = [os.path.join(outdir, "{sample_id}/tidk/{sample_id}_tidk_telomeres." + fmt)
+                 for fmt in _tel_formats],
     log:
         logdir + "/{sample_id}/tidk_scan.log"
     params:
         output_dir = os.path.join(outdir, "{sample_id}/tidk"),
         tidk = config.get("Procedure", {}).get("tidk") or "tidk",
-        motif = "TTAGGG"
+        motif = "TTAGGG",
+        plot_script = os.path.join(ROOT_DIR, "modules/telomere/bin/plot_tidk.py"),
+        formats = _tel_formats
     threads: rule_res("tidk_scan").get("threads", 1)
     benchmark: logdir + "/{sample_id}/tidk_scan.benchmark.tsv",
     resources:
@@ -322,15 +389,15 @@ rule tidk_scan:
         sif("telomere.yaml", "tidk_scan")
     run:
         log_path = str(log)
-        open(log_path, "a").close()
-        logger = setup_logger(logger_name="tidk_scan", log_file=log_path)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("tidk_scan", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            logger.info(f"Start tidk scan for sample {wildcards.sample_id} at {current_time}")
+            rule_logger.info(f"Start tidk scan for sample {wildcards.sample_id} at {current_time}")
 
             script = os.path.join(RECEIPT_DIR, f"tidk_scan_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
-            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/tidk_scan.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/tidk_scan_{wildcards.sample_id}.sh")
             # tidk search: --string, --output (prefix), --dir, positional FASTA
             cmd_search = [
                 params.tidk, "search",
@@ -339,11 +406,29 @@ rule tidk_scan:
                 "--dir", params.output_dir,
                 input.fasta
             ]
+            # Figure 3: plot the tidk result (runs after tidk search in the receipt)
+            _search_tsv = os.path.join(
+                params.output_dir,
+                f"{wildcards.sample_id}_tidk_search_telomeric_repeat.tsv")
+            cmd_plot = [
+                "python", params.plot_script,
+                "-i", _search_tsv,
+                "-s", wildcards.sample_id,
+                "-o", params.output_dir,
+                "--out_base", f"{wildcards.sample_id}_tidk_telomeres",
+            ]
+            for _f in params.formats:  # multi-format figure output (规范 #9)
+                cmd_plot += ["-F", _f]
             with open(script, "w") as f:
-                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
-                f.write("mkdir -p " + params.output_dir + "\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
+                f.write(f"export OMP_NUM_THREADS={threads}\n")
+                f.write(f"export OPENBLAS_NUM_THREADS={threads}\n")
+                f.write(f"export MKL_NUM_THREADS={threads}\n")
+                f.write(f"export NUMBA_NUM_THREADS={threads}\n")
+                f.write(f"export VECLIB_MAXIMUM_THREADS={threads}\n")
                 f.write(" ".join(cmd_search) + "\n")
-                f.write(f'echo "script completed successfully"\n')
+                f.write(" ".join(cmd_plot) + "\n")
+                f.write(f'echo "tidk_scan completed successfully"')
             shutil.copyfile(script, plain_script)
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
@@ -353,14 +438,15 @@ rule tidk_scan:
             search_tsv = os.path.join(params.output_dir, f"{wildcards.sample_id}_tidk_search_telomeric_repeat.tsv")
             if os.path.exists(search_tsv):
                 shutil.copy2(search_tsv, output.tsv)
-                logger.info(f"Copied tidk search output to {output.tsv}")
+                rule_logger.info(f"Copied tidk search output to {output.tsv}")
             else:
-                logger.warning(f"tidk search output not found: {search_tsv}")
+                rule_logger.warning(f"tidk search output not found: {search_tsv}")
                 with open(output.tsv, "w") as f:
                     f.write("# No telomeric repeats found by tidk\n")
 
         except Exception as e:
-            raise
+            rule_logger.error(f"Error occurred during tidk_scan for sample {wildcards.sample_id}: {e}\n")
+            raise RuntimeError(f"Error occurred during tidk_scan for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.\n")
 
         # ============================================================
         # Result rules (aggregation points for subworkflow)

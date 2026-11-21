@@ -19,6 +19,18 @@ import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import List, Optional
+try:
+    from .LogUtil import setup_logger
+    from .plot_util import normalize_formats, save_fig
+except ImportError:
+    from LogUtil import setup_logger
+    from plot_util import normalize_formats, save_fig
+
+import matplotlib.pyplot as plt
+
+logger = setup_logger("scan_assembly_telomere", stream=sys.stdout)
+
 
 
 # ---------------------------------------------------------------------------
@@ -163,9 +175,8 @@ def scan_assembly(fasta_path: str, scan_length: int,
     if current_name is not None:
         contigs[current_name] = "".join(current_seq).upper()
 
-    print(f"Scanning {len(contigs)} contigs for telomeric repeats "
-          f"(scan_length={scan_length}bp, window={window_size}bp, step={step_size}bp)",
-          file=sys.stderr)
+    logger.info(f"Scanning {len(contigs)} contigs for telomeric repeats "
+          f"(scan_length={scan_length}bp, window={window_size}bp, step={step_size}bp)")
 
     for name, seq in contigs.items():
         contig_len = len(seq)
@@ -199,12 +210,58 @@ def scan_assembly(fasta_path: str, scan_length: int,
                 tel_motif=motif3, supporting_windows=sup3, total_windows_scanned=tot3
             ))
 
-    print(f"Found {len(results)} contig ends with telomeric signal", file=sys.stderr)
+    logger.info(f"Found {len(results)} contig ends with telomeric signal")
     return results
 
 
+def plot_telomere_length(results: list[ContigTelomere], sample_name: str,
+                         out_base: str,
+                         formats: Optional[List[str]] = None) -> List[str]:
+    """Figure 2: assembly contig-end telomere length distribution (multi-format).
+
+    Panels: (1) histogram of telomere length across contig ends; (2) per-contig
+    end length scatter (5'/3' distinguished). Assembly/reference telomere length
+    (not sample length — see README).
+    """
+    if not results:
+        return []
+    sig = [r for r in results if r.tel_length >= 1000]
+    show = sig if sig else results
+    lengths = [r.tel_length for r in show]
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4.6))
+
+    ax = axes[0]
+    if lengths:
+        ax.hist(lengths, bins=40, color="#4C9F70", edgecolor="none")
+    ax.set_xlabel("Telomere length (bp)")
+    ax.set_ylabel("Contig ends")
+    ax.set_title(f"Telomere length distribution\n(>=1kb, n={len(sig)})")
+
+    ax = axes[1]
+    colors = {"5prime": "#3C6E9F", "3prime": "#C0504D"}
+    marks = {"5prime": "o", "3prime": "^"}
+    for end in ("5prime", "3prime"):
+        xs = [i for i, r in enumerate(show) if r.end == end]
+        ys = [r.tel_length for r in show if r.end == end]
+        if xs:
+            ax.scatter(xs, ys, s=12, c=colors.get(end, "gray"),
+                       marker=marks.get(end, "o"), label=end, alpha=0.7)
+    ax.set_xlabel("Contig end index")
+    ax.set_ylabel("Telomere length (bp)")
+    ax.set_title("Per-contig-end telomere length\n(5' vs 3')")
+    ax.legend()
+
+    fig.suptitle(f"Assembly telomere length — {sample_name}", fontsize=12)
+    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    written = save_fig(fig, out_base, formats)
+    plt.close(fig)
+    return written
+
+
 def write_results(results: list[ContigTelomere], sample_name: str,
-                  output_dir: Path, scan_length: int):
+                  output_dir: Path, scan_length: int,
+                  formats: Optional[List[str]] = None):
     """Write results to TSV and summary files."""
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -217,7 +274,7 @@ def write_results(results: list[ContigTelomere], sample_name: str,
             f.write(f"{r.contig}\t{r.contig_length}\t{r.end}\t"
                     f"{r.tel_start}\t{r.tel_end}\t{r.tel_length}\t"
                     f"{r.tel_motif}\t{r.supporting_windows}\t{r.total_windows_scanned}\n")
-    print(f"Wrote: {detail_path}", file=sys.stderr)
+    logger.info(f"Wrote: {detail_path}")
 
     # 2. Statistical summary
     stats_path = output_dir / f"{sample_name}_assembly_telomere_stats.txt"
@@ -286,31 +343,45 @@ def write_results(results: list[ContigTelomere], sample_name: str,
             f.write("  - Telomeres are too short for detection\n")
             f.write("  - Contigs are internal (no chromosome ends)\n")
 
-    print(f"Wrote: {stats_path}", file=sys.stderr)
+    logger.info(f"Wrote: {stats_path}")
 
     # Print summary to stdout
     with open(stats_path) as f:
-        print(f.read())
+        logger.info(f.read())
+
+    # Figure 2: assembly contig-end telomere length distribution (multi-format)
+    plot_base = str(output_dir / f"{sample_name}_assembly_telomere_length")
+    for _p in plot_telomere_length(results, sample_name, plot_base, formats):
+        logger.info(f"Wrote: {_p}")
 
 
 def main():
+    global logger
     parser = argparse.ArgumentParser(
         description="Scan assembly contig ends for telomeric repeats")
-    parser.add_argument("--fasta", required=True,
+    parser.add_argument("-f", "--fasta", required=True,
                         help="Input assembly FASTA file")
-    parser.add_argument("--sample_name", required=True,
+    parser.add_argument("-s", "--sample_name", required=True,
                         help="Sample name for output files")
-    parser.add_argument("--output_dir", default="results",
+    parser.add_argument("-o", "--output_dir", default="results",
                         help="Output directory")
-    parser.add_argument("--scan_length", type=int, default=DEFAULT_SCAN_LENGTH,
+    parser.add_argument("-L", "--scan_length", type=int, default=DEFAULT_SCAN_LENGTH,
                         help=f"bp to scan from each contig end (default: {DEFAULT_SCAN_LENGTH})")
-    parser.add_argument("--window_size", type=int, default=DEFAULT_WINDOW_SIZE,
+    parser.add_argument("-w", "--window_size", type=int, default=DEFAULT_WINDOW_SIZE,
                         help=f"Sliding window size (default: {DEFAULT_WINDOW_SIZE})")
-    parser.add_argument("--step_size", type=int, default=DEFAULT_STEP_SIZE,
+    parser.add_argument("-e", "--step_size", type=int, default=DEFAULT_STEP_SIZE,
                         help=f"Step size for sliding window (default: {DEFAULT_STEP_SIZE})")
-    parser.add_argument("--min_tel_frac", type=float, default=DEFAULT_MIN_TEL_FRAC,
+    parser.add_argument("-t", "--min_tel_frac", type=float, default=DEFAULT_MIN_TEL_FRAC,
                         help=f"Minimum telomeric fraction in window (default: {DEFAULT_MIN_TEL_FRAC})")
+    parser.add_argument("-l", "--log", default="",
+                        help="Optional log file path (default: log to stdout only)")
+    parser.add_argument("-F", "--format", action="append", dest="formats", metavar="FMT",
+                        help="Output figure format(s), repeatable (default: png)")
     args = parser.parse_args()
+
+    if args.log:
+        Path(args.log).parent.mkdir(parents=True, exist_ok=True)
+        logger = setup_logger("scan_assembly_telomere", log_file=args.log, stream=sys.stdout)
 
     results = scan_assembly(
         args.fasta,
@@ -319,7 +390,8 @@ def main():
         step_size=args.step_size,
         min_tel_frac=args.min_tel_frac
     )
-    write_results(results, args.sample_name, Path(args.output_dir), args.scan_length)
+    write_results(results, args.sample_name, Path(args.output_dir),
+                  args.scan_length, args.formats)
 
 
 if __name__ == "__main__":

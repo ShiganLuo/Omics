@@ -43,7 +43,7 @@ import subprocess
 import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, NamedTuple, Optional, Sequence, Tuple
+from typing import Callable, Dict, List, NamedTuple, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -111,7 +111,8 @@ Blocks = List[Tuple[int, int]]  # absolute [start, end) intervals
 FiberRec = Tuple[str, Blocks, int, int]  # (read_name, element_blocks, fiber_start, fiber_end)
 FiberChrom = Dict[str, List[FiberRec]]  # chrom -> fiber records
 FiberSample = Dict[str, FiberChrom]  # sample -> chrom -> fiber records
-FireSample = Dict[str, Dict[str, Blocks]]  # sample -> chrom -> merged significant FIRE peaks
+FireSample = Dict[str, Dict[str, List[Tuple[int, int, float]]]]  # sample -> chrom -> peaks (start, end, fdr)
+FireSeg = Tuple[int, int, int]  # (start, end, tier) tier: 2=q<=0.01, 1=0.01<q<=0.05, 0=0.05<q<=0.1
 
 
 class FiberRow(NamedTuple):
@@ -120,6 +121,11 @@ class FiberRow(NamedTuple):
     sample: str
     span_frac: float
     open: np.ndarray
+    f_start: int
+    f_end: int
+    msp_blocks: Blocks
+    nuc_blocks: Blocks
+    fire_segs: List[FireSeg]
 
 
 # ---------------------------------------------------------------------------
@@ -239,58 +245,160 @@ def _overlaps_any(spans: Sequence[Tuple[int, int]], start: int, end: int) -> boo
     return lo < len(spans) and spans[lo][0] < end
 
 
-def extract_bed12(path: Path, query: Dict[str, List[Tuple[int, int]]]) -> Dict[str, List[FiberRec]]:
-    """Stream a gzipped ft-extract BED12 and keep region-overlapping fibers.
+def parse_bed12_line(line: str, query: Dict[str, List[Tuple[int, int]]],
+                     chrom: str) -> Optional[FiberRec]:
+    """Parse one BED12 line into a fiber record, dropping sentinel blocks.
 
-    One pass per file regardless of region count. Sentinel handling: the first
-    and last block of each BED12 record are boundary sentinels (ft extract
-    v0.13.1) and are dropped; interior blocks are real element calls.
+    fibertools-rs v0.13.1 writes two sentinel blocks (first size 0, last
+    size 1) at the read boundaries; only interior blocks are real calls.
+
+    Parameters:
+        line: raw BED12 text line.
+        query: per-chrom merged query intervals (for block clipping tests).
+        chrom: chromosome of the record (already matched against query).
+
+    Returns:
+        (read_name, blocks, fiber_start, fiber_end) or None when malformed.
+    """
+    f = line.rstrip("\n").split("\t")
+    if len(f) < 12:
+        return None
+    start, end = int(f[1]), int(f[2])
+    spans = query[chrom]
+    if not _overlaps_any(spans, start, end):
+        return None
+    n_blocks = int(f[9])
+    sizes = [int(x) for x in f[10].rstrip(",").split(",")]
+    offsets = [int(x) for x in f[11].rstrip(",").split(",")]
+    if len(sizes) != n_blocks or len(offsets) != n_blocks:
+        logger.warning("malformed BED12 block lists at %s:%d-%d; record skipped",
+                       chrom, start, end)
+        return None
+    blocks: Blocks = []
+    for size, off in zip(sizes[1:-1], offsets[1:-1]):
+        if size <= 0:
+            continue
+        b_start, b_end = start + off, start + off + size
+        if _overlaps_any(spans, b_start, b_end):
+            blocks.append((b_start, b_end))
+    return f[3], blocks, start, end
+
+
+def _query_key(query: Dict[str, List[Tuple[int, int]]]) -> str:
+    """Stable md5 of the merged query intervals (cache validity key)."""
+    import hashlib
+    h = hashlib.md5()
+    for chrom in sorted(query):
+        for s, e in query[chrom]:
+            h.update(f"{chrom}:{s}-{e}\n".encode())
+    return h.hexdigest()
+
+
+def extract_bed12(path: Path, query: Dict[str, List[Tuple[int, int]]],
+                  cache_dir: Optional[Path] = None) -> Dict[str, List[FiberRec]]:
+    """Collect region-overlapping fibers from one gzipped BED12 element file.
+
+    Access order (fastest first):
+    1. tabix index (beside the file or inside cache_dir) -> per-region jump
+       reads, seconds regardless of file size;
+    2. region cache (<cache_dir>/<name>.subset.bed.gz, keyed by the query
+       md5) -> decompress only the cached subset;
+    3. full-file stream (gzip) -> and, when cache_dir is given, write the
+       subset cache atomically so later runs take path 2.
 
     Parameters:
         path: bgzip/gzip BED12 element file (m6a/msp/nuc/cpg).
         query: per-chromosome merged query intervals.
+        cache_dir: optional cache directory for the subset and index files.
 
     Returns:
-        chrom -> list of (read_name, blocks, fiber_start, fiber_end); blocks
-        are absolute [start, end) intervals clipped to the query intervals.
+        chrom -> list of (read_name, blocks, fiber_start, fiber_end).
     """
+    import time
+
     out: Dict[str, List[FiberRec]] = defaultdict(list)
+    t0 = time.time()
+    tbi_local = Path(str(path) + ".tbi")
+    tbi_cached = cache_dir / f"{path.name}.tbi" if cache_dir is not None else None
+
+    def parse_into(fh_lines) -> int:
+        n = 0
+        for line in fh_lines:
+            f = line.split("\t", 1)
+            if not f or len(f) < 2:
+                continue
+            chrom = f[0]
+            if chrom not in query:
+                continue
+            rec = parse_bed12_line(line, query, chrom)
+            if rec is not None:
+                out[chrom].append(rec)
+                n += 1
+        return n
+
+    if tbi_local.is_file() or (tbi_cached is not None and tbi_cached.is_file()):
+        import pysam  # bundled in fiberseq.sif  # pyright: ignore[reportMissingImports]
+
+        idx = str(tbi_cached) if (tbi_cached is not None and tbi_cached.is_file()) else None
+        with pysam.TabixFile(str(path), index=idx) as tbx:
+            n = 0
+            for chrom, spans in query.items():
+                if chrom not in tbx.contigs:
+                    continue
+                for s, e in spans:
+                    n += parse_into(tbx.fetch(chrom, s, e))
+        logger.info("extract %s: %d records via tabix in %.1fs", path.name, n, time.time() - t0)
+        return out
+
+    if cache_dir is not None:
+        cache_file = cache_dir / f"{path.name}.subset.bed.gz"
+        key_file = cache_dir / f"{path.name}.subset.key"
+        key = _query_key(query)
+        if cache_file.is_file() and key_file.is_file() and key_file.read_text().strip() == key:
+            with gzip.open(cache_file, "rt") as fh:  # type: ignore[operator]
+                n = parse_into(fh)
+            logger.info("extract %s: %d records via cache in %.1fs", path.name, n, time.time() - t0)
+            return out
+
+    # full-file stream (and refresh the cache along the way)
+    kept_lines: List[str] = []
     opener = gzip.open if path.suffix == ".gz" else open
     with opener(path, "rt") as fh:  # type: ignore[operator]
         for line in fh:
-            f = line.rstrip("\n").split("\t")
-            if len(f) < 12 or f[0] not in query:
+            f = line.split("\t", 1)
+            if not f or len(f) < 2:
                 continue
-            start, end = int(f[1]), int(f[2])
-            spans = query[f[0]]
-            if not _overlaps_any(spans, start, end):
+            chrom = f[0]
+            if chrom not in query:
                 continue
-            name = f[3]
-            n_blocks = int(f[9])
-            sizes = [int(x) for x in f[10].rstrip(",").split(",")]
-            offsets = [int(x) for x in f[11].rstrip(",").split(",")]
-            if len(sizes) != n_blocks or len(offsets) != n_blocks:
-                logger.warning("malformed BED12 block lists at %s:%d-%d; record skipped", f[0], start, end)
-                continue
-            # Drop the two boundary sentinel blocks; keep interior calls only.
-            blocks: Blocks = []
-            for size, off in zip(sizes[1:-1], offsets[1:-1]):
-                if size <= 0:
-                    continue
-                b_start, b_end = start + off, start + off + size
-                if _overlaps_any(spans, b_start, b_end):
-                    blocks.append((b_start, b_end))
-            out[f[0]].append((name, blocks, start, end))
+            rec = parse_bed12_line(line, query, chrom)
+            if rec is not None:
+                out[chrom].append(rec)
+                kept_lines.append(line if line.endswith("\n") else line + "\n")
+    logger.info("extract %s: %d records via full stream in %.1fs",
+                path.name, sum(len(v) for v in out.values()), time.time() - t0)
+
+    if cache_dir is not None and kept_lines:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        cache_file = cache_dir / f"{path.name}.subset.bed.gz"
+        key_file = cache_dir / f"{path.name}.subset.key"
+        tmp = cache_file.with_suffix(".tmp")
+        with gzip.open(tmp, "wt") as fh:  # type: ignore[operator]
+            fh.writelines(kept_lines)
+        os.replace(tmp, cache_file)
+        key_file.write_text(_query_key(query))
+        logger.info("cache written: %s (%d records)", cache_file, len(kept_lines))
     return out
 
 
 def extract_fire_peaks(path: Path, query: Dict[str, List[Tuple[int, int]]],
-                       fdr_max: float) -> Dict[str, Blocks]:
+                       fdr_max: float) -> Dict[str, List[Tuple[int, int, float]]]:
     """Load significant FIRE peaks overlapping the query intervals.
 
     fire_peaks.bed columns: #chrom peak_start peak_end peak_max FDR coverage
     fire_coverage score ... (fibertools `ft fire --extract` peak table).
-    Peaks with FDR <= fdr_max are kept and merged per chromosome. The
+    Peaks with FDR <= fdr_max are kept per chromosome, sorted by start, with
+    their FDR retained (needed for the paper-style q-tier colors). The
     per-fiber fire.bed.gz is NOT used here: it carries all MSP intervals, so
     significance can only be filtered at the peak level.
 
@@ -300,9 +408,9 @@ def extract_fire_peaks(path: Path, query: Dict[str, List[Tuple[int, int]]],
         fdr_max: keep peaks with FDR <= this value.
 
     Returns:
-        chrom -> merged significant peak intervals [start, end).
+        chrom -> sorted (start, end, fdr) peak records.
     """
-    raw: Dict[str, List[Tuple[int, int]]] = defaultdict(list)
+    raw: Dict[str, List[Tuple[int, int, float]]] = defaultdict(list)
     opener = gzip.open if path.suffix == ".gz" else open
     with opener(path, "rt") as fh:  # type: ignore[operator]
         for line in fh:
@@ -319,18 +427,49 @@ def extract_fire_peaks(path: Path, query: Dict[str, List[Tuple[int, int]]],
             except ValueError:
                 continue
             if fdr <= fdr_max:
-                raw[chrom].append((start, end))
+                raw[chrom].append((start, end, fdr))
+    return {chrom: sorted(pts) for chrom, pts in raw.items()}
 
-    out: Dict[str, Blocks] = {}
-    for chrom, pts in raw.items():
-        pts.sort()
-        merged: List[List[int]] = [list(pts[0])]
-        for s, e in pts[1:]:
-            if s <= merged[-1][1]:
-                merged[-1][1] = max(merged[-1][1], e)
-            else:
-                merged.append([s, e])
-        out[chrom] = [(s, e) for s, e in merged]
+
+def fire_tier(fdr: float) -> int:
+    """Map a peak FDR to the paper's three-tier coding.
+
+    Parameters:
+        fdr: peak-level false discovery rate.
+
+    Returns:
+        2 for q<=0.01 (RE/P, dark brown), 1 for 0.01<q<=0.05 (bright red),
+        0 for 0.05<q<=0.10 (orange).
+    """
+    if fdr <= 0.01:
+        return 2
+    if fdr <= 0.05:
+        return 1
+    return 0
+
+
+def intersect_peaks(blocks: Blocks, peaks: Sequence[Tuple[int, int, float]]) -> List[FireSeg]:
+    """Intersect a fiber's MSP blocks with significant peaks, keeping tiers.
+
+    Parameters:
+        blocks: sorted MSP blocks of one fiber.
+        peaks: sorted (start, end, fdr) peaks.
+
+    Returns:
+        (start, end, tier) segments where this fiber's MSPs fall inside a
+        significant FIRE peak; tier follows fire_tier(fdr).
+    """
+    out: List[FireSeg] = []
+    i = j = 0
+    while i < len(blocks) and j < len(peaks):
+        lo = max(blocks[i][0], peaks[j][0])
+        hi = min(blocks[i][1], peaks[j][1])
+        if hi > lo:
+            out.append((lo, hi, fire_tier(peaks[j][2])))
+        if blocks[i][1] <= peaks[j][1]:
+            i += 1
+        else:
+            j += 1
     return out
 
 
@@ -355,6 +494,33 @@ def intersect_blocks(blocks: Blocks, regions_b: Blocks) -> Blocks:
             i += 1
         else:
             j += 1
+    return out
+
+
+def subtract_blocks(blocks: Blocks, cuts: Sequence[Tuple[int, ...]]) -> Blocks:
+    """Intervals of `blocks` not covered by `cuts` (cuts may carry extra fields).
+
+    Parameters:
+        blocks: sorted [start, end) intervals.
+        cuts: sorted cut intervals; only fields [0], [1] are read.
+
+    Returns:
+        The parts of `blocks` outside every cut, sorted.
+    """
+    out: Blocks = []
+    for b0, b1 in blocks:
+        cur = b0
+        for cut in cuts:
+            c0, c1 = cut[0], cut[1]
+            if c1 <= cur or c0 >= b1:
+                continue
+            if c0 > cur:
+                out.append((cur, min(c0, b1)))
+            cur = max(cur, c1)
+            if cur >= b1:
+                break
+        if cur < b1:
+            out.append((cur, b1))
     return out
 
 
@@ -413,7 +579,7 @@ def binarize(cov_bp: np.ndarray, start: int, end: int, bin_size: int,
     return (cov_bp / widths >= bin_threshold).astype(int)
 
 
-def cluster_matrix(mat: np.ndarray, k: int, method: str, seed: int) -> np.ndarray:
+def cluster_matrix(mat: np.ndarray, k: int, method: str, seed: int) -> Tuple[np.ndarray, np.ndarray]:
     """Cluster binary fiber x bin patterns.
 
     Parameters:
@@ -423,13 +589,16 @@ def cluster_matrix(mat: np.ndarray, k: int, method: str, seed: int) -> np.ndarra
         seed: RNG seed for k-means init.
 
     Returns:
-        1-based cluster labels per fiber, relabeled so cluster 1 has the
-        highest mean openness (deterministic label semantics).
+        (labels, order): 1-based cluster labels per fiber relabeled so
+        cluster 1 has the highest mean openness, and a display order that
+        keeps clusters contiguous with tree (dendrogram leaf) ordering
+        within each cluster for hierarchical, or centroid-distance ordering
+        for k-means.
 
     Errors:
-        ValueError when clustering cannot produce k non-empty clusters.
+        ValueError when there are fewer fibers than clusters.
     """
-    from scipy.cluster.hierarchy import fcluster, linkage
+    from scipy.cluster.hierarchy import fcluster, leaves_list, linkage
     from scipy.spatial.distance import pdist
 
     n = mat.shape[0]
@@ -439,24 +608,31 @@ def cluster_matrix(mat: np.ndarray, k: int, method: str, seed: int) -> np.ndarra
         dist = pdist(mat.astype(float), metric="hamming")
         z = linkage(dist, method="average")
         labels = fcluster(z, t=k, criterion="maxclust")
+        order = leaves_list(z)
     elif method == "kmeans":
         from scipy.cluster.vq import kmeans2
 
         np.random.seed(seed)
-        _, labels = kmeans2(mat.astype(float), k, minit="++", iter=50)
+        centroids, labels = kmeans2(mat.astype(float), k, minit="++", iter=50)
         labels = labels + 1
+        d = np.array([np.linalg.norm(mat[i].astype(float) - centroids[labels[i] - 1])
+                      for i in range(n)])
+        order = np.argsort(d, kind="stable")
     else:
         raise ValueError(f"unknown method {method!r}")
 
     # Relabel by mean openness (descending) so labels are stable across runs.
-    order = sorted(set(int(x) for x in labels),
-                   key=lambda c: -float(mat[labels == c].mean()))
-    remap = {old: new for new, old in enumerate(order, start=1)}
+    sorted_c = sorted(set(int(x) for x in labels),
+                      key=lambda c: -float(mat[labels == c].mean()))
+    remap = {old: new for new, old in enumerate(sorted_c, start=1)}
     out = np.array([remap[int(x)] for x in labels], dtype=int)
     if len(set(out.tolist())) < k:
         logger.warning("clustering produced %d non-empty clusters, expected %d "
                        "(identical/tied patterns in this channel)", len(set(out.tolist())), k)
-    return out
+    # Display order: clusters contiguous (in label order), tree/centroid order within.
+    rank = {int(idx): r for r, idx in enumerate(order)}
+    display = sorted(range(n), key=lambda i: (int(out[i]), rank[i]))
+    return out, np.array(display, dtype=int)
 
 
 # ---------------------------------------------------------------------------
@@ -486,9 +662,12 @@ def run_region(region: Region, msp: FiberSample, nuc: FiberSample,
     reg_len = end - start
 
     # ---- collect fibers per sample (MSP is the clustering channel) --------
+    nuc_lookup: Dict[str, Dict[str, Blocks]] = {
+        s: {r_name: blocks for r_name, blocks, _fs, _fe in recs.get(chrom, [])}
+        for s, recs in nuc.items()}
     rows: List[FiberRow] = []
-    fiber_blocks: List[Blocks] = []  # MSP blocks per kept fiber (FIRE overlay source)
     for sample in sample_order:
+        peaks_b = fire.get(sample, {}).get(chrom, [])
         for read_name, blocks, f_start, f_end in msp.get(sample, {}).get(chrom, []):
             overlap = min(f_end, end) - max(f_start, start)
             if overlap <= 0:
@@ -496,52 +675,36 @@ def run_region(region: Region, msp: FiberSample, nuc: FiberSample,
             span_frac = overlap / reg_len
             if span_frac < args.min_span_frac:
                 continue
-            if args.cluster_channel == "fire":
-                peaks_b = fire.get(sample, {}).get(chrom, [])
-                channel_blocks = intersect_blocks(sorted(blocks), peaks_b)
-            else:
-                channel_blocks = blocks
+            fire_segs = intersect_peaks(sorted(blocks), peaks_b) if peaks_b else []
+            channel_blocks: Blocks = ([(s, e) for s, e, _t in fire_segs]
+                                      if args.cluster_channel == "fire" else blocks)
             cov_bp = bin_covered_bp(channel_blocks, start, end, bin_size)
-            rows.append(FiberRow(read_name, sample, span_frac,
-                                 binarize(cov_bp, start, end, bin_size, args.bin_mode,
-                                          args.bin_threshold, args.min_msp_bp)))
-            fiber_blocks.append(blocks)
+            rows.append(FiberRow(
+                read_name, sample, span_frac,
+                binarize(cov_bp, start, end, bin_size, args.bin_mode,
+                         args.bin_threshold, args.min_msp_bp),
+                f_start, f_end, blocks,
+                nuc_lookup.get(sample, {}).get(read_name, []),
+                fire_segs))
     n_fibers = len(rows)
     if n_fibers < args.min_fibers:
         raise ValueError(f"too_few_fibers: {n_fibers} < --min-fibers {args.min_fibers}")
 
     open_mat = np.vstack([r.open for r in rows]).astype(int)
-    labels = cluster_matrix(open_mat, args.clusters, args.method, args.seed)
+    labels, disp_order = cluster_matrix(open_mat, args.clusters, args.method, args.seed)
 
     # ---- overlay matrices (nuc occupancy, FIRE presence) -----------------
-    def nuc_matrix(recs: FiberSample) -> np.ndarray:
+    def blocks_matrix(get_blocks: Callable[[FiberRow], Blocks], mode: str) -> np.ndarray:
         mat = np.zeros((n_fibers, n_bins), dtype=float)
         for i, r in enumerate(rows):
-            hits: Blocks = []
-            for r_name, blocks, _f_start, _f_end in recs.get(r.sample, {}).get(chrom, []):
-                if r_name == r.read:
-                    hits.extend(blocks)
-            cov_bp = bin_covered_bp(sorted(hits), start, end, bin_size)
-            mat[i] = binarize(cov_bp, start, end, bin_size, "frac",
+            cov_bp = bin_covered_bp(sorted(get_blocks(r)), start, end, bin_size)
+            mat[i] = binarize(cov_bp, start, end, bin_size, mode,
                               args.bin_threshold, args.min_msp_bp)
         return mat
 
-    def fire_matrix(peaks: FireSample) -> np.ndarray:
-        # Per-fiber FIRE = this fiber's MSP blocks intersected with the
-        # sample's significant FIRE peaks (peak-level FDR filtering).
-        mat = np.zeros((n_fibers, n_bins), dtype=float)
-        for i, r in enumerate(rows):
-            pk = peaks.get(r.sample, {}).get(chrom, [])
-            if not pk:
-                continue
-            inter = intersect_blocks(sorted(fiber_blocks[i]), pk)
-            cov_bp = bin_covered_bp(inter, start, end, bin_size)
-            mat[i] = binarize(cov_bp, start, end, bin_size, args.bin_mode,
-                              args.bin_threshold, args.min_msp_bp)
-        return mat
-
-    nuc_mat = nuc_matrix(nuc) if nuc else np.zeros((n_fibers, n_bins))
-    fire_mat = fire_matrix(fire) if fire else np.zeros((n_fibers, n_bins))
+    nuc_mat = blocks_matrix(lambda r: r.nuc_blocks, "frac") if nuc else np.zeros((n_fibers, n_bins))
+    fire_mat = (blocks_matrix(lambda r: [(s, e) for s, e, _t in r.fire_segs], args.bin_mode)
+                if fire else np.zeros((n_fibers, n_bins)))
 
     # ---- tables ----------------------------------------------------------
     outdir.mkdir(parents=True, exist_ok=True)
@@ -580,7 +743,7 @@ def run_region(region: Region, msp: FiberSample, nuc: FiberSample,
                      "\t".join(str(x) for x in r.open) + "\n")
 
     # ---- figure ----------------------------------------------------------
-    plot_region(region, rows, labels, open_mat, nuc_mat, fire_mat, sample_order, args,
+    plot_region(region, rows, labels, disp_order, sample_order, args,
                 outdir / f"{_safe(name)}.clusters.png")
 
 
@@ -589,104 +752,254 @@ def _safe(name: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]", "_", name)
 
 
-def plot_region(region: Region, rows: List[FiberRow], labels: np.ndarray,
-                open_mat: np.ndarray, nuc_mat: np.ndarray, fire_mat: np.ndarray,
-                sample_order: List[str], args: argparse.Namespace, out_png: Path) -> None:
-    """Render the per-region cluster figure.
+# ---------------------------------------------------------------------------
+# fiberbrowser palette (copied verbatim from modules/fiberbrowser/bin/
+# fiberbrowser.py; colors sampled from the paper figure at 500 dpi pixels)
+# ---------------------------------------------------------------------------
+NUC_LINE = "#1A1A1A"      # black molecule line = nucleosome / neutral DNA
+LINKER = "#8A78B6"        # purple rectangle = linker DNA (non-FIRE MSP)
+FIRE_ORANGE = "#F0A246"   # MSP inside a FIRE peak, 0.05 < q <= 0.10
+FIRE_RED = "#E01B24"      # MSP inside a FIRE peak, 0.01 < q <= 0.05
+FIRE_DKRED = "#7D3219"    # MSP inside a FIRE peak, q <= 0.01 (RE/P)
+LABEL_BOX = "#D8ECD8"     # pale green sample label box
+LABEL_EC = "#7A9A7A"
+COV_NUC = "#B0B1B5"       # grey   = nucleosome coverage (stack top)
+COV_LNK = "#8A78B6"       # purple = linker (MSP) coverage (stack middle)
+COV_FIRE = "#C0392B"      # red    = FIRE coverage (stack bottom)
+TIER_COLORS = {0: FIRE_ORANGE, 1: FIRE_RED, 2: FIRE_DKRED}
 
-    Layout: fiber x bin accessibility heatmap (rows grouped by cluster, sample
-    side strip), per-bin aggregate tracks (open/nuc/fire), and per-cluster
-    per-sample composition bars. Youth/reference samples stack on top
-    (--sample-order).
+
+def plot_region(region: Region, rows: List[FiberRow], labels: np.ndarray,
+                disp_order: np.ndarray, sample_order: List[str], args: argparse.Namespace,
+                out_png: Path) -> None:
+    """Render the per-region figure as fiberbrowser-style single-fiber tracks.
+
+    Left panel (paper style, per modules/fiberbrowser): one row per fiber
+    drawn as a black molecule line (nucleosome / neutral DNA) with purple
+    linker (MSP) rectangles and FIRE-tier-colored MSP rectangles on top
+    (orange 0.05<q<=0.10, red 0.01<q<=0.05, dark brown q<=0.01). Rows are
+    grouped into cluster bands and within each band into per-sample
+    sub-stacks, annotated fiberbrowser-style: bracket (tinted per cluster) +
+    pale-green rounded label box with the sample id and its fiber count in
+    this cluster. The cluster band id and total n sit at the far left. All
+    text lives outside the frame; no title (region identity is in the
+    output filename).
+
+    Right sub-plots (one per cluster, optional via --right-tracks): per-base
+    coverage stacks in the fiberbrowser coverage-track style — red FIRE
+    coverage at the bottom, purple linker (non-FIRE MSP) coverage in the
+    middle, grey nucleosome coverage on top — drawn INSIDE the cluster
+    band's own vertical span (same row coordinate system, so each track is
+    y-aligned with exactly the rows it summarizes). Coverage = number of
+    class fibers carrying the element at that base; the stack is scaled to
+    the band height (max total coverage = band top). Each layer can be
+    enabled individually or disabled with 'none'.
+
+    Row order: (cluster, sample, clustering tree leaf order). Fibers beyond
+    --max-fibers are subsampled proportionally per sub-stack (display only;
+    every printed count uses the full set).
 
     Parameters:
         region: (name, chrom, start, end).
-        rows: per-fiber clustering rows.
+        rows: per-fiber clustering rows with element blocks.
         labels: cluster labels per fiber.
-        open_mat, nuc_mat, fire_mat: binary fiber x bin matrices.
-        sample_order: display order of samples.
-        args: CLI namespace (bin_size, k, method).
+        disp_order: tree-ordered fiber indices from cluster_matrix.
+        sample_order: display order of samples (reference first).
+        args: CLI namespace (max_fibers, right_tracks, ...).
         out_png: output image path.
     """
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from matplotlib.colors import ListedColormap
+    from matplotlib.lines import Line2D
     from matplotlib.patches import Rectangle
 
-    name, chrom, start, end = region
-    n_bins = open_mat.shape[1]
+    _name, chrom, start, end = region
     sample_rank = {s: i for i, s in enumerate(sample_order)}
 
-    # Sort rows: cluster, then sample (top = first in --sample-order), then openness.
-    order = sorted(range(len(rows)),
-                   key=lambda i: (int(labels[i]), sample_rank.get(rows[i].sample, 99),
-                                  -int(rows[i].open.sum())))
-    labels_s = labels[order]
-    rows_s = [rows[i] for i in order]
-    open_s = open_mat[order]
+    # ---- display rows: (cluster, sample, tree order), optional subsample --
+    rank = {int(idx): r for r, idx in enumerate(disp_order)}
+    order_all = sorted(range(len(rows)),
+                       key=lambda i: (int(labels[i]), sample_rank.get(rows[i].sample, 99),
+                                      rank[i]))
+    subsampled = len(order_all) > args.max_fibers
+    if subsampled:
+        groups: Dict[Tuple[int, str], List[int]] = {}
+        for i in order_all:
+            groups.setdefault((int(labels[i]), rows[i].sample), []).append(i)
+        keep = set()
+        for members in groups.values():
+            take = max(1, round(len(members) * args.max_fibers / len(order_all)))
+            step = len(members) / take
+            keep.update(members[int(k * step)] for k in range(take))
+        order = [i for i in order_all if i in keep]
+    else:
+        order = order_all
+    n_show = len(order)
 
-    fig = plt.figure(figsize=(13, 9))
-    gs = fig.add_gridspec(2, 2, width_ratios=[4.2, 1.3], height_ratios=[4.2, 1.0],
-                          hspace=0.28, wspace=0.12)
-    ax_hm = fig.add_subplot(gs[0, 0])
-    ax_bar = fig.add_subplot(gs[0, 1])
-    ax_tr = fig.add_subplot(gs[1, 0])
+    # sub-stack runs: contiguous (cluster, sample) blocks in display order
+    runs: List[List] = []  # each: [cluster, sample, y_lo, y_hi]
+    for j, i in enumerate(order):
+        key = (int(labels[i]), rows[i].sample)
+        if runs and (runs[-1][0], runs[-1][1]) == key:
+            runs[-1][3] = j
+        else:
+            runs.append([key[0], key[1], j, j])
 
-    cmap = ListedColormap(["#f2f2f2", "#b2182b"])
-    ax_hm.imshow(open_s, aspect="auto", interpolation="nearest", cmap=cmap, vmin=0, vmax=1)
-    bounds = np.cumsum([0] + [int((labels_s == c).sum()) for c in sorted(set(labels_s.tolist()))])
-    for b in bounds[1:-1]:
-        ax_hm.axhline(b - 0.5, color="black", lw=1.0)
-    ax_hm.set_yticks([bounds[i] + (bounds[i + 1] - bounds[i]) / 2 for i in range(len(bounds) - 1)])
-    ax_hm.set_yticklabels([f"cluster {c}\n(n={int((labels_s == c).sum())})"
-                           for c in sorted(set(labels_s.tolist()))])
-    # sample side strip
-    for i, r in enumerate(rows_s):
-        ax_hm.add_patch(Rectangle((-0.06 * n_bins - 1, i - 0.5), 0.05 * n_bins, 1.0,
-                                  color=plt.cm.tab10(sample_rank.get(r.sample, 9) % 10),
-                                  clip_on=False, lw=0))
-    tick_pos = np.linspace(0, n_bins - 1, 6).astype(int)
-    ax_hm.set_xticks(tick_pos)
-    ax_hm.set_xticklabels([f"{(start + p * args.bin_size) / 1000:.1f}" for p in tick_pos])
-    ax_hm.set_xlabel(f"position on {chrom} (kb)")
-    ax_hm.set_title(f"{name}  {chrom}:{start}-{end}   method={args.method}, k={args.clusters}, "
-                    f"bin={args.bin_size}bp({args.bin_mode}), channel={args.cluster_channel}, "
-                    f"n_fibers={len(rows_s)}\n"
-                    "red = accessible (MSP/m6A, enzyme-tagged), grey = closed",
-                    fontsize=10)
+    fig = plt.figure(figsize=(13.5, 8.2))
+    # right sub-plot width >= half of the main panel (visual balance)
+    ax = fig.add_axes((0.26, 0.10, 0.46, 0.84))
+    axr = fig.add_axes((0.74, 0.10, 0.25, 0.84), sharey=ax)
+    ax.set_xlim(start, end)
+    ax.set_ylim(n_show - 0.2, -0.6)  # fiberbrowser row convention
+    ax.set_yticks([])
+    # no frame: keep only the coordinate axes (bottom x axis)
+    for spine in ("top", "right", "left"):
+        ax.spines[spine].set_visible(False)
+    axr.set_xlim(start, end)
+    axr.set_yticks([])
+    axr.set_xticks([])
+    for spine in ("top", "right", "left", "bottom"):
+        axr.spines[spine].set_visible(False)
 
-    # aggregate tracks
-    x = np.arange(n_bins)
-    ax_tr.plot(x, open_mat.mean(axis=0), color="#b2182b", lw=1.2, label="open frac")
-    ax_tr.plot(x, nuc_mat.mean(axis=0), color="#2166ac", lw=1.2, label="nuc occupancy")
-    ax_tr.plot(x, fire_mat.mean(axis=0), color="#1a9850", lw=1.2, label="FIRE frac")
-    ax_tr.set_xlim(-0.5, n_bins - 0.5)
-    ax_tr.set_ylim(0, 1)
-    ax_tr.set_xticks(tick_pos)
-    ax_tr.set_xticklabels([f"{(start + p * args.bin_size) / 1000:.1f}" for p in tick_pos])
-    ax_tr.set_ylabel("fraction of fibers")
-    ax_tr.legend(fontsize=8, loc="upper right", ncol=3)
+    def cluster_color(c: int) -> Tuple[float, float, float, float]:
+        """Cluster id -> tab10 color (same mapping as cluster_proportions.png)."""
+        return plt.cm.tab10((c - 1) % 10)
 
-    # per-cluster per-sample composition bars
-    clusters = sorted(set(labels.tolist()))
-    y_pos = np.arange(len(clusters))
-    height = 0.8 / max(1, len(sample_order))
-    for j, sample in enumerate(sample_order):
-        n_s = sum(1 for r in rows if r.sample == sample)
-        fracs = []
-        for c in clusters:
-            n_c = sum(1 for r, lab in zip(rows, labels) if lab == c and r.sample == sample)
-            fracs.append(n_c / n_s if n_s else 0.0)
-        ax_bar.barh(y_pos + (j - (len(sample_order) - 1) / 2) * height, fracs, height=height * 0.92,
-                    color=plt.cm.tab10(sample_rank[sample] % 10), label=f"{sample} (n={n_s})")
-    ax_bar.set_yticks(y_pos)
-    ax_bar.set_yticklabels([f"cluster {c}" for c in clusters])
-    ax_bar.invert_yaxis()  # cluster 1 on top, matching the heatmap row order
-    ax_bar.set_xlabel("fraction within sample")
-    ax_bar.set_xlim(0, 1)
-    ax_bar.legend(fontsize=7, loc="lower right")
-    ax_bar.set_title("cluster proportions per sample", fontsize=9)
+    def y2f(y: float) -> float:
+        """Row coordinate -> axes fraction measured from the BOTTOM.
+
+        The data axis is row-inverted (y=0 at top), but transAxes fractions
+        always grow upward — map explicitly or every label/bracket mirrors.
+        """
+        return (n_show - 0.2 - y) / (n_show + 0.4)
+
+    # ---- fiber rows: black molecule line, purple linkers, tiered FIRE MSPs
+    for j, i in enumerate(order):
+        r = rows[i]
+        lo_f, hi_f = max(r.f_start, start), min(r.f_end, end)
+        if hi_f > lo_f:
+            ax.plot([lo_f, hi_f], [j, j], lw=0.9, color=NUC_LINE, zorder=1,
+                    solid_capstyle="butt")
+        for s0, e0 in r.msp_blocks:
+            lo_b, hi_b = max(s0, start), min(e0, end)
+            if hi_b > lo_b:
+                ax.add_patch(Rectangle((lo_b, j - 0.25), hi_b - lo_b, 0.50,
+                                       facecolor=LINKER, ec="none", zorder=2))
+        for s0, e0, tier in r.fire_segs:
+            lo_b, hi_b = max(s0, start), min(e0, end)
+            if hi_b > lo_b:
+                ax.add_patch(Rectangle((lo_b, j - 0.28), hi_b - lo_b, 0.56,
+                                       facecolor=TIER_COLORS[tier], ec="none", zorder=3))
+
+    # ---- per-run bracket (tinted per cluster) + green label box ----------
+    for c, sample, y_lo, y_hi in runs:
+        f_lo, f_hi = y2f(y_lo - 0.5), y2f(y_hi + 0.5)
+        cc = cluster_color(c)
+        ax.plot([-0.012, -0.012], [f_lo, f_hi], transform=ax.transAxes,
+                color=cc, lw=1.2, clip_on=False, zorder=5)
+        ax.plot([-0.012, -0.004], [f_lo, f_lo], transform=ax.transAxes,
+                color=cc, lw=1.2, clip_on=False, zorder=5)
+        ax.plot([-0.012, -0.004], [f_hi, f_hi], transform=ax.transAxes,
+                color=cc, lw=1.2, clip_on=False, zorder=5)
+        n_full = sum(1 for r, lab in zip(rows, labels)
+                     if int(lab) == c and r.sample == sample)
+        n_here = y_hi - y_lo + 1
+        box = f"{sample}\n(n={n_full}" + (f", show {n_here})" if subsampled else ")")
+        ax.text(-0.022, (f_lo + f_hi) / 2, box, transform=ax.transAxes,
+                fontsize=6.5, ha="right", va="center", zorder=5,
+                bbox=dict(boxstyle="round,pad=0.35", facecolor=LABEL_BOX,
+                          edgecolor=LABEL_EC, lw=0.6))
+
+    # ---- cluster band labels at the far left (outside, dodged) -----------
+    band_center: Dict[int, List[float]] = {}
+    for c, _s, y_lo, y_hi in runs:
+        band_center.setdefault(c, []).append((y_lo + y_hi) / 2)
+    centers = [float(np.mean(v)) for v in band_center.values()]
+    lab_frac: List[float] = []
+    prev_f = None
+    for cy in centers:  # clusters top -> bottom; dodge pushes labels downward
+        cf = y2f(cy)
+        y_lab = cf if prev_f is None else min(cf, prev_f - 0.075)
+        lab_frac.append(y_lab)
+        prev_f = y_lab
+    if lab_frac and lab_frac[-1] < 0.03:
+        shift_l = 0.03 - lab_frac[-1]
+        lab_frac = [y + shift_l for y in lab_frac]
+    for (c, _centers), y_lab in zip(band_center.items(), lab_frac):
+        n_c = int((labels == c).sum())
+        ax.text(-0.22, y_lab, f"cluster {c} (n={n_c})", transform=ax.transAxes,
+                fontsize=8, ha="right", va="center", zorder=5, color=cluster_color(c))
+
+    # ---- right sub-plots: per-cluster coverage tracks (fiberbrowser style) --
+    wanted = [t.strip() for t in args.right_tracks.split(",")
+              if t.strip() and t.strip() != "none"]
+    x_pos = np.arange(start, end)
+    cov_colors = {"fire": COV_FIRE, "lnk": COV_LNK, "nuc": COV_NUC}
+    spans: Dict[int, List[int]] = {}
+    for c, _s, y_lo, y_hi in runs:
+        spans.setdefault(c, [y_lo, y_hi])
+        spans[c][0] = min(spans[c][0], y_lo)
+        spans[c][1] = max(spans[c][1], y_hi)
+    for c in sorted(spans):
+        y_lo, y_hi = spans[c]
+        y_t, y_b = y_lo - 0.4, y_hi + 0.4  # band top/bottom in row coordinates
+        cov = {k: np.zeros(end - start, dtype=float) for k in ("fire", "lnk", "nuc")}
+
+        def paint(arr: np.ndarray, blocks: Blocks) -> None:
+            """Add per-base coverage of one fiber's element blocks."""
+            for s0, e0 in blocks:
+                lo_b, hi_b = max(s0, start), min(e0, end)
+                if hi_b > lo_b:
+                    arr[lo_b - start:hi_b - start] += 1
+
+        for r, lab in zip(rows, labels):
+            if int(lab) != c:
+                continue
+            paint(cov["fire"], [(s, e) for s, e, _t in r.fire_segs])
+            paint(cov["lnk"], subtract_blocks(r.msp_blocks, r.fire_segs))
+            paint(cov["nuc"], r.nuc_blocks)
+        # fiberbrowser coverage stack (red FIRE bottom, purple linker middle,
+        # grey nucleosome top): draw the widest cumulative band first so the
+        # inner layers stay visible
+        order = [k for k in ("fire", "lnk", "nuc") if k in wanted]
+        cum = np.zeros(end - start, dtype=float)
+        layers: List[Tuple[np.ndarray, str]] = []
+        for k in order:
+            cum = cum + cov[k]
+            layers.append((cum.copy(), cov_colors[k]))
+        scale = max(float(cum.max()), 1.0) if layers else 1.0
+        for cum_arr, color in reversed(layers):
+            yv = y_b - (cum_arr / scale) * (y_b - y_t)  # max coverage = band top
+            axr.fill_between(x_pos, y_b, yv, color=color, lw=0)
+
+    # ---- bottom coordinate ruler + element legend ------------------------
+    ticks = np.linspace(start, end, 6)
+    ax.set_xticks(ticks)
+    ax.set_xticklabels([f"{t / 1000:.1f}" for t in ticks], fontsize=7)
+    ax.set_xlabel(f"position on {chrom} (kb)", fontsize=8)
+    # ---- bottom legends: one per sub-plot, each under its own panel ------
+    handles_left = [
+        Line2D([0], [0], color=NUC_LINE, lw=1.2, label="nucleosome / neutral DNA"),
+        Rectangle((0, 0), 1, 1, facecolor=LINKER, edgecolor="none", label="linker (MSP)"),
+        Rectangle((0, 0), 1, 1, facecolor=FIRE_ORANGE, edgecolor="none",
+                  label="FIRE 0.05<q<=0.10"),
+        Rectangle((0, 0), 1, 1, facecolor=FIRE_RED, edgecolor="none",
+                  label="FIRE 0.01<q<=0.05"),
+        Rectangle((0, 0), 1, 1, facecolor=FIRE_DKRED, edgecolor="none",
+                  label="FIRE q<=0.01 (RE/P)")]
+    handles_cov = []
+    for key, lab in (("fire", "coverage: FIRE (in significant RE)"),
+                     ("lnk", "coverage: linker (MSP)"),
+                     ("nuc", "coverage: nucleosome")):
+        if key in wanted:
+            handles_cov.append(Rectangle((0, 0), 1, 1, facecolor=cov_colors[key],
+                                         edgecolor="none", label=lab))
+    fig.legend(handles=handles_left, loc="lower center", bbox_to_anchor=(0.49, -0.01),
+               ncol=5, fontsize=7, frameon=False)
+    if handles_cov:
+        fig.legend(handles=handles_cov, loc="lower center", bbox_to_anchor=(0.865, -0.02),
+                   ncol=1, fontsize=7, frameon=False)
 
     fig.savefig(out_png, dpi=200, bbox_inches="tight")
     plt.close(fig)
@@ -739,6 +1052,18 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("-S", "--sample-order", type=str, default="",
                    help="comma-separated display order; first sample stacks on top")
     p.add_argument("-x", "--seed", type=int, default=0, help="RNG seed for k-means (default 0)")
+    p.add_argument("-a", "--max-fibers", type=int, default=300,
+                   help="display subsample cap per figure (statistics always use all "
+                        "fibers; default 300)")
+    p.add_argument("-T", "--right-tracks", type=str, default="fire,lnk,nuc",
+                   help="comma list of layers in the per-cluster right coverage "
+                        "track (fiberbrowser stack, bottom->top fire/lnk/nuc): "
+                        "fire (FIRE coverage), lnk (linker MSP coverage), nuc "
+                        "(nucleosome coverage); 'none' disables (default fire,lnk,nuc)")
+    p.add_argument("-y", "--cache-dir", type=Path, default=None,
+                   help="extraction cache dir: region subsets are cached here "
+                        "(keyed by the region set) and tabix indexes looked up "
+                        "here or beside the source files; makes reruns seconds-fast")
     p.add_argument("-w", "--overwrite", action="store_true",
                    help="recompute regions whose outputs already exist")
     p.add_argument("-D", "--dry-run", action="store_true", help="log the plan and exit")
@@ -802,8 +1127,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     # ---- one extraction pass per element file (multi-region filter) -------
     query = merged_intervals(regions)
     logger.info("extracting MSP channels ...")
-    msp_all = {s: extract_bed12(p, query) for s, p in msp_map.items()}
-    nuc_all = {s: extract_bed12(p, query) for s, p in nuc_map.items()}
+    msp_all = {s: extract_bed12(p, query, args.cache_dir) for s, p in msp_map.items()}
+    nuc_all = {s: extract_bed12(p, query, args.cache_dir) for s, p in nuc_map.items()}
     fire_all = {s: extract_fire_peaks(p, query, args.fire_fdr) for s, p in fire_map.items()}
 
     args.outdir.mkdir(parents=True, exist_ok=True)

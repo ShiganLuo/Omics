@@ -367,7 +367,27 @@
       "enabled": false
     },
     "telomere": {
-      "enabled": false
+      "enabled": false,
+      "method": [
+        "telogator2",
+        "assembly_scan",
+        "read_density",
+        "tidk"
+      ],
+      "formats": [
+        "png"
+      ],
+      "telogator2": {
+        "species": "human",
+        "threads": 16
+      },
+      "assembly_scan": {
+        "assembly_scan_length": 50000
+      },
+      "read_density": {
+        "n_chrom_arms": 40
+      },
+      "tidk": {}
     },
     "deepvariant": {
       "model_type": "PACBIO"
@@ -380,9 +400,6 @@
           "png"
         ]
       }
-    },
-    "telogator2": {
-      "threads": 16
     },
     "hifiasm": {
       "threads": 48

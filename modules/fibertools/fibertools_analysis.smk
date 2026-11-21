@@ -34,6 +34,10 @@ rule ft_extract:
         nuc = outdir + "/{sample_id}/{sample_id}.nuc.bed.gz",
         msp = outdir + "/{sample_id}/{sample_id}.msp.bed.gz",
         cpg = outdir + "/{sample_id}/{sample_id}.cpg.bed.gz",
+        m6a_tbi = outdir + "/{sample_id}/{sample_id}.m6a.bed.gz.tbi",
+        nuc_tbi = outdir + "/{sample_id}/{sample_id}.nuc.bed.gz.tbi",
+        msp_tbi = outdir + "/{sample_id}/{sample_id}.msp.bed.gz.tbi",
+        cpg_tbi = outdir + "/{sample_id}/{sample_id}.cpg.bed.gz.tbi",
     log:
         logdir + "/{sample_id}/ft_extract.log"
     threads: rule_res("ft_extract").get("threads", 8)
@@ -72,6 +76,10 @@ rule ft_extract:
             with open(command_script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                # tabix indexes travel with the element BEDs (declared outputs;
+                # region consumers jump instead of streaming the multi-GB files)
+                for bed in (output.m6a, output.nuc, output.msp, output.cpg):
+                    f.write(f"tabix -f -p bed {bed}\n")
                 f.write(f'echo "Fiber-seq extraction completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
@@ -371,6 +379,10 @@ rule ft_extract_hap:
         nuc = outdir + "/{sample_id}/{sample_id}.{hap}.nuc.bed.gz",
         msp = outdir + "/{sample_id}/{sample_id}.{hap}.msp.bed.gz",
         cpg = outdir + "/{sample_id}/{sample_id}.{hap}.cpg.bed.gz",
+        m6a_tbi = outdir + "/{sample_id}/{sample_id}.{hap}.m6a.bed.gz.tbi",
+        nuc_tbi = outdir + "/{sample_id}/{sample_id}.{hap}.nuc.bed.gz.tbi",
+        msp_tbi = outdir + "/{sample_id}/{sample_id}.{hap}.msp.bed.gz.tbi",
+        cpg_tbi = outdir + "/{sample_id}/{sample_id}.{hap}.cpg.bed.gz.tbi",
     log:
         logdir + "/{sample_id}/ft_extract_{hap}.log"
     threads: rule_res("ft_extract_hap").get("threads", 8)
@@ -409,6 +421,9 @@ rule ft_extract_hap:
             with open(command_script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                # tabix indexes travel with the element BEDs (declared outputs)
+                for bed in (output.m6a, output.nuc, output.msp, output.cpg):
+                    f.write(f"tabix -f -p bed {bed}\n")
                 f.write(f'echo "Haplotype extraction completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
@@ -429,6 +444,8 @@ rule fibertools_analysis_result:
         nuc = expand(outdir + "/{sample_id}/{sample_id}.nuc.bed.gz", sample_id=samples),
         msp = expand(outdir + "/{sample_id}/{sample_id}.msp.bed.gz", sample_id=samples),
         cpg = expand(outdir + "/{sample_id}/{sample_id}.cpg.bed.gz", sample_id=samples),
+        bed_tbi = expand(outdir + "/{sample_id}/{sample_id}.{elem}.bed.gz.tbi",
+                         sample_id=samples, elem=["m6a", "nuc", "msp", "cpg"]),
         fire = expand(outdir + "/{sample_id}/{sample_id}.fire.bed.gz", sample_id=samples),
         peaks = expand(outdir + "/{sample_id}/{sample_id}.fire_peaks.bed", sample_id=samples),
         fdr_table = expand(outdir + "/{sample_id}/{sample_id}.fire_fdr_table.tsv", sample_id=samples),

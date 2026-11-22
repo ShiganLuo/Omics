@@ -1343,6 +1343,10 @@
           "type": "str",
           "required": false
         },
+        "subtel_ref": {
+          "type": "str",
+          "required": false
+        },
         "threads": {
           "type": "int",
           "required": false

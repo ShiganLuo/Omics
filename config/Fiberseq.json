@@ -243,6 +243,10 @@
       "diff_analysis": {
         "large_sv_threshold": 10000
       },
+      "tra_te": {
+        "n_perm": 1000,
+        "seed": 42
+      },
       "gene_model": {
         "threads": 1
       },
@@ -801,6 +805,7 @@
       ],
       "telogator2": {
         "species": null,
+        "subtel_ref": null,
         "threads": 16
       },
       "assembly_scan": {
@@ -1230,6 +1235,10 @@
       "mem_mb": 8000
     },
     "sv_mei": {
+      "threads": 4,
+      "mem_mb": 16000
+    },
+    "sv_tra_te": {
       "threads": 4,
       "mem_mb": 16000
     },

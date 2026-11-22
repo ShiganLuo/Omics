@@ -33,35 +33,134 @@ _tel_formats = _tel.get("formats") or ["png"]
 if isinstance(_tel_formats, str):
     _tel_formats = [_tel_formats]
 
-def get_telogator2_ref():
-    """telogator2 -t reference: the configured genome FASTA (e.g. T2T).
+_TEL_REF_ARM_SUFFIX = ("p", "q")
+# chr-part vocab accepted by telogator2's LEXICO_2_IND (chr1..chr22, chrX,
+# chrY, chrM, chrF=failed, chrB=blank, chrU=unclustered).
+_TEL_REF_CHR_VOCAB = {"X", "Y", "M", "F", "B", "U"}
+# Species whose telogator2 built-in subtel ref is verified shipped in the
+# telogator2 install (source/resources/non-human/telogator-ref-<s>.fa.gz);
+# checked against telogator2 2.2.3 (maize, mouse only).
+_TEL_BUILTIN_REF_SPECIES = {"mouse", "maize"}
 
-    telogator2 accepts an external reference via ``-t``; we pass the sample's
-    reference genome (``genome.fasta``, e.g. rhesus Mmul_T2T) — it IS the
-    reference, so no per-species built-in ref / alias lookup is needed
-    (never guess a species). Only if no genome FASTA is configured do we fall
-    back to telogator2's built-in ``telogator-ref-<species>.fa.gz``.
+
+def _tel_ref_name_ok(name: str) -> bool:
+    """telogator2 reference-name contract: '<build>_<chr><arm>'.
+
+    telogator2 parses anchor names with ``n.split('_')[1]`` (must yield
+    ``<chr><arm>``), ``[:-1]`` as the chr key into ``LEXICO_2_IND`` and
+    ``[-1]`` as the p/q arm — so exactly ONE underscore, a chr part from the
+    vocab above, and an arm suffix. Its own refs obey this
+    (t2t-chm13_chr1p, t2t-mouse_chr1p, ZMMo17_chr1p).
     """
+    parts = name.split("_")
+    if len(parts) != 2:
+        return False
+    chr_arm = parts[1]
+    if len(chr_arm) < 4 or chr_arm[-1] not in _TEL_REF_ARM_SUFFIX:
+        return False
+    core = chr_arm[:-1]  # e.g. 'chr1'
+    if not core.startswith("chr"):
+        return False
+    suffix = core[3:]
+    return suffix.isdigit() or suffix in _TEL_REF_CHR_VOCAB
+
+
+def _validate_telogator_ref(path: str) -> str:
+    """Fail fast if `path`'s contig names violate the -t naming contract.
+
+    Scans up to 50 headers (bounded read: at most 20 MB) and raises naming
+    'Params.telomere.telogator2.subtel_ref' — a whole-genome FASTA passed as
+    -t otherwise crashes telogator2 hours into the run with a cryptic
+    ``KeyError: '133406.'`` at its anchor-sorting step.
+    """
+    import gzip
+    opener = gzip.open if path.endswith(".gz") else open
+    checked = 0
+    bytes_read = 0
+    with opener(path, "rt") as f:
+        for line in f:
+            bytes_read += len(line)
+            if not line.startswith(">"):
+                if bytes_read > 20_000_000:
+                    break
+                continue
+            name = line[1:].strip().split()[0]
+            if not _tel_ref_name_ok(name):
+                raise ValueError(
+                    f"telogator2 -t reference '{path}' contig '{name}' violates "
+                    f"telogator2's naming contract '<build>_<chr><arm>' (e.g. "
+                    f"'t2t-chm13_chr1p': exactly one underscore, chr part "
+                    f"chr1-22/X/Y, arm suffix p/q — one contig per chromosome "
+                    f"arm tip, ~500 kb). A whole-genome FASTA cannot be passed "
+                    f"as -t. Set 'Params.telomere.telogator2.subtel_ref' to a "
+                    f"telogator2 subtelomere-tip reference instead.")
+            checked += 1
+            if checked >= 50 or bytes_read > 20_000_000:
+                break
+    if checked == 0:
+        raise ValueError(
+            f"telogator2 -t reference '{path}': no FASTA headers found; set "
+            f"'Params.telomere.telogator2.subtel_ref' to a valid FASTA.")
+    return path
+
+
+def get_telogator2_ref():
+    """telogator2 -t reference: a subtelomere ARM-TIP FASTA, never the genome.
+
+    telogator2's ``-t`` is a per-arm tip reference (its own refs are
+    t2t-chm13_chr1p / t2t-mouse_chr1p …, 500 kb per arm tip); the anchor
+    parsing in telogator2.py hard-codes that shape (``n.split('_')[1]``,
+    ``LEXICO_2_IND[...[:-1]]``, p/q arm), so a whole-genome FASTA (e.g.
+    RefSeq ``NC_133406.1`` contigs) crashes with ``KeyError`` at the anchor
+    step. Resolution order (explicit config first, never guess a species):
+
+    1. ``Params.telomere.telogator2.subtel_ref`` — explicit tip reference
+       (validated against the naming contract)
+    2. ``genome.fasta`` — accepted ONLY if its contigs satisfy the contract
+       (a prepared tip reference passed as the genome)
+    3. human -> telogator2's built-in default (t2t-chm13 arm tips)
+    4. shipped non-human alias (mouse/maize) -> telogator2's built-in
+       ``resources/non-human/telogator-ref-<species>.fa.gz`` (resolved
+       inside the container via importlib.resources)
+    5. otherwise fail fast naming the config key to fill.
+    """
+    explicit = _tel.get("telogator2", {}).get("subtel_ref") or ""
+    if explicit:
+        return _validate_telogator_ref(explicit)
     fasta = config.get("genome", {}).get("fasta", "")
-    if fasta:
-        return fasta
-    # Fallback: telogator2 built-in per-species reference (alias lookup).
+    if fasta and os.path.exists(fasta):
+        try:
+            return _validate_telogator_ref(fasta)
+        except ValueError:
+            logger.warning(
+                f"genome fasta '{fasta}' is not a telogator2 tip reference "
+                f"(naming contract '<build>_<chr><arm>') — not using it as -t")
     if species == "human":
-        return ""  # use default
+        return ""  # use default (t2t-chm13 arm tips)
+    # Non-human: prefer a real telogator2 install on the host (path check),
+    # else hand telogator2 the resource NAME (it resolves its own
+    # resources/ inside the container via importlib.resources).
     try:
         result = subprocess.run(["which", "telogator2"], capture_output=True, text=True)
         telogator2_bin = result.stdout.strip()
-        # Resources are in site-packages/source/resources/
-        resource_dir = os.path.join(os.path.dirname(telogator2_bin), "..",
-            "lib", f"python{'.'.join(map(str, __import__('sys').version_info[:2]))}",
-            "site-packages", "source", "resources")
-        ref_file = os.path.join(resource_dir, "non-human", f"telogator-ref-{species}.fa.gz")
-        if os.path.exists(ref_file):
-            return ref_file
-        logger.warning(f"No telogator2 reference found for species '{species}', using default (human)")
+        if telogator2_bin:
+            # Resources are in site-packages/source/resources/
+            pyver = f"python{'.'.join(map(str, __import__('sys').version_info[:2]))}"
+            resource_dir = os.path.join(os.path.dirname(telogator2_bin), "..",
+                "lib", pyver, "site-packages", "source", "resources")
+            ref_file = os.path.join(resource_dir, "non-human", f"telogator-ref-{species}.fa.gz")
+            if os.path.exists(ref_file):
+                return _validate_telogator_ref(ref_file)
     except Exception as e:
         logger.warning(f"Error finding telogator2 ref: {e}")
-    return ""
+    if species in _TEL_BUILTIN_REF_SPECIES:
+        return f"resources/non-human/telogator-ref-{species}.fa.gz"
+    raise ValueError(
+        f"telogator2 has no built-in subtelomere reference for species "
+        f"'{species}' (shipped non-human refs: {sorted(_TEL_BUILTIN_REF_SPECIES)}); "
+        f"set 'Params.telomere.telogator2.subtel_ref' in the config JSON to a "
+        f"telogator2-format tip reference (contigs '<build>_<chr><arm>', "
+        f"~500 kb per arm tip — see modules/telomere/length/README.md).")
 
 def _inp(method: str, key: str, sample_id: str):
     """Dict-mode input: inputs[method][key][sample_id]; None if absent."""

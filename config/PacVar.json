@@ -379,6 +379,7 @@
       ],
       "telogator2": {
         "species": null,
+        "subtel_ref": null,
         "threads": 16
       },
       "assembly_scan": {

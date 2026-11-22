@@ -328,6 +328,7 @@ telomere_config = {
     "samples": samples,
     "bam_substring": "sorted_markdup",
     "assembly_dir": centromere_outdir,
+    "genome": {"fasta": genome_ref.get("fasta")},
     "Procedure": {
         "telogator2": config.get("Procedure", {}).get("telogator2"),
         "tidk": config.get("Procedure", {}).get("tidk")

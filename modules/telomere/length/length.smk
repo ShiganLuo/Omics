@@ -34,10 +34,20 @@ if isinstance(_tel_formats, str):
     _tel_formats = [_tel_formats]
 
 def get_telogator2_ref():
-    """Get species-specific subtelomere reference path."""
+    """telogator2 -t reference: the configured genome FASTA (e.g. T2T).
+
+    telogator2 accepts an external reference via ``-t``; we pass the sample's
+    reference genome (``genome.fasta``, e.g. rhesus Mmul_T2T) — it IS the
+    reference, so no per-species built-in ref / alias lookup is needed
+    (never guess a species). Only if no genome FASTA is configured do we fall
+    back to telogator2's built-in ``telogator-ref-<species>.fa.gz``.
+    """
+    fasta = config.get("genome", {}).get("fasta", "")
+    if fasta:
+        return fasta
+    # Fallback: telogator2 built-in per-species reference (alias lookup).
     if species == "human":
         return ""  # use default
-    # Find telogator2 installation and use non-human ref
     try:
         result = subprocess.run(["which", "telogator2"], capture_output=True, text=True)
         telogator2_bin = result.stdout.strip()

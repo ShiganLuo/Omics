@@ -561,6 +561,7 @@ telomere_config = {
     "samples": samples,
     "bam_substring": "fiberseq.fire.sorted",
     "assembly_dir": "",  # Fiberseq has no hifiasm assembly; leave empty
+    "genome": {"fasta": fasta},
     # 字典模式输入(每方法一份 sample→path 字典,仿 sexcheck sample_bams):
     # telogator2 用比对 fire.bam+.bai;read_density 用原始/unmapped HiFi BAM。
     "inputs": {

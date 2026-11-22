@@ -1,0 +1,15 @@
+{
+  "indir": "input",
+  "outdir": "output",
+  "logdir": "log",
+  "samples": [],
+  "Params": {
+    "telomere": {
+      "regions": {
+        "subtelomere": 100000,
+        "min_len": 1000,
+        "scan_tsv": "/data/16T/luosg/workflow/Omics/assests/test/data/telomere/scan.tsv"
+      }
+    }
+  }
+}

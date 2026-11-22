@@ -556,7 +556,7 @@ telomere_config = {
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": aligned_dir,
-    "outdir": f"{analysis_outdir}/telomere",
+    "outdir": f"{outdir}/telomere/length",
     "logdir": f"{logdir}/sample",
     "samples": samples,
     "bam_substring": "fiberseq.fire.sorted",
@@ -581,7 +581,7 @@ telomere_config = {
     },
 }
 module telomere:
-    snakefile: "../modules/telomere/telomere.smk"
+    snakefile: "../modules/telomere/length/length.smk"
     config: telomere_config
 logger.debug(f"telomere_config: {telomere_config}")
 use rule telogator2_run from telomere as Fiberseq_telogator2_run

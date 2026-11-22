@@ -1,0 +1,59 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "telomere": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "regions": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "subtelomere": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "min_len": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "scan_tsv": {
+                "type": "str",
+                "path": "file",
+                "nullable": true,
+                "required": false
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

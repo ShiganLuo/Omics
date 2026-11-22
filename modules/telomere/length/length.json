@@ -26,7 +26,10 @@
       "read_density": {
         "n_chrom_arms": 40
       },
-      "tidk": {}
+      "tidk": {},
+      "depth_qc": {
+        "telomere_bed": "/data/16T/luosg/workflow/Omics/assests/test/data/telomere/telomere.bed"
+      }
     }
   }
 }

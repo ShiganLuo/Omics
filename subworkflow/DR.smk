@@ -1353,6 +1353,7 @@ use rule qc_summary from rna_qc_summary as DR_RNA_qc_summary
 drclass_config = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
     "outdir": f"{outdir}/DRclass",
     "logdir": os.path.join(logdir, "sample"),
     "samples": drclass_samples,

@@ -105,10 +105,10 @@ rule cnvkit_batch:
     """Run CNVkit batch analysis on all samples."""
     input:
         treat_bams = expand(indir + "/{sid}/{sid}" + bam_suffix + ".bam", sid=samples),
-        ref = outdir + "/reference/reference.cnn" if control_samples else "",
+        ref = [outdir + "/reference/reference.cnn"] if control_samples else [],
         fasta =  _require(config.get("genome", {}).get("fasta"), "genome.fasta", "cnvkit"),
-        access = access if access else "",
-        targets = targets_bed if (_cnvkit_batch_method == "hybrid" and targets_bed) else "",
+        access = [access] if access else [],
+        targets = [targets_bed] if (_cnvkit_batch_method == "hybrid" and targets_bed) else [],
     output:
         cnr = expand(outdir + "/{sample_id}/{sample_id}.cnr", sample_id=samples) if not _cnvkit_batch_use_paired else [],
         cns = expand(outdir + "/{sample_id}/{sample_id}.cns", sample_id=samples) if not _cnvkit_batch_use_paired else []
@@ -143,7 +143,7 @@ rule cnvkit_batch:
             cmd = [params.cnvkit, "batch"]
             cmd += [str(bam) for bam in input.treat_bams]
             if input.ref:
-                cmd += ["--reference", str(input.ref)]
+                cmd += ["--reference", str(input.ref[0])]
             else:
                 # No control samples: pass a bare -n so CNVkit builds a FLAT
                 # reference (uniform expected coverage). Without it, batch
@@ -152,9 +152,9 @@ rule cnvkit_batch:
                 cmd += ["-n"]
                 cmd += ["--method", params.method, "--fasta", str(input.fasta)]
                 if input.access:
-                    cmd += ["--access", str(input.access)]
+                    cmd += ["--access", str(input.access[0])]
                 if input.targets:
-                    cmd += ["--targets", str(input.targets)]
+                    cmd += ["--targets", str(input.targets[0])]
             cmd += ["--processes", str(threads), "--output-dir", params.staging, "--scatter", "--diagram"]
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")

@@ -1051,24 +1051,31 @@ def runPacVar(
         for sample_id in samples:
             # Telogator2 (per-chromosome-arm)
             if "telogator2" in tel_methods:
-                outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/telogator2/tlens_by_allele.tsv")
-                outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/telogator2/all_final_alleles.png")
-                outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/telogator2/violin_atl.png")
+                outfiles.append(f"{outdir}/telomere/length/telogator2/{sample_id}/tlens_by_allele.tsv")
+                outfiles.append(f"{outdir}/telomere/length/telogator2/{sample_id}/all_final_alleles.png")
+                outfiles.append(f"{outdir}/telomere/length/telogator2/{sample_id}/violin_atl.png")
             # Approach A: Assembly contig end scanning
             if "assembly_scan" in tel_methods:
-                outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/assembly_scan/{sample_id}_assembly_telomere_stats.txt")
+                outfiles.append(f"{outdir}/telomere/length/assembly_scan/{sample_id}/{sample_id}_assembly_telomere_stats.txt")
                 for _f in _tel_fmts:
-                    outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/assembly_scan/{sample_id}_assembly_telomere_length.{_f}")
+                    outfiles.append(f"{outdir}/telomere/length/assembly_scan/{sample_id}/{sample_id}_assembly_telomere_length.{_f}")
             # Approach B: Read-level k-mer density
             if "read_density" in tel_methods:
-                outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/read_density/{sample_id}_read_telomere_stats.txt")
+                outfiles.append(f"{outdir}/telomere/length/read_density/{sample_id}/{sample_id}_read_telomere_stats.txt")
                 for _f in _tel_fmts:
-                    outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/read_density/{sample_id}_read_telomere_content.{_f}")
+                    outfiles.append(f"{outdir}/telomere/length/read_density/{sample_id}/{sample_id}_read_telomere_content.{_f}")
             # Approach C: tidk
             if "tidk" in tel_methods:
-                outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/tidk/{sample_id}_tidk_telomeres.tsv")
+                outfiles.append(f"{outdir}/telomere/length/tidk/{sample_id}/{sample_id}_tidk_telomeres.tsv")
                 for _f in _tel_fmts:
-                    outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/tidk/{sample_id}_tidk_telomeres.{_f}")
+                    outfiles.append(f"{outdir}/telomere/length/tidk/{sample_id}/{sample_id}_tidk_telomeres.{_f}")
+            if "read_density" in _tel_methods:
+                for _f in _tel_fmts:
+                    outfiles.append(f"{outdir}/telomere/length/read_density/combined.{_f}")
+            if len(_tel_methods) >= 4:
+                for _f in _tel_fmts:
+                    outfiles.append(f"{outdir}/telomere/length/combined_methods.{_f}")
+            outfiles.append(f"{outdir}/telomere/length/depth_qc/{sample_id}/{sample_id}_telomere_region_depth_stats.txt")
             # Centromere (separate module; not gated by telomere method)
             outfiles.append(f"{outdir}/repeat/centromere/{sample_id}/{sample_id}.centromere_stats.txt")
 
@@ -2659,7 +2666,7 @@ def runFiberseq(
         if enable_telomere:
             _TEL_METHODS = ("telogator2", "assembly_scan", "read_density", "tidk")
             _tel_methods = (datajson.get("Params", {}).get("telomere", {}).get("method")
-                            or ["telogator2", "read_density"])
+                            or list(_TEL_METHODS))
             if isinstance(_tel_methods, str):
                 _tel_methods = [_tel_methods]
             _bad_tel = [m for m in _tel_methods if m not in _TEL_METHODS]
@@ -2671,22 +2678,29 @@ def runFiberseq(
                          .get("formats") or ["png"])
             if isinstance(_tel_fmts, str):
                 _tel_fmts = [_tel_fmts]
-            _tb = f"{outdir}/fiberseq_analysis/telomere/{sample_id}"
+            _tb = f"{outdir}/telomere/length"
             if "telogator2" in _tel_methods:
-                outfiles.append(f"{_tb}/telogator2/tlens_by_allele.tsv")
-                outfiles.append(f"{_tb}/telogator2/all_final_alleles.png")
-                outfiles.append(f"{_tb}/telogator2/violin_atl.png")
+                outfiles.append(f"{_tb}/telogator2/{sample_id}/tlens_by_allele.tsv")
+                outfiles.append(f"{_tb}/telogator2/{sample_id}/all_final_alleles.png")
+                outfiles.append(f"{_tb}/telogator2/{sample_id}/violin_atl.png")
             if "assembly_scan" in _tel_methods:
-                outfiles.append(f"{_tb}/assembly_scan/{sample_id}_assembly_telomere_stats.txt")
+                outfiles.append(f"{_tb}/assembly_scan/{sample_id}/{sample_id}_assembly_telomere_stats.txt")
                 outfiles += _figs(
-                    f"{_tb}/assembly_scan/{sample_id}_assembly_telomere_length", _tel_fmts)
+                    f"{_tb}/assembly_scan/{sample_id}/{sample_id}_assembly_telomere_length", _tel_fmts)
             if "read_density" in _tel_methods:
-                outfiles.append(f"{_tb}/read_density/{sample_id}_read_telomere_stats.txt")
+                outfiles.append(f"{_tb}/read_density/{sample_id}/{sample_id}_read_telomere_stats.txt")
                 outfiles += _figs(
-                    f"{_tb}/read_density/{sample_id}_read_telomere_content", _tel_fmts)
+                    f"{_tb}/read_density/{sample_id}/{sample_id}_read_telomere_content", _tel_fmts)
             if "tidk" in _tel_methods:
-                outfiles.append(f"{_tb}/tidk/{sample_id}_tidk_telomeres.tsv")
-                outfiles += _figs(f"{_tb}/tidk/{sample_id}_tidk_telomeres", _tel_fmts)
+                outfiles.append(f"{_tb}/tidk/{sample_id}/{sample_id}_tidk_telomeres.tsv")
+                outfiles += _figs(f"{_tb}/tidk/{sample_id}/{sample_id}_tidk_telomeres", _tel_fmts)
+            if "read_density" in _tel_methods:
+                for _f in _tel_fmts:
+                    outfiles.append(f"{_tb}/read_density/combined.{_f}")
+            if len(_tel_methods) >= 4:
+                for _f in _tel_fmts:
+                    outfiles.append(f"{_tb}/combined_methods.{_f}")
+            outfiles.append(f"{_tb}/depth_qc/{sample_id}/{sample_id}_telomere_region_depth_stats.txt")
 
         # Step 5: haplotype chain
         if enable_haplotype:

@@ -1,0 +1,14 @@
+{
+  "indir": "input",
+  "outdir": "output",
+  "logdir": "log",
+  "samples": [],
+  "Params": {
+    "telomere": {
+      "composition": {
+        "min_read_len": 5000,
+        "max_reads": 2000000
+      }
+    }
+  }
+}

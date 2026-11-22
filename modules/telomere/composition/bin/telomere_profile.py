@@ -34,7 +34,12 @@ _SRC_DIR = Path(__file__).resolve().parent.parent.parent
 if str(_SRC_DIR) not in sys.path:
     sys.path.insert(0, str(_SRC_DIR))
 from src.common.util.LogUtil import setup_logger  # noqa: E402
-from src.common.util.FiberlibUtil import write_tsv  # noqa: E402
+def write_tsv(path, header, rows):  # inlined (modules.md #0 self-contained)
+    with open(path, "w") as fh:
+        fh.write("\t".join(header) + "\n")
+        for r in rows:
+            fh.write("\t".join(str(x) for x in r) + "\n")
+
 
 CANONICAL = "TTAGGG"
 VARIANTS = ["TCAGGG", "TTGGGG", "TGTGGG", "TTAGGC", "TTAGAG", "CTAGGG",

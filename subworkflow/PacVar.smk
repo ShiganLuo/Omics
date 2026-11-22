@@ -323,7 +323,7 @@ telomere_config = {
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": gatk_prepare_config["outdir"],
-    "outdir": f"{outdir}/repeat/telomere",
+    "outdir": f"{outdir}/telomere/length",
     "logdir": logdir,
     "samples": samples,
     "bam_substring": "sorted_markdup",
@@ -337,7 +337,7 @@ telomere_config = {
     },
 }
 module telomere:
-    snakefile: "../modules/telomere/telomere.smk"
+    snakefile: "../modules/telomere/length/length.smk"
     config: telomere_config
 logger.debug(f"telomere_config: {telomere_config}")
 use rule telogator2_run from telomere as PacVar_telogator2_run

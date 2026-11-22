@@ -119,6 +119,24 @@
             "nullable": true,
             "required": false,
             "properties": {}
+          },
+          "depth_qc": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "telomere_bed": {
+                "type": "str",
+                "path": "file",
+                "nullable": true,
+                "required": false
+              },
+              "control": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

@@ -1,0 +1,53 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "telomere": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "composition": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "min_read_len": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_reads": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

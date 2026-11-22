@@ -11,7 +11,7 @@ Note: For mouse telomeres (30-150kb), Approach A is recommended as HiFi reads
 (~15-25kb) cannot span the full telomere for telogator2.
 """
 
-include: "../common/common.smk"
+include: "../../common/common.smk"
 
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -116,14 +116,14 @@ rule telogator2_run:
     input:
         unpack(get_input_for_telogator2)
     output:
-        allele_tsv = os.path.join(outdir, "{sample_id}/telogator2/tlens_by_allele.tsv"),
-        allele_plot = os.path.join(outdir, "{sample_id}/telogator2/all_final_alleles.png"),
-        atl_plot = os.path.join(outdir, "{sample_id}/telogator2/violin_atl.png")
+        allele_tsv = os.path.join(outdir, "telogator2/{sample_id}/tlens_by_allele.tsv"),
+        allele_plot = os.path.join(outdir, "telogator2/{sample_id}/all_final_alleles.png"),
+        atl_plot = os.path.join(outdir, "telogator2/{sample_id}/violin_atl.png")
     log:
         logdir + "/{sample_id}/telogator2.log"
-    conda: "telomere.yaml"
+    conda: "../telomere.yaml"
     container:
-        sif("telomere.yaml", "telogator2_run")
+        sif("../telomere.yaml", "telogator2_run")
     params:
         telogator2 = config.get("Procedure", {}).get("telogator2") or "telogator2",
         ref = get_telogator2_ref()
@@ -182,17 +182,17 @@ rule assembly_telomere_scan:
     input:
         fasta = get_assembly_fasta
     output:
-        tsv = os.path.join(outdir, "{sample_id}/assembly_scan/{sample_id}_assembly_telomere.tsv"),
-        stats = os.path.join(outdir, "{sample_id}/assembly_scan/{sample_id}_assembly_telomere_stats.txt"),
-        plots = [os.path.join(outdir, "{sample_id}/assembly_scan/{sample_id}_assembly_telomere_length." + fmt)
+        tsv = os.path.join(outdir, "assembly_scan/{sample_id}/{sample_id}_assembly_telomere.tsv"),
+        stats = os.path.join(outdir, "assembly_scan/{sample_id}/{sample_id}_assembly_telomere_stats.txt"),
+        plots = [os.path.join(outdir, "assembly_scan/{sample_id}/{sample_id}_assembly_telomere_length." + fmt)
                  for fmt in _tel_formats],
     log:
         logdir + "/{sample_id}/assembly_telomere_scan.log"
-    conda: "telomere.yaml"
+    conda: "../telomere.yaml"
     container:
-        sif("telomere.yaml", "assembly_telomere_scan")
+        sif("../telomere.yaml", "assembly_telomere_scan")
     params:
-        script = os.path.join(ROOT_DIR, "modules/telomere/bin/scan_assembly_telomere.py"),
+        script = os.path.join(ROOT_DIR, "modules/telomere/length/bin/scan_assembly_telomere.py"),
         output_dir = os.path.join(outdir, "{sample_id}/assembly_scan"),
         scan_length = _tel.get("assembly_scan", {}).get("assembly_scan_length", 50000),
         formats = _tel_formats
@@ -251,14 +251,14 @@ rule read_density_telomere:
     input:
         unpack(get_input_for_read_density)
     output:
-        tsv = os.path.join(outdir, "{sample_id}/read_density/{sample_id}_read_telomere.tsv"),
-        stats = os.path.join(outdir, "{sample_id}/read_density/{sample_id}_read_telomere_stats.txt"),
-        plots = [os.path.join(outdir, "{sample_id}/read_density/{sample_id}_read_telomere_content." + fmt)
+        tsv = os.path.join(outdir, "read_density/{sample_id}/{sample_id}_read_telomere.tsv"),
+        stats = os.path.join(outdir, "read_density/{sample_id}/{sample_id}_read_telomere_stats.txt"),
+        plots = [os.path.join(outdir, "read_density/{sample_id}/{sample_id}_read_telomere_content." + fmt)
                  for fmt in _tel_formats],
     log:
         logdir + "/{sample_id}/read_density_telomere.log"
     params:
-        script = os.path.join(ROOT_DIR, "modules/telomere/bin/read_density_telomere.py"),
+        script = os.path.join(ROOT_DIR, "modules/telomere/length/bin/read_density_telomere.py"),
         output_dir = os.path.join(outdir, "{sample_id}/read_density"),
         n_chrom_arms = _tel.get("read_density", {}).get("n_chrom_arms", 40),
         formats = _tel_formats
@@ -268,9 +268,9 @@ rule read_density_telomere:
         mem_mb = lambda wildcards, input, attempt: rule_res(
             "read_density_telomere", input_size=input_size_mb(input),
             attempt=attempt).get("mem_mb", 8000),
-    conda: "telomere.yaml"
+    conda: "../telomere.yaml"
     container:
-        sif("telomere.yaml", "read_density_telomere")
+        sif("../telomere.yaml", "read_density_telomere")
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -325,9 +325,9 @@ rule tidk_init:
         mem_mb = lambda wildcards, input, attempt: rule_res(
             "tidk_init", input_size=input_size_mb(input),
             attempt=attempt).get("mem_mb", 8000),
-    conda: "telomere.yaml"
+    conda: "../telomere.yaml"
     container:
-        sif("telomere.yaml", "tidk_init")
+        sif("../telomere.yaml", "tidk_init")
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -367,8 +367,8 @@ rule tidk_scan:
     input:
         unpack(get_tidk_scan_input)
     output:
-        tsv = os.path.join(outdir, "{sample_id}/tidk/{sample_id}_tidk_telomeres.tsv"),
-        plots = [os.path.join(outdir, "{sample_id}/tidk/{sample_id}_tidk_telomeres." + fmt)
+        tsv = os.path.join(outdir, "tidk/{sample_id}/{sample_id}_tidk_telomeres.tsv"),
+        plots = [os.path.join(outdir, "tidk/{sample_id}/{sample_id}_tidk_telomeres." + fmt)
                  for fmt in _tel_formats],
     log:
         logdir + "/{sample_id}/tidk_scan.log"
@@ -376,7 +376,7 @@ rule tidk_scan:
         output_dir = os.path.join(outdir, "{sample_id}/tidk"),
         tidk = config.get("Procedure", {}).get("tidk") or "tidk",
         motif = "TTAGGG",
-        plot_script = os.path.join(ROOT_DIR, "modules/telomere/bin/plot_tidk.py"),
+        plot_script = os.path.join(ROOT_DIR, "modules/telomere/length/bin/plot_tidk.py"),
         formats = _tel_formats
     threads: rule_res("tidk_scan").get("threads", 1)
     benchmark: logdir + "/{sample_id}/tidk_scan.benchmark.tsv",
@@ -384,9 +384,9 @@ rule tidk_scan:
         mem_mb = lambda wildcards, input, attempt: rule_res(
             "tidk_scan", input_size=input_size_mb(input),
             attempt=attempt).get("mem_mb", 16000),
-    conda: "telomere.yaml"
+    conda: "../telomere.yaml"
     container:
-        sif("telomere.yaml", "tidk_scan")
+        sif("../telomere.yaml", "tidk_scan")
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -467,3 +467,137 @@ rule tidk_result:
     """Result aggregation for tidk scan."""
     input:
         tsv = outdir + "/{sample_id}/tidk/{sample_id}_tidk_telomeres.tsv"
+
+
+# ============================================================
+# Phase 3: multi-sample combined figures (all samples in one plot)
+#   + cross-method overview (when all methods run)
+# ============================================================
+def _all_method_tsvs(method, suffix):
+    return [os.path.join(outdir, method, s, s + suffix) for s in samples]
+
+rule read_density_combined:
+    input:
+        tsvs = lambda w: _all_method_tsvs("read_density", "_read_telomere.tsv")
+    output:
+        plots = [os.path.join(outdir, "read_density", "combined." + fmt)
+                 for fmt in _tel_formats],
+    log:
+        logdir + "/telomere/read_density_combined.log"
+    params:
+        script = os.path.join(ROOT_DIR, "modules/telomere/length/bin/plot_combined.py"),
+        outdir = os.path.join(outdir, "read_density"),
+        formats = _tel_formats,
+    threads: 1
+    conda: "../telomere.yaml"
+    run:
+        log_path = str(log); open(log_path, "w").close()
+        rl = setup_logger("read_density_combined", log_file=log_path)
+        try:
+            script = os.path.join(RECEIPT_DIR, "read_density_combined.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)
+            plain = os.path.join(outdir, "read_density", "read_density_combined.sh")
+            cmd = ["python", params.script, "-m", "read_density",
+                   "-c", "tel_bp_estimate", "-o", params.outdir,
+                   "--out_base", "combined"]
+            for s in samples:
+                cmd += ["-s", f"{s}={os.path.join(params.outdir, s, s + '_read_telomere.tsv')}"]
+            for _f in params.formats:
+                cmd += ["-F", _f]
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\nset -euo pipefail\n")
+                f.write(" ".join(cmd) + "\n")
+                f.write('echo "read_density_combined completed"\n')
+            shutil.copyfile(script, plain)
+            if SCRIPT_ONLY:
+                script_only_touch(output)
+            else:
+                shell(f"bash {plain} >> {log_path} 2>&1")
+        except Exception as e:
+            rl.error(f"read_density_combined failed: {e}\n")
+            raise RuntimeError(f"read_density_combined failed: {e}, see {log_path}\n")
+
+
+rule telomere_method_overview:
+    input:
+        stats = _all_method_tsvs("read_density", "_read_telomere_stats.txt")
+    output:
+        plots = [os.path.join(outdir, "combined_methods." + fmt) for fmt in _tel_formats],
+    log:
+        logdir + "/telomere/telomere_method_overview.log"
+    params:
+        script = os.path.join(ROOT_DIR, "modules/telomere/length/bin/plot_combined.py"),
+        outdir = outdir,
+        formats = _tel_formats,
+    threads: 1
+    conda: "../telomere.yaml"
+    run:
+        log_path = str(log); open(log_path, "w").close()
+        rl = setup_logger("telomere_method_overview", log_file=log_path)
+        try:
+            script = os.path.join(RECEIPT_DIR, "telomere_method_overview.sh")
+            os.makedirs(os.path.dirname(script), exist_ok=True)
+            plain = os.path.join(outdir, "telomere_method_overview.sh")
+            cmd = ["python", params.script, "-m", "overview", "-o", params.outdir,
+                   "--out_base", "combined_methods"]
+            for s in samples:
+                cmd += ["-s", f"read_density={os.path.join(params.outdir, 'read_density', s, s + '_read_telomere_stats.txt')}"]
+            for _f in params.formats:
+                cmd += ["-F", _f]
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\nset -euo pipefail\n")
+                f.write(" ".join(cmd) + "\n")
+                f.write('echo "overview completed"\n')
+            shutil.copyfile(script, plain)
+            if SCRIPT_ONLY:
+                script_only_touch(output)
+            else:
+                shell(f"bash {plain} >> {log_path} 2>&1")
+        except Exception as e:
+            rl.error(f"telomere_method_overview failed: {e}\n")
+            raise RuntimeError(f"overview failed: {e}, see {log_path}\n")
+
+
+# ============================================================
+# Phase 4: depth QC for aligned-BAM methods (⑥)
+#   scan reference for telomere coords + count sequencing depth as QC
+# ============================================================
+rule telomere_depth_qc:
+    input:
+        bam = lambda w: _inp("telogator2", "bam", w.sample_id) or _shapeA_bam(w.sample_id),
+        bed = _tel.get("depth_qc", {}).get("telomere_bed") or os.path.join(outdir, "telomere_regions.bed"),
+    output:
+        tsv = os.path.join(outdir, "depth_qc", "{sample_id}", "{sample_id}_telomere_region_depth.tsv"),
+        stats = os.path.join(outdir, "depth_qc", "{sample_id}", "{sample_id}_telomere_region_depth_stats.txt"),
+    log:
+        logdir + "/{sample_id}/telomere_depth_qc.log"
+    params:
+        script = os.path.join(ROOT_DIR, "modules/telomere/length/bin/telomere_region_depth.py"),
+        outdir = os.path.join(outdir, "depth_qc", "{sample_id}"),
+        control = _tel.get("depth_qc", {}).get("control", ""),
+    threads: 1
+    conda: "../telomere.yaml"
+    run:
+        log_path = str(log); open(log_path, "w").close()
+        rl = setup_logger("telomere_depth_qc", log_file=log_path)
+        try:
+            script_p = os.path.join(RECEIPT_DIR, f"telomere_depth_qc_{wildcards.sample_id}.sh")
+            os.makedirs(os.path.dirname(script_p), exist_ok=True)
+            plain = os.path.join(outdir, "depth_qc", wildcards.sample_id,
+                                 f"telomere_depth_qc_{wildcards.sample_id}.sh")
+            cmd = ["python", params.script, "-b", input.bam, "-d", input.bed,
+                   "-s", wildcards.sample_id, "-o", params.outdir]
+            if params.control:
+                cmd += ["-c", params.control]
+            with open(script_p, "w") as f:
+                f.write("#!/bin/bash\nset -euo pipefail\n")
+                f.write(" ".join(cmd) + "\n")
+                f.write('echo "depth_qc completed"\n')
+            shutil.copyfile(script_p, plain)
+            if SCRIPT_ONLY:
+                script_only_touch(output)
+            else:
+                shell(f"bash {plain} >> {log_path} 2>&1")
+        except Exception as e:
+            rl.error(f"telomere_depth_qc failed: {e}\n")
+            raise RuntimeError(f"depth_qc failed: {e}, see {log_path}\n")

@@ -74,3 +74,21 @@ isodecoder 分辨率的准确定量。tRNAtools 步骤即构建这套参考:解�
 1. mim-tRNAseq — https://github.com/nedialkova-lab/mim-tRNAseq
    (vendored 于 `modules/mimseq/mimseq/`,version.py 记 v1.3.6;
    作者 Drew Behrens, Nedialkova lab)。
+
+## 已知问题 / 待办:`species` 未自动随基因组(暂缓修复)
+
+`Params.mimseq.mimseq_tRNAtools.species` 目前是**静态配置值**,不随 meta/基因组自动变化
+(对比:scanpy 的 `species` 已在 `scRNAseq.smk` 里传 `genome` 基因组键,自动跟随)。
+本应按仓库范式(`GENOME_*_SPECIES` + `_fill_*`,如 `_fill_mei_rm_species`、VEP)从基因组
+自动填充,但**暂缓**,原因(never-guess:不猜物种/取值):
+
+1. **取值格式不确定**:mimseq 内置物种写作 `Hsap, Mmus, Scer`(mimseq/README.md),
+   而本 README 上文示例写 `--species human`(human/mouse)——两者矛盾,需以 mimseq 实际
+   `--species` 期望为准(查 argparse/文档)后才能填,填错会崩。
+2. **物种支持范围有限**:mimseq 内置物种仅 Hsap/Mmus/Scer(人/鼠/酵母);恒河猴等其它物种
+   需**自定义 tRNA 参考**(`species` 留空 + `--trnas`/`--trnaout`),此时不该自动填物种,
+   而应走自定义参考路径。
+
+**待办**:确认 mimseq `--species` 的准确取值(缩写 Hsap/Mmus 还是全名 human/mouse)后,
+再按 `_fill_*` 范式接成"基因组→物种自动填充 + 缺映射则报错";非内置物种则保持自定义
+tRNA 参考路径。在此之前请在配置里**显式**填 `species`(或留空用自定义 tRNA)。

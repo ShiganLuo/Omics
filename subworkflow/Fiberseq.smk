@@ -590,6 +590,53 @@ use rule read_density_telomere from telomere as Fiberseq_read_density_telomere
 use rule tidk_init from telomere as Fiberseq_tidk_init
 use rule tidk_scan from telomere as Fiberseq_tidk_scan
 
+# ============================================================
+# Telomere composition + regions sub-modules (telomere family)
+# ============================================================
+telomere_composition_config = {
+    "resources": config.get("resources", {}),
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": f"{outdir}/telomere/composition",
+    "logdir": f"{logdir}/sample",
+    "logdir_combine": f"{logdir}/group",
+    "samples": samples,
+    "inputs": {
+        "composition": {
+            "bam": {s: f"{aligned_dir}/{s}/{s}.fiberseq.fire.sorted.bam" for s in samples},
+        },
+    },
+    "Procedure": {},
+    "Params": {"telomere": config.get("Params", {}).get("telomere", {})},
+}
+module telomere_composition:
+    snakefile: "../modules/telomere/composition/composition.smk"
+    config: telomere_composition_config
+use rule composition_run from telomere_composition as Fiberseq_composition_run
+
+telomere_regions_config = {
+    "resources": config.get("resources", {}),
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": f"{outdir}/telomere/regions",
+    "logdir": f"{logdir}/sample",
+    "samples": samples,
+    "inputs": {
+        "regions": {
+            "scan_tsv": {s: f"{outdir}/telomere/length/assembly_scan/{s}/{s}_assembly_telomere.tsv"
+                         for s in samples},
+        },
+    },
+    "Procedure": {},
+    "Params": {"telomere": config.get("Params", {}).get("telomere", {})},
+}
+module telomere_regions:
+    snakefile: "../modules/telomere/regions/regions.smk"
+    config: telomere_regions_config
+use rule regions_telomere from telomere_regions as Fiberseq_regions_telomere
+
 
 # ============================================================
 # Step 5: Haplotype chain (variant calling → phasing → per-hap analysis)

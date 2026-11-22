@@ -1076,6 +1076,12 @@ def runPacVar(
                 for _f in _tel_fmts:
                     outfiles.append(f"{outdir}/telomere/length/combined_methods.{_f}")
             outfiles.append(f"{outdir}/telomere/length/depth_qc/{sample_id}/{sample_id}_telomere_region_depth_stats.txt")
+            # composition + regions 子模块输出
+            outfiles.append(f"{outdir}/telomere/composition/telomere_summary.tsv")
+            outfiles.append(f"{outdir}/telomere/composition/telomere_composition.tsv")
+            for _f in _tel_fmts:
+                outfiles.append(f"{outdir}/telomere/composition/telomere_length_violin.{_f}")
+            outfiles.append(f"{outdir}/telomere/regions/{sample_id}/{sample_id}.telomere.bed")
             # Centromere (separate module; not gated by telomere method)
             outfiles.append(f"{outdir}/repeat/centromere/{sample_id}/{sample_id}.centromere_stats.txt")
 
@@ -2701,6 +2707,11 @@ def runFiberseq(
                 for _f in _tel_fmts:
                     outfiles.append(f"{_tb}/combined_methods.{_f}")
             outfiles.append(f"{_tb}/depth_qc/{sample_id}/{sample_id}_telomere_region_depth_stats.txt")
+            outfiles.append(f"{outdir}/telomere/composition/telomere_summary.tsv")
+            outfiles.append(f"{outdir}/telomere/composition/telomere_composition.tsv")
+            for _f in _tel_fmts:
+                outfiles.append(f"{outdir}/telomere/composition/telomere_length_violin.{_f}")
+            outfiles.append(f"{outdir}/telomere/regions/{sample_id}/{sample_id}.telomere.bed")
 
         # Step 5: haplotype chain
         if enable_haplotype:

@@ -499,4 +499,11 @@ def sif(yaml_filename: str, rule_name: str = "") -> str:
 
     # 4. Fallback: env_dir / <module_dir> / <stem>.sif
     module_dir = os.path.basename(workflow.basedir)
-    return os.path.join(env_dir, module_dir, f"{stem}.sif")
+    fallback_sif = os.path.join(env_dir, module_dir, f"{stem}.sif")
+    if not os.path.isfile(fallback_sif):
+        logger.warning(
+            f"sif(): fallback container '{fallback_sif}' (stem '{stem}', rule "
+            f"'{rule_name}') does not exist on disk — jobs using it will fail at "
+            f"container start. Likely a yaml-stem vs config['env'] key mismatch."
+        )
+    return fallback_sif

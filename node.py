@@ -71,6 +71,19 @@ GENOME_RM_SPECIES = {
     "Mmul_T2T": "Macaca mulatta",
 }
 
+# Genome reference key -> telogator2 non-human reference alias. telogator2
+# resolves `telogator-ref-<alias>.fa.gz` in its install; the alias MUST match
+# that filename. Filled into Params.telomere.telogator2.species when unset —
+# genomes without an entry must set it explicitly, never guess a species.
+# (verify aliases against the telogator2 install's non-human/ refs.)
+GENOME_TELOGATOR2_SPECIES = {
+    "GRCh38": "human",
+    "GRCm39": "mouse",
+    "Mmul_10": "macaca_mulatta",
+    "Mmul_T2T": "macaca_mulatta",
+}
+
+
 # MEI TE-bucket vocabularies live in the config templates
 # (Params.sv.mei.te_buckets keyed by genome reference key, like
 # genome.references) — node.py only selects the active genome's list.
@@ -152,6 +165,51 @@ def _fill_mei_rm_species(datajson: Dict[str, Any], workflow: str) -> None:
         "mei", {})["rm_species"] = species
     logger.info(
         f"{workflow}: Params.sv.mei.rm_species := '{species}' "
+        f"(genome '{genome_key}')")
+
+
+def _fill_telomere_species(datajson: Dict[str, Any], workflow: str) -> None:
+    """Auto-fill Params.telomere.telogator2.species from genome.default.
+
+    telogator2 picks its subtelomere reference by species
+    (`telogator-ref-<alias>.fa.gz`). Explicit config wins; genomes without a
+    GENOME_TELOGATOR2_SPECIES entry must set it explicitly — never guess.
+    """
+    tel = (datajson.get("Params", {}).get("telomere", {}) or {})
+    if (tel.get("telogator2", {}) or {}).get("species"):
+        return
+    genome_key = str(datajson.get("genome", {}).get("default"))
+    species = GENOME_TELOGATOR2_SPECIES.get(genome_key)
+    if not species:
+        raise ValueError(
+            f"{workflow}: genome '{genome_key}' has no known telogator2 species "
+            f"alias; set 'Params.telomere.telogator2.species' in the config JSON "
+            f"(must match telogator2's telogator-ref-<alias>.fa.gz).")
+    datajson.setdefault("Params", {}).setdefault("telomere", {}).setdefault(
+        "telogator2", {})["species"] = species
+    logger.info(
+        f"{workflow}: Params.telomere.telogator2.species := '{species}' "
+        f"(genome '{genome_key}')")
+
+
+def _fill_repeatmasker_species(datajson: Dict[str, Any], workflow: str) -> None:
+    """Auto-fill Params.RepeatMasker species (RepeatMasker -species) from genome.
+
+    Reuses GENOME_RM_SPECIES (same term as the sv.mei Dfam path). Explicit
+    config wins; genomes without an entry must set it explicitly — never guess.
+    """
+    rm = (datajson.get("Params", {}).get("RepeatMasker", {}) or {})
+    if rm.get("species") or (rm.get("repeatmasker_init", {}) or {}).get("species"):
+        return
+    genome_key = str(datajson.get("genome", {}).get("default"))
+    species = GENOME_RM_SPECIES.get(genome_key)
+    if not species:
+        raise ValueError(
+            f"{workflow}: genome '{genome_key}' has no known RepeatMasker species; "
+            f"set 'Params.RepeatMasker.species' in the config JSON.")
+    datajson.setdefault("Params", {}).setdefault("RepeatMasker", {})["species"] = species
+    logger.info(
+        f"{workflow}: Params.RepeatMasker.species := '{species}' "
         f"(genome '{genome_key}')")
 
 
@@ -1095,6 +1153,8 @@ def runPacVar(
     sv_params = datajson.get("Params", {}).get("sv", {})
     _validate_te_lib(datajson, "PacVar")
     _fill_mei_rm_species(datajson, "PacVar")
+    _fill_telomere_species(datajson, "PacVar")
+    _fill_repeatmasker_species(datajson, "PacVar")
     comparisons = dict(sv_params.get("comparisons") or {})
     if enable_sv and not comparisons:
         for gp in group_pairs:

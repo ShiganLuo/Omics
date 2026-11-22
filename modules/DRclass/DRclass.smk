@@ -36,9 +36,9 @@ rule drclass_anchors:
     resources:
         mem_mb=rule_res("drclass_anchors").get("mem_mb", 2000),
     conda:
-        "DRclass.yaml"
+        "drclass.yaml"
     container:
-        sif("DRclass.yaml", "drclass_anchors")
+        sif("drclass.yaml", "drclass_anchors")
     run:
         log_path = str(log)
         open(log_path, "a").close()
@@ -89,9 +89,9 @@ rule drclass_pileup:
         mem_mb=rule_res("drclass_pileup").get("mem_mb", 8000),
     threads: rule_res("drclass_pileup").get("threads", 4)
     conda:
-        "DRclass.yaml"
+        "drclass.yaml"
     container:
-        sif("DRclass.yaml", "drclass_pileup")
+        sif("drclass.yaml", "drclass_pileup")
     run:
         log_path = str(log)
         open(log_path, "a").close()
@@ -152,9 +152,9 @@ rule drclass_classify:
     resources:
         mem_mb=rule_res("drclass_classify").get("mem_mb", 4000),
     conda:
-        "DRclass.yaml"
+        "drclass.yaml"
     container:
-        sif("DRclass.yaml", "drclass_classify")
+        sif("drclass.yaml", "drclass_classify")
     run:
         log_path = str(log)
         open(log_path, "a").close()
@@ -219,9 +219,9 @@ rule drclass_summary:
     resources:
         mem_mb=rule_res("drclass_summary").get("mem_mb", 2000),
     conda:
-        "DRclass.yaml"
+        "drclass.yaml"
     container:
-        sif("DRclass.yaml", "drclass_summary")
+        sif("drclass.yaml", "drclass_summary")
     run:
         log_path = str(log)
         open(log_path, "a").close()

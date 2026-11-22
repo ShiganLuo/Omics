@@ -34,7 +34,7 @@ genome_cfg = config.get("genome", {})
 default_genome = genome_cfg.get("default", "")
 genome_ref = genome_cfg.get("references", {}).get(default_genome, {})
 fasta = genome_ref.get("fasta") or genome_cfg.get("fasta") or ""
-logger.info(f"Fiber-seq genome: {default_genome}, fasta={fasta}")
+logger.debug(f"Fiber-seq genome: {default_genome}, fasta={fasta}")
 
 rule all:
     input:
@@ -160,7 +160,7 @@ sexcheck_config = {
 module sexcheck:
     snakefile: "../modules/sexcheck/sexcheck.smk"
     config: sexcheck_config
-logger.info(f"sexcheck_config: {sexcheck_config}")
+logger.debug(f"sexcheck_config: {sexcheck_config}")
 use rule sexcheck_idxstats from sexcheck as Fiberseq_sexcheck_idxstats
 use rule sexcheck from sexcheck as Fiberseq_sexcheck
 
@@ -189,7 +189,7 @@ qc_summary_config = {
 module qc_summary:
     snakefile: "../modules/qc_summary/qc_summary.smk"
     config: qc_summary_config
-logger.info(f"qc_summary_config: {qc_summary_config}")
+logger.debug(f"qc_summary_config: {qc_summary_config}")
 use rule qc_summary from qc_summary as Fiberseq_qc_summary
 
 

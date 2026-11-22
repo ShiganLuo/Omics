@@ -378,3 +378,32 @@ module tedominant:
 logger.debug(f"Using tedominant for TE-dominant cluster identification. config: {tedominant_config}")
 
 use rule * from tedominant as scRNAseq_*
+
+# ------------------------------------------------------------
+# TE profile (modules/teprofile) — three-layer TE expression
+# characterization (baseline / outlier subpopulations / group
+# remodeling) over the same combine-stage h5ad pairs. Gated by
+# Params.teprofile.enabled in node.py registration.
+# ------------------------------------------------------------
+teprofile_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "resources": config.get("resources", {}),
+    "indir": combine_dir,
+    "outdir": f"{outdir}/diff/te_profile",
+    "logdir": f"{logdir}/group",
+    "tissues": _tedom_tissues(),
+    "Params": {
+        "teprofile": config.get("Params", {}).get("teprofile", {}),
+    },
+    "Procedure": {
+        "python": config.get("Procedure", {}).get("python") or "python",
+    },
+}
+module teprofile:
+    snakefile: "../modules/teprofile/teprofile.smk"
+    config: teprofile_config
+logger.debug(f"Using teprofile for TE expression profiling. config: {teprofile_config}")
+
+use rule * from teprofile as scRNAseq_*

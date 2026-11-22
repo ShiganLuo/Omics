@@ -276,6 +276,13 @@
       "min_cells": 100,
       "gate_frac": 0.5,
       "skip_dotplot": false
+    },
+    "teprofile": {
+      "enabled": false,
+      "fe_cut": 1.5,
+      "groups": "",
+      "n_boot": 200,
+      "seed": 0
     }
   },
   "genome": {

@@ -31,6 +31,7 @@ Usage:
 import argparse
 import json
 import math
+import os
 import random
 import re
 import statistics
@@ -191,6 +192,10 @@ def main():
             continue
         rows.append((chrom, s, e, ma, mb, va, vb))
 
+    for out_path in (args.windows_out, args.summary_out):
+        out_dir = os.path.dirname(out_path)
+        if out_dir:
+            os.makedirs(out_dir, exist_ok=True)
     with open(args.windows_out, "w") as fh:
         fh.write(f"chrom\tstart\tend\tmean_{label_a}\tmean_{label_b}"
                  f"\tvar_{label_a}\tvar_{label_b}\n")

@@ -29,11 +29,17 @@ def _group_bam_list(wildcards):
     return out
 
 
-def _group_args():
-    """['--group', 'youth=y', '--group', 'aged=a', '--bam', ...] for the CLI."""
+def _group_cli():
+    """['--group', 'youth=y', ...] — both rules need the group mapping."""
     args = []
     for label in _glabels:
         args += ["--group", f"{label}={','.join(_groups.get(label) or [])}"]
+    return args
+
+
+def _bam_cli():
+    """['--bam', 'S=path', ...] — only the compute rule scans BAMs."""
+    args = []
     for label in _glabels:
         for s in _groups.get(label) or []:
             if s in _bams:
@@ -66,7 +72,7 @@ rule fiberseq_telocen_norm_run:
         sif("../fiberseq.yaml", "fiberseq_telocen_norm_run")
     params:
         script = ROOT_DIR + "/modules/fiberseq/telocen_norm/bin/telocen_normalized.py",
-        group_args = lambda wildcards: _group_args(),
+        group_args = lambda wildcards: _group_cli() + _bam_cli(),
     run:
         log_path = str(log)
         open(log_path, "a").close()
@@ -135,7 +141,7 @@ rule fiberseq_telocen_norm_fig:
         sif("../fiberseq.yaml", "fiberseq_telocen_norm_fig")
     params:
         script = ROOT_DIR + "/modules/fiberseq/telocen_norm/bin/plot_telocen_norm.py",
-        group_args = lambda wildcards: _group_args(),
+        group_args = lambda wildcards: _group_cli(),
         formats = _formats_fig,
         dpi = _p.get("fiberseq_telocen_norm_fig", {}).get("dpi", 200),
     run:

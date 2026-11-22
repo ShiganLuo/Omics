@@ -1,0 +1,74 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": false,
+    "required": true,
+    "description": "combine 阶段目录(含 {tissue}/{tissue}_scTE_{merged,auto}.h5ad)"
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true,
+    "default": "output"
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true,
+    "default": "logs"
+  },
+  "ROOT_DIR": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "tissues": {
+    "type": "list",
+    "nullable": true,
+    "required": true,
+    "default": [],
+    "description": "组织名列表;同时是输入子目录名与输出文件名片段"
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "teprofile": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "fe_cut": {
+            "type": "float",
+            "nullable": true,
+            "required": false,
+            "default": 1.5,
+            "description": "layer-2 TE 富集倍数门槛(--fe-cut):cluster 的 HK 归一化 TE 产量中位数 / 同谱系背景 ≥ fe_cut 才算 TE 富集"
+          },
+          "groups": {
+            "type": "str",
+            "nullable": true,
+            "required": false,
+            "default": "",
+            "description": "layer-3 分组(--groups):'组A:样本1,样本2;组B:样本3' 形式;空则跳过 layer 3"
+          },
+          "n_boot": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "default": 200,
+            "description": "layer-2 组成零分布的自助重抽样次数(--n-boot);每 cluster 从同谱系背景抽等大小子样本,真实 Aitchison 距离超过零分布 q95 才算组成异常(自适应 cluster 大小)"
+          },
+          "seed": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "default": 0,
+            "description": "自助抽样 RNG 种子(--seed)"
+          }
+        }
+      }
+    }
+  }
+}

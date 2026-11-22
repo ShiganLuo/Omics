@@ -1,0 +1,16 @@
+{
+  "indir": "",
+  "outdir": "output",
+  "logdir": "logs",
+  "ROOT_DIR": ".",
+  "tissues": [],
+  "Params": {
+    "teprofile": {
+      "fe_cut": 1.5,
+      "groups": "",
+      "n_boot": 200,
+      "seed": 0
+    }
+  },
+  "env": {}
+}

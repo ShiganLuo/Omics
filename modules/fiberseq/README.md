@@ -18,6 +18,8 @@ Cell Rep Methods 2024 [1]、Genome Res 2024 [2]、Nat Genet 2025 [3]。
 | `coactuation/` | fiberseq_coactuation_run | coactuation*.tsv |
 | `haplotype/` | fiberseq_haplotype_diff | haplotype_diff.tsv |
 | `censat/` | fiberseq_censat_run | censat_*.tsv + PDF |
+| `telocen_norm/` | fiberseq_telocen_norm_run, fiberseq_telocen_norm_fig | region_normalized.tsv / class_diff_normalized.tsv + telocen_normalized.{fmt}（两组端粒-着丝粒区域深度归一化比较，fig2） |
+| `epi_drift/` | fiberseq_epi_drift_run, fiberseq_epi_drift_fig | epigenetic_drift_windows.tsv / epigenetic_drift.json + epigenetic_drift.{fmt}（两组单纤维 m5CpG 方差漂移检验，fig9） |
 | `track/` | fiberseq_track_run | *.bw + trackDb.txt |
 
 共享脚本在 `bin/`，共享库 `src/common/util/FiberlibUtil.py`。
@@ -37,6 +39,8 @@ raw rgba`（matplotlib savefig 全集），非法值在解析期即报错。dpi 
 | `Params.fiberseq_nucpos.formats` | `-f/--format`（可重复） | pdf | `{sample_id}.nucpos` |
 | `Params.fiberseq_diff.formats` | `-f/--format`（可重复） | pdf | `volcano_{contrast}` |
 | `Params.fiberseq_censat.formats` | `--format`（可重复） | pdf | `{sample_id}.censat_profile` |
+| `Params.fiberseq_telocen_norm.fiberseq_telocen_norm_fig.formats` | `--format`（可重复） | png | `telocen_normalized` |
+| `Params.fiberseq_epi_drift.fiberseq_epi_drift_fig.formats` | `--format`（可重复） | png | `epigenetic_drift` |
 
 注：`censat_profile.py`/`footprint_profile.py`/`motif_profile.py` 的 `-f`
 已被 `--flank` 占用，故这三个脚本只有长选项 `--format`。

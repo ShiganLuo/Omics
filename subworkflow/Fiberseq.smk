@@ -518,6 +518,68 @@ module fiberseq_censat:
 logger.debug(f"fiberseq_censat config: {fiberseq_censat_config}")
 use rule fiberseq_censat_run from fiberseq_censat as Fiberseq_censat_run
 
+# ============================================================
+# Comparison figure modules (fig2 / fig9 style): two-group designs,
+# groups = Params.<step>.groups {label: [samples]} (exactly 2 groups).
+# ============================================================
+fiberseq_telocen_norm_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "indir": aligned_dir,
+    "outdir": f"{analysis_outdir}/telocen_norm",
+    "logdir": f"{logdir}/group",
+    "samples": samples,
+    "inputs": {
+        "telocen_norm": {
+            "bam": {s: f"{aligned_dir}/{s}/{s}.fiberseq.fire.sorted.bam"
+                    for s in samples},
+        },
+    },
+    "Params": {
+        "fiberseq_telocen_norm": params.get("telocen_norm", {})
+    },
+    "genome": {
+        "telocen_bed": genome_ref.get("telocen_bed"),
+    },
+    "resources": config.get("resources", {}),
+}
+module fiberseq_telocen_norm:
+    snakefile: "../modules/fiberseq/telocen_norm/telocen_norm.smk"
+    config: fiberseq_telocen_norm_config
+logger.debug(f"fiberseq_telocen_norm config: {fiberseq_telocen_norm_config}")
+use rule fiberseq_telocen_norm_run from fiberseq_telocen_norm as Fiberseq_telocen_norm_run
+use rule fiberseq_telocen_norm_fig from fiberseq_telocen_norm as Fiberseq_telocen_norm_fig
+
+fiberseq_epi_drift_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "indir": aligned_dir,
+    "outdir": f"{analysis_outdir}/epi_drift",
+    "logdir": f"{logdir}/group",
+    "samples": samples,
+    "inputs": {
+        "epi_drift": {
+            "bam": {s: f"{aligned_dir}/{s}/{s}.fiberseq.fire.sorted.bam"
+                    for s in samples},
+        },
+    },
+    "Params": {
+        "fiberseq_epi_drift": params.get("epi_drift", {})
+    },
+    "genome": {
+        "fai_index": genome_ref.get("fai_index"),
+    },
+    "resources": config.get("resources", {}),
+}
+module fiberseq_epi_drift:
+    snakefile: "../modules/fiberseq/epi_drift/epi_drift.smk"
+    config: fiberseq_epi_drift_config
+logger.debug(f"fiberseq_epi_drift config: {fiberseq_epi_drift_config}")
+use rule fiberseq_epi_drift_run from fiberseq_epi_drift as Fiberseq_epi_drift_run
+use rule fiberseq_epi_drift_fig from fiberseq_epi_drift as Fiberseq_epi_drift_fig
+
 fiberseq_track_config = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -541,13 +603,39 @@ module fiberseq_track:
 logger.debug(f"fiberseq_track config: {fiberseq_track_config}")
 use rule fiberseq_track_run from fiberseq_track as Fiberseq_track_run
 
+assembly_outdir = f"{outdir}/assembly"
+centromere_config = {
+    "resources": config.get("resources", {}),
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "indir": "",
+    "outdir": assembly_outdir,
+    "logdir": f"{logdir}/sample",
+    "samples": samples,
+    "bam_substring": "",
+    "inputs": {
+        "hifiasm": {
+            "bam": {s: f"{outdir}/common/1_raw_data/{s}/{s}.bam" for s in samples},
+            "pbi": {s: f"{outdir}/common/1_raw_data/{s}/{s}.bam.pbi" for s in samples},
+        },
+    },
+    "Params": {
+        "hifiasm": config.get("Params", {}).get("hifiasm", {}),
+        "RepeatMasker": config.get("Params", {}).get("RepeatMasker", {}),
+    },
+}
+module centromere:
+    snakefile: "../modules/centromere/centromere.smk"
+    config: centromere_config
+logger.debug(f"centromere_config: {centromere_config}")
+use rule * from centromere as Fiberseq_centromere_*
+
 # ============================================================
 # Telomere length analysis (modules/telomere)
 #   indir = aligned fire.bam (telogator2 needs .bai). NOTE: read_density's
 #   reference-free k-mer method ideally consumes the RAW/unmapped HiFi BAM
 #   (loses pure-telomere reads in an aligned BAM — see module README §3.1/§3.4).
-#   Fiberseq has no hifiasm/centromere assembly, so default method omits
-#   assembly_scan/tidk (they need {assembly_dir}/{sample}/assembly/asm.bp.p_ctg.fa).
 #   Method selection lives in Params.telomere.method (node.py gates outputs).
 # ============================================================
 telomere_config = {
@@ -560,7 +648,7 @@ telomere_config = {
     "logdir": f"{logdir}/sample",
     "samples": samples,
     "bam_substring": "fiberseq.fire.sorted",
-    "assembly_dir": "",  # Fiberseq has no hifiasm assembly; leave empty
+    "assembly_dir": config.get("assembly_dir") or assembly_outdir,
     "genome": {"fasta": fasta},
     # 字典模式输入(每方法一份 sample→path 字典,仿 sexcheck sample_bams):
     # telogator2 用比对 fire.bam+.bai;read_density 用原始/unmapped HiFi BAM。
@@ -590,6 +678,9 @@ use rule assembly_telomere_scan from telomere as Fiberseq_assembly_telomere_scan
 use rule read_density_telomere from telomere as Fiberseq_read_density_telomere
 use rule tidk_init from telomere as Fiberseq_tidk_init
 use rule tidk_scan from telomere as Fiberseq_tidk_scan
+use rule read_density_combined from telomere as Fiberseq_read_density_combined
+use rule telomere_method_overview from telomere as Fiberseq_telomere_method_overview
+use rule telomere_depth_qc from telomere as Fiberseq_telomere_depth_qc
 
 # ============================================================
 # Telomere composition + regions sub-modules (telomere family)

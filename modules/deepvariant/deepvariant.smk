@@ -90,7 +90,7 @@ rule deepvariant_run:
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            raise f"Error occurred while running DeepVariant for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details."
+            raise RuntimeError(f"Error occurred while running DeepVariant for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")
 
 rule deepvariant_result:
     input:

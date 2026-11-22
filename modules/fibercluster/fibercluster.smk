@@ -22,12 +22,13 @@ samples = config.get("samples", [])
 fibercluster_params = config.get("Params", {}).get("fibercluster", {})
 fc_params = fibercluster_params.get("fiber_cluster", {})
 fr_params = fibercluster_params.get("fiber_report", {})
-# Settings labels = the {setting} wildcard values (one engine run each; the
-# sigtest `contrasts` shape). Per-label channel/k overrides live with their
-# consumer in Params.fibercluster.fiber_cluster.{channel,k}_by_setting
-# (the feature_col_by_contrast shape); a plain string is accepted and
-# expanded to a one-element list.
-_settings = config.get("settings") or ["default"]
+# Settings labels = the {setting} wildcard values (one engine run each).
+# Zero-config default: no `settings` and no per-setting overrides -> one run
+# labeled "auto" with engine defaults (-k auto: silhouette-chosen per region).
+# Sensitivity presets stay available: list labels here AND give each label an
+# entry in channel_by_setting/k_by_setting only when it deviates from
+# Params.fibercluster.fiber_cluster.{channel,k} (the module-level defaults).
+_settings = config.get("settings") or ["auto"]
 if isinstance(_settings, str):
     _settings = [_settings]
 
@@ -91,6 +92,7 @@ rule fiber_cluster:
         script = os.path.join(ROOT_DIR, "modules", "fibercluster", "bin", "fiber_cluster.py"),
         p = fc_params,
         samples = samples,
+        sif_path = sif("../fiberseq/fiberseq.yaml", "fiber_cluster"),
     run:
         log_path = str(log)
         open(log_path, "a").close()
@@ -99,46 +101,46 @@ rule fiber_cluster:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start fiber_cluster for setting {wildcards.setting} at {current_time}")
             setting_outdir = os.path.dirname(str(output.done))
+            # 规则重跑 = 全量重算;先清上一轮产物,避免脏文件掩蔽失败检测
+            # (如 regions_failed.txt 残留会把 rc=1 误判为「部分区域失败」)
+            shutil.rmtree(setting_outdir, ignore_errors=True)
             os.makedirs(setting_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"fiber_cluster_{wildcards.setting}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # 设置名可能含路径分隔符
             plain_script = os.path.join(setting_outdir, f"fiber_cluster_{wildcards.setting}.sh")
             s_label = str(wildcards.setting)
-            # channel/k are properties OF the setting: each label must carry
-            # an entry in channel_by_setting/k_by_setting (no shared global —
-            # a missing entry fails naming the JSON key to fill)
-            s_channel = (params.p.get("channel_by_setting") or {}).get(s_label)
-            if s_channel is None:
-                raise RuntimeError(
-                    f"Params.fibercluster.fiber_cluster.channel_by_setting has no entry "
-                    f"for setting '{s_label}' — add it (msp|fire).")
-            s_k = (params.p.get("k_by_setting") or {}).get(s_label)
-            if s_k is None:
-                raise RuntimeError(
-                    f"Params.fibercluster.fiber_cluster.k_by_setting has no entry "
-                    f"for setting '{s_label}' — add it (int).")
+            # channel/k fall back to the module-level defaults; per-setting
+            # dicts override ONLY the labels they name (sensitivity presets).
+            s_channel = (params.p.get("channel_by_setting") or {}).get(s_label) \
+                or params.p.get("channel") or "msp"
+            s_k = (params.p.get("k_by_setting") or {}).get(s_label, params.p.get("k", 0))
+            s_k = int(s_k) if s_k else 0  # 0 = engine auto-k
+            # 回执脚本经 subprocess.call 直跑(不走 Snakemake shell(),否则会被
+            # 再包一层容器执行且无法捕获退出码),故命令须显式 apptainer exec 经
+            # SIF 执行:引擎依赖 pysam(仅 fiberseq.sif 内有)。--bind /data/16T
+            # 覆盖脚本/元素/输出全部路径。
             cmd = [
+                "apptainer", "exec", "--bind", "/data/16T", params.sif_path,
                 "python", params.script,
                 "-r", str(input.regions),
                 "-o", setting_outdir,
-                "-b", str(100 if params.p.get("bin_size") is None else params.p.get("bin_size")),
-                "-B", str(params.p.get("bin_mode") or "any"),
-                "-P", str(10 if params.p.get("min_msp_bp") is None else params.p.get("min_msp_bp")),
-                "-e", str(params.p.get("method") or "hierarchical"),
                 "-C", str(s_channel),
                 "-k", str(s_k),
-                "-n", str(10 if params.p.get("min_fibers") is None else params.p.get("min_fibers")),
-                "-s", str(0.8 if params.p.get("min_span_frac") is None else params.p.get("min_span_frac")),
-                "-t", str(0.5 if params.p.get("bin_threshold") is None else params.p.get("bin_threshold")),
-                "-a", str(300 if params.p.get("max_fibers") is None else params.p.get("max_fibers")),
-                "-T", str(params.p.get("right_tracks") or "fire,lnk,nuc"),
-                "-q", str(0.1 if params.p.get("fire_fdr") is None else params.p.get("fire_fdr")),
-                "-x", str(0 if params.p.get("seed") is None else params.p.get("seed")),
-                # display order = the samples list order (its own ordering is
-                # the single source; no separate sample_order key)
                 "-S", ",".join(params.samples),
                 "-w",  # 规则重跑即全量重算(mtime 由 done 标记跟踪)
             ]
+            # optional knobs: forward only what the config actually sets, so
+            # the engine's own defaults stay the single source of truth
+            _opt_flags = {
+                "bin_size": "-b", "bin_mode": "-B", "min_msp_bp": "-P",
+                "method": "-e", "min_fibers": "-n", "min_span_frac": "-s",
+                "bin_threshold": "-t", "max_fibers": "-a",
+                "right_tracks": "-T", "fire_fdr": "-q", "seed": "-x",
+            }
+            for key, flag in _opt_flags.items():
+                val = params.p.get(key)
+                if val is not None and val != "":
+                    cmd += [flag, str(val)]
             cache_dir = params.p.get("cache_dir")
             if cache_dir:
                 cmd += ["-y", str(cache_dir)]
@@ -164,7 +166,25 @@ rule fiber_cluster:
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
-                shell(f"bash {plain_script} >> {log_path} 2>&1")
+                import glob as _glob
+                import subprocess as _sp
+                rc = _sp.call(f"bash {plain_script} >> {log_path} 2>&1", shell=True)
+                failed_list = os.path.join(setting_outdir, "regions_failed.txt")
+                if rc == 1 and os.path.exists(failed_list):
+                    # 引擎契约(README §1.1):区域级失败(如 n_fibers<10)收进
+                    # regions_failed.txt 且退出码 1 = 部分区域失败,不阻断 DAG;
+                    # 失败清单随逐区域产物一并被跟踪。
+                    rule_logger.warning(
+                        f"fiber_cluster {wildcards.setting}: 部分区域失败(rc=1),"
+                        f"清单见 {failed_list}")
+                elif rc != 0:
+                    raise RuntimeError(
+                        f"fiber_cluster {wildcards.setting} failed with rc={rc}, "
+                        f"see {log_path}")
+                if not _glob.glob(os.path.join(setting_outdir, "*", "cluster_assignments.tsv")):
+                    raise RuntimeError(
+                        f"fiber_cluster {wildcards.setting}: 无任何区域产出(全部失败?), "
+                        f"see {log_path}")
                 # 标记文件: 区域名来自 regions BED,逐区域产物随标记被 DAG 跟踪
                 open(str(output.done), "w").close()
             rule_logger.info(f"fiber_cluster completed for setting {wildcards.setting}")
@@ -198,6 +218,7 @@ rule fiber_report:
         p = fr_params,
         settings = list(_settings),
         samples = samples,
+        sif_path = sif("../fiberseq/fiberseq.yaml", "fiber_report"),
     run:
         log_path = str(log)
         open(log_path, "a").close()
@@ -211,10 +232,12 @@ rule fiber_report:
             plain_script = os.path.join(report_outdir, "fiber_report.sh")
             canonical = params.p.get("canonical")
             if not canonical:
-                raise RuntimeError(
-                    "Params.fibercluster.fiber_report.canonical is empty — name the "
-                    "setting label whose figures/summary become the deliverable.")
-            cmd = ["python", params.script, "-c", str(canonical), "-o", str(outdir)]
+                # default: the FIRST setting is the deliverable run; a
+                # single-run setup needs no canonical key at all
+                canonical = params.settings[0]
+                rule_logger.info(f"fiber_report.canonical not set -> using first setting {canonical!r}")
+            cmd = ["apptainer", "exec", "--bind", "/data/16T", params.sif_path,
+                   "python", params.script, "-c", str(canonical), "-o", str(outdir)]
             for label in params.settings:
                 cmd += ["-r", f"{label}={outdir}/{label}"]
             cmd += ["-S", ",".join(params.samples)]
@@ -227,7 +250,13 @@ rule fiber_report:
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
-                shell(f"bash {plain_script} >> {log_path} 2>&1")
+                import subprocess as _sp
+                # shell() 会被 Snakemake 包进容器执行,但无法捕获退出码(rc=1 契约);
+                # 这里用 subprocess.call 直跑回执脚本,故命令显式 apptainer exec 经
+                # SIF 执行(见 cmd 构造处)。
+                rc = _sp.call(f"bash {plain_script} >> {log_path} 2>&1", shell=True)
+                if rc != 0:
+                    raise RuntimeError(f"fiber_report failed with rc={rc}, see {log_path}")
                 # figures/ 目录名随 regions BED 变化,figures.done 兜底跟踪
                 open(str(output.figures), "w").close()
             rule_logger.info("fiber_report completed")

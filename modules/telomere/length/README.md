@@ -20,7 +20,7 @@
 | 输入 | 说明 |
 |---|---|
 | `indir` + `bam_substring` | 形态 A 拼接:`{indir}/{sample_id}/{sample_id}[.{bam_substring}].bam`(+ `.bai`,Telogator2 需要) |
-| `assembly_dir` | hifiasm 组装目录(centromere 模块产出);缺省回退 `{outdir}/../centromere/{sample_id}/assembly/asm.bp.p_ctg.fa` |
+| `assembly_dir` | hifiasm 组装目录(centromere 模块产出):`{assembly_dir}/{sample_id}/assembly/asm.bp.p_ctg.fa`。assembly_scan/tidk 需要;也可用 dict-mode `inputs.assembly_scan.fasta`/`inputs.tidk.fasta` 每样本指定。**均未配置时直接报错(无回退路径)** |
 | `samples` | 样本列表 |
 | tidk 数据库 | `~/.local/share/tidk/tidk_database.csv`;不存在时先跑 `tidk_init`(`tidk build`)建库 |
 
@@ -65,6 +65,8 @@
 | `Params.telomere.formats` | `-F` | `["png"]` | **列表**:出图格式(png/pdf/svg…,可多选)。各分析图据此出多格式 |
 | `Params.telomere.threads` | — | 16(rule_res) | Telogator2 线程 |
 | `Procedure.telogator2` / `tidk` | `telogator2 -i` / `tidk search` | — | 可执行路径 |
+| `Params.telomere.depth_qc.telomere_bed` | `-d` | 无(**必填才跑 ⑤**) | ⑤诊断的端粒区 BED(参考基因组坐标,`telomere_core`/`subtelomere` 四列)。仅配置此键才注册 depth_qc 交付;未配置不产出(**无回退路径**) |
+| `Params.telomere.depth_qc.control` | `-c` | `""` | 对照区域(如 `chr1:120000000-120100000`) |
 | 固定 | `tidk search --string TTAGGG` | — | 端粒 motif |
 
 脚本 CLI 补充(每选项均有短旗标 + 长名;`-l/--log` 可选写日志文件,缺省只打 stdout):
@@ -184,6 +186,8 @@ flag 0x100),每条记录的 `query_sequence` 是**同一条物理读段**。此�
 - `n_chrom_arms` 要按物种/倍性设:模块默认 40(小鼠 20 染色体二倍体计数);
   恒河猴参考 22 条染色体 → 二倍体计数 44,若按端粒端数(每染色体 2 端 ×2 拷贝)则为 88,
   口径不同绝对值差一倍。
+  node.py 会按 `genome.default` 自动填(`GENOME_N_CHROM_ARMS`:小鼠 40、
+  恒河猴 44、人 46),显式配置优先;未收录的基因组必须在配置里手动设置。
 - `Avg per arm` 还随测序量线性放大(测得越多 total_tel_bp 越大),**不同深度样本间
   比较应看 `Telomeric fraction`**;同深度样本的 `per arm` 才可粗比。
 - 故跨样本比端粒长度,优先用 `Telomeric fraction`;要绝对长度需先按覆盖/单拷贝 k-mer 归一。

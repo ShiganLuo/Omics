@@ -39,7 +39,7 @@
     "nullable": true,
     "required": false,
     "default": [],
-    "description": "setting labels = the {setting} wildcard values (one engine run each, the sigtest contrasts shape); per-label overrides in Params.fibercluster.fiber_cluster.{channel,k}_by_setting"
+    "description": "setting labels = the {setting} wildcard values (one engine run each); default ['auto'] runs once with k=auto; sensitivity presets: list labels + per-label overrides in channel_by_setting/k_by_setting"
   },
   "Params": {
     "type": "dict",
@@ -77,40 +77,33 @@
                 "default": ".fire_peaks.bed",
                 "description": "FIRE peaks BED suffix; null disables the FIRE overlay/channel"
               },
-              "bin_size": {
-                "type": "int",
-                "nullable": true,
-                "required": false,
-                "default": 100,
-                "description": "bin width in bp (-b)"
-              },
-              "bin_mode": {
+              "channel": {
                 "type": "str",
                 "nullable": true,
                 "required": false,
-                "default": "any",
-                "description": "bin open rule: any|frac (-B)"
+                "default": "msp",
+                "description": "clustering channel msp|fire (-C); default msp"
               },
-              "min_msp_bp": {
+              "k": {
                 "type": "int",
                 "nullable": true,
                 "required": false,
-                "default": 10,
-                "description": "min MSP bp overlap for bin_mode=any (-P)"
+                "default": 0,
+                "description": "cluster count (-k); 0 = auto per region (Hamming silhouette + min-cluster guard, writes k_selection.tsv)"
               },
               "channel_by_setting": {
                 "type": "dict",
                 "nullable": true,
                 "required": false,
                 "default": {},
-                "description": "per-setting clustering channel msp|fire (feature_col_by_contrast shape); EVERY settings label must have an entry (-C)"
+                "description": "optional per-setting channel override msp|fire; labels without an entry fall back to Params.fibercluster.fiber_cluster.channel"
               },
               "k_by_setting": {
                 "type": "dict",
                 "nullable": true,
                 "required": false,
                 "default": {},
-                "description": "per-setting cluster count (feature_col_by_contrast shape); EVERY settings label must have an entry (-k)"
+                "description": "optional per-setting cluster count override; labels without an entry fall back to Params.fibercluster.fiber_cluster.k (0 = auto)"
               },
               "method": {
                 "type": "str",
@@ -133,13 +126,6 @@
                 "default": 0.8,
                 "description": "fiber must span this fraction of the region (-s)"
               },
-              "bin_threshold": {
-                "type": "float",
-                "nullable": true,
-                "required": false,
-                "default": 0.5,
-                "description": "bin open fraction for bin_mode=frac (-t)"
-              },
               "max_fibers": {
                 "type": "int",
                 "nullable": true,
@@ -153,20 +139,6 @@
                 "required": false,
                 "default": "fire,lnk,nuc",
                 "description": "right coverage-track layers, comma list or none (-T)"
-              },
-              "fire_fdr": {
-                "type": "float",
-                "nullable": true,
-                "required": false,
-                "default": 0.1,
-                "description": "keep FIRE peaks with FDR <= this (-q)"
-              },
-              "seed": {
-                "type": "int",
-                "nullable": true,
-                "required": false,
-                "default": 0,
-                "description": "k-means RNG seed (-x)"
               },
               "cache_dir": {
                 "type": "str",
@@ -186,8 +158,8 @@
                 "type": "str",
                 "nullable": true,
                 "required": false,
-                "default": "fire_k2",
-                "description": "setting label whose figures/summary become the deliverable (-c)"
+                "default": "",
+                "description": "setting label whose figures/summary become the deliverable (-c); default = first setting label"
               }
             }
           }

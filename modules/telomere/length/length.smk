@@ -96,14 +96,33 @@ def get_input_for_read_density(wildcards):
 
 
 def get_assembly_fasta(wildcards):
-    """Assembly FASTA for assembly_scan/tidk (dict-mode 'assembly_scan'/'tidk')."""
+    """Assembly FASTA for assembly_scan/tidk (dict-mode 'assembly_scan'/'tidk').
+
+    Explicit config only — NO guessed fallback paths: per-sample dict-mode
+    ``inputs.assembly_scan.fasta`` / ``inputs.tidk.fasta``, or ``assembly_dir``
+    (``{assembly_dir}/{sample_id}/assembly/asm.bp.p_ctg.fa``). Unset config
+    fails fast naming the key to fill (never fabricate a path no rule
+    produces — it turns a config error into a confusing MissingInputException).
+    """
     fa = (_inp("assembly_scan", "fasta", wildcards.sample_id)
           or _inp("tidk", "fasta", wildcards.sample_id))
     if fa:
         return fa
     if assembly_dir:
         return os.path.join(assembly_dir, f"{wildcards.sample_id}/assembly/asm.bp.p_ctg.fa")
-    return os.path.join(outdir, f"../centromere/{wildcards.sample_id}/assembly/asm.bp.p_ctg.fa")
+    return _require(None, "inputs.assembly_scan.fasta (per-sample dict) / "
+                    "inputs.tidk.fasta / assembly_dir", "telomere")
+
+
+def get_depth_qc_bed(wildcards):
+    """Telomere regions BED for depth QC (⑤诊断) — explicit config only.
+
+    Requires ``Params.telomere.depth_qc.telomere_bed`` (reference-coordinate
+    telomere_core/subtelomere BED). NO fallback path: a guessed BED name with
+    no producer only hides the missing config key.
+    """
+    return _require(_tel.get("depth_qc", {}).get("telomere_bed"),
+                    "Params.telomere.depth_qc.telomere_bed", "telomere")
 
 
 def get_tidk_scan_input(wildcards):
@@ -152,8 +171,9 @@ rule telogator2_run:
             rule_logger.info(f"Start telogator2 for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"telogator2_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
-            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/telogator2_run_{wildcards.sample_id}.sh")
-            output_dir = os.path.join(outdir, f"{wildcards.sample_id}/telogator2")
+            output_dir = os.path.join(outdir, "telogator2", wildcards.sample_id)
+            os.makedirs(output_dir, exist_ok=True)
+            plain_script = os.path.join(output_dir, f"telogator2_run_{wildcards.sample_id}.sh")
             cmd = [
                 params.telogator2, "-i", input.bam,
                 "-o", output_dir,
@@ -203,8 +223,8 @@ rule assembly_telomere_scan:
         sif("../telomere.yaml", "assembly_telomere_scan")
     params:
         script = os.path.join(ROOT_DIR, "modules/telomere/length/bin/scan_assembly_telomere.py"),
-        output_dir = os.path.join(outdir, "{sample_id}/assembly_scan"),
-        scan_length = _tel.get("assembly_scan", {}).get("assembly_scan_length", 50000),
+        output_dir = os.path.join(outdir, "assembly_scan", "{sample_id}"),
+        scan_length = _tel.get("assembly_scan", {}).get("assembly_scan_length") or 50000,
         formats = _tel_formats
     threads: rule_res("assembly_telomere_scan").get("threads", 1)
     benchmark: logdir + "/{sample_id}/assembly_telomere_scan.benchmark.tsv",
@@ -221,7 +241,8 @@ rule assembly_telomere_scan:
             rule_logger.info(f"Start assembly telomere scan for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"assembly_telomere_scan_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
-            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/assembly_telomere_scan_{wildcards.sample_id}.sh")
+            plain_script = os.path.join(outdir, "assembly_scan", wildcards.sample_id, f"assembly_telomere_scan_{wildcards.sample_id}.sh")
+            os.makedirs(os.path.dirname(plain_script), exist_ok=True)
             cmd = [
                 "python", params.script,
                 "--fasta", input.fasta,
@@ -269,8 +290,8 @@ rule read_density_telomere:
         logdir + "/{sample_id}/read_density_telomere.log"
     params:
         script = os.path.join(ROOT_DIR, "modules/telomere/length/bin/read_density_telomere.py"),
-        output_dir = os.path.join(outdir, "{sample_id}/read_density"),
-        n_chrom_arms = _tel.get("read_density", {}).get("n_chrom_arms", 40),
+        output_dir = os.path.join(outdir, "read_density", "{sample_id}"),
+        n_chrom_arms = (_tel.get("read_density") or {}).get("n_chrom_arms") or 40,
         formats = _tel_formats
     threads: rule_res("read_density_telomere").get("threads", 1)
     benchmark: logdir + "/{sample_id}/read_density_telomere.benchmark.tsv",
@@ -290,7 +311,8 @@ rule read_density_telomere:
             rule_logger.info(f"Start read density telomere for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"read_density_telomere_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
-            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/read_density_telomere_{wildcards.sample_id}.sh")
+            plain_script = os.path.join(outdir, "read_density", wildcards.sample_id, f"read_density_telomere_{wildcards.sample_id}.sh")
+            os.makedirs(os.path.dirname(plain_script), exist_ok=True)
             cmd = [
                 "python", params.script,
                 "--bam", input.bam,
@@ -383,7 +405,7 @@ rule tidk_scan:
     log:
         logdir + "/{sample_id}/tidk_scan.log"
     params:
-        output_dir = os.path.join(outdir, "{sample_id}/tidk"),
+        output_dir = os.path.join(outdir, "tidk", "{sample_id}"),
         tidk = config.get("Procedure", {}).get("tidk") or "tidk",
         motif = "TTAGGG",
         plot_script = os.path.join(ROOT_DIR, "modules/telomere/length/bin/plot_tidk.py"),
@@ -407,7 +429,8 @@ rule tidk_scan:
 
             script = os.path.join(RECEIPT_DIR, f"tidk_scan_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
-            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/tidk_scan_{wildcards.sample_id}.sh")
+            plain_script = os.path.join(outdir, "tidk", wildcards.sample_id, f"tidk_scan_{wildcards.sample_id}.sh")
+            os.makedirs(os.path.dirname(plain_script), exist_ok=True)
             # tidk search: --string, --output (prefix), --dir, positional FASTA
             cmd_search = [
                 params.tidk, "search",
@@ -464,19 +487,19 @@ rule tidk_scan:
 rule telogator2_result:
     """Result aggregation for telogator2."""
     input:
-        tsv = outdir + "/{sample_id}/telogator2/tlens_by_allele.tsv"
+        tsv = outdir + "/telogator2/{sample_id}/tlens_by_allele.tsv"
 rule assembly_telomere_result:
     """Result aggregation for assembly-based telomere scan."""
     input:
-        stats = outdir + "/{sample_id}/assembly_scan/{sample_id}_assembly_telomere_stats.txt"
+        stats = outdir + "/assembly_scan/{sample_id}/{sample_id}_assembly_telomere_stats.txt"
 rule read_density_telomere_result:
     """Result aggregation for read-density telomere estimation."""
     input:
-        stats = outdir + "/{sample_id}/read_density/{sample_id}_read_telomere_stats.txt"
+        stats = outdir + "/read_density/{sample_id}/{sample_id}_read_telomere_stats.txt"
 rule tidk_result:
     """Result aggregation for tidk scan."""
     input:
-        tsv = outdir + "/{sample_id}/tidk/{sample_id}_tidk_telomeres.tsv"
+        tsv = outdir + "/tidk/{sample_id}/{sample_id}_tidk_telomeres.tsv"
 
 
 # ============================================================
@@ -575,7 +598,7 @@ rule telomere_method_overview:
 rule telomere_depth_qc:
     input:
         bam = lambda w: _inp("telogator2", "bam", w.sample_id) or _shapeA_bam(w.sample_id),
-        bed = _tel.get("depth_qc", {}).get("telomere_bed") or os.path.join(outdir, "telomere_regions.bed"),
+        bed = get_depth_qc_bed,
     output:
         tsv = os.path.join(outdir, "depth_qc", "{sample_id}", "{sample_id}_telomere_region_depth.tsv"),
         stats = os.path.join(outdir, "depth_qc", "{sample_id}", "{sample_id}_telomere_region_depth_stats.txt"),
@@ -595,6 +618,7 @@ rule telomere_depth_qc:
             os.makedirs(os.path.dirname(script_p), exist_ok=True)
             plain = os.path.join(outdir, "depth_qc", wildcards.sample_id,
                                  f"telomere_depth_qc_{wildcards.sample_id}.sh")
+            os.makedirs(os.path.dirname(plain), exist_ok=True)
             cmd = ["python", params.script, "-b", input.bam, "-d", input.bed,
                    "-s", wildcards.sample_id, "-o", params.outdir]
             if params.control:

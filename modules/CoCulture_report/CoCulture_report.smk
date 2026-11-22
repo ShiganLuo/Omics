@@ -80,7 +80,7 @@ rule HRT:
         except Exception as e:
             with open(log_path, 'a') as f:
                 f.write(f"Error: {e}\n")
-            raise f"Error: {e}"
+            raise RuntimeError(f"Error: {e}")
         finally:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Completed at {current_time}")

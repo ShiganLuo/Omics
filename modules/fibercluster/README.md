@@ -155,26 +155,37 @@ apptainer exec --bind /data/16T:/data/16T /data/16T/Database/env/fiberseq/fibers
   环境复用 `../fiberseq/fiberseq.yaml`（依赖完全一致：numpy/pandas/scipy/
   matplotlib/pysam；按 modules.md「最小环境」原则不另建 yaml/SIF，容器经
   `sif("../fiberseq/fiberseq.yaml")` 解析 env 映射键 `fiberseq`）。
-- **规则**：`fiber_cluster`（`{setting}` 通配符，一个通道/k 设置一次引擎调用；
-  逐区域产物在 `{outdir}/{setting}/<region>/`，DAG 以标记
-  `{outdir}/{setting}/fiber_cluster.done` 跟踪——区域名来自 regions BED，
-  按 modules.md「禁用 directory()」用标记文件）、`fiber_report`（汇编报告包，
-  输出 `summary/` 两文件 + `sensitivity/sensitivity_table.tsv` +
-  `figures.done`）、`fibercluster_result`（收尾聚合，node.py 注册点）。
-- **config 键 ↔ 引擎 CLI**：`regions_bed`→`-r`；`samples` + `indir` +
-  `Params.fibercluster.fiber_cluster.{msp,nuc,fire}_suffix`→`-m/-u/-f`（形态 A
-  拼接 `{indir}/{sample}/{sample}{suffix}`；suffix 置 null 关闭对应通道）；
-  `settings`（标签列表，即 `{setting}` 通配符取值，sigtest `contrasts` 同款）
-  每标签一次引擎调用，且**每标签必须**在
-  `Params.fibercluster.fiber_cluster.{channel,k}_by_setting` 有条目（缺失即
-  报错并指名键）→`-C/-k`；
-  `Params.fibercluster.fiber_cluster.<key>` 与 §1.3 同名旗标一一对应
-  （bin_size→-b、bin_mode→-B、min_msp_bp→-P、method→-e、min_fibers→-n、
+- **规则**:`fiber_cluster`(`{setting}` 通配符,一个通道/k 设置一次引擎调用;
+  逐区域产物在 `{outdir}/{setting}/<region>/`,DAG 以标记
+  `{outdir}/{setting}/fiber_cluster.done` 跟踪——区域名来自 regions BED,
+  按 modules.md「禁用 directory()」用标记文件)。规则按引擎退出码契约放行
+  rc=1(= 部分区域失败,清单 `regions_failed.txt`,记 warning 不阻断 DAG);
+  仅全区域无产出或 rc∉{0,1} 才判失败(2026-11-22 补丁,否则低覆盖区域
+  会卡死 fiber_report)。同批补丁:规则执行前清空本 setting 输出目录(防脏产物
+  掩蔽失败检测);回执执行改用 `subprocess.call` 直跑(Snakemake 的 `shell()` 会把
+  命令再包一层容器执行且无法捕获退出码),因此命令显式
+  `apptainer exec --bind /data/16T <fiberseq.sif> python …`(引擎需 pysam,
+  在 fiberseq.sif 内;两条规则同此)。`fiber_report`(汇编报告包,输出 `summary/` 两文件 +
+  `sensitivity/sensitivity_table.tsv` + `figures.done`)、`fibercluster_result`
+  (收尾聚合,node.py 注册点)。
+- **config 键 ↔ 引擎 CLI**:`regions_bed`→`-r`;`samples` + `indir` +
+  `Params.fibercluster.fiber_cluster.{msp,nuc,fire}_suffix`→`-m/-u/-f`(形态 A
+  拼接 `{indir}/{sample}/{sample}{suffix}`;suffix 置 null 关闭对应通道);
+  `settings`(标签列表,即 `{setting}` 通配符取值)每标签一次引擎调用。
+  **零配置默认**:`settings` 缺省为 `["auto"]`,此时 `channel` 缺省 msp、
+  `k` 缺省 0(引擎 auto-k,见 §3),不需要任何 by_setting/canonical 键。
+  敏感性预设仍可用:列出多个标签并为需要偏离全局默认的标签在
+  `Params.fibercluster.fiber_cluster.{channel,k}_by_setting` 写覆盖条目
+  (无条目的标签回退全局 `channel`/`k`)→`-C/-k`;
+  `Params.fibercluster.fiber_cluster.<key>` 与引擎旗标一一对应,仅转发
+  config 实际设置的键(engine 默认值单一来源):
+  bin_size→-b、bin_mode→-B、min_msp_bp→-P、method→-e、min_fibers→-n、
   min_span_frac→-s、bin_threshold→-t、max_fibers→-a、right_tracks→-T、
-  fire_fdr→-q、seed→-x、cache_dir→-y）；
-  `samples` 列表的顺序即样本显示顺序 → 两条规则的 `-S`（单一来源，无独立
-  sample_order 键）；`Params.fibercluster.fiber_report.canonical`→fiber_report
-  的 `-c`。命令回执双写、`OMICS_SCRIPT_ONLY` 测试模式按 modules.md 规范。
+  fire_fdr→-q、seed→-x、cache_dir→-y;
+  `samples` 列表的顺序即样本显示顺序 → 两条规则的 `-S`(单一来源,无独立
+  sample_order 键);`Params.fibercluster.fiber_report.canonical`→fiber_report
+  的 `-c`(缺省 = 第一个 setting 标签)。命令回执双写、`OMICS_SCRIPT_ONLY`
+  测试模式按 modules.md 规范。
 
 ## 2. 图像结构与元件含义
 
@@ -262,6 +273,17 @@ n 一边倒）类别与样本混杂，组间解读需谨慎。纤维数超过 `-
   `scipy.cluster.hierarchy.fcluster(criterion="maxclust", t=k)` 切为 ≤k 类。
 - `kmeans`：`scipy.cluster.vq.kmeans2(minit="++", iter=50)`，随机源
   `numpy.random.seed(--seed)`。
+- **k 的指定与自动选择**：`-k <int>` 固定 k;`-k 0`（默认，config 键
+  `Params.fibercluster.fiber_cluster.k = 0`）为 **auto-k**——对每个区域
+  独立在 k=2..6 中选 k，依据同一 Hamming 距离下的 silhouette：
+  1. 候选 k 必须切出 k 个非空类，且每类纤维数 ≥ max(2, 5%·n)
+     （1–2 条纤维的「类」是噪声，不是染色质状态）；
+  2. 全部候选被 guard 排除 = 纤维模式同质 → k=1（单态即真相）；
+  3. silhouette 最高者胜；最高分 0.02 以内视为并列,取更小的 k
+     （Occam：状态数就简）。
+  每个区域落盘 `k_selection.tsv`（k, silhouette 两列）供审阅,日志同步
+  打印。合成数据实测：真 2 态→k=2（silhouette 1.000）、真 3 态→k=3、
+  同质→k=1。
 - 类别重标号：为保证跨运行标签稳定，聚类完成后按「类内平均开放度降序」
   重排标签——**cluster 1 永远是平均最开放的类**，其余依次。
 - 退化情形：当二值模式完全相同/大量并列时（如 FIRE 通道下全部纤维为全零

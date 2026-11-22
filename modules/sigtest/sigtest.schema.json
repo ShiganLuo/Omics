@@ -63,7 +63,11 @@
               "subfamily",
               "family"
             ],
-            "description": "TE annotation levels to sigtest, one contrast per level (mods TE axis; long table carries all levels)"
+            "description": "TE annotation levels to sigtest, one contrast per level (mods TE axis; long table carries all levels)",
+            "enum": [
+              "subfamily",
+              "family"
+            ]
           },
           "group_col": {
             "type": "str",
@@ -87,7 +91,16 @@
             "type": "str",
             "nullable": true,
             "required": false,
-            "default": "auto"
+            "default": "auto",
+            "enum": [
+              "auto",
+              "t-test",
+              "welch",
+              "mannwhitney",
+              "wilcoxon",
+              "chi2",
+              "fisher"
+            ]
           },
           "paired": {
             "type": "bool",
@@ -105,7 +118,12 @@
             "type": "str",
             "nullable": true,
             "required": false,
-            "default": "none"
+            "default": "none",
+            "enum": [
+              "none",
+              "bh",
+              "bonferroni"
+            ]
           },
           "ylabel": {
             "type": "str",
@@ -148,7 +166,21 @@
                 "default": [
                   "png"
                 ],
-                "description": "图片格式(多种同时输出);[] = 不出图(吸收旧 no_plot)"
+                "description": "图片格式(多种同时输出);[] = 不出图(吸收旧 no_plot)",
+                "enum": [
+                  "png",
+                  "pdf",
+                  "svg",
+                  "ps",
+                  "eps",
+                  "tif",
+                  "tiff",
+                  "jpg",
+                  "jpeg",
+                  "pgf",
+                  "raw",
+                  "rgba"
+                ]
               },
               "ylabel": {
                 "type": "str",

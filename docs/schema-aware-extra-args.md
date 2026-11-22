@@ -128,6 +128,15 @@ except FileNotFoundError:
 | `get_path_fields()` | 不受影响                                     |
 | `generate_test_paths()` | 不受影响                                  |
 
+## enum 约束与合并配置校验（2026-11 新增）
+
+- schema 字段用 `"enum": [...]`（或 `"values"`）声明合法值集；list 字段按元素逐个校验（`items.enum` 同效）。
+- 校验语义：`validate()` 深度校验与 `cast_extra_args()` 都执行 enum；值为 `None`/`""` 时跳过（nullable = 未设置，不构成非法值）。
+- `"type": "null"` 是自由槽（接受任意值，与 cast 路径的 pass-through 一致），不是"必须为 None"；未列入 `_TYPE_CHECK` 的类型名（如 `"null"`、`"list|dict"`）不做强类型检查；`type` 可为联合（如 `["str", "null"]`）。
+- run.py 在 snakemake 启动前对合并后的 raw.json（模板 + `--Params` 覆盖 + 运行时填充）做 schema 校验，失败即停并逐条列出；`--no-schema-validate` 跳过。模板可留空运行时填充字段（`outfiles`、`Params.workflow.*` 等），校验对象是合并结果而非模板。
+- 测试模式的路径注入只填充 str/自由槽类型字段；数值/布尔/容器字段不注入路径字符串。
+- 值集来源必须是代码证据（argparse `choices`、代码字面量分支、README 文档集），不得臆造；工具词表随版本增长的字段（如 `model_type`）取文档已列值，新增值同步改 schema。
+
 ## 错误信息格式
 
 ```

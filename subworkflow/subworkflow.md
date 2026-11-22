@@ -240,6 +240,10 @@ fragment_size_config = {
 - 不要把顶层 `logdir` 原样传给模块——那会让样本日志与组级日志混在同一级目录。
 - 本规范只约束规则日志（`log:` 指令）；命令回执池 `OUTDIR_ROOT/log/cmd/` 由 `OUTDIR_ROOT` 派生，与 logdir 分段无关。
 
+# 注释规范（强制）
+
+与 modules.md「脚本撰写规范 #1」一致：**经常变动的内容不写注释**（过时注释误导后来者），只保留变动慢的功能性注释——函数/规则 docstring、脚本头部功能注释。`.smk` DSL 同样适用：配置块字段语义、模块衔接、门控约定等说明一律写进本规范或模块 README.md，不写行内注释。
+
 # 模块衔接规范
 
 subworkflow 内模块按执行顺序自上而下编排。**下游模块消费上游输出时，输入目录一律引用上游 config 的 `outdir`**（`xxx_config["outdir"]`），禁止手拼同一路径的 f-string 副本——路径知识只写一次，上游改布局下游自动跟随：
@@ -262,6 +266,10 @@ star_config = {
     ...
 }
 ```
+
+## 组装→telomere 衔接（Fiberseq 实例，2026-11 定案）
+
+hifiasm 组装（`modules/centromere` 的 `hifiasm_assemble`）作为 telomere `assembly_scan`/`tidk` 的上游时：产出目录用模块级常量 `assembly_outdir = f"{outdir}/assembly"`（布局 `{assembly_outdir}/{sample_id}/assembly/asm.bp.p_ctg.fa`），telomere_config 的 `assembly_dir` 引用该常量，写法 `config.get("assembly_dir") or assembly_outdir`——顶层 `assembly_dir` 是可选显式覆盖（外部已有组装时指向它、跳过 hifiasm），缺省即流程内产出（有 DAG 生产者）。组装仅在 `Params.telomere.method` 含 `assembly_scan`/`tidk` 时被 DAG 拉起。hifiasm 输入走 dict-mode（`inputs.hifiasm.bam`/`inputs.hifiasm.pbi`，Fiberseq 的 `{raw}/{sample}/{sample}.bam` staging 布局无法用形态 A 平铺表达）。
 
 ## 模块级常量
 

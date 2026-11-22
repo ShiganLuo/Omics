@@ -88,7 +88,13 @@
               "sv_caller": {
                 "type": "str",
                 "nullable": true,
-                "required": false
+                "required": false,
+                "enum": [
+                  "sniffles1",
+                  "sniffles2",
+                  "lumpy",
+                  "multivcf"
+                ]
               },
               "min_sv_len": {
                 "type": "int",
@@ -150,7 +156,21 @@
           "formats": {
             "type": "list",
             "nullable": true,
-            "required": false
+            "required": false,
+            "enum": [
+              "png",
+              "pdf",
+              "svg",
+              "ps",
+              "eps",
+              "tif",
+              "tiff",
+              "jpg",
+              "jpeg",
+              "pgf",
+              "raw",
+              "rgba"
+            ]
           },
           "plot": {
             "type": "dict",
@@ -160,7 +180,21 @@
               "formats": {
                 "type": "list",
                 "nullable": true,
-                "required": false
+                "required": false,
+                "enum": [
+                  "png",
+                  "pdf",
+                  "svg",
+                  "ps",
+                  "eps",
+                  "tif",
+                  "tiff",
+                  "jpg",
+                  "jpeg",
+                  "pgf",
+                  "raw",
+                  "rgba"
+                ]
               }
             }
           },
@@ -172,7 +206,21 @@
               "formats": {
                 "type": "list",
                 "nullable": true,
-                "required": false
+                "required": false,
+                "enum": [
+                  "png",
+                  "pdf",
+                  "svg",
+                  "ps",
+                  "eps",
+                  "tif",
+                  "tiff",
+                  "jpg",
+                  "jpeg",
+                  "pgf",
+                  "raw",
+                  "rgba"
+                ]
               }
             }
           },
@@ -184,7 +232,21 @@
               "formats": {
                 "type": "list",
                 "nullable": true,
-                "required": false
+                "required": false,
+                "enum": [
+                  "png",
+                  "pdf",
+                  "svg",
+                  "ps",
+                  "eps",
+                  "tif",
+                  "tiff",
+                  "jpg",
+                  "jpeg",
+                  "pgf",
+                  "raw",
+                  "rgba"
+                ]
               },
               "max_per_fig": {
                 "type": "int",

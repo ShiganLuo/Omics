@@ -52,7 +52,7 @@ rule TEcoutCPM:
         except Exception as e:
             with open(log_path, 'a') as f:
                 f.write(f"Error: {e}\n")
-            raise f"Error: {e}"
+            raise RuntimeError(f"Error: {e}")
         finally:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Completed at {current_time}")
@@ -99,7 +99,7 @@ rule commonExpression:
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            raise f"commonExpression failed with error: {e}"
+            raise RuntimeError(f"commonExpression failed with error: {e}")
         finally:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"commonExpression completed at {current_time}")
@@ -149,7 +149,7 @@ rule getBed:
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            raise f"getBed failed with error: {e}"
+            raise RuntimeError(f"getBed failed with error: {e}")
         finally:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"getBed completed at {current_time}")
@@ -196,7 +196,7 @@ rule vcfIntersectBed:
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            raise f"vcfIntersectBed failed for sample {wildcards.sample_id} with error: {e}"
+            raise RuntimeError(f"vcfIntersectBed failed for sample {wildcards.sample_id} with error: {e}")
         finally:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"vcfIntersectBed completed for sample {wildcards.sample_id} at {current_time}")
@@ -244,7 +244,7 @@ rule annovar_convert:
         except Exception as e:
             with open(log_path, 'a') as f:
                 f.write(f"Error: {e}\n")
-            raise f"Error: {e}"
+            raise RuntimeError(f"Error: {e}")
         finally:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Completed at {current_time}")
@@ -295,7 +295,7 @@ rule annovar_table:
         except Exception as e:
             with open(log_path, 'a') as f:
                 f.write(f"Error: {e}\n")
-            raise f"Error: {e}"
+            raise RuntimeError(f"Error: {e}")
         finally:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Completed at {current_time}")

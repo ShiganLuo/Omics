@@ -1,0 +1,39 @@
+{
+  "indir": "",
+  "outdir": "fiberseq_analysis/epi_drift",
+  "logdir": "log",
+  "samples": [],
+  "ROOT_DIR": ".",
+  "inputs": {
+    "epi_drift": {
+      "bam": {}
+    }
+  },
+  "Procedure": {},
+  "Params": {
+    "fiberseq_epi_drift": {
+      "enabled": true,
+      "groups": {},
+      "fiberseq_epi_drift_run": {
+        "threads": 4,
+        "win": 5000,
+        "min_fibers": 20,
+        "subsample": 20,
+        "n_windows": 600,
+        "seed": 42,
+        "min_chrom_len": 30000000,
+        "chrom_prefix": ""
+      },
+      "fiberseq_epi_drift_fig": {
+        "formats": [
+          "png"
+        ],
+        "dpi": 200
+      }
+    }
+  },
+  "genome": {
+    "fai_index": null
+  },
+  "env": {}
+}

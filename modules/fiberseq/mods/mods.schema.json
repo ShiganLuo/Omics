@@ -47,7 +47,11 @@
               "mod_type": {
                 "type": "str",
                 "nullable": true,
-                "required": false
+                "required": false,
+                "enum": [
+                  "m6a",
+                  "cpg"
+                ]
               },
               "region_axis": {
                 "type": "dict",
@@ -125,7 +129,11 @@
               "mod_type": {
                 "type": "str",
                 "nullable": true,
-                "required": false
+                "required": false,
+                "enum": [
+                  "m6a",
+                  "cpg"
+                ]
               },
               "region_axis": {
                 "type": "dict",
@@ -174,7 +182,11 @@
               "mod_type": {
                 "type": "str",
                 "nullable": true,
-                "required": false
+                "required": false,
+                "enum": [
+                  "m6a",
+                  "cpg"
+                ]
               },
               "region_axis": {
                 "type": "dict",

@@ -44,7 +44,13 @@
           "model_type": {
             "type": "str",
             "nullable": true,
-            "required": false
+            "required": false,
+            "enum": [
+              "WGS",
+              "WES",
+              "PACBIO",
+              "ONT_R104"
+            ]
           }
         }
       }

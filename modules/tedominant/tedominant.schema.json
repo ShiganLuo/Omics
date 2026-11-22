@@ -1,0 +1,78 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": false,
+    "required": true,
+    "description": "combine 阶段目录(含 {tissue}/{tissue}_scTE_{merged,auto}.h5ad)"
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true,
+    "default": "output"
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true,
+    "default": "logs"
+  },
+  "ROOT_DIR": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "tissues": {
+    "type": "list",
+    "nullable": true,
+    "required": true,
+    "default": [],
+    "description": "组织名列表;同时是输入子目录名与输出文件名片段"
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "tedominant": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "method": {
+            "type": "str",
+            "nullable": true,
+            "required": false,
+            "default": "v1",
+            "enum": [
+              "v1",
+              "v2"
+            ],
+            "description": "鉴定方法(--method):v1 = 纯 mean TE% 最高(旧口径,默认);v2 = 先过绝对 TE 量资格门槛(反分母塌缩)再按 TE% 排名"
+          },
+          "min_cells": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "default": 100,
+            "description": "cluster 规模门槛(--min-cells):n_cells 低于此值的 cluster 不具资格"
+          },
+          "gate_frac": {
+            "type": "float",
+            "nullable": true,
+            "required": false,
+            "default": 0.5,
+            "description": "绝对 TE 量资格门槛系数(--gate-frac):median TE counts 需 >= gate_frac ×(同谱系 siblings median 与组织 median 的较小约束,两道门都过)"
+          },
+          "skip_dotplot": {
+            "type": "bool",
+            "nullable": true,
+            "required": false,
+            "default": false,
+            "description": "true 时跳过 marker dotplot 图(--skip-dotplot)"
+          }
+        }
+      }
+    }
+  }
+}

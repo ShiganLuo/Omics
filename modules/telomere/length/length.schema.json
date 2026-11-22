@@ -66,12 +66,32 @@
           "method": {
             "type": "list",
             "nullable": true,
-            "required": false
+            "required": false,
+            "enum": [
+              "telogator2",
+              "assembly_scan",
+              "read_density",
+              "tidk"
+            ]
           },
           "formats": {
             "type": "list",
             "nullable": true,
-            "required": false
+            "required": false,
+            "enum": [
+              "png",
+              "pdf",
+              "svg",
+              "ps",
+              "eps",
+              "tif",
+              "tiff",
+              "jpg",
+              "jpeg",
+              "pgf",
+              "raw",
+              "rgba"
+            ]
           },
           "telogator2": {
             "type": "dict",

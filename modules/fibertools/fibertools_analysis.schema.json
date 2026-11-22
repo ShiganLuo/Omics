@@ -61,7 +61,11 @@
               "call_peaks_mode": {
                 "type": "str",
                 "nullable": true,
-                "required": false
+                "required": false,
+                "enum": [
+                  "fdr",
+                  "fire_frac"
+                ]
               }
             }
           }

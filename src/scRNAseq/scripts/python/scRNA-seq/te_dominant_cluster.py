@@ -109,8 +109,32 @@ def main():
             te_frac=("te_frac", "mean"), n=("te_frac", "size"),
             cell_type=("cell_type", lambda s: s.value_counts().index[0]))
         cl["te_frac"] *= 100
-        dom = cl[cl["te_frac"] > 35].sort_values("te_frac", ascending=False)
-        print(f"== {tissue}: {len(cl)} clusters; TE-dominant: "
+
+        # ---- v2 eligibility gates (anti denominator-collapse) ------------
+        # 绝对 TE 计数:防止"基因程序塌缩 → TE% 被动抬高"的假 TE 主导
+        df["te_abs"] = np.asarray(te_sum).ravel()
+        cl["te_abs_med"] = df.groupby("leiden")["te_abs"].median()
+        global_med_te = float(np.asarray(df["te_abs"]).ravel().mean() and
+                              np.median(np.asarray(df["te_abs"], dtype=float)))
+        def _sib_te_med(row):
+            sib = df[(df["cell_type"] == row["cell_type"]) & (df["leiden"] != row.name)]
+            vals = np.asarray(sib["te_abs"], dtype=float)
+            return float(np.median(vals)) if len(vals) >= 30 else float("inf")
+        cl["sib_te_med"] = cl.apply(_sib_te_med, axis=1)
+        cl["eligible"] = (
+            (cl["te_abs_med"] >= 0.5 * cl["sib_te_med"])      # 不低于同谱系 siblings 一半
+            & (cl["te_abs_med"] >= 0.5 * global_med_te)        # 不低于全组织一半
+            & (cl["te_frac"] > 35)                             # TE% 门槛(原判据保留)
+            & (cl["n"] >= 100)                                 # 统计稳定
+        )
+        dom = cl[cl["eligible"]].sort_values("te_frac", ascending=False)
+        rejected = cl[(cl["te_frac"] > 35) & ~cl["eligible"]]
+        if len(rejected):
+            for i, r in rejected.iterrows():
+                print(f"   [gate] {tissue} Leiden {i} rejected: TE% {r.te_frac:.1f} but "
+                      f"TE abs median {r.te_abs_med:.0f} vs siblings {r.sib_te_med:.0f} "
+                      f"(denominator-collapse guard)")
+        print(f"== {tissue}: {len(cl)} clusters; TE-dominant (v2 gates): "
               f"{[(i, round(r.te_frac,1), r.cell_type, int(r.n)) for i, r in dom.iterrows()]}")
         for i, r in dom.iterrows():
             summary_rows.append((tissue, i, r.cell_type, round(r.te_frac, 1), int(r.n)))

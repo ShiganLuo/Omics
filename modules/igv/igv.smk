@@ -70,7 +70,7 @@ rule samtools_dedup:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"samtools dedup failed: {e}\n")
-            raise f"samtools dedup failed: {e}\n"
+            raise RuntimeError(f"samtools dedup failed: {e}\n")
             
 
 rule wig:
@@ -133,7 +133,7 @@ rule wig:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"bamCoverage wig failed: {e}\n")
-            raise f"bamCoverage wig failed: {e}\n"
+            raise RuntimeError(f"bamCoverage wig failed: {e}\n")
 
 rule igv_result:
     input:

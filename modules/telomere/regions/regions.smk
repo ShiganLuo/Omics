@@ -10,9 +10,15 @@ _reg = _tel.get("regions", {})
 
 def get_scan_tsv(wildcards):
     """scan_assembly_telomere TSV (dict-mode inputs.regions.scan_tsv[sample],
-    else config Params.telomere.regions.scan_tsv)."""
+    else config Params.telomere.regions.scan_tsv).
+
+    Explicit config only — unset config fails fast naming the key to fill
+    (never pass None into Snakemake's input: block).
+    """
     per = (_inputs.get("regions", {}) or {}).get("scan_tsv", {}) or {}
-    return per.get(wildcards.sample_id) or _reg.get("scan_tsv")
+    return _require(per.get(wildcards.sample_id) or _reg.get("scan_tsv"),
+                    "inputs.regions.scan_tsv (per-sample dict) / "
+                    "Params.telomere.regions.scan_tsv", "telomere regions")
 
 
 rule regions_telomere:
@@ -26,8 +32,8 @@ rule regions_telomere:
     params:
         script = os.path.join(ROOT_DIR, "modules/telomere/regions/bin/region_build.py"),
         out = os.path.join(outdir, "{sample_id}", "{sample_id}.telomere.bed"),
-        subtelomere = _reg.get("subtelomere", 100000),
-        min_len = _reg.get("min_len", 1000),
+        subtelomere = _reg.get("subtelomere") or 100000,
+        min_len = _reg.get("min_len") or 1000,
     threads: rule_res("regions_telomere").get("threads", 1)
     conda: "../telomere.yaml"
     container:

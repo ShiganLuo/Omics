@@ -13,9 +13,20 @@ if isinstance(_tel_formats, str):
 
 
 def get_composition_bams(wildcards):
-    """All samples' fire.sorted.bam (字典模式: inputs.composition.bam[sample])."""
+    """All samples' fire.sorted.bam (字典模式: inputs.composition.bam[sample]).
+
+    Every configured sample must have an entry — never silently drop a
+    sample from the multi-sample analysis; missing entries fail fast naming
+    the config key and sample(s).
+    """
     per = (_inputs.get("composition", {}) or {}).get("bam", {}) or {}
-    return [per[s] for s in samples if s in per]
+    missing = [s for s in samples if s not in per]
+    if missing:
+        raise ValueError(
+            f"Missing reference file for telomere composition: set "
+            f"'inputs.composition.bam' for sample(s) {missing} in the "
+            f"workflow config JSON, then rerun.")
+    return [per[s] for s in samples]
 
 
 rule composition_run:
@@ -35,8 +46,8 @@ rule composition_run:
         outdir = outdir,
         samples = samples,
         formats = _tel_formats,
-        min_read_len = _comp.get("min_read_len", 5000),
-        max_reads = _comp.get("max_reads", 2_000_000),
+        min_read_len = _comp.get("min_read_len") or 5000,
+        max_reads = _comp.get("max_reads") or 2_000_000,
     threads: rule_res("composition_run").get("threads", 1)
     conda: "../telomere.yaml"
     container:

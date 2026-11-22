@@ -6,10 +6,7 @@
   "samples": [],
   "regions_bed": "",
   "settings": [
-    "msp_k2",
-    "msp_k3",
-    "fire_k2",
-    "fire_k3"
+    "auto"
   ],
   "Params": {
     "fibercluster": {
@@ -17,35 +14,17 @@
         "msp_suffix": ".msp.bed.gz",
         "nuc_suffix": ".nuc.bed.gz",
         "fire_suffix": ".fire_peaks.bed",
-        "bin_size": 100,
-        "bin_mode": "any",
-        "min_msp_bp": 10,
-        "channel_by_setting": {
-          "msp_k2": "msp",
-          "msp_k3": "msp",
-          "fire_k2": "fire",
-          "fire_k3": "fire"
-        },
-        "k_by_setting": {
-          "msp_k2": 2,
-          "msp_k3": 3,
-          "fire_k2": 2,
-          "fire_k3": 3
-        },
         "method": "hierarchical",
         "min_fibers": 10,
         "min_span_frac": 0.8,
-        "bin_threshold": 0.5,
         "max_fibers": 300,
         "right_tracks": "fire,lnk,nuc",
-        "fire_fdr": 0.1,
-        "seed": 0,
-        "cache_dir": ""
+        "cache_dir": "",
+        "channel": "msp",
+        "k": 0
       },
-      "fiber_report": {
-        "canonical": "fire_k2"
-      }
+      "fiber_report": {}
     }
   },
-  "env":{}
+  "env": {}
 }

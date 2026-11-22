@@ -344,3 +344,37 @@ module pseudobulk_go:
 logger.debug(f"Using function/pseudobulk_go for pseudobulk GO/KEGG enrichment. config: {pseudobulk_go_config}")
 
 use rule * from pseudobulk_go as scRNAseq_*
+
+# ------------------------------------------------------------
+# TE-dominant cluster identification (modules/tedominant) —
+# consumes the combine-stage h5ad pair per tissue; one group-level
+# run over all tissues. Gated by Params.tedominant.enabled in
+# node.py's outfiles registration (smk side wires unconditionally,
+# per modules.md). tissues derive from scanpy's tissue_samples map.
+# ------------------------------------------------------------
+def _tedom_tissues():
+    ts = config.get("Params", {}).get("scanpy", {}).get("tissue_samples", {}) or {}
+    return list(ts.keys()) if isinstance(ts, dict) else []
+
+tedominant_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "resources": config.get("resources", {}),
+    "indir": combine_dir,
+    "outdir": f"{outdir}/diff/figures_te",
+    "logdir": f"{logdir}/group",
+    "tissues": _tedom_tissues(),
+    "Params": {
+        "tedominant": config.get("Params", {}).get("tedominant", {}),
+    },
+    "Procedure": {
+        "python": config.get("Procedure", {}).get("python") or "python",
+    },
+}
+module tedominant:
+    snakefile: "../modules/tedominant/tedominant.smk"
+    config: tedominant_config
+logger.debug(f"Using tedominant for TE-dominant cluster identification. config: {tedominant_config}")
+
+use rule * from tedominant as scRNAseq_*

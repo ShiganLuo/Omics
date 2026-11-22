@@ -1,0 +1,123 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "ROOT_DIR": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "inputs": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "telocen_norm": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "bam": {
+            "type": "dict",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "fiberseq_telocen_norm": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "enabled": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          },
+          "groups": {
+            "type": "dict",
+            "nullable": true,
+            "required": false
+          },
+          "fiberseq_telocen_norm_run": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "threads": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "fiberseq_telocen_norm_fig": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "formats": {
+                "type": "list",
+                "nullable": true,
+                "required": false
+              },
+              "dpi": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "telocen_bed": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "env": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  }
+}

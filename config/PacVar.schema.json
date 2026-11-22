@@ -657,7 +657,21 @@
           "png",
           "svg"
         ],
-        "description": "Output image formats (pyGenomeTracks --outFileName extensions)."
+        "description": "Output image formats (pyGenomeTracks --outFileName extensions).",
+        "enum": [
+          "png",
+          "pdf",
+          "svg",
+          "ps",
+          "eps",
+          "tif",
+          "tiff",
+          "jpg",
+          "jpeg",
+          "pgf",
+          "raw",
+          "rgba"
+        ]
       },
       "gtf_track": {
         "type": "bool",
@@ -778,7 +792,10 @@
             "description": "Bucket name considered for full-length candidacy (L1 by default; e.g. an ERVK bucket for other clades)."
           },
           "te_buckets": {
-            "type": "list|dict",
+            "type": [
+              "list",
+              "dict"
+            ],
             "required": false,
             "default": {
               "GRCh38": [
@@ -1108,7 +1125,21 @@
             "default": [
               "png"
             ],
-            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)",
+            "enum": [
+              "png",
+              "pdf",
+              "svg",
+              "ps",
+              "eps",
+              "tif",
+              "tiff",
+              "jpg",
+              "jpeg",
+              "pgf",
+              "raw",
+              "rgba"
+            ]
           }
         }
       },
@@ -1123,7 +1154,21 @@
             "default": [
               "png"
             ],
-            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)",
+            "enum": [
+              "png",
+              "pdf",
+              "svg",
+              "ps",
+              "eps",
+              "tif",
+              "tiff",
+              "jpg",
+              "jpeg",
+              "pgf",
+              "raw",
+              "rgba"
+            ]
           }
         }
       },
@@ -1142,7 +1187,21 @@
             "default": [
               "png"
             ],
-            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)",
+            "enum": [
+              "png",
+              "pdf",
+              "svg",
+              "ps",
+              "eps",
+              "tif",
+              "tiff",
+              "jpg",
+              "jpeg",
+              "pgf",
+              "raw",
+              "rgba"
+            ]
           }
         }
       },
@@ -1157,7 +1216,21 @@
             "default": [
               "png"
             ],
-            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)",
+            "enum": [
+              "png",
+              "pdf",
+              "svg",
+              "ps",
+              "eps",
+              "tif",
+              "tiff",
+              "jpg",
+              "jpeg",
+              "pgf",
+              "raw",
+              "rgba"
+            ]
           }
         }
       },
@@ -1172,7 +1245,21 @@
             "default": [
               "png"
             ],
-            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)",
+            "enum": [
+              "png",
+              "pdf",
+              "svg",
+              "ps",
+              "eps",
+              "tif",
+              "tiff",
+              "jpg",
+              "jpeg",
+              "pgf",
+              "raw",
+              "rgba"
+            ]
           }
         }
       },
@@ -1187,7 +1274,21 @@
             "default": [
               "png"
             ],
-            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)",
+            "enum": [
+              "png",
+              "pdf",
+              "svg",
+              "ps",
+              "eps",
+              "tif",
+              "tiff",
+              "jpg",
+              "jpeg",
+              "pgf",
+              "raw",
+              "rgba"
+            ]
           }
         }
       }
@@ -1211,11 +1312,31 @@
       },
       "method": {
         "type": "list",
-        "required": false
+        "required": false,
+        "enum": [
+          "telogator2",
+          "assembly_scan",
+          "read_density",
+          "tidk"
+        ]
       },
       "formats": {
         "type": "list",
-        "required": false
+        "required": false,
+        "enum": [
+          "png",
+          "pdf",
+          "svg",
+          "ps",
+          "eps",
+          "tif",
+          "tiff",
+          "jpg",
+          "jpeg",
+          "pgf",
+          "raw",
+          "rgba"
+        ]
       },
       "telogator2": {
         "species": {
@@ -1247,18 +1368,32 @@
     },
     "snv_caller": {
       "type": "str",
-      "required": true
+      "required": true,
+      "enum": [
+        "deepvariant",
+        "gatk4"
+      ]
     },
     "deepvariant": {
       "model_type": {
         "type": "str",
-        "required": true
+        "required": true,
+        "enum": [
+          "WGS",
+          "WES",
+          "PACBIO",
+          "ONT_R104"
+        ]
       }
     },
     "trgt": {
       "karyotype": {
         "type": "str",
-        "required": true
+        "required": true,
+        "enum": [
+          "XX",
+          "XY"
+        ]
       },
       "repeat_id": {
         "type": "str",
@@ -1275,7 +1410,21 @@
             "default": [
               "png"
             ],
-            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)",
+            "enum": [
+              "png",
+              "pdf",
+              "svg",
+              "ps",
+              "eps",
+              "tif",
+              "tiff",
+              "jpg",
+              "jpeg",
+              "pgf",
+              "raw",
+              "rgba"
+            ]
           }
         }
       }
@@ -1350,7 +1499,13 @@
             },
             "sv_caller": {
               "type": "str",
-              "required": true
+              "required": true,
+              "enum": [
+                "sniffles1",
+                "sniffles2",
+                "lumpy",
+                "multivcf"
+              ]
             },
             "threads": {
               "type": "int",
@@ -1373,7 +1528,21 @@
         "properties": {
           "formats": {
             "type": "list",
-            "required": false
+            "required": false,
+            "enum": [
+              "png",
+              "pdf",
+              "svg",
+              "ps",
+              "eps",
+              "tif",
+              "tiff",
+              "jpg",
+              "jpeg",
+              "pgf",
+              "raw",
+              "rgba"
+            ]
           }
         }
       },
@@ -1383,7 +1552,21 @@
         "properties": {
           "formats": {
             "type": "list",
-            "required": false
+            "required": false,
+            "enum": [
+              "png",
+              "pdf",
+              "svg",
+              "ps",
+              "eps",
+              "tif",
+              "tiff",
+              "jpg",
+              "jpeg",
+              "pgf",
+              "raw",
+              "rgba"
+            ]
           }
         }
       },
@@ -1403,7 +1586,21 @@
         "properties": {
           "formats": {
             "type": "list",
-            "required": false
+            "required": false,
+            "enum": [
+              "png",
+              "pdf",
+              "svg",
+              "ps",
+              "eps",
+              "tif",
+              "tiff",
+              "jpg",
+              "jpeg",
+              "pgf",
+              "raw",
+              "rgba"
+            ]
           },
           "max_per_fig": {
             "type": "int",
@@ -1457,7 +1654,21 @@
               "default": [
                 "png"
               ],
-              "description": "图片格式(多种同时输出);R 侧 ggsave 设备集: png pdf svg ps eps tif tiff jpg jpeg(pgf/raw/rgba 为 matplotlib 专属,R 规则上快速失败)"
+              "description": "图片格式(多种同时输出);R 侧 ggsave 设备集: png pdf svg ps eps tif tiff jpg jpeg(pgf/raw/rgba 为 matplotlib 专属,R 规则上快速失败)",
+              "enum": [
+                "png",
+                "pdf",
+                "svg",
+                "ps",
+                "eps",
+                "tif",
+                "tiff",
+                "jpg",
+                "jpeg",
+                "pgf",
+                "raw",
+                "rgba"
+              ]
             }
           }
         }

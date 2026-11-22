@@ -192,6 +192,48 @@ def _fill_telomere_species(datajson: Dict[str, Any], workflow: str) -> None:
         f"(genome '{genome_key}')")
 
 
+# Genome reference key -> diploid chromosome count, the denominator of
+# read_density's "Avg telomere per arm" (= total_tel_bp / n_chrom_arms;
+# modules/telomere/length/README.md §3.3). Module default 40 is the mouse
+# value (20 chromosomes, diploid count); rhesus is 44 per the same README.
+# Filled into Params.telomere.read_density.n_chrom_arms when unset — genomes
+# without an entry must set it explicitly, never guess (same policy as
+# telogator2).
+GENOME_N_CHROM_ARMS = {
+    "GRCh38": 46,
+    "GRCm39": 40,
+    "T2T_mhaESC_v1.5": 40,
+    "Mmul_10": 44,
+    "Mmul_T2T": 44,
+}
+
+
+def _fill_telomere_n_chrom_arms(datajson: Dict[str, Any], workflow: str) -> None:
+    """Auto-fill Params.telomere.read_density.n_chrom_arms from genome.default.
+
+    Only the coverage-dependent "Avg telomere per arm" metric divides by it
+    (module README §3.3; the robust Telomeric fraction is unaffected).
+    Explicit config wins; genomes without a GENOME_N_CHROM_ARMS entry must set
+    it explicitly — never guess a chromosome count.
+    """
+    tel = (datajson.get("Params", {}).get("telomere", {}) or {})
+    if (tel.get("read_density", {}) or {}).get("n_chrom_arms") is not None:
+        return
+    genome_key = str(datajson.get("genome", {}).get("default"))
+    n_arms = GENOME_N_CHROM_ARMS.get(genome_key)
+    if not n_arms:
+        raise ValueError(
+            f"{workflow}: genome '{genome_key}' has no known chromosome-arm "
+            f"count; set 'Params.telomere.read_density.n_chrom_arms' in the "
+            f"config JSON (diploid chromosome count, telomere length README "
+            f"§3.3).")
+    datajson.setdefault("Params", {}).setdefault("telomere", {}).setdefault(
+        "read_density", {})["n_chrom_arms"] = n_arms
+    logger.info(
+        f"{workflow}: Params.telomere.read_density.n_chrom_arms := '{n_arms}' "
+        f"(genome '{genome_key}')")
+
+
 def _fill_repeatmasker_species(datajson: Dict[str, Any], workflow: str) -> None:
     """Auto-fill Params.RepeatMasker species (RepeatMasker -species) from genome.
 
@@ -1127,19 +1169,23 @@ def runPacVar(
                 outfiles.append(f"{outdir}/telomere/length/tidk/{sample_id}/{sample_id}_tidk_telomeres.tsv")
                 for _f in _tel_fmts:
                     outfiles.append(f"{outdir}/telomere/length/tidk/{sample_id}/{sample_id}_tidk_telomeres.{_f}")
-            if "read_density" in _tel_methods:
+            if "read_density" in tel_methods:
                 for _f in _tel_fmts:
                     outfiles.append(f"{outdir}/telomere/length/read_density/combined.{_f}")
-            if len(_tel_methods) >= 4:
+            if len(tel_methods) >= 4:
                 for _f in _tel_fmts:
                     outfiles.append(f"{outdir}/telomere/length/combined_methods.{_f}")
-            outfiles.append(f"{outdir}/telomere/length/depth_qc/{sample_id}/{sample_id}_telomere_region_depth_stats.txt")
+            _dq_bed = ((params.get("telomere", {}).get("depth_qc", {})
+                        or {}).get("telomere_bed"))
+            if _dq_bed:
+                outfiles.append(f"{outdir}/telomere/length/depth_qc/{sample_id}/{sample_id}_telomere_region_depth_stats.txt")
             # composition + regions 子模块输出
             outfiles.append(f"{outdir}/telomere/composition/telomere_summary.tsv")
             outfiles.append(f"{outdir}/telomere/composition/telomere_composition.tsv")
             for _f in _tel_fmts:
                 outfiles.append(f"{outdir}/telomere/composition/telomere_length_violin.{_f}")
-            outfiles.append(f"{outdir}/telomere/regions/{sample_id}/{sample_id}.telomere.bed")
+            if "assembly_scan" in tel_methods:
+                outfiles.append(f"{outdir}/telomere/regions/{sample_id}/{sample_id}.telomere.bed")
             # Centromere (separate module; not gated by telomere method)
             outfiles.append(f"{outdir}/repeat/centromere/{sample_id}/{sample_id}.centromere_stats.txt")
 
@@ -1154,6 +1200,7 @@ def runPacVar(
     _validate_te_lib(datajson, "PacVar")
     _fill_mei_rm_species(datajson, "PacVar")
     _fill_telomere_species(datajson, "PacVar")
+    _fill_telomere_n_chrom_arms(datajson, "PacVar")
     _fill_repeatmasker_species(datajson, "PacVar")
     comparisons = dict(sv_params.get("comparisons") or {})
     if enable_sv and not comparisons:
@@ -2581,6 +2628,19 @@ def runscRNAseq(
     pbgo_cfg = (datajson["Params"].get("function", {}) or {}).get("pseudobulk_go", {}) or {}
     if pbgo_cfg.get("enabled"):
         outfiles.append(f"{outdir}/function/go_kegg/enrichment.done")
+    # TE-dominant cluster identification (modules/tedominant): one
+    # group-level run over all tissues, gated by
+    # Params.tedominant.enabled; consumes the combine-stage h5ad pair
+    # (registering the table + done marker pulls the qc->merge->auto
+    # chain for every tissue into the DAG).
+    tedom_cfg = datajson["Params"].get("tedominant", {}) or {}
+    if tedom_cfg.get("enabled"):
+        outfiles.append(f"{outdir}/diff/figures_te/te_dominant_clusters.csv")
+        outfiles.append(f"{outdir}/diff/figures_te/markers_dotplot.png")
+        outfiles.append(f"{outdir}/diff/figures_te/te_dominant.done")
+        for tissue in tissue_samples.keys():
+            outfiles.append(f"{outdir}/diff/figures_te/cluster_burden_{tissue}.png")
+            outfiles.append(f"{outdir}/diff/figures_te/umap_te_{tissue}.png")
     # outfiles.append(f"{outdir}/scRNAseq_report.pptx")
     datajson["outfiles"] = outfiles
     return _write_raw_json(datajson, outdir)
@@ -2645,6 +2705,8 @@ def runFiberseq(
     enable_function = _enabled(datajson, "function")
     enable_sv = _enabled(datajson, "sv")
     enable_telomere = _enabled(datajson, "telomere")
+    enable_telocen_norm = _enabled(datajson, "telocen_norm")
+    enable_epi_drift = _enabled(datajson, "epi_drift")
     want_motif = enable_motif or enable_footprint
     want_quant = enable_quant or enable_diff or enable_haplotype
     want_eccdna = _enabled(datajson, "decoil") and default_ref.get("gtf")
@@ -2766,12 +2828,16 @@ def runFiberseq(
             if len(_tel_methods) >= 4:
                 for _f in _tel_fmts:
                     outfiles.append(f"{_tb}/combined_methods.{_f}")
-            outfiles.append(f"{_tb}/depth_qc/{sample_id}/{sample_id}_telomere_region_depth_stats.txt")
+            _dq_bed = ((datajson.get("Params", {}).get("telomere", {})
+                        .get("depth_qc", {}) or {}).get("telomere_bed"))
+            if _dq_bed:
+                outfiles.append(f"{_tb}/depth_qc/{sample_id}/{sample_id}_telomere_region_depth_stats.txt")
             outfiles.append(f"{outdir}/telomere/composition/telomere_summary.tsv")
             outfiles.append(f"{outdir}/telomere/composition/telomere_composition.tsv")
             for _f in _tel_fmts:
                 outfiles.append(f"{outdir}/telomere/composition/telomere_length_violin.{_f}")
-            outfiles.append(f"{outdir}/telomere/regions/{sample_id}/{sample_id}.telomere.bed")
+            if "assembly_scan" in _tel_methods:
+                outfiles.append(f"{outdir}/telomere/regions/{sample_id}/{sample_id}.telomere.bed")
 
         # Step 5: haplotype chain
         if enable_haplotype:
@@ -2832,6 +2898,35 @@ def runFiberseq(
             outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz")
             outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz.csi")
 
+    # Comparison figure modules (not per-sample): telocen_norm (fig2) and
+    # epi_drift (fig9). Both need exactly 2 groups in Params.<step>.groups.
+    for _step in ("telocen_norm", "epi_drift"):
+        if _enabled(datajson, _step):
+            _gr = (datajson.get("Params", {}).get(_step, {}) or {}).get("groups") or {}
+            if len(_gr) != 2 or not all(_gr.values()):
+                raise ValueError(
+                    f"Fiberseq: Params.{_step}.groups must define exactly 2 "
+                    f"non-empty groups (label -> [samples]); got: {_gr!r}. "
+                    f"Set Params.{_step}.enabled=false to skip this analysis.")
+    if enable_telocen_norm:
+        _tn_fmts = (datajson.get("Params", {}).get("telocen_norm", {})
+                    .get("fiberseq_telocen_norm_fig", {}).get("formats") or ["png"])
+        if isinstance(_tn_fmts, str):
+            _tn_fmts = [_tn_fmts]
+        outfiles.append(f"{outdir}/fiberseq_analysis/telocen_norm/region_normalized.tsv")
+        outfiles.append(f"{outdir}/fiberseq_analysis/telocen_norm/class_diff_normalized.tsv")
+        outfiles += _figs(f"{outdir}/fiberseq_analysis/telocen_norm/telocen_normalized",
+                          _tn_fmts)
+    if enable_epi_drift:
+        _ed_fmts = (datajson.get("Params", {}).get("epi_drift", {})
+                    .get("fiberseq_epi_drift_fig", {}).get("formats") or ["png"])
+        if isinstance(_ed_fmts, str):
+            _ed_fmts = [_ed_fmts]
+        outfiles.append(f"{outdir}/fiberseq_analysis/epi_drift/epigenetic_drift_windows.tsv")
+        outfiles.append(f"{outdir}/fiberseq_analysis/epi_drift/epigenetic_drift.json")
+        outfiles += _figs(f"{outdir}/fiberseq_analysis/epi_drift/epigenetic_drift",
+                          _ed_fmts)
+
     if len(genome_versions) != 1:
         raise ValueError(f"meta don't support multiple organsim temporarily, please check your meta file, found: {genome_versions}")
     genome_version = next(iter(genome_versions))
@@ -2856,6 +2951,8 @@ def runFiberseq(
     sv_params = datajson.get("Params", {}).get("sv", {})
     _validate_te_lib(datajson, "Fiberseq")
     _fill_mei_rm_species(datajson, "Fiberseq")
+    _fill_telomere_species(datajson, "Fiberseq")
+    _fill_telomere_n_chrom_arms(datajson, "Fiberseq")
     comparisons = dict(sv_params.get("comparisons") or {})
     if enable_sv and not comparisons:
         for gp in group_pairs:

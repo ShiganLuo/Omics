@@ -1,0 +1,158 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "ROOT_DIR": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "inputs": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "epi_drift": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "bam": {
+            "type": "dict",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "fiberseq_epi_drift": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "enabled": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          },
+          "groups": {
+            "type": "dict",
+            "nullable": true,
+            "required": false
+          },
+          "fiberseq_epi_drift_run": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "threads": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "win": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "min_fibers": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "subsample": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "n_windows": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "seed": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "min_chrom_len": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "chrom_prefix": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "fiberseq_epi_drift_fig": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "formats": {
+                "type": "list",
+                "nullable": true,
+                "required": false
+              },
+              "dpi": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "fai_index": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "env": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  }
+}

@@ -255,8 +255,9 @@ def build_parser() -> argparse.ArgumentParser:
         description="Curate fiber_cluster.py runs into figures/ + summary/ + sensitivity/.")
     p.add_argument("-r", "--run", action="append", required=True, metavar="L=DIR",
                    help="label=run_dir entry (repeatable; one per channel/k setting)")
-    p.add_argument("-c", "--canonical", type=str, required=True,
-                   help="label of the run whose figures/summary become the deliverable")
+    p.add_argument("-c", "--canonical", type=str, default=None,
+                   help="label of the run whose figures/summary become the deliverable "
+                        "(default: the first --run label)")
     p.add_argument("-o", "--outdir", type=Path, required=True,
                    help="report package directory (e.g. the pilot root)")
     p.add_argument("-S", "--sample-order", type=str, default="",
@@ -282,17 +283,18 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     try:
         runs = parse_run_entries(args.run)
-        if args.canonical not in runs:
-            raise ValueError(f"--canonical {args.canonical!r} is not among --run labels "
+        canonical = args.canonical or next(iter(runs))
+        if canonical not in runs:
+            raise ValueError(f"--canonical {canonical!r} is not among --run labels "
                              f"{sorted(runs)}")
     except ValueError as exc:
         logger.error(str(exc))
         return 2
 
     per_run = {label: read_run(path) for label, path in runs.items()}
-    canon = per_run[args.canonical]
+    canon = per_run[canonical]
     if not canon:
-        logger.error("canonical run %s has no region outputs", args.canonical)
+        logger.error("canonical run %s has no region outputs", canonical)
         return 2
 
     if args.sample_order:
@@ -308,7 +310,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if len(st.clusters) < 2:
             logger.info("region %s: single cluster -> summary only, no figure", region)
             continue
-        src = runs[args.canonical] / region / f"{region}.clusters.png"
+        src = runs[canonical] / region / f"{region}.clusters.png"
         if not src.is_file():
             logger.warning("region %s: figure missing at %s", region, src)
             continue

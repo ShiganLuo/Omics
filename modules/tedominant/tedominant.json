@@ -1,0 +1,16 @@
+{
+  "indir": "",
+  "outdir": "output",
+  "logdir": "logs",
+  "ROOT_DIR": ".",
+  "tissues": [],
+  "Params": {
+    "tedominant": {
+      "method": "v1",
+      "min_cells": 100,
+      "gate_frac": 0.5,
+      "skip_dotplot": false
+    }
+  },
+  "env": {}
+}

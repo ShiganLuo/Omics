@@ -18,7 +18,21 @@ samples = config.get("samples", [])
 bam_substring = config.get("bam_substring") or ""
 
 def get_input_for_hifiasm(wildcards):
-    """Get input files for hifiasm assembly."""
+    """Get input files for hifiasm assembly.
+
+    Dict-mode (inputs.hifiasm.bam / inputs.hifiasm.pbi, per-sample) wins —
+    e.g. Fiberseq's staged ``{raw}/{sample}/{sample}.bam`` layout; else the
+    module's standalone flat shape A ``{indir}/{sample_id}[.bam_substring].
+    bam`` (+ its colocated ``.bam.pbi`` index, the same naming contract
+    shape A uses).
+    """
+    per = (config.get("inputs", {}) or {}).get("hifiasm", {}) or {}
+    bam_map = per.get("bam", {}) or {}
+    pbi_map = per.get("pbi", {}) or {}
+    if wildcards.sample_id in bam_map:
+        bam = bam_map[wildcards.sample_id]
+        return {"bam": bam,
+                "bai": pbi_map.get(wildcards.sample_id) or (bam + ".pbi")}
     in_dict = {}
     if bam_substring != "":
         in_dict["bam"] = os.path.join(indir, f"{wildcards.sample_id}." + bam_substring + ".bam")
@@ -27,6 +41,15 @@ def get_input_for_hifiasm(wildcards):
         in_dict["bam"] = os.path.join(indir, f"{wildcards.sample_id}.bam")
         in_dict["bai"] = os.path.join(indir, f"{wildcards.sample_id}.bam.pbi")
     return in_dict
+
+def get_dfam_h5(wildcards):
+    """RepeatMasker Dfam h5 library — required explicit config.
+
+    ``Params.RepeatMasker.dfam_h5`` must be set (never guess a library);
+    unset fails fast naming the JSON key.
+    """
+    return _require(config.get("Params", {}).get("RepeatMasker", {}).get("dfam_h5"),
+                    "Params.RepeatMasker.dfam_h5", "centromere")
 
 rule hifiasm_assemble:
     """Assemble HiFi reads with hifiasm."""
@@ -56,6 +79,7 @@ rule hifiasm_assemble:
             script = os.path.join(RECEIPT_DIR, f"hifiasm_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/hifiasm.sh")
+            os.makedirs(os.path.join(outdir, wildcards.sample_id, "assembly"), exist_ok=True)
             fq_gz = os.path.join(outdir, f"{wildcards.sample_id}/assembly/{wildcards.sample_id}.hifi.fq.gz")
             cmd0 = [
                 "samtools", "fastq", "-@", str(threads), input.bam, "|", "gzip", "-c", ">", fq_gz
@@ -80,12 +104,13 @@ rule hifiasm_assemble:
             else:
                 shell(f"bash {plain_script} >> {log[0]} 2>&1")
         except Exception as e:
-            raise f"hifiasm assembly failed for sample {wildcards.sample_id} with error: {e}"
+            logger.error(f"hifiasm assembly failed for sample {wildcards.sample_id}: {e}\n")
+            raise RuntimeError(f"hifiasm assembly failed for sample {wildcards.sample_id} with error: {e}, you can check the log file {log[0]} for more details.")
 
 rule repeatmasker_init:
     """Build RepeatMasker library cache once to avoid concurrent makeblastdb conflicts."""
     input:
-        dfam_h5 = config.get("Params", {}).get("RepeatMasker", {}).get("dfam_h5") or ""
+        dfam_h5 = get_dfam_h5
     output:
         outdir + "/.repeatmasker_lib_init.done"
     log:
@@ -122,6 +147,7 @@ rule repeatmasker_init:
             cmd3 = ["touch", output[0]]
             cmd2 = ["rm", "-rf", tmpdir]
             cmd4 = ["echo", "RepeatMasker library cache initialized."]
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             script = os.path.join(RECEIPT_DIR, f"repeatmasker_init_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(os.path.dirname(str(output[0])), "repeatmasker_init.sh")
@@ -129,7 +155,7 @@ rule repeatmasker_init:
                 rule_logger.warning("RepeatMasker don't support specifying custom Dfam h5 directly, pipeline will try to find the corresponding library dir and link your dfam h5 to the library dir with a name that RepeatMasker can recognize. Please ensure the Dfam h5 you provided is compatible with your RepeatMasker version and includes relevant satellite DNA for target species.")
                 RepeatMasker_lib_dir = ""
                 try:
-                    RepeatMasker_dir = shell("which RepeatMasker", read=True)# Get RepeatMasker executable path, enviroment only play in shell
+                    RepeatMasker_dir = shutil.which(params.RepeatMasker)
                     if RepeatMasker_dir is None:
                         rule_logger.error(f"RepeatMasker executable not found: {params.RepeatMasker}")
                         raise FileNotFoundError(f"RepeatMasker executable not found: {params.RepeatMasker}")
@@ -162,15 +188,13 @@ rule repeatmasker_init:
             else:
                 shell(f"bash {plain_script} >> {log[0]} 2>&1")
         except Exception as e:
-            raise f"RepeatMasker init failed with error: {e}"
+            raise RuntimeError(f"RepeatMasker init failed with error: {e}")
 
 def get_input_for_repeatmasker(wildcards):
     """Get input files for RepeatMasker."""
     in_dict = {}
     in_dict["fasta"] = os.path.join(outdir, f"{wildcards.sample_id}/assembly/asm.bp.p_ctg.fa")
-    dfam_h5 = config.get("Params", {}).get("RepeatMasker", {}).get("dfam_h5")
-    if dfam_h5 and os.path.exists(dfam_h5):
-        in_dict["lib_init"] = os.path.join(outdir, ".repeatmasker_lib_init.done")
+    in_dict["lib_init"] = os.path.join(outdir, ".repeatmasker_lib_init.done")
     return in_dict
 
 rule repeatmasker_run:
@@ -223,7 +247,7 @@ rule repeatmasker_run:
             else:
                 shell(f"bash {plain_script} >> {log[0]} 2>&1")
         except Exception as e:
-            raise f"RepeatMasker failed for sample {wildcards.sample_id} with error: {e}"
+            raise RuntimeError(f"RepeatMasker failed for sample {wildcards.sample_id} with error: {e}")
 
 rule centromere_extract:
     """Extract satellite DNA statistics from RepeatMasker output."""
@@ -269,7 +293,7 @@ rule centromere_extract:
             else:
                 shell(f"bash {plain_script} >> {log[0]} 2>&1")
         except Exception as e:
-            raise f"Centromere stats extraction failed for sample {wildcards.sample_id} with error: {e}"
+            raise RuntimeError(f"Centromere stats extraction failed for sample {wildcards.sample_id} with error: {e}")
 
 rule centromere_result:
     """Result aggregation rule for subworkflow use rule import."""

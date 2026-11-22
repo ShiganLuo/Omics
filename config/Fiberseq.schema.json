@@ -1,2657 +1,3212 @@
 {
-  "indir": {
+ "indir": {
+  "type": "str",
+  "required": true
+ },
+ "outdir": {
+  "type": "str",
+  "required": true
+ },
+ "assembly_dir": {
+  "type": "str",
+  "nullable": true,
+  "required": false,
+  "path": "dir",
+  "description": "可选覆盖:外部已有 hifiasm 组装目录(布局 {assembly_dir}/{sample_id}/assembly/asm.bp.p_ctg.fa),设置后跳过流程内 hifiasm。缺省不设:组装由 Fiberseq_centromere_hifiasm_assemble 产出到 {outdir}/assembly"
+ },
+ "logdir": {
+  "type": "str",
+  "required": true
+ },
+ "samples": {
+  "type": "list",
+  "required": true
+ },
+ "Procedure": {
+  "fibertools": {
+   "type": "null",
+   "nullable": true,
+   "required": false
+  },
+  "pbmm2": {
+   "type": "null",
+   "nullable": true,
+   "required": false
+  },
+  "samtools": {
+   "type": "null",
+   "nullable": true,
+   "required": false
+  },
+  "deepvariant": {
+   "type": "null",
+   "nullable": true,
+   "required": false
+  },
+  "pbsv": {
+   "type": "null",
+   "nullable": true,
+   "required": false
+  },
+  "hiphase": {
+   "type": "null",
+   "nullable": true,
+   "required": false
+  },
+  "ldsc": {
+   "type": "null",
+   "nullable": true,
+   "required": false
+  },
+  "munge_sumstats": {
+   "type": "null",
+   "nullable": true,
+   "required": false
+  },
+  "make_annot": {
+   "type": "null",
+   "nullable": true,
+   "required": false
+  }
+ },
+ "Params": {
+  "regionplot": {
+   "enabled": {
+    "type": "bool",
+    "required": false,
+    "default": false,
+    "description": "Gate for the regionplot module (multi-sample track stacking plots over user regions, consumes this workflow's bigwigs)."
+   },
+   "regions": {
     "type": "str",
-    "required": true
-  },
-  "outdir": {
-    "type": "str",
-    "required": true
-  },
-  "logdir": {
-    "type": "str",
-    "required": true
-  },
-  "samples": {
-    "type": "list",
-    "required": true
-  },
-  "Procedure": {
-    "fibertools": {
-      "type": "null",
-      "nullable": true,
-      "required": false
-    },
-    "pbmm2": {
-      "type": "null",
-      "nullable": true,
-      "required": false
-    },
-    "samtools": {
-      "type": "null",
-      "nullable": true,
-      "required": false
-    },
-    "deepvariant": {
-      "type": "null",
-      "nullable": true,
-      "required": false
-    },
-    "pbsv": {
-      "type": "null",
-      "nullable": true,
-      "required": false
-    },
-    "hiphase": {
-      "type": "null",
-      "nullable": true,
-      "required": false
-    },
-    "ldsc": {
-      "type": "null",
-      "nullable": true,
-      "required": false
-    },
-    "munge_sumstats": {
-      "type": "null",
-      "nullable": true,
-      "required": false
-    },
-    "make_annot": {
-      "type": "null",
-      "nullable": true,
-      "required": false
-    }
-  },
-  "Params": {
-    "regionplot": {
-      "enabled": {
-        "type": "bool",
-        "required": false,
-        "default": false,
-        "description": "Gate for the regionplot module (multi-sample track stacking plots over user regions, consumes this workflow's bigwigs)."
-      },
-      "regions": {
-        "type": "str",
-        "required": false,
-        "default": null,
-        "description": "Regions file, required when enabled. Auto-detected per row: BED rows (chrom<TAB>start<TAB>end[<TAB>name], col4 names the panel) or list lines ([NAME=]chrom:start-end, the same string pyGenomeTracks --region consumes; NAME= names the panel, else chrom_start_end). Formats may be mixed; #/track/browser lines skipped."
-      },
-      "sample_group_dict": {
-        "type": "dict",
-        "required": false,
-        "default": {},
-        "description": "sample_id -> biological group for track coloring; auto-filled from the meta group column by node.py, hand-filled values win."
-      },
-      "sample_order": {
-        "type": "list",
-        "required": false,
-        "default": [],
-        "description": "Plotting order of samples; empty = meta order."
-      },
-      "formats": {
-        "type": "list",
-        "required": false,
-        "default": [
-          "png",
-          "svg"
-        ],
-        "description": "Output image formats (pyGenomeTracks --outFileName extensions)."
-      },
-      "gtf_track": {
-        "type": "bool",
-        "required": false,
-        "default": true,
-        "description": "Add a gene-model track at the bottom when the genome GTF exists."
-      },
-      "plot_height_per_track": {
-        "type": "float",
-        "required": false,
-        "default": 1.5,
-        "description": "Track height in inches per sample track."
-      },
-      "plot_width": {
-        "type": "float",
-        "required": false,
-        "default": 12,
-        "description": "Figure width in inches."
-      }
-    },
-    "fiberbrowser": {
-      "enabled": {
-        "type": "bool",
-        "required": false,
-        "default": false,
-        "description": "Opt-in gate for the fiberbrowser module (paper-style fiber-seq locus figures over this workflow's aligned BAMs, Fig 2H scheme). node.py registers the figure outputs only when true; default false = wired but not invoked."
-      },
-      "loci": {
-        "type": "str",
-        "required": false,
-        "default": null,
-        "description": "Loci file, required when enabled. One locus per row: BED rows (chrom<TAB>start<TAB>end[<TAB>name]) or [NAME=]chrom:start-end lines. node.py parses it into loci_map (shell-safe panel name -> chrom:start-end) written back to this block."
-      },
-      "loci_map": {
-        "type": "dict",
-        "required": false,
-        "default": {},
-        "description": "Generated by node.py from 'loci'; consumed by the module for output naming and per-locus engine calls. Do not hand-fill."
-      },
-      "sample_group_dict": {
-        "type": "dict",
-        "required": false,
-        "default": {},
-        "description": "sample_id -> group label shown in figure labels (e.g. 's1 (aged)'); auto-filled from the meta group column by node.py, hand-filled values win."
-      },
-      "variants": {
-        "type": "list",
-        "required": false,
-        "default": [
-          "plain",
-          "zoom"
-        ],
-        "description": "Figure variants per locus: 'plain' (<name>.<fmt>) and/or 'zoom' (<name>_zoom.<fmt>, representative-fiber light-blue box + key-region shadow + 150 bp zoom row)."
-      },
-      "max_fibers": {
-        "type": "int",
-        "required": false,
-        "default": 12,
-        "description": "Fiber rows drawn per sample (most aligned bases in the locus first)."
-      },
-      "zoom_bp": {
-        "type": "int",
-        "required": false,
-        "default": 2100,
-        "description": "Zoomed region width in bp (the light-blue box; the grey key shadow is 1/3 of it)."
-      },
-      "formats": {
-        "type": "list",
-        "required": false,
-        "default": [
-          "png",
-          "svg"
-        ],
-        "description": "Output image formats (matplotlib savefig set)."
-      },
-      "dpi": {
-        "type": "int",
-        "required": false,
-        "default": 200,
-        "description": "Raster resolution; vector formats ignore it."
-      }
-    },
-    "fibertools": {
-      "ft_fire": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "add_nucleosomes_manual": {
-            "type": "null",
-            "nullable": true,
-            "required": false
-          },
-          "ont": {
-            "type": "bool",
-            "required": false
-          }
-        }
-      },
-      "ft_call_peaks": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "call_peaks_mode": {
-            "type": "str",
-            "required": false
-          },
-          "max_fdr": {
-            "type": "float",
-            "required": false
-          },
-          "min_fire_frac": {
-            "type": "float",
-            "required": false
-          },
-          "sd_cov": {
-            "type": "float",
-            "required": false
-          },
-          "haps": {
-            "type": "bool",
-            "required": false
-          }
-        }
-      },
-      "ft_qc": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "acf": {
-            "type": "bool",
-            "required": false
-          }
-        }
-      },
-      "ft_extract_fire": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "ont": {
-            "type": "bool",
-            "required": false
-          }
-        }
-      }
-    },
-    "pbmm2": {
-      "preset": {
-        "type": "str",
-        "required": false
-      },
-      "threads": {
-        "type": "int",
-        "required": false
-      },
-      "sort_threads": {
-        "type": "int",
-        "required": false
-      },
-      "sort_memory": {
-        "type": "str",
-        "required": false
-      }
-    },
-    "annotate": {
-      "enabled": {
-        "type": "bool",
-        "required": false
-      },
-      "fiberseq_annotate_run": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "tss_flank": {
-            "type": "int",
-            "required": false
-          },
-          "repeat_frac": {
-            "type": "float",
-            "required": false
-          }
-        }
-      }
-    },
-    "motif": {
-      "enabled": {
-        "type": "bool",
-        "required": false
-      },
-      "fiberseq_motif_profile": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "formats": {
-            "type": "list",
-            "required": false,
-            "default": [
-              "pdf"
-            ],
-            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
-          },
-          "flank": {
-            "type": "int",
-            "required": false
-          },
-          "min_fibers": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "fiberseq_motif_result": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "formats": {
-            "type": "list",
-            "required": false,
-            "default": [
-              "pdf"
-            ],
-            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
-          }
-        }
-      },
-      "fiberseq_motif_scan": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "pwm_threshold": {
-            "type": "float",
-            "required": false
-          }
-        }
-      }
-    },
-    "footprint": {
-      "enabled": {
-        "type": "bool",
-        "required": false
-      },
-      "fiberseq_footprint_run": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "formats": {
-            "type": "list",
-            "required": false,
-            "default": [
-              "pdf"
-            ],
-            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
-          },
-          "flank": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "fiberseq_footprint_result": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "formats": {
-            "type": "list",
-            "required": false,
-            "default": [
-              "pdf"
-            ],
-            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
-          }
-        }
-      }
-    },
-    "nucpos": {
-      "enabled": {
-        "type": "bool",
-        "required": false
-      },
-      "fiberseq_nucpos_run": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "formats": {
-            "type": "list",
-            "required": false,
-            "default": [
-              "pdf"
-            ],
-            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
-          },
-          "upstream_nucs": {
-            "type": "int",
-            "required": false
-          },
-          "downstream_nucs": {
-            "type": "int",
-            "required": false
-          },
-          "min_fibers": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "fiberseq_nucpos_result": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "formats": {
-            "type": "list",
-            "required": false,
-            "default": [
-              "pdf"
-            ],
-            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
-          }
-        }
-      }
-    },
-    "track": {
-      "enabled": {
-        "type": "bool",
-        "required": false
-      },
-      "fiberseq_track_run": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "bin": {
-            "type": "int",
-            "required": false
-          }
-        }
-      }
-    },
-    "quant": {
-      "enabled": {
-        "type": "bool",
-        "required": false
-      }
-    },
-    "diff": {
-      "enabled": {
-        "type": "bool",
-        "required": false
-      },
-      "fiberseq_diff_run": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "formats": {
-            "type": "list",
-            "required": false,
-            "default": [
-              "pdf"
-            ],
-            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
-          },
-          "alpha": {
-            "type": "float",
-            "required": false
-          },
-          "annot_sample": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
-          "group_spec": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          }
-        }
-      }
-    },
-    "fiberseq_mods": {
-      "enabled": {
-        "type": "bool",
-        "nullable": true,
-        "required": false,
-        "description": "运行 fiberseq_mods + sigtest 检验链;false 时整条不注册进 DAG"
-      },
-      "mod_type": {
-        "type": "str",
-        "nullable": true,
-        "required": false,
-        "description": "修饰信号类型: cpg=5mC(读 cpg.bed.gz) / m6a=6mA(读 m6a.bed.gz);决定输入文件与输出文件名"
-      },
-      "region_axis": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "description": "区域轴判别式对象(genome 同构 {default, options}):取值决定引擎/长表 schema/下游规则;轴专属参数在对应 options 条目内",
-        "default": {
-          "type": "str",
-          "required": true,
-          "description": "当前生效的轴: te=RepeatMasker TE locus(检验 subfamily/family 层级) / fire_peaks=各样本 FIRE peak(检验 peak)"
-        },
-        "options": {
-          "type": "dict",
-          "required": true,
-          "description": "轴枚举到属性集的闭合映射;default 必须是它的键",
-          "te": {
-            "type": "dict",
-            "nullable": true,
-            "properties": {
-              "min_fibers": {
-                "type": "int",
-                "nullable": true,
-                "description": "覆盖门控: locus 在某样本的覆盖 fiber 数 < N 时该样本的这个 locus 不进长表(不填零)"
-              },
-              "loci_top_n": {
-                "type": "int",
-                "nullable": true,
-                "description": "每个显著 TE 组内按|组间均值差|排序,top_loci.bed 只留前 N 个 locus(regionplot 浏览短名单)"
-              }
-            }
-          },
-          "fire_peaks": {
-            "type": "dict",
-            "nullable": true,
-            "properties": {
-              "metric": {
-                "type": "str",
-                "nullable": true,
-                "description": "fire_peaks 轴指标名,仅用于长表文件名({metric}_long.tsv);默认 {mod_type}_per_fiber 派生"
-              },
-              "top_n": {
-                "type": "int",
-                "nullable": true,
-                "description": "significant_objects.bed 按 p 值升序只留前 N 个 peak(0=全保留;TSV 永远全量);TE 轴下 BED 恒为空,此键无效"
-              }
-            }
-          }
-        }
-      },
-      "fiberseq_mods_longtable": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "mod_type": {
-            "type": "str",
-            "nullable": true,
-            "required": false,
-            "description": "修饰信号类型: cpg=5mC(读 cpg.bed.gz) / m6a=6mA(读 m6a.bed.gz);决定输入文件与输出文件名"
-          },
-          "region_axis": {
-            "type": "dict",
-            "nullable": true,
-            "required": false,
-            "description": "区域轴判别式对象(genome 同构 {default, options}):取值决定引擎/长表 schema/下游规则;轴专属参数在对应 options 条目内",
-            "default": {
-              "type": "str",
-              "required": true,
-              "description": "当前生效的轴: te=RepeatMasker TE locus(检验 subfamily/family 层级) / fire_peaks=各样本 FIRE peak(检验 peak)"
-            },
-            "options": {
-              "type": "dict",
-              "required": true,
-              "description": "轴枚举到属性集的闭合映射;default 必须是它的键",
-              "te": {
-                "type": "dict",
-                "nullable": true,
-                "properties": {
-                  "min_fibers": {
-                    "type": "int",
-                    "nullable": true,
-                    "description": "覆盖门控: locus 在某样本的覆盖 fiber 数 < N 时该样本的这个 locus 不进长表(不填零)"
-                  },
-                  "loci_top_n": {
-                    "type": "int",
-                    "nullable": true,
-                    "description": "每个显著 TE 组内按|组间均值差|排序,top_loci.bed 只留前 N 个 locus(regionplot 浏览短名单)"
-                  }
-                }
-              },
-              "fire_peaks": {
-                "type": "dict",
-                "nullable": true,
-                "properties": {
-                  "metric": {
-                    "type": "str",
-                    "nullable": true,
-                    "description": "fire_peaks 轴指标名,仅用于长表文件名({metric}_long.tsv);默认 {mod_type}_per_fiber 派生"
-                  },
-                  "top_n": {
-                    "type": "int",
-                    "nullable": true,
-                    "description": "significant_objects.bed 按 p 值升序只留前 N 个 peak(0=全保留;TSV 永远全量);TE 轴下 BED 恒为空,此键无效"
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "fiberseq_mods_split": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "region_axis": {
-            "type": "dict",
-            "nullable": true,
-            "required": false,
-            "description": "区域轴判别式对象(genome 同构 {default, options}):取值决定引擎/长表 schema/下游规则;轴专属参数在对应 options 条目内",
-            "default": {
-              "type": "str",
-              "required": true,
-              "description": "当前生效的轴: te=RepeatMasker TE locus(检验 subfamily/family 层级) / fire_peaks=各样本 FIRE peak(检验 peak)"
-            },
-            "options": {
-              "type": "dict",
-              "required": true,
-              "description": "轴枚举到属性集的闭合映射;default 必须是它的键",
-              "te": {
-                "type": "dict",
-                "nullable": true,
-                "properties": {
-                  "min_fibers": {
-                    "type": "int",
-                    "nullable": true,
-                    "description": "覆盖门控: locus 在某样本的覆盖 fiber 数 < N 时该样本的这个 locus 不进长表(不填零)"
-                  },
-                  "loci_top_n": {
-                    "type": "int",
-                    "nullable": true,
-                    "description": "每个显著 TE 组内按|组间均值差|排序,top_loci.bed 只留前 N 个 locus(regionplot 浏览短名单)"
-                  }
-                }
-              },
-              "fire_peaks": {
-                "type": "dict",
-                "nullable": true,
-                "properties": {
-                  "metric": {
-                    "type": "str",
-                    "nullable": true,
-                    "description": "fire_peaks 轴指标名,仅用于长表文件名({metric}_long.tsv);默认 {mod_type}_per_fiber 派生"
-                  },
-                  "top_n": {
-                    "type": "int",
-                    "nullable": true,
-                    "description": "significant_objects.bed 按 p 值升序只留前 N 个 peak(0=全保留;TSV 永远全量);TE 轴下 BED 恒为空,此键无效"
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "fiberseq_mods_top_loci": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "mod_type": {
-            "type": "str",
-            "nullable": true,
-            "required": false,
-            "description": "修饰信号类型: cpg=5mC(读 cpg.bed.gz) / m6a=6mA(读 m6a.bed.gz);决定输入文件与输出文件名"
-          },
-          "region_axis": {
-            "type": "dict",
-            "nullable": true,
-            "required": false,
-            "description": "区域轴判别式对象(genome 同构 {default, options}):取值决定引擎/长表 schema/下游规则;轴专属参数在对应 options 条目内",
-            "default": {
-              "type": "str",
-              "required": true,
-              "description": "当前生效的轴: te=RepeatMasker TE locus(检验 subfamily/family 层级) / fire_peaks=各样本 FIRE peak(检验 peak)"
-            },
-            "options": {
-              "type": "dict",
-              "required": true,
-              "description": "轴枚举到属性集的闭合映射;default 必须是它的键",
-              "te": {
-                "type": "dict",
-                "nullable": true,
-                "properties": {
-                  "min_fibers": {
-                    "type": "int",
-                    "nullable": true,
-                    "description": "覆盖门控: locus 在某样本的覆盖 fiber 数 < N 时该样本的这个 locus 不进长表(不填零)"
-                  },
-                  "loci_top_n": {
-                    "type": "int",
-                    "nullable": true,
-                    "description": "每个显著 TE 组内按|组间均值差|排序,top_loci.bed 只留前 N 个 locus(regionplot 浏览短名单)"
-                  }
-                }
-              },
-              "fire_peaks": {
-                "type": "dict",
-                "nullable": true,
-                "properties": {
-                  "metric": {
-                    "type": "str",
-                    "nullable": true,
-                    "description": "fire_peaks 轴指标名,仅用于长表文件名({metric}_long.tsv);默认 {mod_type}_per_fiber 派生"
-                  },
-                  "top_n": {
-                    "type": "int",
-                    "nullable": true,
-                    "description": "significant_objects.bed 按 p 值升序只留前 N 个 peak(0=全保留;TSV 永远全量);TE 轴下 BED 恒为空,此键无效"
-                  }
-                }
-              }
-            }
-          },
-          "groups": {
-            "type": "list",
-            "nullable": true,
-            "required": false,
-            "description": "手工覆盖两组合名(如 [aged,youth]);留空时由 node.py 从 meta 设计自动推导——正常情况下留空"
-          }
-        }
-      },
-      "fiberseq_mods_result": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "mod_type": {
-            "type": "str",
-            "nullable": true,
-            "required": false,
-            "description": "修饰信号类型: cpg=5mC(读 cpg.bed.gz) / m6a=6mA(读 m6a.bed.gz);决定输入文件与输出文件名"
-          },
-          "region_axis": {
-            "type": "dict",
-            "nullable": true,
-            "required": false,
-            "description": "区域轴判别式对象(genome 同构 {default, options}):取值决定引擎/长表 schema/下游规则;轴专属参数在对应 options 条目内",
-            "default": {
-              "type": "str",
-              "required": true,
-              "description": "当前生效的轴: te=RepeatMasker TE locus(检验 subfamily/family 层级) / fire_peaks=各样本 FIRE peak(检验 peak)"
-            },
-            "options": {
-              "type": "dict",
-              "required": true,
-              "description": "轴枚举到属性集的闭合映射;default 必须是它的键",
-              "te": {
-                "type": "dict",
-                "nullable": true,
-                "properties": {
-                  "min_fibers": {
-                    "type": "int",
-                    "nullable": true,
-                    "description": "覆盖门控: locus 在某样本的覆盖 fiber 数 < N 时该样本的这个 locus 不进长表(不填零)"
-                  },
-                  "loci_top_n": {
-                    "type": "int",
-                    "nullable": true,
-                    "description": "每个显著 TE 组内按|组间均值差|排序,top_loci.bed 只留前 N 个 locus(regionplot 浏览短名单)"
-                  }
-                }
-              },
-              "fire_peaks": {
-                "type": "dict",
-                "nullable": true,
-                "properties": {
-                  "metric": {
-                    "type": "str",
-                    "nullable": true,
-                    "description": "fire_peaks 轴指标名,仅用于长表文件名({metric}_long.tsv);默认 {mod_type}_per_fiber 派生"
-                  },
-                  "top_n": {
-                    "type": "int",
-                    "nullable": true,
-                    "description": "significant_objects.bed 按 p 值升序只留前 N 个 peak(0=全保留;TSV 永远全量);TE 轴下 BED 恒为空,此键无效"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "sigtest": {
-      "method": {
-        "type": "str",
-        "nullable": true,
-        "required": false,
-        "description": "检验方法: auto=按数据自动选(正态+方差齐→t检验,否则 Mann-Whitney;loci 数大时几乎总落 MW) / t-test / welch / mannwhitney / wilcoxon(配对) / chi2 / fisher(计数)"
-      },
-      "correction": {
-        "type": "str",
-        "nullable": true,
-        "required": false,
-        "description": "多重检验校正: bh=Benjamini-Hochberg FDR(成百上千 feature 同时检验时的正确选择) / none=不校正"
-      },
-      "alpha": {
-        "type": "float",
-        "nullable": true,
-        "required": false,
-        "description": "显著性阈值;用于 auto 的正态/方差判断与 significant/stars 列的划线"
-      },
-      "groups": {
-        "type": "list",
-        "nullable": true,
-        "required": false,
-        "description": "手工指定两组合名覆盖;留空时 node.py 按 contrast 自动写入 groups_by_contrast——正常情况下留空"
-      },
-      "feature_col": {
-        "type": "str",
-        "nullable": true,
-        "required": false,
-        "description": "长表中作为 feature 的列名(全局兜底);TE 轴下由 node.py 按 contrast 自动覆盖(feature_col_by_contrast),此处留 null 即可"
-      },
-      "te_levels": {
-        "type": "list",
-        "nullable": true,
-        "required": false,
-        "description": "TE 轴检验层级: node.py 把每个组对×每层级展开成带后缀 contrast(youth_vs_aged.subfamily 等),结果并存;只要一个层级就删掉另一个"
-      },
-      "plot": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "description": "柱状图输出控制",
-        "properties": {
-          "formats": {
-            "type": "list",
-            "nullable": true,
-            "description": "图片格式列表(多种同时输出): png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba;空列表 []=不出图(吸收旧 no_plot)"
-          },
-          "ylabel": {
-            "type": "str",
-            "nullable": true,
-            "description": "柱状图 y 轴标签;null 显示 value(建议填有意义的标签如 CpG per fiber)"
-          }
-        }
-      }
-    },
-    "coactuation": {
-      "enabled": {
-        "type": "bool",
-        "required": false
-      },
-      "fiberseq_coactuation_run": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "max_distance": {
-            "type": "int",
-            "required": false
-          },
-          "min_fibers": {
-            "type": "int",
-            "required": false
-          },
-          "max_pairs": {
-            "type": "int",
-            "required": false
-          },
-          "alpha": {
-            "type": "float",
-            "required": false
-          }
-        }
-      }
-    },
-    "haplotype": {
-      "enabled": {
-        "type": "bool",
-        "required": false
-      },
-      "fiberseq_haplotype_diff": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "min_fibers": {
-            "type": "int",
-            "required": false
-          },
-          "alpha": {
-            "type": "float",
-            "required": false
-          }
-        }
-      }
-    },
-    "sv": {
-      "enabled": {
-        "type": "bool",
-        "required": false
-      },
-      "comparisons": {
-        "type": "dict",
-        "required": false
-      },
-      "exp_specific": {
-        "vep_cache": {
-          "type": "str",
-          "required": true,
-          "path": "dir"
-        },
-        "species": {
-          "type": "str",
-          "required": true
-        },
-        "assembly": {
-          "type": "str",
-          "required": true
-        },
-        "dist": {
-          "type": "int",
-          "required": true
-        }
-      },
-      "circos": {
-        "genome": {
-          "type": "str",
-          "required": true
-        },
-        "cytoband": {
-          "type": "str",
-          "required": false
-        },
-        "ins_bin_size": {
-          "type": "int",
-          "required": true
-        }
-      },
-      "oncoprint": {
-        "cosmic_file": {
-          "type": "str",
-          "required": false,
-          "path": "file"
-        },
-        "deseq2_files": {
-          "type": "dict",
-          "required": false
-        }
-      },
-      "diff_analysis": {
-        "large_sv_threshold": {
-          "type": "int",
-          "required": true
-        }
-      },
-      "gene_model": {
-        "threads": {
-          "type": "int",
-          "required": true
-        }
-      },
-      "mei": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "enabled": {
-            "type": "bool",
-            "required": false,
-            "default": true,
-            "description": "Gate the sv_mei analysis (MEI classification + figure suite)."
-          },
-          "min_len": {
-            "type": "int",
-            "required": false,
-            "default": 100,
-            "description": "Minimum inserted-sequence length (bp) sent to RepeatMasker; shorter events stay 'short_unclassified'."
-          },
-          "full_length": {
-            "type": "int",
-            "required": false,
-            "default": 6000,
-            "description": "Minimum insertion length (bp) for full-length candidacy."
-          },
-          "full_length_family": {
-            "type": "str",
-            "required": false,
-            "default": "L1",
-            "description": "Bucket name considered for full-length candidacy (L1 by default; e.g. an ERVK bucket for other clades)."
-          },
-          "te_buckets": {
-            "type": "list|dict",
-            "required": false,
-            "default": {
-              "GRCh38": [
-                {
-                  "name": "Alu",
-                  "family": [
-                    "Alu"
-                  ],
-                  "retro_fingerprint": true
-                },
-                {
-                  "name": "L1",
-                  "family": [
-                    "L1",
-                    "LINE"
-                  ],
-                  "retro_fingerprint": true
-                },
-                {
-                  "name": "SVA",
-                  "family": [
-                    "SVA"
-                  ],
-                  "retro_fingerprint": true
-                },
-                {
-                  "name": "LTR",
-                  "class": [
-                    "LTR"
-                  ]
-                },
-                {
-                  "name": "DNA",
-                  "class": [
-                    "DNA"
-                  ]
-                },
-                {
-                  "name": "microsatellite",
-                  "class": [
-                    "Simple_repeat"
-                  ]
-                },
-                {
-                  "name": "other",
-                  "catch_all": "classified"
-                },
-                {
-                  "name": "unclassified",
-                  "catch_all": "unclassified"
-                }
-              ],
-              "GRCm39": [
-                {
-                  "name": "IAP/ETn",
-                  "family": [
-                    "ERVK"
-                  ],
-                  "retro_fingerprint": true
-                },
-                {
-                  "name": "B1",
-                  "family": [
-                    "Alu"
-                  ],
-                  "retro_fingerprint": true
-                },
-                {
-                  "name": "B2/ID",
-                  "family": [
-                    "tRNA",
-                    "B2"
-                  ],
-                  "retro_fingerprint": true
-                },
-                {
-                  "name": "L1",
-                  "family": [
-                    "L1",
-                    "LINE"
-                  ],
-                  "retro_fingerprint": true
-                },
-                {
-                  "name": "LTR",
-                  "class": [
-                    "LTR"
-                  ]
-                },
-                {
-                  "name": "DNA",
-                  "class": [
-                    "DNA"
-                  ]
-                },
-                {
-                  "name": "microsatellite",
-                  "class": [
-                    "Simple_repeat"
-                  ]
-                },
-                {
-                  "name": "other",
-                  "catch_all": "classified"
-                },
-                {
-                  "name": "unclassified",
-                  "catch_all": "unclassified"
-                }
-              ],
-              "T2T_mhaESC_v1.5": [
-                {
-                  "name": "IAP/ETn",
-                  "family": [
-                    "ERVK"
-                  ],
-                  "retro_fingerprint": true
-                },
-                {
-                  "name": "B1",
-                  "family": [
-                    "Alu"
-                  ],
-                  "retro_fingerprint": true
-                },
-                {
-                  "name": "B2/ID",
-                  "family": [
-                    "tRNA",
-                    "B2"
-                  ],
-                  "retro_fingerprint": true
-                },
-                {
-                  "name": "L1",
-                  "family": [
-                    "L1",
-                    "LINE"
-                  ],
-                  "retro_fingerprint": true
-                },
-                {
-                  "name": "LTR",
-                  "class": [
-                    "LTR"
-                  ]
-                },
-                {
-                  "name": "DNA",
-                  "class": [
-                    "DNA"
-                  ]
-                },
-                {
-                  "name": "microsatellite",
-                  "class": [
-                    "Simple_repeat"
-                  ]
-                },
-                {
-                  "name": "other",
-                  "catch_all": "classified"
-                },
-                {
-                  "name": "unclassified",
-                  "catch_all": "unclassified"
-                }
-              ],
-              "Mmul_10": [
-                {
-                  "name": "Alu",
-                  "family": [
-                    "Alu"
-                  ],
-                  "retro_fingerprint": true
-                },
-                {
-                  "name": "L1",
-                  "family": [
-                    "L1",
-                    "LINE"
-                  ],
-                  "retro_fingerprint": true
-                },
-                {
-                  "name": "SVA",
-                  "family": [
-                    "SVA"
-                  ],
-                  "retro_fingerprint": true
-                },
-                {
-                  "name": "LTR",
-                  "class": [
-                    "LTR"
-                  ]
-                },
-                {
-                  "name": "DNA",
-                  "class": [
-                    "DNA"
-                  ]
-                },
-                {
-                  "name": "microsatellite",
-                  "class": [
-                    "Simple_repeat"
-                  ]
-                },
-                {
-                  "name": "other",
-                  "catch_all": "classified"
-                },
-                {
-                  "name": "unclassified",
-                  "catch_all": "unclassified"
-                }
-              ],
-              "Mmul_T2T": [
-                {
-                  "name": "Alu",
-                  "family": [
-                    "Alu"
-                  ],
-                  "retro_fingerprint": true
-                },
-                {
-                  "name": "L1",
-                  "family": [
-                    "L1",
-                    "LINE"
-                  ],
-                  "retro_fingerprint": true
-                },
-                {
-                  "name": "SVA",
-                  "family": [
-                    "SVA"
-                  ],
-                  "retro_fingerprint": true
-                },
-                {
-                  "name": "LTR",
-                  "class": [
-                    "LTR"
-                  ]
-                },
-                {
-                  "name": "DNA",
-                  "class": [
-                    "DNA"
-                  ]
-                },
-                {
-                  "name": "microsatellite",
-                  "class": [
-                    "Simple_repeat"
-                  ]
-                },
-                {
-                  "name": "other",
-                  "catch_all": "classified"
-                },
-                {
-                  "name": "unclassified",
-                  "catch_all": "unclassified"
-                }
-              ]
-            },
-            "items": {
-              "type": "dict",
-              "properties": {
-                "name": {
-                  "type": "str",
-                  "required": true,
-                  "description": "Bucket display name; never used for matching."
-                },
-                "subfamily": {
-                  "type": "list",
-                  "required": false,
-                  "description": "Exact (case-insensitive) match against the RM repeat NAME (AluY / B1_Mm / IAP1 ...)."
-                },
-                "family": {
-                  "type": "list",
-                  "required": false,
-                  "description": "Exact match against the RM class/family suffix (SINE/Alu -> Alu; no-slash entries match whole string)."
-                },
-                "class": {
-                  "type": "list",
-                  "required": false,
-                  "description": "Exact match against the RM class/family prefix (SINE, LTR, DNA ...). Only the FIRST non-empty of subfamily/family/class participates (probe order subfamily -> family -> class)."
-                },
-                "catch_all": {
-                  "type": "str",
-                  "required": false,
-                  "enum": [
-                    "classified",
-                    "unclassified"
-                  ],
-                  "description": "classified: RM hit but no bucket matched; unclassified: no RM hit at all."
-                },
-                "retro_fingerprint": {
-                  "type": "bool",
-                  "required": false,
-                  "description": "true -> this bucket gets TSD detection (needs reference flanks) and is included in the retrotransposon fingerprint figure (polyA/TSD rates). Mark only active retrotransposon families (primate Alu/L1/SVA; mouse IAP/ETn, B1, B2/ID, L1)."
-                },
-                "zero_slot": {
-                  "type": "bool",
-                  "required": false,
-                  "default": true,
-                  "description": "false -> omit this bucket from figures when it has zero events (default true keeps the slot labelled 0)."
-                }
-              }
-            },
-            "description": "Per-species ordered TE bucket lists keyed by genome reference key (like genome.references; different species get different default vocabularies). A plain bucket list is also accepted and applies as-is. node.py resolves the active genome's list into raw.json. Bucket dict keys: name, subfamily, family, class, catch_all, retro_fingerprint, zero_slot; matching schema in modules/sv/bin/mei_analysis.py."
-          }
-        }
-      },
-      "sv_exp_specific": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "formats": {
-            "type": "list",
-            "required": false,
-            "default": [
-              "png"
-            ],
-            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
-          }
-        }
-      },
-      "sv_exp_circos": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "formats": {
-            "type": "list",
-            "required": false,
-            "default": [
-              "png"
-            ],
-            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
-          }
-        }
-      },
-      "sv_gene_model": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "genes": {
-            "type": "list",
-            "required": false
-          },
-          "formats": {
-            "type": "list",
-            "required": false,
-            "default": [
-              "png"
-            ],
-            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
-          }
-        }
-      },
-      "sv_diff_analysis": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "formats": {
-            "type": "list",
-            "required": false,
-            "default": [
-              "png"
-            ],
-            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
-          }
-        }
-      },
-      "sv_oncoprint": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "formats": {
-            "type": "list",
-            "required": false,
-            "default": [
-              "png"
-            ],
-            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
-          }
-        }
-      },
-      "sv_mei": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "formats": {
-            "type": "list",
-            "required": false,
-            "default": [
-              "png"
-            ],
-            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
-          }
-        }
-      }
-    },
-    "censat": {
-      "enabled": {
-        "type": "bool",
-        "required": false
-      },
-      "fiberseq_censat_run": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "formats": {
-            "type": "list",
-            "required": false,
-            "default": [
-              "pdf"
-            ],
-            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
-          },
-          "msp_min_len": {
-            "type": "int",
-            "required": false
-          },
-          "flank": {
-            "type": "int",
-            "required": false
-          },
-          "bin": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "fiberseq_censat_result": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "formats": {
-            "type": "list",
-            "required": false,
-            "default": [
-              "pdf"
-            ],
-            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
-          }
-        }
-      }
-    },
-    "function": {
-      "enabled": {
-        "type": "bool",
-        "required": false
-      },
-      "species": {
-        "type": "str",
-        "required": false
-      },
-      "gmt": {
-        "type": "str",
-        "nullable": true,
-        "required": false
-      },
-      "lfc_cut": {
-        "type": "float",
-        "required": false
-      },
-      "p_cut": {
-        "type": "float",
-        "required": false
-      },
-      "top": {
-        "type": "int",
-        "required": false
-      },
-      "go_kegg": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "formats": {
-            "type": "list",
-            "required": false,
-            "default": [
-              "png"
-            ],
-            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
-          }
-        }
-      },
-      "gsea": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "formats": {
-            "type": "list",
-            "required": false,
-            "default": [
-              "jpeg"
-            ],
-            "description": "图片格式(多种同时输出);R 侧 ggsave 设备集: png pdf svg ps eps tif tiff jpg jpeg(pgf/raw/rgba 为 matplotlib 专属,R 规则上快速失败)"
-          }
-        }
-      },
-      "sv_go_kegg": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "formats": {
-            "type": "list",
-            "required": false,
-            "default": [
-              "png"
-            ],
-            "description": "图片格式(多种同时输出);R 侧 ggsave 设备集: png pdf svg ps eps tif tiff jpg jpeg(pgf/raw/rgba 为 matplotlib 专属,R 规则上快速失败)"
-          }
-        }
-      }
-    },
-    "ldsc": {
-      "enabled": {
-        "type": "bool",
-        "required": false
-      },
-      "annot_bed": {
-        "type": "str",
-        "nullable": true,
-        "required": false
-      },
-      "annot_prefix": {
-        "type": "str",
-        "required": false
-      },
-      "annot_cluster_from_name": {
-        "type": "bool",
-        "required": false
-      },
-      "gwas": {
-        "type": "dict",
-        "required": false
-      },
-      "merge_alleles": {
-        "type": "str",
-        "nullable": true,
-        "required": false
-      },
-      "ref_ld_chr": {
-        "type": "str",
-        "nullable": true,
-        "required": false
-      },
-      "w_ld_chr": {
-        "type": "str",
-        "nullable": true,
-        "required": false
-      },
-      "munge_args": {
-        "type": "str",
-        "required": false
-      }
-    },
-    "telomere": {
-      "enabled": {
-        "type": "bool",
-        "required": false
-      },
-      "method": {
-        "type": "list",
-        "required": false
-      },
-      "formats": {
-        "type": "list",
-        "required": false
-      },
-      "telogator2": {
-        "species": {
-          "type": "str",
-          "required": false
-        },
-        "threads": {
-          "type": "int",
-          "required": false
-        }
-      },
-      "assembly_scan": {
-        "assembly_scan_length": {
-          "type": "int",
-          "required": false
-        }
-      },
-      "read_density": {
-        "n_chrom_arms": {
-          "type": "int",
-          "required": false
-        }
-      },
-      "tidk": {
-        "type": "dict",
-        "required": false,
-        "properties": {}
-      }
-    }
-  },
-  "genome": {
-    "default": {
-      "type": "str",
-      "required": true
-    },
-    "references": {
-      "type": "dict",
-      "required": true
-    }
-  },
-  "env": {
+    "required": false,
+    "default": null,
+    "description": "Regions file, required when enabled. Auto-detected per row: BED rows (chrom<TAB>start<TAB>end[<TAB>name], col4 names the panel) or list lines ([NAME=]chrom:start-end, the same string pyGenomeTracks --region consumes; NAME= names the panel, else chrom_start_end). Formats may be mixed; #/track/browser lines skipped."
+   },
+   "sample_group_dict": {
     "type": "dict",
     "required": false,
-    "telomere": {
-      "type": "str",
-      "required": false
-    }
+    "default": {},
+    "description": "sample_id -> biological group for track coloring; auto-filled from the meta group column by node.py, hand-filled values win."
+   },
+   "sample_order": {
+    "type": "list",
+    "required": false,
+    "default": [],
+    "description": "Plotting order of samples; empty = meta order."
+   },
+   "formats": {
+    "type": "list",
+    "required": false,
+    "default": [
+     "png",
+     "svg"
+    ],
+    "description": "Output image formats (pyGenomeTracks --outFileName extensions).",
+    "enum": [
+     "png",
+     "pdf",
+     "svg",
+     "ps",
+     "eps",
+     "tif",
+     "tiff",
+     "jpg",
+     "jpeg",
+     "pgf",
+     "raw",
+     "rgba"
+    ]
+   },
+   "gtf_track": {
+    "type": "bool",
+    "required": false,
+    "default": true,
+    "description": "Add a gene-model track at the bottom when the genome GTF exists."
+   },
+   "plot_height_per_track": {
+    "type": "float",
+    "required": false,
+    "default": 1.5,
+    "description": "Track height in inches per sample track."
+   },
+   "plot_width": {
+    "type": "float",
+    "required": false,
+    "default": 12,
+    "description": "Figure width in inches."
+   }
   },
-  "resources": {
+  "fiberbrowser": {
+   "enabled": {
+    "type": "bool",
+    "required": false,
+    "default": false,
+    "description": "Opt-in gate for the fiberbrowser module (paper-style fiber-seq locus figures over this workflow's aligned BAMs, Fig 2H scheme). node.py registers the figure outputs only when true; default false = wired but not invoked."
+   },
+   "loci": {
+    "type": "str",
+    "required": false,
+    "default": null,
+    "description": "Loci file, required when enabled. One locus per row: BED rows (chrom<TAB>start<TAB>end[<TAB>name]) or [NAME=]chrom:start-end lines. node.py parses it into loci_map (shell-safe panel name -> chrom:start-end) written back to this block."
+   },
+   "loci_map": {
+    "type": "dict",
+    "required": false,
+    "default": {},
+    "description": "Generated by node.py from 'loci'; consumed by the module for output naming and per-locus engine calls. Do not hand-fill."
+   },
+   "sample_group_dict": {
+    "type": "dict",
+    "required": false,
+    "default": {},
+    "description": "sample_id -> group label shown in figure labels (e.g. 's1 (aged)'); auto-filled from the meta group column by node.py, hand-filled values win."
+   },
+   "variants": {
+    "type": "list",
+    "required": false,
+    "default": [
+     "plain",
+     "zoom"
+    ],
+    "description": "Figure variants per locus: 'plain' (<name>.<fmt>) and/or 'zoom' (<name>_zoom.<fmt>, representative-fiber light-blue box + key-region shadow + 150 bp zoom row).",
+    "enum": [
+     "plain",
+     "zoom"
+    ]
+   },
+   "max_fibers": {
+    "type": "int",
+    "required": false,
+    "default": 12,
+    "description": "Fiber rows drawn per sample (most aligned bases in the locus first)."
+   },
+   "zoom_bp": {
+    "type": "int",
+    "required": false,
+    "default": 2100,
+    "description": "Zoomed region width in bp (the light-blue box; the grey key shadow is 1/3 of it)."
+   },
+   "formats": {
+    "type": "list",
+    "required": false,
+    "default": [
+     "png",
+     "svg"
+    ],
+    "description": "Output image formats (matplotlib savefig set).",
+    "enum": [
+     "png",
+     "pdf",
+     "svg",
+     "ps",
+     "eps",
+     "tif",
+     "tiff",
+     "jpg",
+     "jpeg",
+     "pgf",
+     "raw",
+     "rgba"
+    ]
+   },
+   "dpi": {
+    "type": "int",
+    "required": false,
+    "default": 200,
+    "description": "Raster resolution; vector formats ignore it."
+   }
+  },
+  "fibertools": {
+   "ft_fire": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "add_nucleosomes_manual": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+     },
+     "ont": {
+      "type": "bool",
+      "required": false
+     }
+    }
+   },
+   "ft_call_peaks": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "call_peaks_mode": {
+      "type": "str",
+      "required": false,
+      "enum": [
+       "fdr",
+       "fire_frac"
+      ]
+     },
+     "max_fdr": {
+      "type": "float",
+      "required": false
+     },
+     "min_fire_frac": {
+      "type": "float",
+      "required": false
+     },
+     "sd_cov": {
+      "type": "float",
+      "required": false
+     },
+     "haps": {
+      "type": "bool",
+      "required": false
+     }
+    }
+   },
+   "ft_qc": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "acf": {
+      "type": "bool",
+      "required": false
+     }
+    }
+   },
+   "ft_extract_fire": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "ont": {
+      "type": "bool",
+      "required": false
+     }
+    }
+   }
+  },
+  "pbmm2": {
+   "preset": {
+    "type": "str",
+    "required": false
+   },
+   "threads": {
+    "type": "int",
+    "required": false
+   },
+   "sort_threads": {
+    "type": "int",
+    "required": false
+   },
+   "sort_memory": {
+    "type": "str",
+    "required": false
+   }
+  },
+  "annotate": {
+   "enabled": {
+    "type": "bool",
+    "required": false
+   },
+   "fiberseq_annotate_run": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "tss_flank": {
+      "type": "int",
+      "required": false
+     },
+     "repeat_frac": {
+      "type": "float",
+      "required": false
+     }
+    }
+   }
+  },
+  "motif": {
+   "enabled": {
+    "type": "bool",
+    "required": false
+   },
+   "fiberseq_motif_profile": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "formats": {
+      "type": "list",
+      "required": false,
+      "default": [
+       "pdf"
+      ],
+      "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)",
+      "enum": [
+       "png",
+       "pdf",
+       "svg",
+       "ps",
+       "eps",
+       "tif",
+       "tiff",
+       "jpg",
+       "jpeg",
+       "pgf",
+       "raw",
+       "rgba"
+      ]
+     },
+     "flank": {
+      "type": "int",
+      "required": false
+     },
+     "min_fibers": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "fiberseq_motif_result": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "formats": {
+      "type": "list",
+      "required": false,
+      "default": [
+       "pdf"
+      ],
+      "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)",
+      "enum": [
+       "png",
+       "pdf",
+       "svg",
+       "ps",
+       "eps",
+       "tif",
+       "tiff",
+       "jpg",
+       "jpeg",
+       "pgf",
+       "raw",
+       "rgba"
+      ]
+     }
+    }
+   },
+   "fiberseq_motif_scan": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "pwm_threshold": {
+      "type": "float",
+      "required": false
+     }
+    }
+   }
+  },
+  "footprint": {
+   "enabled": {
+    "type": "bool",
+    "required": false
+   },
+   "fiberseq_footprint_run": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "formats": {
+      "type": "list",
+      "required": false,
+      "default": [
+       "pdf"
+      ],
+      "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)",
+      "enum": [
+       "png",
+       "pdf",
+       "svg",
+       "ps",
+       "eps",
+       "tif",
+       "tiff",
+       "jpg",
+       "jpeg",
+       "pgf",
+       "raw",
+       "rgba"
+      ]
+     },
+     "flank": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "fiberseq_footprint_result": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "formats": {
+      "type": "list",
+      "required": false,
+      "default": [
+       "pdf"
+      ],
+      "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)",
+      "enum": [
+       "png",
+       "pdf",
+       "svg",
+       "ps",
+       "eps",
+       "tif",
+       "tiff",
+       "jpg",
+       "jpeg",
+       "pgf",
+       "raw",
+       "rgba"
+      ]
+     }
+    }
+   }
+  },
+  "nucpos": {
+   "enabled": {
+    "type": "bool",
+    "required": false
+   },
+   "fiberseq_nucpos_run": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "formats": {
+      "type": "list",
+      "required": false,
+      "default": [
+       "pdf"
+      ],
+      "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)",
+      "enum": [
+       "png",
+       "pdf",
+       "svg",
+       "ps",
+       "eps",
+       "tif",
+       "tiff",
+       "jpg",
+       "jpeg",
+       "pgf",
+       "raw",
+       "rgba"
+      ]
+     },
+     "upstream_nucs": {
+      "type": "int",
+      "required": false
+     },
+     "downstream_nucs": {
+      "type": "int",
+      "required": false
+     },
+     "min_fibers": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "fiberseq_nucpos_result": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "formats": {
+      "type": "list",
+      "required": false,
+      "default": [
+       "pdf"
+      ],
+      "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)",
+      "enum": [
+       "png",
+       "pdf",
+       "svg",
+       "ps",
+       "eps",
+       "tif",
+       "tiff",
+       "jpg",
+       "jpeg",
+       "pgf",
+       "raw",
+       "rgba"
+      ]
+     }
+    }
+   }
+  },
+  "track": {
+   "enabled": {
+    "type": "bool",
+    "required": false
+   },
+   "fiberseq_track_run": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "bin": {
+      "type": "int",
+      "required": false
+     }
+    }
+   }
+  },
+  "quant": {
+   "enabled": {
+    "type": "bool",
+    "required": false
+   }
+  },
+  "diff": {
+   "enabled": {
+    "type": "bool",
+    "required": false
+   },
+   "fiberseq_diff_run": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "formats": {
+      "type": "list",
+      "required": false,
+      "default": [
+       "pdf"
+      ],
+      "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)",
+      "enum": [
+       "png",
+       "pdf",
+       "svg",
+       "ps",
+       "eps",
+       "tif",
+       "tiff",
+       "jpg",
+       "jpeg",
+       "pgf",
+       "raw",
+       "rgba"
+      ]
+     },
+     "alpha": {
+      "type": "float",
+      "required": false
+     },
+     "annot_sample": {
+      "type": "str",
+      "nullable": true,
+      "required": false
+     },
+     "group_spec": {
+      "type": "str",
+      "nullable": true,
+      "required": false
+     }
+    }
+   }
+  },
+  "fiberseq_mods": {
+   "enabled": {
+    "type": "bool",
+    "nullable": true,
+    "required": false,
+    "description": "运行 fiberseq_mods + sigtest 检验链;false 时整条不注册进 DAG"
+   },
+   "mod_type": {
+    "type": "str",
+    "nullable": true,
+    "required": false,
+    "description": "修饰信号类型: cpg=5mC(读 cpg.bed.gz) / m6a=6mA(读 m6a.bed.gz);决定输入文件与输出文件名",
+    "enum": [
+     "m6a",
+     "cpg"
+    ]
+   },
+   "region_axis": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "description": "区域轴判别式对象(genome 同构 {default, options}):取值决定引擎/长表 schema/下游规则;轴专属参数在对应 options 条目内",
+    "default": {
+     "type": "str",
+     "required": true,
+     "description": "当前生效的轴: te=RepeatMasker TE locus(检验 subfamily/family 层级) / fire_peaks=各样本 FIRE peak(检验 peak)",
+     "enum": [
+      "te",
+      "fire_peaks"
+     ]
+    },
+    "options": {
+     "type": "dict",
+     "required": true,
+     "description": "轴枚举到属性集的闭合映射;default 必须是它的键",
+     "te": {
+      "type": "dict",
+      "nullable": true,
+      "properties": {
+       "min_fibers": {
+        "type": "int",
+        "nullable": true,
+        "description": "覆盖门控: locus 在某样本的覆盖 fiber 数 < N 时该样本的这个 locus 不进长表(不填零)"
+       },
+       "loci_top_n": {
+        "type": "int",
+        "nullable": true,
+        "description": "每个显著 TE 组内按|组间均值差|排序,top_loci.bed 只留前 N 个 locus(regionplot 浏览短名单)"
+       }
+      }
+     },
+     "fire_peaks": {
+      "type": "dict",
+      "nullable": true,
+      "properties": {
+       "metric": {
+        "type": "str",
+        "nullable": true,
+        "description": "fire_peaks 轴指标名,仅用于长表文件名({metric}_long.tsv);默认 {mod_type}_per_fiber 派生"
+       },
+       "top_n": {
+        "type": "int",
+        "nullable": true,
+        "description": "significant_objects.bed 按 p 值升序只留前 N 个 peak(0=全保留;TSV 永远全量);TE 轴下 BED 恒为空,此键无效"
+       }
+      }
+     }
+    }
+   },
+   "fiberseq_mods_longtable": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "mod_type": {
+      "type": "str",
+      "nullable": true,
+      "required": false,
+      "description": "修饰信号类型: cpg=5mC(读 cpg.bed.gz) / m6a=6mA(读 m6a.bed.gz);决定输入文件与输出文件名",
+      "enum": [
+       "m6a",
+       "cpg"
+      ]
+     },
+     "region_axis": {
+      "type": "dict",
+      "nullable": true,
+      "required": false,
+      "description": "区域轴判别式对象(genome 同构 {default, options}):取值决定引擎/长表 schema/下游规则;轴专属参数在对应 options 条目内",
+      "default": {
+       "type": "str",
+       "required": true,
+       "description": "当前生效的轴: te=RepeatMasker TE locus(检验 subfamily/family 层级) / fire_peaks=各样本 FIRE peak(检验 peak)",
+       "enum": [
+        "te",
+        "fire_peaks"
+       ]
+      },
+      "options": {
+       "type": "dict",
+       "required": true,
+       "description": "轴枚举到属性集的闭合映射;default 必须是它的键",
+       "te": {
+        "type": "dict",
+        "nullable": true,
+        "properties": {
+         "min_fibers": {
+          "type": "int",
+          "nullable": true,
+          "description": "覆盖门控: locus 在某样本的覆盖 fiber 数 < N 时该样本的这个 locus 不进长表(不填零)"
+         },
+         "loci_top_n": {
+          "type": "int",
+          "nullable": true,
+          "description": "每个显著 TE 组内按|组间均值差|排序,top_loci.bed 只留前 N 个 locus(regionplot 浏览短名单)"
+         }
+        }
+       },
+       "fire_peaks": {
+        "type": "dict",
+        "nullable": true,
+        "properties": {
+         "metric": {
+          "type": "str",
+          "nullable": true,
+          "description": "fire_peaks 轴指标名,仅用于长表文件名({metric}_long.tsv);默认 {mod_type}_per_fiber 派生"
+         },
+         "top_n": {
+          "type": "int",
+          "nullable": true,
+          "description": "significant_objects.bed 按 p 值升序只留前 N 个 peak(0=全保留;TSV 永远全量);TE 轴下 BED 恒为空,此键无效"
+         }
+        }
+       }
+      }
+     }
+    }
+   },
+   "fiberseq_mods_split": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "region_axis": {
+      "type": "dict",
+      "nullable": true,
+      "required": false,
+      "description": "区域轴判别式对象(genome 同构 {default, options}):取值决定引擎/长表 schema/下游规则;轴专属参数在对应 options 条目内",
+      "default": {
+       "type": "str",
+       "required": true,
+       "description": "当前生效的轴: te=RepeatMasker TE locus(检验 subfamily/family 层级) / fire_peaks=各样本 FIRE peak(检验 peak)",
+       "enum": [
+        "te",
+        "fire_peaks"
+       ]
+      },
+      "options": {
+       "type": "dict",
+       "required": true,
+       "description": "轴枚举到属性集的闭合映射;default 必须是它的键",
+       "te": {
+        "type": "dict",
+        "nullable": true,
+        "properties": {
+         "min_fibers": {
+          "type": "int",
+          "nullable": true,
+          "description": "覆盖门控: locus 在某样本的覆盖 fiber 数 < N 时该样本的这个 locus 不进长表(不填零)"
+         },
+         "loci_top_n": {
+          "type": "int",
+          "nullable": true,
+          "description": "每个显著 TE 组内按|组间均值差|排序,top_loci.bed 只留前 N 个 locus(regionplot 浏览短名单)"
+         }
+        }
+       },
+       "fire_peaks": {
+        "type": "dict",
+        "nullable": true,
+        "properties": {
+         "metric": {
+          "type": "str",
+          "nullable": true,
+          "description": "fire_peaks 轴指标名,仅用于长表文件名({metric}_long.tsv);默认 {mod_type}_per_fiber 派生"
+         },
+         "top_n": {
+          "type": "int",
+          "nullable": true,
+          "description": "significant_objects.bed 按 p 值升序只留前 N 个 peak(0=全保留;TSV 永远全量);TE 轴下 BED 恒为空,此键无效"
+         }
+        }
+       }
+      }
+     }
+    }
+   },
+   "fiberseq_mods_top_loci": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "mod_type": {
+      "type": "str",
+      "nullable": true,
+      "required": false,
+      "description": "修饰信号类型: cpg=5mC(读 cpg.bed.gz) / m6a=6mA(读 m6a.bed.gz);决定输入文件与输出文件名",
+      "enum": [
+       "m6a",
+       "cpg"
+      ]
+     },
+     "region_axis": {
+      "type": "dict",
+      "nullable": true,
+      "required": false,
+      "description": "区域轴判别式对象(genome 同构 {default, options}):取值决定引擎/长表 schema/下游规则;轴专属参数在对应 options 条目内",
+      "default": {
+       "type": "str",
+       "required": true,
+       "description": "当前生效的轴: te=RepeatMasker TE locus(检验 subfamily/family 层级) / fire_peaks=各样本 FIRE peak(检验 peak)",
+       "enum": [
+        "te",
+        "fire_peaks"
+       ]
+      },
+      "options": {
+       "type": "dict",
+       "required": true,
+       "description": "轴枚举到属性集的闭合映射;default 必须是它的键",
+       "te": {
+        "type": "dict",
+        "nullable": true,
+        "properties": {
+         "min_fibers": {
+          "type": "int",
+          "nullable": true,
+          "description": "覆盖门控: locus 在某样本的覆盖 fiber 数 < N 时该样本的这个 locus 不进长表(不填零)"
+         },
+         "loci_top_n": {
+          "type": "int",
+          "nullable": true,
+          "description": "每个显著 TE 组内按|组间均值差|排序,top_loci.bed 只留前 N 个 locus(regionplot 浏览短名单)"
+         }
+        }
+       },
+       "fire_peaks": {
+        "type": "dict",
+        "nullable": true,
+        "properties": {
+         "metric": {
+          "type": "str",
+          "nullable": true,
+          "description": "fire_peaks 轴指标名,仅用于长表文件名({metric}_long.tsv);默认 {mod_type}_per_fiber 派生"
+         },
+         "top_n": {
+          "type": "int",
+          "nullable": true,
+          "description": "significant_objects.bed 按 p 值升序只留前 N 个 peak(0=全保留;TSV 永远全量);TE 轴下 BED 恒为空,此键无效"
+         }
+        }
+       }
+      }
+     },
+     "groups": {
+      "type": "list",
+      "nullable": true,
+      "required": false,
+      "description": "手工覆盖两组合名(如 [aged,youth]);留空时由 node.py 从 meta 设计自动推导——正常情况下留空"
+     }
+    }
+   },
+   "fiberseq_mods_result": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "mod_type": {
+      "type": "str",
+      "nullable": true,
+      "required": false,
+      "description": "修饰信号类型: cpg=5mC(读 cpg.bed.gz) / m6a=6mA(读 m6a.bed.gz);决定输入文件与输出文件名",
+      "enum": [
+       "m6a",
+       "cpg"
+      ]
+     },
+     "region_axis": {
+      "type": "dict",
+      "nullable": true,
+      "required": false,
+      "description": "区域轴判别式对象(genome 同构 {default, options}):取值决定引擎/长表 schema/下游规则;轴专属参数在对应 options 条目内",
+      "default": {
+       "type": "str",
+       "required": true,
+       "description": "当前生效的轴: te=RepeatMasker TE locus(检验 subfamily/family 层级) / fire_peaks=各样本 FIRE peak(检验 peak)",
+       "enum": [
+        "te",
+        "fire_peaks"
+       ]
+      },
+      "options": {
+       "type": "dict",
+       "required": true,
+       "description": "轴枚举到属性集的闭合映射;default 必须是它的键",
+       "te": {
+        "type": "dict",
+        "nullable": true,
+        "properties": {
+         "min_fibers": {
+          "type": "int",
+          "nullable": true,
+          "description": "覆盖门控: locus 在某样本的覆盖 fiber 数 < N 时该样本的这个 locus 不进长表(不填零)"
+         },
+         "loci_top_n": {
+          "type": "int",
+          "nullable": true,
+          "description": "每个显著 TE 组内按|组间均值差|排序,top_loci.bed 只留前 N 个 locus(regionplot 浏览短名单)"
+         }
+        }
+       },
+       "fire_peaks": {
+        "type": "dict",
+        "nullable": true,
+        "properties": {
+         "metric": {
+          "type": "str",
+          "nullable": true,
+          "description": "fire_peaks 轴指标名,仅用于长表文件名({metric}_long.tsv);默认 {mod_type}_per_fiber 派生"
+         },
+         "top_n": {
+          "type": "int",
+          "nullable": true,
+          "description": "significant_objects.bed 按 p 值升序只留前 N 个 peak(0=全保留;TSV 永远全量);TE 轴下 BED 恒为空,此键无效"
+         }
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "sigtest": {
+   "method": {
+    "type": "str",
+    "nullable": true,
+    "required": false,
+    "description": "检验方法: auto=按数据自动选(正态+方差齐→t检验,否则 Mann-Whitney;loci 数大时几乎总落 MW) / t-test / welch / mannwhitney / wilcoxon(配对) / chi2 / fisher(计数)",
+    "enum": [
+     "auto",
+     "t-test",
+     "welch",
+     "mannwhitney",
+     "wilcoxon",
+     "chi2",
+     "fisher"
+    ]
+   },
+   "correction": {
+    "type": "str",
+    "nullable": true,
+    "required": false,
+    "description": "多重检验校正: bh=Benjamini-Hochberg FDR(成百上千 feature 同时检验时的正确选择) / none=不校正",
+    "enum": [
+     "none",
+     "bh",
+     "bonferroni"
+    ]
+   },
+   "alpha": {
+    "type": "float",
+    "nullable": true,
+    "required": false,
+    "description": "显著性阈值;用于 auto 的正态/方差判断与 significant/stars 列的划线"
+   },
+   "groups": {
+    "type": "list",
+    "nullable": true,
+    "required": false,
+    "description": "手工指定两组合名覆盖;留空时 node.py 按 contrast 自动写入 groups_by_contrast——正常情况下留空"
+   },
+   "feature_col": {
+    "type": "str",
+    "nullable": true,
+    "required": false,
+    "description": "长表中作为 feature 的列名(全局兜底);TE 轴下由 node.py 按 contrast 自动覆盖(feature_col_by_contrast),此处留 null 即可"
+   },
+   "te_levels": {
+    "type": "list",
+    "nullable": true,
+    "required": false,
+    "description": "TE 轴检验层级: node.py 把每个组对×每层级展开成带后缀 contrast(youth_vs_aged.subfamily 等),结果并存;只要一个层级就删掉另一个",
+    "enum": [
+     "subfamily",
+     "family"
+    ]
+   },
+   "plot": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "description": "柱状图输出控制",
+    "properties": {
+     "formats": {
+      "type": "list",
+      "nullable": true,
+      "description": "图片格式列表(多种同时输出): png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba;空列表 []=不出图(吸收旧 no_plot)",
+      "enum": [
+       "png",
+       "pdf",
+       "svg",
+       "ps",
+       "eps",
+       "tif",
+       "tiff",
+       "jpg",
+       "jpeg",
+       "pgf",
+       "raw",
+       "rgba"
+      ]
+     },
+     "ylabel": {
+      "type": "str",
+      "nullable": true,
+      "description": "柱状图 y 轴标签;null 显示 value(建议填有意义的标签如 CpG per fiber)"
+     }
+    }
+   }
+  },
+  "coactuation": {
+   "enabled": {
+    "type": "bool",
+    "required": false
+   },
+   "fiberseq_coactuation_run": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "max_distance": {
+      "type": "int",
+      "required": false
+     },
+     "min_fibers": {
+      "type": "int",
+      "required": false
+     },
+     "max_pairs": {
+      "type": "int",
+      "required": false
+     },
+     "alpha": {
+      "type": "float",
+      "required": false
+     }
+    }
+   }
+  },
+  "haplotype": {
+   "enabled": {
+    "type": "bool",
+    "required": false
+   },
+   "fiberseq_haplotype_diff": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "min_fibers": {
+      "type": "int",
+      "required": false
+     },
+     "alpha": {
+      "type": "float",
+      "required": false
+     }
+    }
+   }
+  },
+  "sv": {
+   "enabled": {
+    "type": "bool",
+    "required": false
+   },
+   "comparisons": {
+    "type": "dict",
+    "required": false
+   },
+   "exp_specific": {
+    "vep_cache": {
+     "type": "str",
+     "required": true,
+     "path": "dir"
+    },
+    "species": {
+     "type": "str",
+     "required": true
+    },
+    "assembly": {
+     "type": "str",
+     "required": true
+    },
+    "dist": {
+     "type": "int",
+     "required": true
+    }
+   },
+   "circos": {
+    "genome": {
+     "type": "str",
+     "required": true
+    },
+    "cytoband": {
+     "type": "str",
+     "required": false
+    },
+    "ins_bin_size": {
+     "type": "int",
+     "required": true
+    }
+   },
+   "oncoprint": {
+    "cosmic_file": {
+     "type": "str",
+     "required": false,
+     "path": "file"
+    },
+    "deseq2_files": {
+     "type": "dict",
+     "required": false
+    }
+   },
+   "diff_analysis": {
+    "large_sv_threshold": {
+     "type": "int",
+     "required": true
+    }
+   },
+   "gene_model": {
+    "threads": {
+     "type": "int",
+     "required": true
+    }
+   },
+   "mei": {
     "type": "dict",
     "required": false,
     "properties": {
+     "enabled": {
+      "type": "bool",
+      "required": false,
+      "default": true,
+      "description": "Gate the sv_mei analysis (MEI classification + figure suite)."
+     },
+     "min_len": {
+      "type": "int",
+      "required": false,
+      "default": 100,
+      "description": "Minimum inserted-sequence length (bp) sent to RepeatMasker; shorter events stay 'short_unclassified'."
+     },
+     "full_length": {
+      "type": "int",
+      "required": false,
+      "default": 6000,
+      "description": "Minimum insertion length (bp) for full-length candidacy."
+     },
+     "full_length_family": {
+      "type": "str",
+      "required": false,
+      "default": "L1",
+      "description": "Bucket name considered for full-length candidacy (L1 by default; e.g. an ERVK bucket for other clades)."
+     },
+     "te_buckets": {
+      "type": [
+       "list",
+       "dict"
+      ],
+      "required": false,
       "default": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "bamCoverage": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "decoil_compare": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "decoil_igv": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "decoil_plot": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "decoil_reconstruct": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "decoil_structure": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "decoil_ucsc": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "deepvariant_run": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "fiberbrowser": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "fiberseq_annotate": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "fiberseq_censat": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "fiberseq_coactuation": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "fiberseq_diff_run": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "fiberseq_footprint": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "fiberseq_haplotype_diff": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "fiberseq_mods_split": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "fiberseq_mods_top_loci": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "fiberseq_motif": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "fiberseq_nucpos": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "fiberseq_quant": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "fiberseq_quant_hap": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "fiberseq_quant_merge": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "fiberseq_track": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "ft_add_nucleosomes": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "ft_call_peaks": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "ft_extract": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "ft_extract_fire": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "ft_extract_hap": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "ft_fire": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "ft_predict_m6a": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "ft_qc": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "ft_split_hap": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "function_go_kegg": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "function_gsea": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "genome_index": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "hiphase_phase": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "ldsc_annot": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "ldsc_h2_cts": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "ldsc_munge": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "pbmm2_align": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "pbsv_call": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "pbsv_discover": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "qc_summary": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "regionplot": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "fibercluster": {
-        "enabled": {
-          "type": "bool",
-          "required": false,
-          "default": false,
-          "description": "Opt-in gate for the fibercluster module (single-fiber pattern clustering + report package over this workflow's ft-extract element BEDs). node.py registers the outputs only when true; default false = wired but not invoked."
+       "GRCh38": [
+        {
+         "name": "Alu",
+         "family": [
+          "Alu"
+         ],
+         "retro_fingerprint": true
         },
-        "regions_bed": {
-          "type": "str",
-          "path": "file",
-          "required": false,
-          "default": null,
-          "description": "Regions BED (chrom<TAB>start<TAB>end<TAB>name rows; name = region label), required when enabled. Region names drive the per-region outputs."
+        {
+         "name": "L1",
+         "family": [
+          "L1",
+          "LINE"
+         ],
+         "retro_fingerprint": true
         },
-        "settings": {
-          "type": "list",
-          "required": false,
-          "default": [
-            "fire_k2"
-          ],
-          "description": "Setting labels = the module's {setting} wildcard values (one engine run each, the sigtest contrasts shape); every label needs a fiber_cluster.channel_by_setting and k_by_setting entry."
+        {
+         "name": "SVA",
+         "family": [
+          "SVA"
+         ],
+         "retro_fingerprint": true
         },
-        "fiber_cluster": {
-          "type": "dict",
-          "nullable": true,
-          "required": false,
-          "properties": {
-            "msp_suffix": {
-              "type": "str",
-              "nullable": true,
-              "required": false,
-              "default": ".msp.bed.gz",
-              "description": "MSP element BED suffix under {extract_outdir}/{sample}/ (-m)"
-            },
-            "nuc_suffix": {
-              "type": "str",
-              "nullable": true,
-              "required": false,
-              "default": ".nuc.bed.gz",
-              "description": "nuc element BED suffix; null disables the nucleosome overlay (-u)"
-            },
-            "fire_suffix": {
-              "type": "str",
-              "nullable": true,
-              "required": false,
-              "default": ".fire_peaks.bed",
-              "description": "FIRE peaks BED suffix; null disables the FIRE overlay/channel (-f)"
-            },
-            "bin_size": {
-              "type": "int",
-              "nullable": true,
-              "required": false,
-              "default": 100,
-              "description": "bin width in bp (-b)"
-            },
-            "bin_mode": {
-              "type": "str",
-              "nullable": true,
-              "required": false,
-              "default": "any",
-              "description": "bin open rule: any|frac (-B)"
-            },
-            "min_msp_bp": {
-              "type": "int",
-              "nullable": true,
-              "required": false,
-              "default": 10,
-              "description": "min MSP bp overlap for bin_mode=any (-P)"
-            },
-            "channel_by_setting": {
-              "type": "dict",
-              "nullable": true,
-              "required": false,
-              "default": {},
-              "description": "per-setting clustering channel msp|fire (feature_col_by_contrast shape); EVERY settings label must have an entry (-C)"
-            },
-            "k_by_setting": {
-              "type": "dict",
-              "nullable": true,
-              "required": false,
-              "default": {},
-              "description": "per-setting cluster count (feature_col_by_contrast shape); EVERY settings label must have an entry (-k)"
-            },
-            "method": {
-              "type": "str",
-              "nullable": true,
-              "required": false,
-              "default": "hierarchical",
-              "description": "clustering method hierarchical|kmeans (-e)"
-            },
-            "min_fibers": {
-              "type": "int",
-              "nullable": true,
-              "required": false,
-              "default": 10,
-              "description": "per-region minimum spanning fibers (-n)"
-            },
-            "min_span_frac": {
-              "type": "float",
-              "nullable": true,
-              "required": false,
-              "default": 0.8,
-              "description": "fiber must span this fraction of the region (-s)"
-            },
-            "bin_threshold": {
-              "type": "float",
-              "nullable": true,
-              "required": false,
-              "default": 0.5,
-              "description": "bin open fraction for bin_mode=frac (-t)"
-            },
-            "max_fibers": {
-              "type": "int",
-              "nullable": true,
-              "required": false,
-              "default": 300,
-              "description": "display subsample cap per figure (-a)"
-            },
-            "right_tracks": {
-              "type": "str",
-              "nullable": true,
-              "required": false,
-              "default": "fire,lnk,nuc",
-              "description": "right coverage-track layers, comma list or none (-T)"
-            },
-            "fire_fdr": {
-              "type": "float",
-              "nullable": true,
-              "required": false,
-              "default": 0.1,
-              "description": "keep FIRE peaks with FDR <= this (-q)"
-            },
-            "seed": {
-              "type": "int",
-              "nullable": true,
-              "required": false,
-              "default": 0,
-              "description": "k-means RNG seed (-x)"
-            },
-            "cache_dir": {
-              "type": "str",
-              "nullable": true,
-              "required": false,
-              "default": "",
-              "description": "extraction cache dir (-y); empty = no cache (tabix jump still applies)"
-            }
-          }
+        {
+         "name": "LTR",
+         "class": [
+          "LTR"
+         ]
         },
-        "fiber_report": {
-          "type": "dict",
-          "nullable": true,
-          "required": false,
-          "properties": {
-            "canonical": {
-              "type": "str",
-              "nullable": true,
-              "required": false,
-              "default": "fire_k2",
-              "description": "settings label whose figures/summary become the deliverable (-c); must be one of the settings labels"
-            }
-          }
+        {
+         "name": "DNA",
+         "class": [
+          "DNA"
+         ]
+        },
+        {
+         "name": "microsatellite",
+         "class": [
+          "Simple_repeat"
+         ]
+        },
+        {
+         "name": "other",
+         "catch_all": "classified"
+        },
+        {
+         "name": "unclassified",
+         "catch_all": "unclassified"
         }
+       ],
+       "GRCm39": [
+        {
+         "name": "IAP/ETn",
+         "family": [
+          "ERVK"
+         ],
+         "retro_fingerprint": true
+        },
+        {
+         "name": "B1",
+         "family": [
+          "Alu"
+         ],
+         "retro_fingerprint": true
+        },
+        {
+         "name": "B2/ID",
+         "family": [
+          "tRNA",
+          "B2"
+         ],
+         "retro_fingerprint": true
+        },
+        {
+         "name": "L1",
+         "family": [
+          "L1",
+          "LINE"
+         ],
+         "retro_fingerprint": true
+        },
+        {
+         "name": "LTR",
+         "class": [
+          "LTR"
+         ]
+        },
+        {
+         "name": "DNA",
+         "class": [
+          "DNA"
+         ]
+        },
+        {
+         "name": "microsatellite",
+         "class": [
+          "Simple_repeat"
+         ]
+        },
+        {
+         "name": "other",
+         "catch_all": "classified"
+        },
+        {
+         "name": "unclassified",
+         "catch_all": "unclassified"
+        }
+       ],
+       "T2T_mhaESC_v1.5": [
+        {
+         "name": "IAP/ETn",
+         "family": [
+          "ERVK"
+         ],
+         "retro_fingerprint": true
+        },
+        {
+         "name": "B1",
+         "family": [
+          "Alu"
+         ],
+         "retro_fingerprint": true
+        },
+        {
+         "name": "B2/ID",
+         "family": [
+          "tRNA",
+          "B2"
+         ],
+         "retro_fingerprint": true
+        },
+        {
+         "name": "L1",
+         "family": [
+          "L1",
+          "LINE"
+         ],
+         "retro_fingerprint": true
+        },
+        {
+         "name": "LTR",
+         "class": [
+          "LTR"
+         ]
+        },
+        {
+         "name": "DNA",
+         "class": [
+          "DNA"
+         ]
+        },
+        {
+         "name": "microsatellite",
+         "class": [
+          "Simple_repeat"
+         ]
+        },
+        {
+         "name": "other",
+         "catch_all": "classified"
+        },
+        {
+         "name": "unclassified",
+         "catch_all": "unclassified"
+        }
+       ],
+       "Mmul_10": [
+        {
+         "name": "Alu",
+         "family": [
+          "Alu"
+         ],
+         "retro_fingerprint": true
+        },
+        {
+         "name": "L1",
+         "family": [
+          "L1",
+          "LINE"
+         ],
+         "retro_fingerprint": true
+        },
+        {
+         "name": "SVA",
+         "family": [
+          "SVA"
+         ],
+         "retro_fingerprint": true
+        },
+        {
+         "name": "LTR",
+         "class": [
+          "LTR"
+         ]
+        },
+        {
+         "name": "DNA",
+         "class": [
+          "DNA"
+         ]
+        },
+        {
+         "name": "microsatellite",
+         "class": [
+          "Simple_repeat"
+         ]
+        },
+        {
+         "name": "other",
+         "catch_all": "classified"
+        },
+        {
+         "name": "unclassified",
+         "catch_all": "unclassified"
+        }
+       ],
+       "Mmul_T2T": [
+        {
+         "name": "Alu",
+         "family": [
+          "Alu"
+         ],
+         "retro_fingerprint": true
+        },
+        {
+         "name": "L1",
+         "family": [
+          "L1",
+          "LINE"
+         ],
+         "retro_fingerprint": true
+        },
+        {
+         "name": "SVA",
+         "family": [
+          "SVA"
+         ],
+         "retro_fingerprint": true
+        },
+        {
+         "name": "LTR",
+         "class": [
+          "LTR"
+         ]
+        },
+        {
+         "name": "DNA",
+         "class": [
+          "DNA"
+         ]
+        },
+        {
+         "name": "microsatellite",
+         "class": [
+          "Simple_repeat"
+         ]
+        },
+        {
+         "name": "other",
+         "catch_all": "classified"
+        },
+        {
+         "name": "unclassified",
+         "catch_all": "unclassified"
+        }
+       ]
       },
-      "sexcheck": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
+      "items": {
+       "type": "dict",
+       "properties": {
+        "name": {
+         "type": "str",
+         "required": true,
+         "description": "Bucket display name; never used for matching."
+        },
+        "subfamily": {
+         "type": "list",
+         "required": false,
+         "description": "Exact (case-insensitive) match against the RM repeat NAME (AluY / B1_Mm / IAP1 ...)."
+        },
+        "family": {
+         "type": "list",
+         "required": false,
+         "description": "Exact match against the RM class/family suffix (SINE/Alu -> Alu; no-slash entries match whole string)."
+        },
+        "class": {
+         "type": "list",
+         "required": false,
+         "description": "Exact match against the RM class/family prefix (SINE, LTR, DNA ...). Only the FIRST non-empty of subfamily/family/class participates (probe order subfamily -> family -> class)."
+        },
+        "catch_all": {
+         "type": "str",
+         "required": false,
+         "enum": [
+          "classified",
+          "unclassified"
+         ],
+         "description": "classified: RM hit but no bucket matched; unclassified: no RM hit at all."
+        },
+        "retro_fingerprint": {
+         "type": "bool",
+         "required": false,
+         "description": "true -> this bucket gets TSD detection (needs reference flanks) and is included in the retrotransposon fingerprint figure (polyA/TSD rates). Mark only active retrotransposon families (primate Alu/L1/SVA; mouse IAP/ETn, B1, B2/ID, L1)."
+        },
+        "zero_slot": {
+         "type": "bool",
+         "required": false,
+         "default": true,
+         "description": "false -> omit this bucket from figures when it has zero events (default true keeps the slot labelled 0)."
         }
+       }
       },
-      "sexcheck_idxstats": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "sigtest_run": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "sv_diff_analysis": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "sv_exp_circos": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "sv_exp_enrichment": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "sv_exp_specific": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "sv_gene_model": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "sv_go_kegg": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "sv_mei": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "sv_oncoprint": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "telogator2_run": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "assembly_telomere_scan": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "read_density_telomere": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "tidk_init": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
-      "tidk_scan": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      }
+      "description": "Per-species ordered TE bucket lists keyed by genome reference key (like genome.references; different species get different default vocabularies). A plain bucket list is also accepted and applies as-is. node.py resolves the active genome's list into raw.json. Bucket dict keys: name, subfamily, family, class, catch_all, retro_fingerprint, zero_slot; matching schema in modules/sv/bin/mei_analysis.py."
+     }
     }
+   },
+   "sv_exp_specific": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "formats": {
+      "type": "list",
+      "required": false,
+      "default": [
+       "png"
+      ],
+      "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)",
+      "enum": [
+       "png",
+       "pdf",
+       "svg",
+       "ps",
+       "eps",
+       "tif",
+       "tiff",
+       "jpg",
+       "jpeg",
+       "pgf",
+       "raw",
+       "rgba"
+      ]
+     }
+    }
+   },
+   "sv_exp_circos": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "formats": {
+      "type": "list",
+      "required": false,
+      "default": [
+       "png"
+      ],
+      "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)",
+      "enum": [
+       "png",
+       "pdf",
+       "svg",
+       "ps",
+       "eps",
+       "tif",
+       "tiff",
+       "jpg",
+       "jpeg",
+       "pgf",
+       "raw",
+       "rgba"
+      ]
+     }
+    }
+   },
+   "sv_gene_model": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "genes": {
+      "type": "list",
+      "required": false
+     },
+     "formats": {
+      "type": "list",
+      "required": false,
+      "default": [
+       "png"
+      ],
+      "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)",
+      "enum": [
+       "png",
+       "pdf",
+       "svg",
+       "ps",
+       "eps",
+       "tif",
+       "tiff",
+       "jpg",
+       "jpeg",
+       "pgf",
+       "raw",
+       "rgba"
+      ]
+     }
+    }
+   },
+   "sv_diff_analysis": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "formats": {
+      "type": "list",
+      "required": false,
+      "default": [
+       "png"
+      ],
+      "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)",
+      "enum": [
+       "png",
+       "pdf",
+       "svg",
+       "ps",
+       "eps",
+       "tif",
+       "tiff",
+       "jpg",
+       "jpeg",
+       "pgf",
+       "raw",
+       "rgba"
+      ]
+     }
+    }
+   },
+   "sv_oncoprint": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "formats": {
+      "type": "list",
+      "required": false,
+      "default": [
+       "png"
+      ],
+      "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)",
+      "enum": [
+       "png",
+       "pdf",
+       "svg",
+       "ps",
+       "eps",
+       "tif",
+       "tiff",
+       "jpg",
+       "jpeg",
+       "pgf",
+       "raw",
+       "rgba"
+      ]
+     }
+    }
+   },
+   "sv_mei": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "formats": {
+      "type": "list",
+      "required": false,
+      "default": [
+       "png"
+      ],
+      "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)",
+      "enum": [
+       "png",
+       "pdf",
+       "svg",
+       "ps",
+       "eps",
+       "tif",
+       "tiff",
+       "jpg",
+       "jpeg",
+       "pgf",
+       "raw",
+       "rgba"
+      ]
+     }
+    }
+   }
   },
-  "raw_files": {
-    "type": "list",
+  "censat": {
+   "enabled": {
+    "type": "bool",
     "required": false
+   },
+   "fiberseq_censat_run": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "formats": {
+      "type": "list",
+      "required": false,
+      "default": [
+       "pdf"
+      ],
+      "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)",
+      "enum": [
+       "png",
+       "pdf",
+       "svg",
+       "ps",
+       "eps",
+       "tif",
+       "tiff",
+       "jpg",
+       "jpeg",
+       "pgf",
+       "raw",
+       "rgba"
+      ]
+     },
+     "msp_min_len": {
+      "type": "int",
+      "required": false
+     },
+     "flank": {
+      "type": "int",
+      "required": false
+     },
+     "bin": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "fiberseq_censat_result": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "formats": {
+      "type": "list",
+      "required": false,
+      "default": [
+       "pdf"
+      ],
+      "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)",
+      "enum": [
+       "png",
+       "pdf",
+       "svg",
+       "ps",
+       "eps",
+       "tif",
+       "tiff",
+       "jpg",
+       "jpeg",
+       "pgf",
+       "raw",
+       "rgba"
+      ]
+     }
+    }
+   }
+  },
+  "function": {
+   "enabled": {
+    "type": "bool",
+    "required": false
+   },
+   "species": {
+    "type": "str",
+    "required": false,
+    "enum": [
+     "human",
+     "mouse",
+     "macaque"
+    ]
+   },
+   "gmt": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+   },
+   "lfc_cut": {
+    "type": "float",
+    "required": false
+   },
+   "p_cut": {
+    "type": "float",
+    "required": false
+   },
+   "top": {
+    "type": "int",
+    "required": false
+   },
+   "go_kegg": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "formats": {
+      "type": "list",
+      "required": false,
+      "default": [
+       "png"
+      ],
+      "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)",
+      "enum": [
+       "png",
+       "pdf",
+       "svg",
+       "ps",
+       "eps",
+       "tif",
+       "tiff",
+       "jpg",
+       "jpeg",
+       "pgf",
+       "raw",
+       "rgba"
+      ]
+     }
+    }
+   },
+   "gsea": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "formats": {
+      "type": "list",
+      "required": false,
+      "default": [
+       "jpeg"
+      ],
+      "description": "图片格式(多种同时输出);R 侧 ggsave 设备集: png pdf svg ps eps tif tiff jpg jpeg(pgf/raw/rgba 为 matplotlib 专属,R 规则上快速失败)",
+      "enum": [
+       "png",
+       "pdf",
+       "svg",
+       "ps",
+       "eps",
+       "tif",
+       "tiff",
+       "jpg",
+       "jpeg",
+       "pgf",
+       "raw",
+       "rgba"
+      ]
+     }
+    }
+   },
+   "sv_go_kegg": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "formats": {
+      "type": "list",
+      "required": false,
+      "default": [
+       "png"
+      ],
+      "description": "图片格式(多种同时输出);R 侧 ggsave 设备集: png pdf svg ps eps tif tiff jpg jpeg(pgf/raw/rgba 为 matplotlib 专属,R 规则上快速失败)",
+      "enum": [
+       "png",
+       "pdf",
+       "svg",
+       "ps",
+       "eps",
+       "tif",
+       "tiff",
+       "jpg",
+       "jpeg",
+       "pgf",
+       "raw",
+       "rgba"
+      ]
+     }
+    }
+   }
+  },
+  "ldsc": {
+   "enabled": {
+    "type": "bool",
+    "required": false
+   },
+   "annot_bed": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+   },
+   "annot_prefix": {
+    "type": "str",
+    "required": false
+   },
+   "annot_cluster_from_name": {
+    "type": "bool",
+    "required": false
+   },
+   "gwas": {
+    "type": "dict",
+    "required": false
+   },
+   "merge_alleles": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+   },
+   "ref_ld_chr": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+   },
+   "w_ld_chr": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+   },
+   "munge_args": {
+    "type": "str",
+    "required": false
+   }
+  },
+  "telomere": {
+   "enabled": {
+    "type": "bool",
+    "required": false
+   },
+   "method": {
+    "type": "list",
+    "required": false,
+    "enum": [
+     "telogator2",
+     "assembly_scan",
+     "read_density",
+     "tidk"
+    ]
+   },
+   "formats": {
+    "type": "list",
+    "required": false,
+    "enum": [
+     "png",
+     "pdf",
+     "svg",
+     "ps",
+     "eps",
+     "tif",
+     "tiff",
+     "jpg",
+     "jpeg",
+     "pgf",
+     "raw",
+     "rgba"
+    ]
+   },
+   "telogator2": {
+    "species": {
+     "type": "str",
+     "required": false
+    },
+    "threads": {
+     "type": "int",
+     "required": false
+    }
+   },
+   "assembly_scan": {
+    "assembly_scan_length": {
+     "type": "int",
+     "required": false
+    }
+   },
+   "read_density": {
+    "n_chrom_arms": {
+     "type": "int",
+     "required": false
+    }
+   },
+   "tidk": {
+    "type": "dict",
+    "required": false,
+    "properties": {}
+   }
+  },
+  "telocen_norm": {
+   "enabled": {
+    "type": "bool",
+    "required": false,
+    "default": false,
+    "description": "Gate for telocen_norm (depth-normalized telomere/centromere region comparison + fig2-style plot)."
+   },
+   "groups": {
+    "type": "dict",
+    "required": false,
+    "default": {},
+    "description": "Exactly 2 groups: {label: [sample_id,...]}, first label = baseline. Samples must have BAMs in the workflow's aligned BAM dir."
+   },
+   "fiberseq_telocen_norm_run": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false,
+      "default": 16
+     }
+    }
+   },
+   "fiberseq_telocen_norm_fig": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "formats": {
+      "type": "list",
+      "required": false,
+      "default": [
+       "png"
+      ],
+      "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)",
+      "enum": [
+       "png",
+       "pdf",
+       "svg",
+       "ps",
+       "eps",
+       "tif",
+       "tiff",
+       "jpg",
+       "jpeg",
+       "pgf",
+       "raw",
+       "rgba"
+      ]
+     },
+     "dpi": {
+      "type": "int",
+      "required": false,
+      "default": 200
+     }
+    }
+   }
+  },
+  "epi_drift": {
+   "enabled": {
+    "type": "bool",
+    "required": false,
+    "default": false,
+    "description": "Gate for epi_drift (per-fiber m5CpG variance drift test + fig9-style plot)."
+   },
+   "groups": {
+    "type": "dict",
+    "required": false,
+    "default": {},
+    "description": "Exactly 2 groups: {label: [sample_id,...]}, variance ratio = second group / first group."
+   },
+   "fiberseq_epi_drift_run": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false,
+      "default": 4
+     },
+     "win": {
+      "type": "int",
+      "required": false,
+      "default": 5000
+     },
+     "min_fibers": {
+      "type": "int",
+      "required": false,
+      "default": 20
+     },
+     "subsample": {
+      "type": "int",
+      "required": false,
+      "default": 20
+     },
+     "n_windows": {
+      "type": "int",
+      "required": false,
+      "default": 600
+     },
+     "seed": {
+      "type": "int",
+      "required": false,
+      "default": 42
+     },
+     "min_chrom_len": {
+      "type": "int",
+      "required": false,
+      "default": 30000000
+     },
+     "chrom_prefix": {
+      "type": "str",
+      "required": false,
+      "default": "NC_",
+      "description": "Only sample windows on chroms starting with this prefix (NC_ for NCBI accessions; empty string = all chroms)."
+     }
+    }
+   },
+   "fiberseq_epi_drift_fig": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+     "formats": {
+      "type": "list",
+      "required": false,
+      "default": [
+       "png"
+      ],
+      "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)",
+      "enum": [
+       "png",
+       "pdf",
+       "svg",
+       "ps",
+       "eps",
+       "tif",
+       "tiff",
+       "jpg",
+       "jpeg",
+       "pgf",
+       "raw",
+       "rgba"
+      ]
+     },
+     "dpi": {
+      "type": "int",
+      "required": false,
+      "default": 200
+     }
+    }
+   }
   }
+ },
+ "genome": {
+  "default": {
+   "type": "str",
+   "required": true
+  },
+  "references": {
+   "type": "dict",
+   "required": true
+  }
+ },
+ "env": {
+  "type": "dict",
+  "required": false,
+  "telomere": {
+   "type": "str",
+   "required": false
+  }
+ },
+ "resources": {
+  "type": "dict",
+  "required": false,
+  "properties": {
+   "default": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "bamCoverage": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "decoil_compare": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "decoil_igv": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "decoil_plot": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "decoil_reconstruct": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "decoil_structure": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "decoil_ucsc": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "deepvariant_run": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "fiberbrowser": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "fiberseq_annotate": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "fiberseq_censat": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "fiberseq_coactuation": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "fiberseq_diff_run": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "fiberseq_footprint": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "fiberseq_haplotype_diff": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "fiberseq_mods_split": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "fiberseq_mods_top_loci": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "fiberseq_motif": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "fiberseq_nucpos": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "fiberseq_quant": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "fiberseq_quant_hap": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "fiberseq_quant_merge": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "fiberseq_track": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "ft_add_nucleosomes": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "ft_call_peaks": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "ft_extract": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "ft_extract_fire": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "ft_extract_hap": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "ft_fire": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "ft_predict_m6a": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "ft_qc": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "ft_split_hap": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "function_go_kegg": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "function_gsea": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "genome_index": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "hiphase_phase": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "ldsc_annot": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "ldsc_h2_cts": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "ldsc_munge": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "pbmm2_align": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "pbsv_call": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "pbsv_discover": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "qc_summary": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "regionplot": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "fibercluster": {
+    "enabled": {
+     "type": "bool",
+     "required": false,
+     "default": false,
+     "description": "Opt-in gate for the fibercluster module (single-fiber pattern clustering + report package over this workflow's ft-extract element BEDs). node.py registers the outputs only when true; default false = wired but not invoked."
+    },
+    "regions_bed": {
+     "type": "str",
+     "path": "file",
+     "required": false,
+     "default": null,
+     "description": "Regions BED (chrom<TAB>start<TAB>end<TAB>name rows; name = region label), required when enabled. Region names drive the per-region outputs."
+    },
+    "settings": {
+     "type": "list",
+     "required": false,
+     "default": [
+      "fire_k2"
+     ],
+     "description": "Setting labels = the module's {setting} wildcard values (one engine run each, the sigtest contrasts shape); every label needs a fiber_cluster.channel_by_setting and k_by_setting entry."
+    },
+    "fiber_cluster": {
+     "type": "dict",
+     "nullable": true,
+     "required": false,
+     "properties": {
+      "msp_suffix": {
+       "type": "str",
+       "nullable": true,
+       "required": false,
+       "default": ".msp.bed.gz",
+       "description": "MSP element BED suffix under {extract_outdir}/{sample}/ (-m)"
+      },
+      "nuc_suffix": {
+       "type": "str",
+       "nullable": true,
+       "required": false,
+       "default": ".nuc.bed.gz",
+       "description": "nuc element BED suffix; null disables the nucleosome overlay (-u)"
+      },
+      "fire_suffix": {
+       "type": "str",
+       "nullable": true,
+       "required": false,
+       "default": ".fire_peaks.bed",
+       "description": "FIRE peaks BED suffix; null disables the FIRE overlay/channel (-f)"
+      },
+      "bin_size": {
+       "type": "int",
+       "nullable": true,
+       "required": false,
+       "default": 100,
+       "description": "bin width in bp (-b)"
+      },
+      "bin_mode": {
+       "type": "str",
+       "nullable": true,
+       "required": false,
+       "default": "any",
+       "description": "bin open rule: any|frac (-B)",
+       "enum": [
+        "any",
+        "frac"
+       ]
+      },
+      "min_msp_bp": {
+       "type": "int",
+       "nullable": true,
+       "required": false,
+       "default": 10,
+       "description": "min MSP bp overlap for bin_mode=any (-P)"
+      },
+      "channel_by_setting": {
+       "type": "dict",
+       "nullable": true,
+       "required": false,
+       "default": {},
+       "description": "per-setting clustering channel msp|fire (feature_col_by_contrast shape); EVERY settings label must have an entry (-C)"
+      },
+      "k_by_setting": {
+       "type": "dict",
+       "nullable": true,
+       "required": false,
+       "default": {},
+       "description": "per-setting cluster count (feature_col_by_contrast shape); EVERY settings label must have an entry (-k)"
+      },
+      "method": {
+       "type": "str",
+       "nullable": true,
+       "required": false,
+       "default": "hierarchical",
+       "description": "clustering method hierarchical|kmeans (-e)",
+       "enum": [
+        "hierarchical",
+        "kmeans"
+       ]
+      },
+      "min_fibers": {
+       "type": "int",
+       "nullable": true,
+       "required": false,
+       "default": 10,
+       "description": "per-region minimum spanning fibers (-n)"
+      },
+      "min_span_frac": {
+       "type": "float",
+       "nullable": true,
+       "required": false,
+       "default": 0.8,
+       "description": "fiber must span this fraction of the region (-s)"
+      },
+      "bin_threshold": {
+       "type": "float",
+       "nullable": true,
+       "required": false,
+       "default": 0.5,
+       "description": "bin open fraction for bin_mode=frac (-t)"
+      },
+      "max_fibers": {
+       "type": "int",
+       "nullable": true,
+       "required": false,
+       "default": 300,
+       "description": "display subsample cap per figure (-a)"
+      },
+      "right_tracks": {
+       "type": "str",
+       "nullable": true,
+       "required": false,
+       "default": "fire,lnk,nuc",
+       "description": "right coverage-track layers, comma list or none (-T)"
+      },
+      "fire_fdr": {
+       "type": "float",
+       "nullable": true,
+       "required": false,
+       "default": 0.1,
+       "description": "keep FIRE peaks with FDR <= this (-q)"
+      },
+      "seed": {
+       "type": "int",
+       "nullable": true,
+       "required": false,
+       "default": 0,
+       "description": "k-means RNG seed (-x)"
+      },
+      "cache_dir": {
+       "type": "str",
+       "nullable": true,
+       "required": false,
+       "default": "",
+       "description": "extraction cache dir (-y); empty = no cache (tabix jump still applies)"
+      }
+     }
+    },
+    "fiber_report": {
+     "type": "dict",
+     "nullable": true,
+     "required": false,
+     "properties": {
+      "canonical": {
+       "type": "str",
+       "nullable": true,
+       "required": false,
+       "default": "fire_k2",
+       "description": "settings label whose figures/summary become the deliverable (-c); must be one of the settings labels"
+      }
+     }
+    }
+   },
+   "sexcheck": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "sexcheck_idxstats": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "sigtest_run": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "sv_diff_analysis": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "sv_exp_circos": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "sv_exp_enrichment": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "sv_exp_specific": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "sv_gene_model": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "sv_go_kegg": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "sv_mei": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "sv_oncoprint": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "telogator2_run": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "assembly_telomere_scan": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "read_density_telomere": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "tidk_init": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "tidk_scan": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   }
+  }
+ },
+ "raw_files": {
+  "type": "list",
+  "required": false
+ }
 }

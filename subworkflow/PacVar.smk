@@ -344,7 +344,11 @@ logger.debug(f"telomere_config: {telomere_config}")
 use rule telogator2_run from telomere as PacVar_telogator2_run
 use rule assembly_telomere_scan from telomere as PacVar_assembly_telomere_scan
 use rule read_density_telomere from telomere as PacVar_read_density_telomere
+use rule tidk_init from telomere as PacVar_tidk_init
 use rule tidk_scan from telomere as PacVar_tidk_scan
+use rule read_density_combined from telomere as PacVar_read_density_combined
+use rule telomere_method_overview from telomere as PacVar_telomere_method_overview
+use rule telomere_depth_qc from telomere as PacVar_telomere_depth_qc
 
 # Telomere composition + regions sub-modules (telomere family)
 telomere_composition_config = {

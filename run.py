@@ -1083,6 +1083,17 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
                             f = ref / name
                             f.touch(exist_ok=True)  # fixture must exist or DAG breaks
                             return str(f)
+                    if key == "assembly_dir":
+                        asm_root = Path(test_data) / "telomere" / "asm"
+                        for _s in ("TestSample1", "TestSample2"):
+                            _ad = asm_root / _s / "assembly"
+                            _ad.mkdir(parents=True, exist_ok=True)
+                            _fa = _ad / "asm.bp.p_ctg.fa"
+                            if not _fa.exists():
+                                _fa.write_text(
+                                    f">{_s}_ctg1\n" + "TTAGGG" * 300
+                                    + "ACGT" * 5000 + "CCCTAA" * 300 + "\n")
+                        return str(asm_root)
                     if key.endswith(("_dir", "_index")):
                         d = Path(test_data) / "index" / key.replace("_dir", "").replace("_index", "")
                         d.mkdir(parents=True, exist_ok=True)
@@ -1131,8 +1142,11 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
                             _inject(val, dotted, wf_extra)
                         elif _is_path(val):
                             declared = _schema_node(dotted).get("type")
-                            if declared in ("dict", "list", "array"):
-                                continue  # container field: never a bare path
+                            decl = declared if isinstance(declared, list) else (
+                                [declared] if declared is not None else [])
+                            if declared is not None and not any(
+                                    t in ("str", "null") for t in decl):
+                                continue
                             wf_extra[dotted] = base_paths.get(dotted, _make_test_path(field, test_data, args._test_genome))
 
                 wf_extra: Dict[str, Any] = dict(args.extra_args) if hasattr(args, 'extra_args') else {}
@@ -1213,6 +1227,22 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
     mem_shares = _split_mem_budget(args.mem_mb, weights)
     for p, share in zip(pending, mem_shares):
         _inject_resource_caps(p["input_json"], mem_mb=share, cpus=threads_per_workflow)
+        if args.schema_validate:
+            try:
+                _sv = SchemaValidator()
+                _sv._schema_dir = os.path.join(root_dir, "config")
+                _sv.load_workflow(p["wf"])
+                with open(p["input_json"], "r", encoding="utf-8") as _fh:
+                    _errs = _sv.validate(json.load(_fh))
+                if _errs:
+                    for _e in _errs:
+                        logger.error(f"[{p['wf']}] [schema] {_e}")
+                    raise ValueError(
+                        f"{p['wf']}: merged config failed schema validation "
+                        f"({len(_errs)} error(s); fix the config or pass "
+                        f"--no-schema-validate to skip)")
+            except FileNotFoundError:
+                pass
         cmd = build_snakemake_cmd(
             root_dir, p["smk"], p["input_json"], threads_per_workflow,
             args.conda_prefix, args.rerun_trigger, args.dry_run,

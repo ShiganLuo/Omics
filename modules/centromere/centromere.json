@@ -9,7 +9,8 @@
         },
         "RepeatMasker": {
             "species": "mouse",
-            "threads": 16
+            "threads": 16,
+            "dfam_h5": null
         }
     },
     "Procedure": {

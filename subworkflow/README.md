@@ -373,6 +373,8 @@ FASTQ
   - fibertools_fire：ft fire 染色质 FIRE 活性区域检测
   - fibertools_extract：ft extract 数据提取
   - sv：SV 比较分析（SURVIVOR 合并 + VEP 注释 exp-specific SV、GO/KEGG 富集、circos、gene model、跨比较 diff、OncoPrint）
+  - telocen_norm：端粒/着丝粒区域深度归一化两组比较 + fig2 图（`Params.telocen_norm.enabled`）
+  - epi_drift：单纤维 m5CpG 方差表观漂移检验 + fig9 图（`Params.epi_drift.enabled`）
 - **输入**：PacBio HiFi BAM；SV 比较分析需 meta `design` 列（ctrl_TAG / exp_TAG 配对）或在 `Params.sv.comparisons` 手工配置
 - **输出**：m6A 甲基化 BAM、核小体 BAM、FIRE 区域、提取结果、SV 比较分析（`{outdir}/variation/germline_sv_analysis/{ctr}_vs_{exp}/`）
 - **特点**：

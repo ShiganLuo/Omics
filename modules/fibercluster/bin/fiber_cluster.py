@@ -579,21 +579,114 @@ def binarize(cov_bp: np.ndarray, start: int, end: int, bin_size: int,
     return (cov_bp / widths >= bin_threshold).astype(int)
 
 
-def cluster_matrix(mat: np.ndarray, k: int, method: str, seed: int) -> Tuple[np.ndarray, np.ndarray]:
+def choose_k(mat: np.ndarray, method: str, seed: int,
+             k_min: int = 2, k_max: int = 6,
+             min_cluster_frac: float = 0.05) -> Tuple[int, Dict[str, float]]:
+    """Pick k by Hamming-distance silhouette with a minimum-cluster-size guard.
+
+    Rationale: fibers are binary (0/1 per bin) patterns, so the natural
+    metric is Hamming; silhouette on that metric measures whether fibers
+    actually separate, independent of cluster-size bias. Two guards keep
+    the choice stable on small fiber counts (tens to low hundreds):
+
+    - only k values where every cluster keeps >= max(min_cluster_frac *
+      n, 2) fibers are eligible (a 'cluster' of 1-2 fibers is noise, not
+      a chromatin state);
+    - ties or near-ties (silhouette within TIE_EPS) resolve to the
+      SMALLER k (Occam: prefer the simplest state count).
+
+    Parameters:
+        mat: (n_fibers, n_bins) binary matrix.
+        method: 'hierarchical' or 'kmeans' (same engine as the fixed-k path).
+        seed: RNG seed for k-means.
+        k_min: smallest k tried.
+        k_max: largest k tried (also capped at n_fibers - 1).
+        min_cluster_frac: min fraction of fibers per cluster for k eligibility.
+
+    Returns:
+        (k, scores): chosen k and the {k: silhouette} table for reporting.
+    """
+    from scipy.spatial.distance import pdist, squareform
+
+    TIE_EPS = 0.02  # silhouettes within this are considered tied -> smaller k
+    n = mat.shape[0]
+    k_hi = min(k_max, n - 1)
+    dist = squareform(pdist(mat.astype(float), metric="hamming"))
+    scores: Dict[str, float] = {}
+    eligible: List[int] = []
+    for k in range(max(k_min, 2), k_hi + 1):
+        try:
+            labels = _fit_labels(mat, dist, k, method, seed)
+        except Exception:
+            continue
+        sizes = np.bincount(labels, minlength=k)
+        if len(sizes[sizes > 0]) < k:
+            continue  # degenerate: engine collapsed a cluster away
+        if sizes.min() < max(2, min_cluster_frac * n):
+            continue  # guard: a 1-2 fiber 'cluster' is noise
+        scores[str(k)] = float(_silhouette(dist, labels))
+        eligible.append(k)
+    if not eligible:
+        return 1, scores  # homogeneous fibers: single state is the truth
+    best_score = max(scores[str(k)] for k in eligible)
+    # near-tie -> smallest k within TIE_EPS of the best silhouette
+    return min(k for k in eligible if scores[str(k)] >= best_score - TIE_EPS), scores
+
+
+def _fit_labels(mat: np.ndarray, dist: np.ndarray, k: int, method: str,
+                seed: int) -> np.ndarray:
+    """0-based labels for one (k, method) fit, no relabeling."""
+    if method == "hierarchical":
+        from scipy.cluster.hierarchy import fcluster, linkage
+
+        z = linkage(dist, method="average")
+        return fcluster(z, t=k, criterion="maxclust") - 1
+    from scipy.cluster.vq import kmeans2
+
+    np.random.seed(seed)
+    _c, labels = kmeans2(mat.astype(float), k, minit="++", iter=50)
+    return np.asarray(labels, dtype=int)
+
+
+def _silhouette(dist: np.ndarray, labels: np.ndarray) -> float:
+    """Mean silhouette from a precomputed distance matrix (0-based labels)."""
+    from scipy.spatial.distance import squareform
+
+    D = squareform(dist, checks=False) if dist.ndim == 1 else dist
+    n = len(labels)
+    if n == 1:
+        return 0.0
+    s = np.zeros(n)
+    for i in range(n):
+        own = labels == labels[i]
+        n_own = own.sum()
+        if n_own <= 1:
+            s[i] = 0.0
+            continue
+        a = D[i, own].sum() / (n_own - 1)
+        b = min(D[i, labels == c].mean()
+                for c in set(labels.tolist()) - {int(labels[i])})
+        s[i] = (b - a) / max(a, b) if max(a, b) > 0 else 0.0
+    return float(s.mean())
+
+
+def cluster_matrix(mat: np.ndarray, k: Optional[int], method: str, seed: int) -> Tuple[np.ndarray, np.ndarray, Dict[str, float]]:
     """Cluster binary fiber x bin patterns.
 
     Parameters:
         mat: (n_fibers, n_bins) binary accessibility matrix.
-        k: requested cluster count.
+        k: requested cluster count; None = choose automatically by
+           Hamming silhouette (see choose_k).
         method: 'hierarchical' (average-linkage, Hamming) or 'kmeans'.
         seed: RNG seed for k-means init.
 
     Returns:
-        (labels, order): 1-based cluster labels per fiber relabeled so
-        cluster 1 has the highest mean openness, and a display order that
-        keeps clusters contiguous with tree (dendrogram leaf) ordering
-        within each cluster for hierarchical, or centroid-distance ordering
-        for k-means.
+        (labels, order, k_scores): 1-based cluster labels per fiber
+        relabeled so cluster 1 has the highest mean openness; a display
+        order that keeps clusters contiguous with tree (dendrogram leaf)
+        ordering within each cluster for hierarchical, or
+        centroid-distance ordering for k-means; and the silhouette
+        table when k was auto-chosen ({} for fixed k).
 
     Errors:
         ValueError when there are fewer fibers than clusters.
@@ -601,6 +694,15 @@ def cluster_matrix(mat: np.ndarray, k: int, method: str, seed: int) -> Tuple[np.
     from scipy.cluster.hierarchy import fcluster, leaves_list, linkage
     from scipy.spatial.distance import pdist
 
+    k_scores: Dict[str, float] = {}
+    if k is None:
+        k, k_scores = choose_k(mat, method, seed)
+        logger.info("auto-k: chose k=%d (silhouette: %s)", k,
+                    ", ".join(f"{kk}={vv:.3f}" for kk, vv in sorted(k_scores.items())) or "n/a")
+        if k == 1:
+            # homogeneous patterns: one cluster, neutral display order
+            out = np.ones(mat.shape[0], dtype=int)
+            return out, np.arange(mat.shape[0], dtype=int), k_scores
     n = mat.shape[0]
     if n < k:
         raise ValueError(f"only {n} fibers for k={k}")
@@ -632,7 +734,7 @@ def cluster_matrix(mat: np.ndarray, k: int, method: str, seed: int) -> Tuple[np.
     # Display order: clusters contiguous (in label order), tree/centroid order within.
     rank = {int(idx): r for r, idx in enumerate(order)}
     display = sorted(range(n), key=lambda i: (int(out[i]), rank[i]))
-    return out, np.array(display, dtype=int)
+    return out, np.array(display, dtype=int), k_scores
 
 
 # ---------------------------------------------------------------------------
@@ -691,7 +793,17 @@ def run_region(region: Region, msp: FiberSample, nuc: FiberSample,
         raise ValueError(f"too_few_fibers: {n_fibers} < --min-fibers {args.min_fibers}")
 
     open_mat = np.vstack([r.open for r in rows]).astype(int)
-    labels, disp_order = cluster_matrix(open_mat, args.clusters, args.method, args.seed)
+    labels, disp_order, k_scores = cluster_matrix(
+        open_mat,
+        args.clusters if args.clusters and args.clusters > 0 else None,  # 0 = auto
+        args.method, args.seed)
+    if k_scores:
+        # auto-k transparency: per-k silhouette table beside the assignments
+        outdir.mkdir(parents=True, exist_ok=True)
+        with open(outdir / "k_selection.tsv", "w") as fh:
+            fh.write("k\tsilhouette\n")
+            for kk in sorted(k_scores, key=int):
+                fh.write(f"{kk}\t{k_scores[kk]:.4f}\n")
 
     # ---- overlay matrices (nuc occupancy, FIRE presence) -----------------
     def blocks_matrix(get_blocks: Callable[[FiberRow], Blocks], mode: str) -> np.ndarray:
@@ -1040,7 +1152,9 @@ def build_parser() -> argparse.ArgumentParser:
                         "or covered fraction >= --bin-threshold (frac)")
     p.add_argument("-P", "--min-msp-bp", type=int, default=10,
                    help="min MSP bp overlap for --bin-mode any (default 10)")
-    p.add_argument("-k", "--clusters", type=int, default=3, help="cluster count (default 3)")
+    p.add_argument("-k", "--clusters", type=int, default=0,
+                   help="cluster count; 0 = auto (Hamming silhouette + min-cluster guard, "
+                        "writes k_selection.tsv; default 0)")
     p.add_argument("-e", "--method", choices=["hierarchical", "kmeans"], default="hierarchical",
                    help="clustering method (default hierarchical)")
     p.add_argument("-n", "--min-fibers", type=int, default=10,
@@ -1112,8 +1226,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if sample not in fire_map:
             logger.warning("sample %s has no --fire overlay", sample)
 
-    logger.info("regions: %d | samples: %s | bin=%d k=%d method=%s",
-                len(regions), sample_order, args.bin_size, args.clusters, args.method)
+    k_arg = args.clusters if args.clusters and args.clusters > 0 else None  # 0/None = auto
+    logger.info("regions: %d | samples: %s | bin=%d k=%s method=%s",
+                len(regions), sample_order, args.bin_size,
+                k_arg if k_arg else "auto", args.method)
 
     if args.dry_run:
         for name, chrom, start, end in regions:

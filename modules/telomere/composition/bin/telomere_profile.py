@@ -30,7 +30,8 @@ from typing import Dict, List, Optional, Sequence, Tuple
 import numpy as np
 import pysam
 
-_SRC_DIR = Path(__file__).resolve().parent.parent.parent
+_BIN_DIR = Path(__file__).resolve().parent
+_SRC_DIR = _BIN_DIR.parent.parent.parent.parent
 if str(_SRC_DIR) not in sys.path:
     sys.path.insert(0, str(_SRC_DIR))
 from src.common.util.LogUtil import setup_logger  # noqa: E402

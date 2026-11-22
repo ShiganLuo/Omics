@@ -1,0 +1,32 @@
+{
+  "indir": "",
+  "outdir": "fiberseq_analysis/telocen_norm",
+  "logdir": "log",
+  "samples": [],
+  "ROOT_DIR": ".",
+  "inputs": {
+    "telocen_norm": {
+      "bam": {}
+    }
+  },
+  "Procedure": {},
+  "Params": {
+    "fiberseq_telocen_norm": {
+      "enabled": true,
+      "groups": {},
+      "fiberseq_telocen_norm_run": {
+        "threads": 16
+      },
+      "fiberseq_telocen_norm_fig": {
+        "formats": [
+          "png"
+        ],
+        "dpi": 200
+      }
+    }
+  },
+  "genome": {
+    "telocen_bed": null
+  },
+  "env": {}
+}

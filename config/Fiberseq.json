@@ -767,59 +767,82 @@
       "enabled": false,
       "regions_bed": null,
       "settings": [
-        "fire_k2"
+        "auto"
       ],
       "fiber_cluster": {
         "msp_suffix": ".msp.bed.gz",
         "nuc_suffix": ".nuc.bed.gz",
         "fire_suffix": ".fire_peaks.bed",
-        "bin_size": 100,
-        "bin_mode": "any",
-        "min_msp_bp": 10,
-        "channel_by_setting": {
-          "fire_k2": "fire"
-        },
-        "k_by_setting": {
-          "fire_k2": 2
-        },
         "method": "hierarchical",
         "min_fibers": 10,
         "min_span_frac": 0.8,
-        "bin_threshold": 0.5,
         "max_fibers": 300,
         "right_tracks": "fire,lnk,nuc",
-        "fire_fdr": 0.1,
-        "seed": 0,
-        "cache_dir": ""
+        "cache_dir": "",
+        "channel": "msp",
+        "k": 0
       },
-      "fiber_report": {
-        "canonical": "fire_k2"
-      }
+      "fiber_report": {}
     },
     "sexcheck": {
       "ratio_xy_threshold": null,
       "y_min_frac": null
     },
     "telomere": {
-      "enabled": false,
+      "enabled": true,
       "method": [
         "telogator2",
-        "read_density"
+        "read_density",
+        "assembly_scan",
+        "tidk"
       ],
       "formats": [
         "png"
       ],
       "telogator2": {
-        "species": "human",
+        "species": null,
         "threads": 16
       },
       "assembly_scan": {
         "assembly_scan_length": 50000
       },
       "read_density": {
-        "n_chrom_arms": 40
+        "n_chrom_arms": null
       },
       "tidk": {}
+    },
+    "telocen_norm": {
+      "enabled": false,
+      "groups": {},
+      "fiberseq_telocen_norm_run": {
+        "threads": 16
+      },
+      "fiberseq_telocen_norm_fig": {
+        "formats": [
+          "png"
+        ],
+        "dpi": 200
+      }
+    },
+    "epi_drift": {
+      "enabled": false,
+      "groups": {},
+      "fiberseq_epi_drift_run": {
+        "threads": 4,
+        "win": 5000,
+        "min_fibers": 20,
+        "subsample": 20,
+        "n_windows": 600,
+        "seed": 42,
+        "min_chrom_len": 30000000,
+        "chrom_prefix": "NC_"
+      },
+      "fiberseq_epi_drift_fig": {
+        "formats": [
+          "png"
+        ],
+        "dpi": 200
+      }
     }
   },
   "genome": {
@@ -836,7 +859,8 @@
         "geneIDAnno": null,
         "te_lib": "/data/16T/Database/Reference/famdb/rhesus_te_lib.fa",
         "fai_index": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.fa.fai",
-        "dict_index": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.dict"
+        "dict_index": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.dict",
+        "telocen_bed": null
       },
       "Mmul_T2T": {
         "fasta": "/data/16T/Database/Reference/mulatta/NCBI/Mmul_T2T/GCF_049350105.2_T2T-MMU8v2.0_genomic.fa",
@@ -851,7 +875,8 @@
         "geneIDAnno": null,
         "te_lib": "/data/16T/Database/Reference/famdb/rhesus_te_lib.fa",
         "fai_index": "/data/16T/Database/Reference/mulatta/NCBI/Mmul_T2T/GCF_049350105.2_T2T-MMU8v2.0_genomic.fa.fai",
-        "dict_index": "/data/16T/Database/Reference/mulatta/NCBI/Mmul_T2T/GCF_049350105.2_T2T-MMU8v2.0_genomic.dict"
+        "dict_index": "/data/16T/Database/Reference/mulatta/NCBI/Mmul_T2T/GCF_049350105.2_T2T-MMU8v2.0_genomic.dict",
+        "telocen_bed": "/data/16T/Database/Reference/mulatta/NCBI/Mmul_T2T/Mmul_T2T.telocen_regions.bed"
       },
       "GRCm39": {
         "fasta": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
@@ -864,7 +889,8 @@
         "geneIDAnno": null,
         "te_lib": "/data/16T/Database/Reference/famdb/mouse_te_lib.fa",
         "fai_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
-        "dict_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.dict"
+        "dict_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.dict",
+        "telocen_bed": null
       },
       "T2T_mhaESC_v1.5": {
         "fasta": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fa",
@@ -879,7 +905,8 @@
         "geneIDAnno": null,
         "te_lib": "/data/16T/Database/Reference/famdb/mouse_te_lib.fa",
         "fai_index": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fa.fai",
-        "dict_index": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.dict"
+        "dict_index": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.dict",
+        "telocen_bed": null
       },
       "GRCh38": {
         "fasta": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
@@ -892,7 +919,8 @@
         "geneIDAnno": null,
         "te_lib": "/data/16T/Database/Reference/famdb/human_te_lib.fa",
         "fai_index": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa.fai",
-        "dict_index": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.dict"
+        "dict_index": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.dict",
+        "telocen_bed": null
       }
     }
   },
@@ -917,7 +945,8 @@
     "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif",
     "qc_summary": "/data/16T/Database/env/report/report.sif",
     "sigtest": "/data/16T/Database/env/sv/sv.sif",
-    "telomere": "/home/luosg/Database/env/telomere/telomere.sif"
+    "telomere": "/home/luosg/Database/env/telomere/telomere.sif",
+    "centromere": "/data/16T/Database/env/centromere/centromere.sif"
   },
   "resources": {
     "default": {

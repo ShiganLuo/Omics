@@ -378,14 +378,14 @@
         "png"
       ],
       "telogator2": {
-        "species": "human",
+        "species": null,
         "threads": 16
       },
       "assembly_scan": {
         "assembly_scan_length": 50000
       },
       "read_density": {
-        "n_chrom_arms": 40
+        "n_chrom_arms": null
       },
       "tidk": {}
     },

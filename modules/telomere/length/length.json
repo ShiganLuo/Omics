@@ -3,7 +3,7 @@
   "outdir": "output",
   "logdir": "logs",
   "samples": [],
-  "assembly_dir": "",
+  "assembly_dir": "/data/16T/luosg/workflow/Omics/assests/test/data/telomere/asm",
   "ROOT_DIR": ".",
   "Procedure": {
     "telogator2": null,

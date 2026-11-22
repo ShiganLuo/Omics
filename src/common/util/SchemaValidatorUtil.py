@@ -132,7 +132,8 @@ class SchemaValidator:
                 # Typed field with child keys → still a container (e.g. "type":"dict")
                 child_keys = {k for k in resolved.keys() if k not in (
                     "type", "required", "nullable", "path", "items", "description",
-                    "properties", "additionalProperties"
+                    "properties", "additionalProperties",
+                    "enum", "values", "minimum", "maximum", "default"
                 )}
                 if child_keys:
                     node = resolved
@@ -575,7 +576,6 @@ class SchemaValidator:
         "bool": lambda v: isinstance(v, bool),
         "list": lambda v: isinstance(v, list),
         "dict": lambda v: isinstance(v, dict),
-        "null": lambda v: v is None,
     }
 
     @staticmethod
@@ -611,6 +611,15 @@ class SchemaValidator:
             if node.get("required") and (cfg is None or cfg == "" or cfg == [] or cfg == {}):
                 if not (nullable and cfg is None):
                     errors.append(f"Required field is empty: '{dotted}'")
+            allowed = node.get("enum") or node.get("values")
+            if (allowed is not None and isinstance(allowed, list)
+                    and cfg is not None and cfg != ""):
+                errors.extend(self._validate_enum(dotted, cfg, allowed))
+            items_def = node.get("items") if isinstance(node.get("items"), dict) else None
+            if items_def and isinstance(cfg, list):
+                item_allowed = items_def.get("enum") or items_def.get("values")
+                if item_allowed is not None and isinstance(item_allowed, list):
+                    errors.extend(self._validate_enum(dotted, cfg, item_allowed))
             # typed non-dict leaf: nothing deeper to check
             if "dict" not in declared or not isinstance(cfg, dict):
                 return errors
@@ -655,6 +664,18 @@ class SchemaValidator:
                     continue
                 if defn.get("path") and key not in mapping:
                     path_type = defn["path"]
+                    if key == "assembly_dir":
+                        asm_root = test_data_path / "telomere" / "asm"
+                        for s in ("TestSample1", "TestSample2"):
+                            ad = asm_root / s / "assembly"
+                            ad.mkdir(parents=True, exist_ok=True)
+                            fa = ad / "asm.bp.p_ctg.fa"
+                            if not fa.exists():
+                                fa.write_text(
+                                    f">{s}_ctg1\n" + "TTAGGG" * 300
+                                    + "ACGT" * 5000 + "CCCTAA" * 300 + "\n")
+                        mapping[key] = str(asm_root)
+                        continue
                     if path_type == "dir":
                         p = test_data_path / key
                         p.mkdir(parents=True, exist_ok=True)

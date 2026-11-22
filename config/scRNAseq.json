@@ -269,6 +269,13 @@
           "png"
         ]
       }
+    },
+    "tedominant": {
+      "enabled": false,
+      "method": "v1",
+      "min_cells": 100,
+      "gate_frac": 0.5,
+      "skip_dotplot": false
     }
   },
   "genome": {

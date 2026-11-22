@@ -34,6 +34,7 @@ polygenomes 变体见 `polygenomes/`。
 {outdir}/{comp}/circos/                      # circos 图(sv_exp_circos)
 {outdir}/{comp}/gene_model/                  # 基因模型 + SV 叠加图(sv_gene_model)
 {outdir}/{comp}/mei/mei.done                 # MEI 分析完成标记(产物与缓存在 mei/ 内)
+{outdir}/{comp}/tra_te/tra_te.done          # TE 介导易位分析完成标记(5 TSV + figs/ 4 图)
 
 # 跨对比
 {outdir}/sv_diff_analysis/                   # 组间 SV 差异分析(pbsv_sv_diff_analysis.py)
@@ -70,6 +71,8 @@ config 位于 `Params.sv.<段>` 下(**注意**:`dist` 例外,读
 | `Params.sv.mei.rm_species` / `.dfam_mode` | `--rm-species` / `--dfam-mode` | "" / `export` | RepeatMasker 物种/FamDB 导出模式 |
 | `Params.sv.mei.te_buckets` | `--te-buckets`(JSON) | 见示例 json | TE 分桶定义(Alu/L1/SVA/LTR/DNA/microsatellite/other/unclassified) |
 | `Params.sv.mei.force_rerun` / `.enabled` | `--force-rerun` / — | false / true | 强制重算;`enabled` 供 node.py 注册门控 |
+| `Params.sv.tra_te.n_perm` | `--n-perm` | 1000 | TRA 断点 TE 富集的置换次数(单断点采样;双断点对数固定 2×n_perm) |
+| `Params.sv.tra_te.seed` | `--seed` | 42 | 置换随机种子(可复现) |
 | (threads) | — | 4(sv_mei) 等 | `rule_res` 可覆盖 |
 | (mem_mb) | — | 8000 / 16000(mei) | 资源声明 |
 
@@ -94,6 +97,15 @@ python modules/sv/bin/mei_analysis.py \
     --dfam-mode export --te-buckets '[...]' \
     --ctrl-name young --exp-name aged -f png
 
+# TE 介导易位(TRA)分析(T0-T3 漏斗, 出 5 TSV + 4 图)
+python modules/sv/bin/utils/tra_te_analysis.py \
+    --vcf out/young_vs_aged/young_vs_aged_merged.vcf \
+    --te-bed ref/rmsk_TE.lifted.bed \
+    --fasta ref/genome.fa \
+    --fai ref/genome.fa.fai \
+    -o out/young_vs_aged/tra_te \
+    --threads 4 --n-perm 1000 --seed 42
+
 # 跨组差异 + OncoPrint
 python modules/sv/bin/pbsv_sv_diff_analysis.py -o out/sv_diff_analysis \
     -s 10000 -g young_vs_aged:out/young_vs_aged/young_vs_aged_only.vcf -f png
@@ -116,6 +128,13 @@ python modules/sv/bin/run_OncoPrint.py --cosmic_file cosmic_cancer_genes.txt \
   生物学原理见 §3.2),标注基因组上下文并出
   6 图套件;TE 插入年代测定(te_age_analysis.py)是独立分析,不在此
   运行;
+- **sv_tra_te**:TE 介导易位(TRA)分析,T0-T3 证据漏斗(方法见
+  §3.3)——合并 VCF 提取跨染色体 TRA 并镜像去重为独立事件(T0),
+  断点落 RepeatMasker TE 区间判定 TE 相关(T1),置换零分布 + 二项
+  检验验证双断点 TE 富集、官方 family_id 配对 vs shuffle 期望(T2),
+  两断点 TE 拷贝序列 blastn 同源验证、NAHR 级判定(ident≥90% 且
+  HSP≥100bp,T3),附 4 图套件(enrichment/family pairs/homology/
+  panorama);
 - **sv_exp_circos / sv_gene_model**:特异 SV 的全基因组 circos 视图
   (INS 分箱)与指定基因(`Params.genes`)的基因结构 + SV 断点叠加图;
 - **sv_diff_analysis**:`-s` 阈值划分大/小 SV,跨对比比较 SV 负荷与

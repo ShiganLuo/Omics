@@ -501,6 +501,112 @@ rule sv_mei:
             rule_logger.error(f"sv_mei failed for {wildcards.comparison}: {e}")
             raise RuntimeError(f"sv_mei failed for {wildcards.comparison}: {e}")
 
+
+def sv_tra_te_inputs(wildcards):
+    """sv_tra_te file inputs — validated up front.
+
+    Needs the SURVIVOR-merged VCF (same as sv_mei), the reference FASTA
+    (samtools faidx TE-copy extraction), the TE BED (official col7
+    family_id / col8 class_id used verbatim when present) and optionally
+    its .fai (real chromosome lengths for the panorama figure).
+    """
+    files = {
+        "merged_vcf": outdir + f"/{wildcards.comparison}/{wildcards.comparison}_merged.vcf",
+    }
+    genome = config.get("genome", {})
+    for name, key in (("fasta", "fasta"), ("te_bed", "repeat_bed"),
+                      ("fai", "fai")):
+        if genome.get(key):
+            files[name] = genome[key]
+    if "fasta" not in files:
+        raise ValueError("sv_tra_te: genome.fasta is required "
+                         "(TE-copy sequence extraction via samtools faidx)")
+    if "te_bed" not in files:
+        raise ValueError("sv_tra_te: genome.repeat_bed is required "
+                         "(breakpoint TE annotation)")
+    return files
+
+
+rule sv_tra_te:
+    """TE-associated TRA analysis per comparison (T0-T3 evidence funnel).
+
+    Consumes the SURVIVOR-merged VCF; extracts inter-chromosomal TRA
+    events (mirror dedup), tests breakpoint-TE enrichment against a
+    permutation null, pairs official RepeatMasker family ids against a
+    shuffle expectation, and validates NAHR-grade homology by blastn of
+    the two TE copies. Methods: modules/sv/docs/TRA_TE_ANALYSIS_METHODS.md
+    (bin/utils/tra_te_analysis.py). Figures (tra_te_figures) are part of
+    that entry's stage 4.
+    """
+    input:
+        unpack(sv_tra_te_inputs),
+    output:
+        # marker file, NOT directory(): same rationale as sv_mei — keep
+        # script-level artifacts inside tra_te/ alive across reruns
+        tra_te_done = outdir + "/{comparison}/tra_te/tra_te.done",
+    log:
+        logdir + "/sv/{comparison}/sv_tra_te.log"
+    benchmark: logdir + "/sv/{comparison}/sv_tra_te.benchmark.tsv",
+    resources:
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "sv_tra_te", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 16000),
+    params:
+        analysis = os.path.join(ROOT_DIR, "modules/sv/bin/utils/tra_te_analysis.py"),
+        tra_te = config.get("Params", {}).get("sv", {}).get("tra_te", {}) or {},
+        threads = lambda wildcards: rule_res("sv_tra_te").get("threads", 4),
+        samtools_sif = (config.get("env", {}).get("samtools")
+                        or "/data/16T/Database/env/samtools/samtools.sif"),
+        blast_sif = (config.get("env", {}).get("sv")
+                     or "/data/16T/Database/env/sv/sv.sif"),
+    conda:
+        "sv.yaml"
+    container:
+        sif("sv.yaml", "sv_tra_te")
+    run:
+        import shlex
+        log_path = str(log)
+        open(log_path, "a").close()
+        rule_logger = setup_logger("sv_tra_te", log_file=log_path)
+        try:
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            tra_out = os.path.join(str(outdir), wildcards.comparison, "tra_te")
+            os.makedirs(tra_out, exist_ok=True)
+            script_path = os.path.join(RECEIPT_DIR, f"sv_tra_te_{wildcards.comparison}_{current_time}.sh")
+            plain_script = os.path.join(str(outdir), wildcards.comparison, "sv_tra_te.sh")
+            tt = dict(params.tra_te)
+            cmd = [
+                "python", params.analysis,
+                "--vcf", str(input.merged_vcf),
+                "--te-bed", str(input.te_bed),
+                "--fasta", str(input.fasta),
+                "-o", tra_out,
+                "--threads", str(params.threads),
+                "--samtools-sif", params.samtools_sif,
+                "--blast-sif", params.blast_sif,
+                "--n-perm", str(tt.get("n_perm", 1000)),
+            ]
+            fai = getattr(input, "fai", "")
+            if fai:
+                cmd += ["--fai", str(fai)]
+            if tt.get("seed") is not None:
+                cmd += ["--seed", str(tt.get("seed", 42))]
+            with open(script_path, "w") as f:
+                f.write("#!/bin/bash\nset -euo pipefail\n")
+                f.write(" ".join(shlex.quote(c) for c in cmd) + "\n")
+                f.write(f'echo "sv_tra_te completed successfully for {wildcards.comparison}"\n')
+            shutil.copyfile(script_path, plain_script)
+            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                script_only_touch(output)
+            else:
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
+            # completion marker (tra_te/ is not a directory() output)
+            with open(str(output.tra_te_done), "w") as f:
+                f.write("ok\n")
+        except Exception as e:
+            rule_logger.error(f"sv_tra_te failed for {wildcards.comparison}: {e}")
+            raise RuntimeError(f"sv_tra_te failed for {wildcards.comparison}: {e}")
+
 rule sv_result:
     """Aggregate all SV analysis outputs as dependency endpoint."""
     input:
@@ -511,5 +617,6 @@ rule sv_result:
         circos_dirs = expand(outdir + "/{comp}/circos", comp=comparison_names),
         gene_model_dirs = expand(outdir + "/{comp}/gene_model", comp=comparison_names),
         mei_done = expand(outdir + "/{comp}/mei/mei.done", comp=comparison_names),
+        tra_te_done = expand(outdir + "/{comp}/tra_te/tra_te.done", comp=comparison_names),
         diff_dir = outdir + "/sv_diff_analysis",
         oncoprint_dir = outdir + "/sv_oncoprint",

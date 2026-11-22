@@ -575,6 +575,7 @@ module sv:
 logger.debug(f"sv_config: {sv_config}")
 use rule sv_exp_specific from sv as PacVar_sv_exp_specific
 use rule sv_mei from sv as PacVar_sv_mei
+use rule sv_tra_te from sv as PacVar_sv_tra_te
 use rule sv_exp_enrichment from sv as PacVar_sv_exp_enrichment
 use rule sv_exp_circos from sv as PacVar_sv_exp_circos
 use rule sv_gene_model from sv as PacVar_sv_gene_model

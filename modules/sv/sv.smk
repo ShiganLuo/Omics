@@ -534,7 +534,7 @@ rule sv_tra_te:
     events (mirror dedup), tests breakpoint-TE enrichment against a
     permutation null, pairs official RepeatMasker family ids against a
     shuffle expectation, and validates NAHR-grade homology by blastn of
-    the two TE copies. Methods: modules/sv/docs/TRA_TE_ANALYSIS_METHODS.md
+    the two TE copies. Methods: modules/sv/README.md section 3.3 (TRA/TE-TE funnel).
     (bin/utils/tra_te_analysis.py). Figures (tra_te_figures) are part of
     that entry's stage 4.
     """

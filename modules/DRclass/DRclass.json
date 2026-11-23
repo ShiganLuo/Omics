@@ -10,7 +10,7 @@
     "fai_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai"
   },
   "Params": {
-    "drclass": {
+    "DRclass": {
       "drclass_pileup": {
         "min_mq": 20,
         "min_bq": 30

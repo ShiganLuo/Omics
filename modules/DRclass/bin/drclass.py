@@ -353,15 +353,24 @@ def cmd_classify(args):
 def cmd_summary(args):
     labels = ["D1R1", "D1R2", "D1R3", "D1R4", "D1R6", "D1R5",
               "D2R1", "D3R1", "D6R1", "D5R1", "D0R1", "R1-ANCHOR-REJ"]
-    rows = []
+    # Aggregate per sample across ALL input tables (dna_anchored + rna_anchored)
+    # so each sample ends up as a single wide row.
+    counts_by_sample = {}   # sample -> {label: count}
+    sample_order = []       # preserve first-appearance order
     for t in args.tables:
-        counts = {l: 0 for l in labels}
-        sample = ""
         with open_text(t) as fh:
             for r in csv.DictReader(fh, delimiter="\t"):
                 sample = r["sample"]
+                if sample not in counts_by_sample:
+                    counts_by_sample[sample] = {l: 0 for l in labels}
+                    sample_order.append(sample)
+                counts = counts_by_sample[sample]
                 if r["dr_label"] in counts:
                     counts[r["dr_label"]] += 1
+
+    rows = []
+    for sample in sample_order:
+        counts = counts_by_sample[sample]
         pen_num = counts["D1R1"] + counts["D1R2"]
         pen_den = pen_num + counts["D1R6"]
         penetrance = (pen_num / pen_den) if pen_den else None

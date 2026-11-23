@@ -16,7 +16,7 @@ COSMIC 已知签名 refit(NNLS)→ de novo NMF 签名提取,每基因组一套
 | `sample_somatic_vcf_dict` (config,顶层) | 样本 → 体细胞 VCF 完整路径字典(形态 B,node.py 从 tumor/normal 配对派生;仅读 VCF 前 6 列) |
 | `sample_group_dict` (config,顶层) | 样本 → 分组标签(谱计数按组聚合) |
 | `genome.<g>.fasta` (config) | 每基因组参考 FASTA(三核苷酸上下文提取);缺失 build 期 `ValueError` |
-| `genome.<g>.signature_matrix` (config) | COSMIC 签名矩阵 TSV(SBS 96 通道,按 build 选,如 `/data/16T/Database/cosmic_signatures/mm39/COSMIC_v3.6_SBS_mm39.txt`);缺失 build 期 `ValueError` |
+| `genome.<g>.signature_matrix` (config) | COSMIC 签名矩阵 TSV(SBS 96 通道,按 build 选,如 `/data/16T/Database/Reference/mouse/cosmic_signatures/mm39/COSMIC_v3.6_SBS_mm39.txt`);缺失 build 期 `ValueError` |
 | wildcards `genome` | 基因组 ID(输出按基因组分目录) |
 
 ### 1.2 输出(每基因组,`{outdir}/{genome}/`)

@@ -133,7 +133,8 @@ python modules/sv/bin/run_OncoPrint.py --cosmic_file cosmic_cancer_genes.txt \
   断点落 RepeatMasker TE 区间判定 TE 相关(T1),置换零分布 + 二项
   检验验证双断点 TE 富集、官方 family_id 配对 vs shuffle 期望(T2),
   两断点 TE 拷贝序列 blastn 同源验证、NAHR 级判定(ident≥90% 且
-  HSP≥100bp,T3),附 4 图套件(enrichment/family pairs/homology/
+  HSP(High-scoring Segment Pair,高分配对片段,blastn 局部比对块,
+  §7.1)≥100bp,T3),附 4 图套件(enrichment/family pairs/homology/
   panorama);
 - **sv_exp_circos / sv_gene_model**:特异 SV 的全基因组 circos 视图
   (INS 分箱)与指定基因(`Params.genes`)的基因结构 + SV 断点叠加图;
@@ -672,7 +673,10 @@ both-TE 事件, 每事件两断点家族组成 pair = sorted(fam1, fam2) 拼接,
 1. rmsk BED 取两断点各自命中区间;
 2. samtools faidx 提取参考序列(坐标转换见 1.1; 临时文件写绝对路径);
 3. blastn 双链比对(outfmt 6, pident/length/坐标列);
-4. 取最优 HSP: max(pident × length)(匹配碱基数最多的高同源块);
+4. 取最优 HSP(High-scoring Segment Pair,高分配对片段: blastn 输出的
+   每个局部比对块即一个 HSP,含 pident/length/坐标;图中 "best HSP
+   identity/length"、"no HSP" 均指它): max(pident × length)(匹配碱基
+   数最多的高同源块);
 5. 记录 ident(%)、hsp_len(bp)、hom_index = pident × hsp_len / 100。
 
 ##### 7.2 NAHR 判定阈值与依据

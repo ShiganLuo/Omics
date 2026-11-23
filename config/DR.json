@@ -39,7 +39,7 @@
       }
     },
     "cutadapt": {},
-    "drclass": {
+    "DRclass": {
       "drclass_pileup": {
         "min_mq": 20,
         "min_bq": 30
@@ -421,7 +421,7 @@
         "germline_resource": "/data/16T/Database/Reference/mouse/MGP/GRCm39/germline_resource.MGP52.GRCm39.vcf.gz",
         "strain_resource": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/germline/129/mgp_REL2021_snps.vcf.gz",
         "access": null,
-        "signature_matrix": "/data/16T/Database/cosmic_signatures/mm39/COSMIC_v3.6_SBS_mm39.txt",
+        "signature_matrix": "/data/16T/Database/Reference/mouse/cosmic_signatures/mm39/COSMIC_v3.6_SBS_mm39.txt",
         "geneIDAnno": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/geneIDAnnotation.csv",
         "gene_map": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/gene_map.pkl",
         "TE_gtf": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf",
@@ -445,7 +445,7 @@
     "STAR": "/data/16T/Database/env/star/star.sif",
     "STAR_SNP": "/data/16T/Database/env/star/star.sif",
     "bcftools": "/data/16T/Database/env/bcftools/bcftools.sif",
-    "drclass": "/data/16T/Database/env/bcftools/bcftools.sif",
+    "DRclass": "/data/16T/Database/env/bcftools/bcftools.sif",
     "burden": "/data/16T/Database/env/burden/burden.sif",
     "cnvkit": "/home/luosg/Database/env/cnvkit/cnvkit.sif",
     "fragment_size": "/home/luosg/Database/env/fragment_size/fragment_size.sif",

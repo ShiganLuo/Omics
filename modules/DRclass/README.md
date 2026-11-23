@@ -32,7 +32,7 @@
 
 ### 1.3 参数
 
-config 位于 `Params.drclass` 下,与 `bin/drclass.py` CLI / `bcftools mpileup`
+config 位于 `Params.DRclass` 下,与 `bin/drclass.py` CLI / `bcftools mpileup`
 CLI 一一对应:
 
 | 参数 | CLI | 默认 | 说明 |

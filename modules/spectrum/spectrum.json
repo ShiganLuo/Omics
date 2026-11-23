@@ -11,7 +11,7 @@
     },
     "genome": {
         "fasta": "",
-        "signature_matrix": "/data/16T/Database/cosmic_signatures/GRCh38/COSMIC_v3.6_SBS_GRCh38.txt"
+        "signature_matrix": "/data/16T/Database/Reference/human/cosmic_signatures/GRCh38/COSMIC_v3.6_SBS_GRCh38.txt"
     },
     "plot": {
         "formats": ["png"]

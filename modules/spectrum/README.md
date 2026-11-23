@@ -23,11 +23,12 @@ somatic_spectrum ──> somatic_signature_refit     （NNLS 拟合 COSMIC 已�
 | `genome.signature_matrix` | `genome.references.<asm>.signature_matrix` | COSMIC 签名矩阵 TSV（SBS 96 通道） |
 
 签名矩阵随 `SigProfilerAssignment` wheel 分发，已解包至
-`/data/16T/Database/cosmic_signatures/{GRCh37,GRCh38,mm9,mm10,mm39}/`，
+`/data/16T/Database/Reference/human/cosmic_signatures/{GRCh37,GRCh38}/`、
+`/data/16T/Database/Reference/mouse/cosmic_signatures/{mm9,mm10,mm39}/`，
 v3.6（与官网当前版本一致），按基因组 build 选对应文件：
 
-- 人类 GRCh38：`/data/16T/Database/cosmic_signatures/GRCh38/COSMIC_v3.6_SBS_GRCh38.txt`
-- 小鼠 mm39（GRCm39）：`/data/16T/Database/cosmic_signatures/mm39/COSMIC_v3.6_SBS_mm39.txt`
+- 人类 GRCh38：`/data/16T/Database/Reference/human/cosmic_signatures/GRCh38/COSMIC_v3.6_SBS_GRCh38.txt`
+- 小鼠 mm39（GRCm39）：`/data/16T/Database/Reference/mouse/cosmic_signatures/mm39/COSMIC_v3.6_SBS_mm39.txt`
 
 WES 数据用同目录 `_exome.txt` 变体（外显子机会数归一化版本）。
 
@@ -55,7 +56,7 @@ WES 数据用同目录 `_exome.txt` 变体（外显子机会数归一化版本�
 },
 "genome": {
   "references": {
-    "GRCm39": { "signature_matrix": "/data/16T/Database/cosmic_signatures/mm39/COSMIC_v3.6_SBS_mm39.txt" }
+    "GRCm39": { "signature_matrix": "/data/16T/Database/Reference/mouse/cosmic_signatures/mm39/COSMIC_v3.6_SBS_mm39.txt" }
   }
 }
 ```
@@ -119,13 +120,13 @@ python modules/spectrum/bin/spectrum.py \
 # 2. refit（somatic_signature_refit 规则内部;--format 可重复,-f 已被 --family-map 占用）
 python modules/spectrum/bin/signature_refit.py \
     -c somatic_spectrum_per_sample.csv \
-    -s /data/16T/Database/cosmic_signatures/mm39/COSMIC_v3.6_SBS_mm39.txt \
+    -s /data/16T/Database/Reference/mouse/cosmic_signatures/mm39/COSMIC_v3.6_SBS_mm39.txt \
     -o signature_refit -m 200 -e 0.02 --format png --format pdf
 
 # 3. de novo NMF（somatic_signature_nmf 规则内部）
 python modules/spectrum/bin/signature_nmf.py \
     -c somatic_spectrum_per_sample.csv \
-    -s /data/16T/Database/cosmic_signatures/mm39/COSMIC_v3.6_SBS_mm39.txt \
+    -s /data/16T/Database/Reference/mouse/cosmic_signatures/mm39/COSMIC_v3.6_SBS_mm39.txt \
     -o signature_nmf -k 8 -n 20 -d 42 -f png -f pdf
 ```
 

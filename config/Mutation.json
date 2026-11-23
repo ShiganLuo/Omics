@@ -146,7 +146,7 @@
         "gtf": null,
         "germline_resource": "/data/16T/Database/Reference/mouse/MGP/GRCm39/germline_resource.MGP52.GRCm39.vcf.gz",
         "strain_resource": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/germline/129/mgp_REL2021_snps.vcf.gz",
-        "signature_matrix": "/data/16T/Database/cosmic_signatures/mm39/COSMIC_v3.6_SBS_mm39.txt"
+        "signature_matrix": "/data/16T/Database/Reference/mouse/cosmic_signatures/mm39/COSMIC_v3.6_SBS_mm39.txt"
       },
       "GRCh38": {
         "fasta": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
@@ -158,7 +158,7 @@
         "gtf": null,
         "germline_resource": "/data/16T/Database/Reference/human/gnomAD/GRCh38/af-only-gnomad.hg38.vcf.gz",
         "strain_resource": null,
-        "signature_matrix": "/data/16T/Database/cosmic_signatures/GRCh38/COSMIC_v3.6_SBS_GRCh38.txt"
+        "signature_matrix": "/data/16T/Database/Reference/human/cosmic_signatures/GRCh38/COSMIC_v3.6_SBS_GRCh38.txt"
       },
       "Mmul_10": {
         "fasta": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.fa",

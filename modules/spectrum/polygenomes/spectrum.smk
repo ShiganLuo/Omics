@@ -55,7 +55,7 @@ def _genome_signature_matrix(genome):
     if not matrix:
         raise ValueError(
             f"Missing COSMIC signature matrix: set 'genome.{genome}.signature_matrix' "
-            f"in the workflow config JSON (e.g. /data/16T/Database/cosmic_signatures/"
+            f"in the workflow config JSON (e.g. /data/16T/Database/Reference/mouse/cosmic_signatures/"
             f"mm39/COSMIC_v3.6_SBS_mm39.txt), then rerun."
         )
     return matrix

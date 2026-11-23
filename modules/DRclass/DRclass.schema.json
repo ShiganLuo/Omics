@@ -48,7 +48,7 @@
     "nullable": true,
     "required": false,
     "properties": {
-      "drclass": {
+      "DRclass": {
         "type": "dict",
         "nullable": true,
         "required": false,

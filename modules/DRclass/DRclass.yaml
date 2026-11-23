@@ -1,4 +1,4 @@
-name: drclass
+name: DRclass
 channels:
   - bioconda
   - conda-forge

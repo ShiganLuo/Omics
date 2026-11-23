@@ -57,7 +57,7 @@ def _signature_inputs(wildcards):
         raise ValueError(
             "Missing COSMIC signature matrix: set 'genome.signature_matrix' in "
             "the workflow config JSON (e.g. "
-            "/data/16T/Database/cosmic_signatures/GRCh38/COSMIC_v3.6_SBS_GRCh38.txt "
+            "/data/16T/Database/Reference/human/cosmic_signatures/GRCh38/COSMIC_v3.6_SBS_GRCh38.txt "
             "or .../mm39/COSMIC_v3.6_SBS_mm39.txt), then rerun."
         )
     return {

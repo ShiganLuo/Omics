@@ -24,9 +24,10 @@ Markers (y axis), categories separated by grey lines:
                            cluster): EPCAM KRT19 MUC1 PAEP FOXA2
 Genes absent from the annotation are skipped and listed on stdout.
 
-Dot size = % expressing cells, color = mean log1p expression (auto.raw.X —
-the full 19k-gene matrix; auto.X is only the 3000 HVGs and silently lacks
-most senescence markers, which is why the original dotplot looked sparse).
+Dot size = % expressing cells, color = mean expression (log-normalized;
+auto.raw.X — the full 19k-gene matrix; auto.X is only the 3000 HVGs and
+silently lacks most senescence markers, which is why the original dotplot
+looked sparse).
 
 Usage (scanpy container):
   apptainer exec /data/16T/Database/env/scanpy/scanpy.sif \
@@ -73,45 +74,24 @@ def load(root, tissue):
 
 
 def dominant_cluster(merged, auto):
-    """Return (dom_leiden, dom_cell_type, leiden, cell_type) with v2 gates.
+    """Return (dom_leiden, dom_cell_type, leiden, cell_type).
 
-    v2: eligibility by ABSOLUTE TE counts before ranking by TE% —
-    a cluster whose median TE counts is < 0.5× same-lineage siblings
-    median (or < 0.5× tissue median) is a gene-program-collapsed cell
-    whose high TE% is a denominator artifact, not TE de-repression
-    (caught Uterus Leiden 2: TE% 38.5 but TE abs 918 vs siblings 4129).
+    Dominant cluster = highest mean per-cell TE fraction (the ratio method;
+    the absolute-count eligibility gate was removed by user decision — the
+    two are just different ways to find the abnormal cell population).
     """
     X = merged.layers["counts"] if "counts" in merged.layers else merged.X
     is_te = merged.var["gene_type"].astype(str).values == "TE"
     te_sum = np.asarray(X[:, is_te].sum(1)).ravel()
-    te_abs = te_sum.astype(float)
     te_frac = te_sum / np.maximum(np.asarray(X.sum(1)).ravel(), 1) * 100
     leiden = auto.obs["leiden"].astype(str).values
     cell_type = auto.obs["cell_type"].astype(str).values
     order = sorted(set(leiden))
     mean_te = {c: te_frac[leiden == c].mean() for c in order}
-    med_abs = {c: float(np.median(te_abs[leiden == c])) for c in order}
-    n_cells = {c: int((leiden == c).sum()) for c in order}
-    dom_ct_of = {c: pd_series_mode(cell_type[leiden == c]) for c in order}
-    global_med = float(np.median(te_abs))
-    dom = None
-    for c in sorted(order, key=lambda c: -mean_te[c]):
-        ct = dom_ct_of[c]
-        sib = te_abs[(cell_type == ct) & (leiden != c)]
-        sib_med = float(np.median(sib)) if len(sib) >= 30 else float("inf")
-        if (med_abs[c] >= 0.5 * sib_med and med_abs[c] >= 0.5 * global_med
-                and n_cells[c] >= 100):
-            dom = c
-            break
-        if mean_te[c] > 35:
-            print(f"[gate] {tissue_label}: Leiden {c} rejected: TE% "
-                  f"{mean_te[c]:.1f} but TE abs median {med_abs[c]:.0f} vs "
-                  f"siblings {sib_med:.0f} (denominator-collapse guard)")
-    if dom is None:  # no eligible cluster: fall back to pure TE% max
-        dom = max(order, key=lambda c: mean_te[c])
-    ct = dom_ct_of[dom]
+    dom = max(order, key=lambda c: mean_te[c])
+    ct = pd_series_mode(cell_type[leiden == dom])
     print(f"{tissue_label}: dominant = Leiden {dom} ({ct}), "
-          f"mean TE% = {mean_te[dom]:.2f}, n = {n_cells[dom]}")
+          f"mean TE% = {mean_te[dom]:.2f}, n = {(leiden == dom).sum()}")
     return dom, ct, leiden, cell_type
 
 
@@ -212,7 +192,7 @@ def main():
     sm = mcm.ScalarMappable(cmap="RdYlBu_r", norm=Normalize(0, 1.8))
     cb_ax = fig.add_axes((xc - 0.009, 0.30, 0.018, 0.28))
     cb = fig.colorbar(sm, cax=cb_ax)
-    cb.set_label("mean log1p", fontsize=9)
+    cb.set_label("mean expression (log-normalized)", fontsize=9)
     s_ax = fig.add_axes((xc - 0.09, 0.62, 0.18, 0.24))
     s_ax.axis("off")
     s_ax.set_xlim(0, 1)

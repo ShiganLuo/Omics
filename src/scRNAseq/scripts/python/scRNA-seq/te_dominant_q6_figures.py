@@ -253,56 +253,19 @@ def main():
         plt.close(fig)
 
     # ---- combined marker dotplot (both tissues) ----
-    groups_all, genes_all = [], []
-    fig, ax = plt.subplots(figsize=(13, 8))
-    x_pos, x_labels = [], []
-    gi = 0
-    marker_list = []
-    for g, names in MARKERS.items():
-        marker_list += [(g, n) for n in names]
-    marker_list += [("lineage identity", n) for n in
-                    LINEAGE["ovaries"] + LINEAGE["Uterus"]]
-    y_labels = [f"{n} ({g})" for g, n in marker_list]
-
-    col = 0
-    xticks = []
-    xlabels = []
-    for tissue in ("ovaries", "Uterus"):
-        merged, auto, X, df = load(args.root, tissue)
-        dom, dom_ct, _, _ = dom_info[tissue]
-        dom_mask = (df["leiden"] == dom).values
-        ct_mask = (df["cell_type"] == dom_ct).values
-        sib_mask = ct_mask & ~dom_mask
-        rest_mask = ~ct_mask
-        Xn = auto.X
-        Xn = np.asarray(Xn.todense() if hasattr(Xn, "todense") else Xn)
-        for grp, mask in (("TE", dom_mask), ("siblings", sib_mask), ("rest", rest_mask)):
-            xticks.append(col)
-            xlabels.append(f"{tissue}\nLeiden {dom}\n{grp}")
-            for (cat, gene), y in zip(marker_list, range(len(marker_list))):
-                hits = [j for j, g in enumerate(auto.var_names)
-                        if g == gene or g.startswith(gene + ".")]
-                if not hits:
-                    continue
-                v = np.asarray(Xn[mask][:, hits[0]]).ravel()
-                pct = float((v > 0).mean() * 100)
-                mean = float(v.mean())
-                ax.scatter(col, y, s=pct * 2.5 + 5, c=mean, cmap="RdYlBu_r",
-                           vmin=0, vmax=1.8, edgecolors="k", linewidths=0.3)
-            col += 1
-        col += 0.6
-    ax.set_xticks(xticks)
-    ax.set_xticklabels(xlabels, fontsize=8)
-    ax.set_yticks(range(len(y_labels)))
-    ax.set_yticklabels(y_labels, fontsize=8.5)
-    ax.invert_yaxis()
-    for y in (3.5, 6.5, 9.5, 11.5):
-        ax.axhline(y, color="#cccccc", lw=0.8)
-    ax.set_title("TE-dominant clusters \u2014 marker expression "
-                 "(dot size = % expressing, color = mean log1p)")
-    fig.tight_layout()
-    fig.savefig(f"{args.out_dir}/q6_dotplot.png", dpi=300, facecolor="white")
-    plt.close(fig)
+    # Single source of truth: reproduce_q6_dotplot.py (expanded senescence
+    # panel, right-side legends, group-definition footnote).  The inline
+    # reimplementation that used to live here kept a stale copy of the figure
+    # and overwrote the current one whenever this script was rerun.
+    import subprocess
+    import sys
+    subprocess.run([
+        sys.executable,
+        os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                     "reproduce_q6_dotplot.py"),
+        "--root", args.root,
+        "--out-dir", args.out_dir,
+    ], check=True)
 
     # ---- DESeq2 pseudo-bulk: dominant vs siblings ----
     from pydeseq2.dds import DeseqDataSet

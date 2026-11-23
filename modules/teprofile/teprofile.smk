@@ -41,7 +41,7 @@ rule te_profile:
         base_fig = expand(outdir + "/baseline_te_fraction_{tissue}.png", tissue=tissues) if tissues else [],
         comp_fig = expand(outdir + "/baseline_family_comp_{tissue}.png", tissue=tissues) if tissues else [],
         dev_fig = expand(outdir + "/cluster_deviation_{tissue}.png", tissue=tissues) if tissues else [],
-        remod_fig = expand(outdir + "/remodeling_shift_{tissue}.png", tissue=tissues) if (tissues and tep_params.get("groups")) else [],
+        remod_fig = expand(outdir + "/remodeling_shift_{tissue}.png", tissue=tissues) if (tissues and (tep_params.get("groups") or tep_params.get("contrasts"))) else [],
         done = outdir + "/te_profile.done",
     log:
         logdir + "/te_profile.log"
@@ -79,6 +79,8 @@ rule te_profile:
                 val = params.p.get(key)
                 if val:
                     cmd += [flag, str(val)]
+            for c in (params.p.get("contrasts") or []):
+                cmd += ["--contrasts", str(c)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
@@ -106,5 +108,5 @@ rule teprofile_result:
         base_fig = expand(outdir + "/baseline_te_fraction_{tissue}.png", tissue=tissues) if tissues else [],
         comp_fig = expand(outdir + "/baseline_family_comp_{tissue}.png", tissue=tissues) if tissues else [],
         dev_fig = expand(outdir + "/cluster_deviation_{tissue}.png", tissue=tissues) if tissues else [],
-        remod_fig = expand(outdir + "/remodeling_shift_{tissue}.png", tissue=tissues) if (tissues and tep_params.get("groups")) else [],
+        remod_fig = expand(outdir + "/remodeling_shift_{tissue}.png", tissue=tissues) if (tissues and (tep_params.get("groups") or tep_params.get("contrasts"))) else [],
         done = outdir + "/te_profile.done",

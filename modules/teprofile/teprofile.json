@@ -9,7 +9,8 @@
       "fe_cut": 1.5,
       "groups": "",
       "n_boot": 200,
-      "seed": 0
+      "seed": 0,
+      "contrasts": []
     }
   },
   "env": {}

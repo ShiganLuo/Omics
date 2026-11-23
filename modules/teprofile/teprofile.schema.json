@@ -66,6 +66,13 @@
             "required": false,
             "default": 0,
             "description": "自助抽样 RNG 种子(--seed)"
+          },
+          "contrasts": {
+            "type": "list",
+            "nullable": true,
+            "required": false,
+            "default": [],
+            "description": "layer-3 显式对比列表(--contrasts,可多项):'组织|标签|对照样本,..|实验样本,..';组织的手术设计用这个(如 Uterus|sham→POI|zigong-21310|ZIGONG-21224)"
           }
         }
       }

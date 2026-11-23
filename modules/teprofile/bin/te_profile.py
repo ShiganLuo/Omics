@@ -27,7 +27,7 @@ Outputs (outdir):
   baseline_te_output_<t>.png     violin: depth-normalized TE output by type
   baseline_family_comp_<t>.png   stacked bars: family composition per type
   cluster_deviation_<t>.png      per-cluster deviation panel (3 metrics)
-  remodeling_shift_<t>.png       layer-3 shift summary (when grouping set)
+  remodeling_shift_<t>.png       layer-3 shift summary (per comparison)
 
 Housekeeping normalization: absolute TE output is normalized per cell by a
 housekeeping gene set (HK flag; default the intersection of a curated
@@ -217,33 +217,52 @@ def layer2_clusters(merged, auto, cm, tissue, fe_cut, n_boot, rng_seed):
     return pd.DataFrame(rows)
 
 
-def layer3_remodeling(merged, auto, cm, tissue, group_by):
-    """Per cell type: feature shift between sample groups + the dominant
-    TE outlier cluster's size shift. group_by maps sample_id -> group."""
+def layer3_remodeling(merged, auto, cm, tissue, group_by, contrasts):
+    """Per cell type: TE-feature shift between sample groups.
+
+    Comparisons = explicit contrasts scoped to this tissue (each carries
+    its own label and two sample sets; a surgical design contributes
+    several) PLUS the legacy global two-group map when both of its groups
+    have samples in this tissue. Returns a DataFrame with a `comparison`
+    column (long format, one row per tissue x comparison x cell type) or
+    None when no comparison is applicable."""
     sid = auto.obs["sample_id"].astype(str).values
     ct = auto.obs["cell_type"].astype(str).values
-    groups = sorted(set(group_by.values()))
-    if len(groups) < 2:
+    comps = []  # (label, samples_a, samples_b)
+    for c in contrasts:
+        if c["tissue"] == tissue:
+            comps.append((c["label"], c["a"], c["b"]))
+    if group_by:
+        # declaration order of --groups defines ref -> exp
+        # (young declared first => "young→aged"); do NOT sort
+        groups = list(dict.fromkeys(group_by.values()))
+        if len(groups) >= 2:
+            g0, g1 = groups[0], groups[1]
+            s0 = [s for s, g in group_by.items() if g == g0]
+            s1 = [s for s, g in group_by.items() if g == g1]
+            if np.isin(sid, s0).any() and np.isin(sid, s1).any():
+                comps.append((f"{g0}→{g1}", s0, s1))
+    if not comps:
         return None
-    g0, g1 = groups[0], groups[-1]        # first vs last (e.g. young vs aged)
     rows = []
-    for t in sorted(set(ct)):
-        m_t = ct == t
-        m0 = m_t & np.isin(sid, [s for s, g in group_by.items() if g == g0])
-        m1 = m_t & np.isin(sid, [s for s, g in group_by.items() if g == g1])
-        if m0.sum() < 20 or m1.sum() < 20:
-            continue
-        rows.append({
-            "tissue": tissue, "cell_type": t,
-            f"te_pct_median[{g0}]": float(np.median(cm["te_pct"][m0])),
-            f"te_pct_median[{g1}]": float(np.median(cm["te_pct"][m1])),
-            "te_pct_shift": float(np.median(cm["te_pct"][m1]) - np.median(cm["te_pct"][m0])),
-            f"te_norm_median[{g0}]": float(np.median(cm["te_norm"][m0])),
-            f"te_norm_median[{g1}]": float(np.median(cm["te_norm"][m1])),
-            "te_norm_shift": float(np.median(cm["te_norm"][m1]) - np.median(cm["te_norm"][m0])),
-            f"n_cells[{g0}]": int(m0.sum()), f"n_cells[{g1}]": int(m1.sum()),
-        })
-    return pd.DataFrame(rows)
+    for label, sa, sb in comps:
+        for t in sorted(set(ct)):
+            m_t = ct == t
+            m0 = m_t & np.isin(sid, sa)
+            m1 = m_t & np.isin(sid, sb)
+            if m0.sum() < 20 or m1.sum() < 20:
+                continue
+            rows.append({
+                "tissue": tissue, "comparison": label, "cell_type": t,
+                "te_pct_median[ref]": float(np.median(cm["te_pct"][m0])),
+                "te_pct_median[exp]": float(np.median(cm["te_pct"][m1])),
+                "te_pct_shift": float(np.median(cm["te_pct"][m1]) - np.median(cm["te_pct"][m0])),
+                "te_norm_median[ref]": float(np.median(cm["te_norm"][m0])),
+                "te_norm_median[exp]": float(np.median(cm["te_norm"][m1])),
+                "te_norm_shift": float(np.median(cm["te_norm"][m1]) - np.median(cm["te_norm"][m0])),
+                "n_cells[ref]": int(m0.sum()), "n_cells[exp]": int(m1.sum()),
+            })
+    return pd.DataFrame(rows) if rows else None
 
 
 # ------------------------- figures -------------------------
@@ -273,7 +292,7 @@ def fig_baseline(cm, auto, tissue, outdir, hk_mode):
     safe = np.maximum(cm["te_norm"], 1e-2)  # log-safe floor
     _violin_by_type(axes[1], safe, ct,
                     f"{tissue} — TE output per 100 {'HK' if hk_mode=='housekeeping' else 'gene'} counts (log)",
-                    "TE counts / 100 HK counts (log)")
+                    "TE counts per 100 housekeeping counts (log scale)")
     axes[1].set_yscale("log")
     fig.tight_layout()
     fig.savefig(f"{outdir}/baseline_te_fraction_{tissue}.png", dpi=300,
@@ -305,7 +324,7 @@ def fig_family_comp(cm, merged, auto, tissue, outdir):
     ax.set_yticks(range(len(types)))
     ax.set_yticklabels([f"{t} (n={int((ct==t).sum())})" for t in types], fontsize=8)
     ax.invert_yaxis()
-    ax.set_xlabel("share of TE output")
+    ax.set_xlabel("fraction of TE transcripts by family")
     ax.set_title(f"{tissue} — TE family composition by cell type")
     ax.legend(fontsize=7, ncol=1, loc="upper left",
               bbox_to_anchor=(1.02, 1.0), frameon=False,
@@ -329,7 +348,7 @@ def fig_cluster_dev(tab, tissue, outdir, fe_cut):
     colors = [color_map.get(r.label, "#bdc3c7") for r in order.itertuples()]
     axes[0].barh(y, order["fe_vs_lineage"], color=colors)
     axes[0].axvline(fe_cut, ls="--", lw=1, color="#333")
-    axes[0].set_xlabel("TE output fold-enrichment vs lineage")
+    axes[0].set_xlabel("TE output fold-change vs same-lineage background")
     axes[1].barh(y, order["family_aitchison"], color=colors)
     # per-cluster adaptive threshold: bootstrap null q95 (tick markers);
     # a bar is a composition outlier only if it passes its own marker
@@ -337,10 +356,10 @@ def fig_cluster_dev(tab, tissue, outdir, fe_cut):
                     color="#333333", linewidths=1.2, zorder=5,
                     label="null q95 (adaptive)")
     axes[1].legend(fontsize=7, loc="lower right")
-    axes[1].set_xlabel("family composition shift (Aitchison; | = per-cluster null q95)")
+    axes[1].set_xlabel("TE family-composition shift\n(| = size-matched null 95th percentile)")
     axes[2].barh(y, order["n_gene_ratio"], color=colors)
     axes[2].axvline(0.7, ls="--", lw=1, color="#333")
-    axes[2].set_xlabel("detected-gene ratio vs lineage")
+    axes[2].set_xlabel("detected-gene ratio vs same-lineage background")
     for ax in axes:
         ax.set_yticks(y); ax.set_yticklabels(labels, fontsize=6)
         ax.invert_yaxis()
@@ -356,34 +375,51 @@ def fig_cluster_dev(tab, tissue, outdir, fe_cut):
 
 
 def fig_remodeling(tab, tissue, outdir, groups):
+    """Long-format remodeling table -> one sub-panel per comparison."""
     if tab is None or not len(tab):
-        # 占位图:layer 3 在该组织无可比较类型(分组样本不在该组织/细胞数不足)
         fig, ax = plt.subplots(figsize=(6, 3))
-        ax.text(0.5, 0.5, f"{tissue}: no cell type comparable between groups\n"
-                "(samples missing from groups or <20 cells per group)",
+        ax.text(0.5, 0.5, f"{tissue}: no applicable comparison\\n"
+                "(no contrast targets this tissue / <20 cells per side)",
                 ha="center", va="center", fontsize=10)
         ax.axis("off")
         fig.savefig(f"{outdir}/remodeling_shift_{tissue}.png", dpi=150,
                     facecolor="white")
         plt.close(fig)
         return
-    fig, ax = plt.subplots(figsize=(9, 5))
-    y = np.arange(len(tab))
-    n0 = tab[f"n_cells[{groups[0]}]"].values
-    n1 = tab[f"n_cells[{groups[-1]}]"].values
-    labels = [f"{ct} (n={a}→{b})" for ct, a, b in
-              zip(tab["cell_type"].values, n0, n1)]
-    ax.barh(y - 0.2, tab["te_norm_shift"], height=0.4,
-            color="#c0392b", label="Δ TE output (norm)")
-    ax.barh(y + 0.2, tab["te_pct_shift"], height=0.4,
-            color="#7fa8c9", label="Δ TE fraction")
-    ax.axvline(0, color="#333", lw=0.8)
-    ax.set_yticks(y); ax.set_yticklabels(labels, fontsize=8)
-    ax.invert_yaxis()
-    ax.legend(fontsize=8, loc="upper left", bbox_to_anchor=(1.02, 1.0),
-              frameon=False)
-    ax.set_title(f"{tissue} — {groups[0]} → {groups[-1]} shift per cell type")
-    ax.spines[["top", "right"]].set_visible(False)
+    comps = list(dict.fromkeys(tab["comparison"].tolist()))
+    n = len(comps)
+    # 每个对比一个"上下双条带"面板:上条带 Δ TE fraction(百分比,独立 x 轴),
+    # 下条带 Δ TE output(HK 归一化,独立 x 轴)。两个指标量级差 >100 倍,
+    # 同轴会把 Δ占比 压成不可见的线——必须各用各的缩放。
+    per_comp = [len(tab[tab["comparison"] == c]) for c in comps]
+    row_h = 0.34
+    fig_h = sum(per_comp) * row_h + 2.2 * n + 0.8
+    fig, axes_grid = plt.subplots(n, 2,
+                                  figsize=(14.0, fig_h),
+                                  squeeze=False,
+                                  gridspec_kw={"width_ratios": [1, 1]})
+    for k, comp in enumerate(comps):
+        sub = tab[tab["comparison"] == comp]
+        y = np.arange(len(sub))
+        labels = [f"{ct} (n={a}\u2192{b})" for ct, a, b in
+                  zip(sub["cell_type"].values,
+                      sub["n_cells[ref]"].values, sub["n_cells[exp]"].values)]
+        ax_pct, ax_norm = axes_grid[k]
+        ax_pct.barh(y, sub["te_pct_shift"], height=0.62, color="#7fa8c9")
+        ax_pct.axvline(0, color="#333", lw=0.8)
+        ax_pct.set_yticks(y); ax_pct.set_yticklabels(labels, fontsize=8)
+        ax_pct.invert_yaxis()
+        ax_pct.set_xlabel("\u0394 TE fraction (pp)", fontsize=9)
+        ax_pct.set_title(f"{comp}", fontsize=11, loc="left")
+        ax_pct.spines[["top", "right"]].set_visible(False)
+        ax_norm.barh(y, sub["te_norm_shift"], height=0.62, color="#c0392b")
+        ax_norm.axvline(0, color="#333", lw=0.8)
+        ax_norm.set_yticks(y); ax_norm.set_yticklabels([])
+        ax_norm.invert_yaxis()
+        ax_norm.set_xlabel("\u0394 TE counts per 100 HK counts", fontsize=9)
+        ax_norm.spines[["top", "right"]].set_visible(False)
+    fig.suptitle(f"{tissue} \u2014 TE-feature shift per cell type "
+                 f"(left: fraction, right: output)", y=1.0)
     fig.tight_layout()
     fig.savefig(f"{outdir}/remodeling_shift_{tissue}.png", dpi=300,
                 facecolor="white", bbox_inches="tight")
@@ -404,6 +440,10 @@ def main():
                     help="bootstrap RNG seed (default 0)")
     ap.add_argument("--groups", default="",
                     help="sample grouping for layer 3: 'young:s1,s2;aged:s3,s4'")
+    ap.add_argument("--contrasts", action="append", default=[],
+                    help="explicit comparison (repeatable): "
+                         "'tissue|label|ref_samples|exp_samples' e.g. "
+                         "'Uterus|sham\u2192POI|zigong-21310|ZIGONG-21224'")
     args = ap.parse_args()
     os.makedirs(args.outdir, exist_ok=True)
     tissues = [t.strip() for t in args.tissues.split(",") if t.strip()]
@@ -415,7 +455,19 @@ def main():
                 group_by[s.strip()] = g.strip()
         print(f"layer-3 grouping: {group_by}")
     else:
-        print("layer-3 grouping: none (remodeling skipped)")
+        print("layer-3 grouping: none")
+    contrasts = []
+    for c in args.contrasts:
+        tissue_c, label, sa, sb = c.split("|")
+        contrasts.append({
+            "tissue": tissue_c.strip(), "label": label.strip(),
+            "a": [s.strip() for s in sa.split(",")],
+            "b": [s.strip() for s in sb.split(",")],
+        })
+    if contrasts:
+        print(f"layer-3 contrasts: {[(c['tissue'], c['label']) for c in contrasts]}")
+    elif not group_by:
+        print("layer-3: no groups and no contrasts (remodeling skipped)")
 
     baselines, clusters, remodels = [], [], []
     for tissue in tissues:
@@ -433,8 +485,8 @@ def main():
         print(f"[{tissue}] layer 2: {len(clus)} clusters, "
               f"{n_out} te_outlier, {n_col} collapsed")
         remod = None
-        if group_by:
-            remod = layer3_remodeling(merged, auto, cm, tissue, group_by)
+        if group_by or contrasts:
+            remod = layer3_remodeling(merged, auto, cm, tissue, group_by, contrasts)
             if remod is not None:
                 remodels.append(remod)
                 print(f"[{tissue}] layer 3: {len(remod)} cell types compared")

@@ -1046,7 +1046,7 @@
           "type": "str",
           "required": false
         },
-        "/home/luosg/Database/Reference/": {
+        "/data/16T/Database/Reference/": {
           "type": "str",
           "required": false
         }

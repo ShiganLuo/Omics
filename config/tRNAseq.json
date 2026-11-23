@@ -164,10 +164,10 @@
     }
   },
   "env": {
-    "env_dir": "/home/luosg/Database/env",
-    "cutadapt": "/home/luosg/Database/env/cutadapt/cutadapt.sif",
-    "fumitools": "/home/luosg/Database/env/fumitools/fumitools.sif",
-    "mimseq": "/home/luosg/Database/env/mimseq/mimseq.sif"
+    "env_dir": "/data/16T/Database/env",
+    "cutadapt": "/data/16T/Database/env/cutadapt/cutadapt.sif",
+    "fumitools": "/data/16T/Database/env/fumitools/fumitools.sif",
+    "mimseq": "/data/16T/Database/env/mimseq/mimseq.sif"
   },
   "resources": {
     "default": {

@@ -146,54 +146,54 @@
         "default": "GRCh38",
         "configs": {
           "GRCm39": {
-            "js": "/home/luosg/Database/SoftWare/igv.min.js",
+            "js": "/data/16T/Database/SoftWare/igv.min.js",
             "id": "mm39",
             "name": "Mouse (GRCm39/mm39)",
             "publicPathMap": {
               "/home/luosg/Data/genomeStability/": "/data/",
-              "/home/luosg/Database/Reference/": "/ref/"
+              "/data/16T/Database/Reference/": "/ref/"
             },
-            "fastaURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-            "indexURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
-            "cytobandURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/mm39.cytoBand.txt",
+            "fastaURL": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+            "indexURL": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
+            "cytobandURL": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/mm39.cytoBand.txt",
             "tracks": [
               {
                 "name": "Gencode vM38 genes",
                 "format": "gtf",
-                "url": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gene_exon.sorted.gtf.gz",
-                "indexURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gene_exon.sorted.gtf.gz.tbi"
+                "url": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gene_exon.sorted.gtf.gz",
+                "indexURL": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gene_exon.sorted.gtf.gz.tbi"
               },
               {
                 "name": "Gencode rmsk repeats",
                 "format": "gtf",
-                "url": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz",
-                "indexURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz.tbi"
+                "url": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz",
+                "indexURL": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz.tbi"
               }
             ]
           },
           "GRCh38": {
-            "js": "/home/luosg/Database/SoftWare/igv.min.js",
+            "js": "/data/16T/Database/SoftWare/igv.min.js",
             "id": "hg38",
             "name": "Human (GRCh38/hg38)",
             "publicPathMap": {
               "/home/luosg/Data/genomeStability/": "/data/",
-              "/home/luosg/Database/Reference/": "/ref/"
+              "/data/16T/Database/Reference/": "/ref/"
             },
-            "fastaURL": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
-            "indexURL": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa.fai",
-            "cytobandURL": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/hg38.cytoBand.txt",
+            "fastaURL": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
+            "indexURL": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa.fai",
+            "cytobandURL": "/data/16T/Database/Reference/human/GENCODE/GRCh38/hg38.cytoBand.txt",
             "tracks": [
               {
                 "name": "Gencode vM38 genes",
                 "format": "gtf",
-                "url": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gene_exon.sorted.gtf.gz",
-                "indexURL": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gene_exon.sorted.gtf.gz.tbi"
+                "url": "/data/16T/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gene_exon.sorted.gtf.gz",
+                "indexURL": "/data/16T/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gene_exon.sorted.gtf.gz.tbi"
               },
               {
                 "name": "Gencode rmsk repeats",
                 "format": "gtf",
-                "url": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.sorted.gtf.gz",
-                "indexURL": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.sorted.gtf.gz.tbi"
+                "url": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.sorted.gtf.gz",
+                "indexURL": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.sorted.gtf.gz.tbi"
               }
             ]
           }
@@ -234,9 +234,9 @@
     "default": "GRCh38",
     "references": {
       "GRCh38": {
-        "fasta": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
-        "gtf": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
-        "hisat2_index_prefix": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/hisat2/GRCh38",
+        "fasta": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
+        "gtf": "/data/16T/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
+        "hisat2_index_prefix": "/data/16T/Database/Reference/human/GENCODE/GRCh38/hisat2/GRCh38",
         "star_index_dir": null,
         "smallrna_fasta": null,
         "smallrna_bed": null,
@@ -245,9 +245,9 @@
         "dict_index": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.dict"
       },
       "GRCm39": {
-        "fasta": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-        "gtf": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
-        "hisat2_index_prefix": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/hisat2/genome",
+        "fasta": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+        "gtf": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
+        "hisat2_index_prefix": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/hisat2/genome",
         "star_index_dir": null,
         "smallrna_fasta": null,
         "smallrna_bed": null,
@@ -258,21 +258,21 @@
     }
   },
   "env": {
-    "env_dir": "/home/luosg/Database/env",
-    "demultiplexer": "/home/luosg/Database/env/demultiplexer/demultiplexer.sif",
-    "fastqc": "/home/luosg/Database/env/fastqc/fastqc.sif",
-    "featureCounts": "/home/luosg/Database/env/featureCounts/featureCounts.sif",
-    "genome": "/home/luosg/Database/env/genome/genome.sif",
-    "hisat2": "/home/luosg/Database/env/hisat2/hisat2.sif",
-    "star": "/home/luosg/Database/env/star/star.sif",
-    "subsample": "/home/luosg/Database/env/subsample/subsample.sif",
-    "tailer": "/home/luosg/Database/env/tailer/tailer.sif",
-    "trim-galore": "/home/luosg/Database/env/trim-galore/trim-galore.sif",
+    "env_dir": "/data/16T/Database/env",
+    "demultiplexer": "/data/16T/Database/env/demultiplexer/demultiplexer.sif",
+    "fastqc": "/data/16T/Database/env/fastqc/fastqc.sif",
+    "featureCounts": "/data/16T/Database/env/featureCounts/featureCounts.sif",
+    "genome": "/data/16T/Database/env/genome/genome.sif",
+    "hisat2": "/data/16T/Database/env/hisat2/hisat2.sif",
+    "star": "/data/16T/Database/env/star/star.sif",
+    "subsample": "/data/16T/Database/env/subsample/subsample.sif",
+    "tailer": "/data/16T/Database/env/tailer/tailer.sif",
+    "trim-galore": "/data/16T/Database/env/trim-galore/trim-galore.sif",
     "ncRNAseq_report": "/data/16T/Database/env/report/report.sif",
-    "igv": "/home/luosg/Database/env/igv/hisat2.sif",
-    "macs3": "/home/luosg/Database/env/macs3/macs3.sif",
-    "track": "/home/luosg/Database/env/track/track.sif",
-    "gatk": "/home/luosg/Database/env/gatk/gatk4.sif",
+    "igv": "/data/16T/Database/env/igv/hisat2.sif",
+    "macs3": "/data/16T/Database/env/macs3/macs3.sif",
+    "track": "/data/16T/Database/env/track/track.sif",
+    "gatk": "/data/16T/Database/env/gatk/gatk4.sif",
     "regionplot": "/data/16T/Database/env/regionplot/regionplot.sif",
     "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif"
   },

@@ -204,9 +204,9 @@
   },
   "env": {
     "diann": "/data/16T/Database/env/diann/diann.sif",
-    "env_dir": "/home/luosg/Database/env",
-    "fragpipe": "/home/luosg/Database/env/fragpipe/fragpipe.sif",
-    "openms": "/home/luosg/Database/env/openms/openms.sif"
+    "env_dir": "/data/16T/Database/env",
+    "fragpipe": "/data/16T/Database/env/fragpipe/fragpipe.sif",
+    "openms": "/data/16T/Database/env/openms/openms.sif"
   },
   "resources": {
     "default": {

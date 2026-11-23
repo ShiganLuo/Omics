@@ -555,10 +555,8 @@ rule sv_tra_te:
         analysis = os.path.join(ROOT_DIR, "modules/sv/bin/utils/tra_te_analysis.py"),
         tra_te = config.get("Params", {}).get("sv", {}).get("tra_te", {}) or {},
         threads = lambda wildcards: rule_res("sv_tra_te").get("threads", 4),
-        samtools_sif = (config.get("env", {}).get("samtools")
-                        or "/data/16T/Database/env/samtools/samtools.sif"),
-        blast_sif = (config.get("env", {}).get("sv")
-                     or "/data/16T/Database/env/sv/sv.sif"),
+        samtools_sif = sif("../samtools/samtools.yaml"),
+        blast_sif = sif("sv.yaml"),
     conda:
         "sv.yaml"
     container:

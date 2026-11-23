@@ -71,11 +71,11 @@
     }
   },
   "env": {
-    "env_dir": "/home/luosg/Database/env",
-    "exomePeak": "/home/luosg/Database/env/exomePeak/exomePeak.sif",
-    "hisat2": "/home/luosg/Database/env/hisat2/hisat2.sif",
-    "igv": "/home/luosg/Database/env/igv/hisat2.sif",
-    "trim-galore": "/home/luosg/Database/env/trim-galore/trim-galore.sif",
+    "env_dir": "/data/16T/Database/env",
+    "exomePeak": "/data/16T/Database/env/exomePeak/exomePeak.sif",
+    "hisat2": "/data/16T/Database/env/hisat2/hisat2.sif",
+    "igv": "/data/16T/Database/env/igv/hisat2.sif",
+    "trim-galore": "/data/16T/Database/env/trim-galore/trim-galore.sif",
     "regionplot": "/data/16T/Database/env/regionplot/regionplot.sif",
     "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif"
   },

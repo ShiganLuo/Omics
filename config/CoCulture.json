@@ -56,11 +56,11 @@
     }
   },
   "env": {
-    "env_dir": "/home/luosg/Database/env",
-    "SOAPnuke": "/home/luosg/Database/env/SOAPnuke/SOAPnuke.sif",
-    "TEtranscripts": "/home/luosg/Database/env/TEtranscripts/TEtranscripts.sif",
-    "disambiguate": "/home/luosg/Database/env/disambiguate/disambiguate.sif",
-    "hisat2": "/home/luosg/Database/env/hisat2/hisat2.sif",
+    "env_dir": "/data/16T/Database/env",
+    "SOAPnuke": "/data/16T/Database/env/SOAPnuke/SOAPnuke.sif",
+    "TEtranscripts": "/data/16T/Database/env/TEtranscripts/TEtranscripts.sif",
+    "disambiguate": "/data/16T/Database/env/disambiguate/disambiguate.sif",
+    "hisat2": "/data/16T/Database/env/hisat2/hisat2.sif",
     "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif"
   },
   "resources": {

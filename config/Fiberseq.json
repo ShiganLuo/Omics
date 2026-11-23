@@ -817,7 +817,7 @@
       "tidk": {}
     },
     "telocen_norm": {
-      "enabled": false,
+      "enabled": true,
       "groups": {},
       "fiberseq_telocen_norm_run": {
         "threads": 16
@@ -830,7 +830,7 @@
       }
     },
     "epi_drift": {
-      "enabled": false,
+      "enabled": true,
       "groups": {},
       "fiberseq_epi_drift_run": {
         "threads": 4,

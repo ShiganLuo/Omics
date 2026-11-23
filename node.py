@@ -2751,8 +2751,6 @@ def runFiberseq(
     enable_function = _enabled(datajson, "function")
     enable_sv = _enabled(datajson, "sv")
     enable_telomere = _enabled(datajson, "telomere")
-    enable_telocen_norm = _enabled(datajson, "telocen_norm")
-    enable_epi_drift = _enabled(datajson, "epi_drift")
     want_motif = enable_motif or enable_footprint
     want_quant = enable_quant or enable_diff or enable_haplotype
     want_eccdna = _enabled(datajson, "decoil") and default_ref.get("gtf")
@@ -2945,16 +2943,28 @@ def runFiberseq(
             outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz.csi")
 
     # Comparison figure modules (not per-sample): telocen_norm (fig2) and
-    # epi_drift (fig9). Both need exactly 2 groups in Params.<step>.groups.
+    # epi_drift (fig9). Both are ON by default: without a configured two-group
+    # comparison (Params.<step>.groups) they are skipped with a warning; a
+    # PARTIAL groups config is a real error and raises.
+    _run_compare = {}
     for _step in ("telocen_norm", "epi_drift"):
-        if _enabled(datajson, _step):
-            _gr = (datajson.get("Params", {}).get(_step, {}) or {}).get("groups") or {}
-            if len(_gr) != 2 or not all(_gr.values()):
-                raise ValueError(
-                    f"Fiberseq: Params.{_step}.groups must define exactly 2 "
-                    f"non-empty groups (label -> [samples]); got: {_gr!r}. "
-                    f"Set Params.{_step}.enabled=false to skip this analysis.")
-    if enable_telocen_norm:
+        if not _enabled(datajson, _step):
+            _run_compare[_step] = False
+            continue
+        _gr = (datajson.get("Params", {}).get(_step, {}) or {}).get("groups") or {}
+        if not _gr:
+            logger.warning(
+                f"Fiberseq: Params.{_step}.groups is not configured; skipping "
+                f"the {_step} analysis (set groups={{label: [samples]}} to enable).")
+            _run_compare[_step] = False
+        elif len(_gr) != 2 or not all(_gr.values()):
+            raise ValueError(
+                f"Fiberseq: Params.{_step}.groups must define exactly 2 "
+                f"non-empty groups (label -> [samples]); got: {_gr!r}. "
+                f"Set Params.{_step}.enabled=false to skip this analysis.")
+        else:
+            _run_compare[_step] = True
+    if _run_compare.get("telocen_norm"):
         _tn_fmts = (datajson.get("Params", {}).get("telocen_norm", {})
                     .get("fiberseq_telocen_norm_fig", {}).get("formats") or ["png"])
         if isinstance(_tn_fmts, str):
@@ -2963,7 +2973,7 @@ def runFiberseq(
         outfiles.append(f"{outdir}/fiberseq_analysis/telocen_norm/class_diff_normalized.tsv")
         outfiles += _figs(f"{outdir}/fiberseq_analysis/telocen_norm/telocen_normalized",
                           _tn_fmts)
-    if enable_epi_drift:
+    if _run_compare.get("epi_drift"):
         _ed_fmts = (datajson.get("Params", {}).get("epi_drift", {})
                     .get("fiberseq_epi_drift_fig", {}).get("formats") or ["png"])
         if isinstance(_ed_fmts, str):

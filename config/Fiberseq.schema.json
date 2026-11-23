@@ -2007,8 +2007,8 @@
    "enabled": {
     "type": "bool",
     "required": false,
-    "default": false,
-    "description": "Gate for telocen_norm (depth-normalized telomere/centromere region comparison + fig2-style plot)."
+    "default": true,
+    "description": "Gate for telocen_norm (depth-normalized telomere/centromere region comparison + fig2-style plot). Default ON; skipped with a warning when Params.telocen_norm.groups is not configured."
    },
    "groups": {
     "type": "dict",
@@ -2067,8 +2067,8 @@
    "enabled": {
     "type": "bool",
     "required": false,
-    "default": false,
-    "description": "Gate for epi_drift (per-fiber m5CpG variance drift test + fig9-style plot)."
+    "default": true,
+    "description": "Gate for epi_drift (per-fiber m5CpG variance drift test + fig9-style plot). Default ON; skipped with a warning when Params.epi_drift.groups is not configured."
    },
    "groups": {
     "type": "dict",

@@ -7,14 +7,6 @@ samples = config.get("samples", [])
 sample_sams = config.get("sample_sams", {}) or {}
 ROOT_DIR = config.get("ROOT_DIR", ".")
 
-# 指令派生名(变量名 = config 原名)。loci_map / sample_group_dict 由
-# node.py 解析 Params.fiberbrowser.loci 后写回 config;配置形状校验归
-# schema 与 node.py,模块对配置只取值。
-# 参数精确到 rule:loci_map/variants/formats/sample_group_dict 挂 fiberbrowser
-# 名下(Params.fiberbrowser.fiberbrowser.*,单 plot rule 消费;无 module 级
-# 共享回退)。fiberbrowser_result 聚合 fiberbrowser 输出文件名,
-# locus/variant/format 展开同一 rule 键。
-# 每 rule 一个 parse 期变量(config 全量路径读取)
 loci_map = config.get("Params", {}).get("fiberbrowser", {}).get("fiberbrowser", {}).get("loci_map", {}) or {}
 sample_group_dict = config.get("Params", {}).get("fiberbrowser", {}).get("fiberbrowser", {}).get("sample_group_dict", {}) or {}
 variants = config.get("Params", {}).get("fiberbrowser", {}).get("fiberbrowser", {}).get("variants", None) or ["plain", "zoom"]

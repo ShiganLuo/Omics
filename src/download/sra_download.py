@@ -465,9 +465,45 @@ def ascp_download(remote: str, dest: Path, key: Path) -> bool:
         remote, str(dest)
     ]
     logger.info(f"[ascp] 开始下载 {remote} -> {dest}")
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        _log_subprocess_error("ascp", result)
+    # 流式读取 stderr:ascp 的进度/速率写在 stderr(用 \r 刷新),
+    # capture_output 会把速率吞掉导致看不到下载速度,故按 \r/\n 切块
+    # 解析速率行,每 5s 打一条日志(与 aria2c 一致);非进度行留尾部供失败时报告。
+    proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    assert proc.stderr is not None
+    buf = b""
+    tail: List[str] = []
+    last_log_time = 0.0
+    while True:
+        chunk = os.read(proc.stderr.fileno(), 4096)
+        if not chunk:
+            break
+        buf += chunk
+        pieces = buf.replace(b"\r", b"\n").split(b"\n")
+        buf = pieces.pop()  # 末尾残片留待下次补齐
+        for seg in pieces:
+            s = seg.decode("utf-8", "replace").strip()
+            if not s:
+                continue
+            if any(u in s for u in ("MB/s", "KB/s", "GB/s")):
+                now = time.time()
+                if now - last_log_time >= 5.0:
+                    logger.info(f"[ascp] {dest.name}  {s}")
+                    last_log_time = now
+            else:
+                tail.append(s)
+                del tail[:-10]
+    # EOF 时 buf 里可能还留着最后一段(无换行结尾)
+    if buf.strip():
+        s = buf.decode("utf-8", "replace").strip()
+        if any(u in s for u in ("MB/s", "KB/s", "GB/s")) and time.time() - last_log_time >= 5.0:
+            logger.info(f"[ascp] {dest.name}  {s}")
+        else:
+            tail.append(s)
+            del tail[:-10]
+    proc.wait()
+    if proc.returncode != 0:
+        msg = "\n".join(tail) or f"exit code {proc.returncode}"
+        logger.warning(f"[ascp] {msg}")
         return False
     return True
 

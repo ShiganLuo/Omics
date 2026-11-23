@@ -25,8 +25,8 @@ rule featureCounts_single_noMultiple:
     output:
         outfile = outdir + "/all_single_featureCounts.tsv"
     log:
-        logdir + "/all/featureCounts/featureCounts_single_noMultiple.log"
-    conda: 
+        logdir + "/featureCounts/featureCounts_single_noMultiple.log"
+    conda:
         "featureCounts.yaml"
     container:
         sif("featureCounts.yaml", "featureCounts_single_noMultiple")
@@ -82,7 +82,7 @@ rule featureCounts_paired_noMultiple:
     output:
         outfile = outdir + "/all_paired_featureCounts.tsv",
     log:
-        logdir + "/all/featureCounts/featureCounts_paired_noMultiple.log"
+        logdir + "/featureCounts/featureCounts_paired_noMultiple.log"
     conda:
         "featureCounts.yaml"
     container:

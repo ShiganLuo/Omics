@@ -9,11 +9,6 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 group_pairs = config.get("group_pairs", {})
 paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
-# 参数精确到 rule:参数挂在消费它的 rule 名下(Params.function.<rule_name>.<key>;
-# 原 go_kegg/gsea/gsva 嵌套组名拍平为 rule 名,叶子名作 key;无 module 级共享,
-# 读点写 config 全量路径字面链)。formats 为每 rule 一个 parse 期变量——output 不能
-# 是函数,格式列表必须是模块级变量(decoil.smk 同款注释),各 rule 独立展开
-# output;① parse 期读入 + 规范化(str 收成单元素 list;合法值由 schema 声明)。
 _go_kegg_formats = config.get("Params", {}).get("function", {}).get("function_go_kegg", {}).get("formats") or ["png"]
 if isinstance(_go_kegg_formats, str):
     _go_kegg_formats = [_go_kegg_formats]

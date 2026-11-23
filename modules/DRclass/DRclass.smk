@@ -1,14 +1,9 @@
 include: "../common/common.smk"
-# DRclass: DNA(WES somatic) x RNA-seq 联合证据分类模块.
-# 所有输入必须为具体文件路径(config: samples.<id>.xxx 显式声明, 无目录扫描).
 
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 samples = config.get("samples", {})
 Procedure = config.get("Procedure", {})
-
-# 指令派生名(变量名 = config 原名): 兼容嵌套 {default:..., references:{<g>:{...}}}
-# 与扁平 {fasta:...} 两种 genome 形态; or 回退,无 if/else 分支.
 genome = config.get("genome", {})
 genome = genome.get("references", {}).get(genome.get("default", ""), {}) or genome
 

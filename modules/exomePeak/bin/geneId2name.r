@@ -108,14 +108,16 @@ translate_gene_ids <- function(value, gene_map) {
   paste(names, collapse = ",")
 }
 
-convert_gene_id_to_name <- function(infile, gtf_path, gene_id_col = "name") {
+convert_gene_id_to_name <- function(infile, gtf_path, gene_id_col = "name", cache_path = NULL) {
   if (!file.exists(infile)) {
     stop("input file not found: ", infile)
   }
   if (!file.exists(gtf_path)) {
     stop("GTF not found: ", gtf_path)
   }
-  cache_path <- file.path(dirname(infile), "gene_map.rds")
+  if (is.null(cache_path)) {
+    cache_path <- file.path(dirname(infile), "gene_map.rds")
+  }
   gene_map <- load_gtf_gene_map(gtf_path, cache_path)
   df <- read.table(infile,
                    sep = "\t",

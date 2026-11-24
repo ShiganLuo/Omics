@@ -456,6 +456,10 @@
       }
     },
     "star": {
+      "keep_intermediates": {
+        "type": "bool",
+        "required": false
+      },
       "outSAMattributes": {
         "type": "str",
         "required": true

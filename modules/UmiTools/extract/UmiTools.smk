@@ -11,7 +11,9 @@ rule UmiTools_extract_single:
     input:
         fastq = indir + "/{sample_id}.single.fq.gz"
     output:
-        fastq = temp(outdir + "/{sample_id}.umi.single.fq.gz")
+        # temp 规范(modules.md):umi fastq 为中间产物,受 keep_intermediates
+        # 字段控制(缺省 True=保留),不再硬编码 temp
+        fastq = maybe_temp(outdir + "/{sample_id}.umi.single.fq.gz", "UmiTools")
     params:
         umi_tools = config.get('Procedure',{}).get('umi_tools') or 'umi_tools',
         extract_method = config.get('Procedure',{}).get('extract_method') or 'string',
@@ -63,8 +65,8 @@ rule UmiTools_extract_paired:
         fastq1 = indir + "/{sample_id}_1.fq.gz",
         fastq2 = indir + "/{sample_id}_2.fq.gz"
     output:
-        fastq1 = temp(outdir + "/{sample_id}_1.umi.fq.gz"),
-        fastq2 = temp(outdir + "/{sample_id}_2.umi.fq.gz")
+        fastq1 = maybe_temp(outdir + "/{sample_id}_1.umi.fq.gz", "UmiTools"),
+        fastq2 = maybe_temp(outdir + "/{sample_id}_2.umi.fq.gz", "UmiTools")
     params:
         umi_tools = config.get('Procedure',{}).get('umi_tools') or 'umi_tools',
         extract_method = config.get('Procedure',{}).get('extract_method') or 'string',

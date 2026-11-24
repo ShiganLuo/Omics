@@ -322,6 +322,12 @@
         "description": "Figure width in inches."
       }
     },
+    "hisat2": {
+      "keep_intermediates": {
+        "type": "bool",
+        "required": false
+      }
+    },
     "trim_galore": {
       "trimming_Paired": {
         "type": "dict",

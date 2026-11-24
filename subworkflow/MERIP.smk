@@ -53,6 +53,15 @@ hisat2_config = {
         "Procedure": {
             "hisat2": config.get('Procedure',{}).get('hisat2')
         },
+        "Params": {
+            # temp 规范(modules.md):hisat2 中间产物(bam/splice.txt)受
+            # keep_intermediates 字段控制;透传用户实例段 Params.hisat2,缺省
+            # True=保留。MERIP 模板定 false(hisat2 bam 是中间文件,交付物是
+            # igv/{s}/{s}.dedup.bam,由未包裹的 samtools_dedup 产出,永不误删)
+            "hisat2": {
+                "keep_intermediates": config.get('Params',{}).get('hisat2',{}).get('keep_intermediates', True)
+            }
+        },
         "genome": {
             "fasta": genome_ref.get("fasta"),
             "index_prefix": genome_ref.get("hisat2_index_prefix"),

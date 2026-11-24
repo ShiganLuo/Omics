@@ -11,8 +11,11 @@ rule umi_tools_dedup_for_hisat2:
     input:
         bam = indir + "/{sample_id}.bam"
     output:
-        bam = temp(outdir + "/{sample_id}.dedup.bam"),
-        bai = temp(outdir + "/{sample_id}.dedup.bam.bai"),
+        # temp 规范(modules.md):dedup bam/bai 受 keep_intermediates 字段控制
+        # (缺省 True=保留)。禁止硬编码 temp:CLIP 中是中间文件(设 false 即删),
+        # 若被注册为交付物的流程复用,缺省 true 保证永不误删。
+        bam = maybe_temp(outdir + "/{sample_id}.dedup.bam", "UmiTools"),
+        bai = maybe_temp(outdir + "/{sample_id}.dedup.bam.bai", "UmiTools"),
     params:
         umi_tools = config.get('Procedure',{}).get('umi_tools') or 'umi_tools',
         method = config.get("Params", {}).get("umi_tools", {}).get("umi_tools_dedup_for_hisat2", {}).get("method") or "unique",
@@ -63,8 +66,9 @@ rule umi_tools_dedup_for_star:
     input:
         bam = indir + "/{sample_id}/{sample_id}.bam"
     output:
-        bam = temp(outdir + "/{sample_id}.dedup.bam"),
-        bai = temp(outdir + "/{sample_id}.dedup.bam.bai")
+        # temp 规范(modules.md):同 umi_tools_dedup_for_hisat2,受字段控制
+        bam = maybe_temp(outdir + "/{sample_id}.dedup.bam", "UmiTools"),
+        bai = maybe_temp(outdir + "/{sample_id}.dedup.bam.bai", "UmiTools")
     params:
         umi_tools = config.get('Procedure',{}).get('umi_tools') or 'umi_tools',
         method = config.get("Params", {}).get("umi_tools", {}).get("umi_tools_dedup_for_star", {}).get("method") or "unique",

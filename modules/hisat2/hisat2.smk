@@ -109,8 +109,10 @@ rule hisat2_align:
         fastq = get_alignment_input,
         index = get_hisat2_index
     output:
-        outfile = outdir + "/{sample_id}/{sample_id}.bam",
-        splice = outdir + "/{sample_id}/{sample_id}.splice.txt"
+        # temp 规范(modules.md):比对中间产物受 keep_intermediates 字段控制,
+        # 缺省 True=保留;CLIP/ncRNAseq 注册 bam 为交付物,不设字段即保持常驻
+        outfile = maybe_temp(outdir + "/{sample_id}/{sample_id}.bam", "hisat2"),
+        splice = maybe_temp(outdir + "/{sample_id}/{sample_id}.splice.txt", "hisat2")
     log:
         logdir + "/{sample_id}/hisat2_align.log"
     threads: rule_res("hisat2_align").get("threads", 12)

@@ -20,7 +20,12 @@
         "quality": 25
       }
     },
-    "bowtie2": {},
+    "bowtie2": {
+      "keep_intermediates": false
+    },
+    "gatk_prepare": {
+      "keep_intermediates": false
+    },
     "gatk": {
       "gatk_index": {
         "javaOptions": "-Xmx30g",

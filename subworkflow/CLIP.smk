@@ -53,6 +53,11 @@ UmiTools_extract_config = {
             # 参数精确到 rule:整段透传(Params.umi_tools.<rule>.<key>,rule 子段
             # 透明传递;模块内置默认同原转发默认)
             "umi_tools": config.get('Params',{}).get('umi_tools', {}),
+            # keep_intermediates 透传(modules.md temp 规范):umi fastq 中间产物
+            # 受字段控制,缺省 True=保留;CLIP 模板定 false(用完即删)
+            "UmiTools": {
+                "keep_intermediates": config.get('Params',{}).get('UmiTools',{}).get('keep_intermediates', True)
+            },
         }
     }
 module UmiTools_extract:
@@ -205,6 +210,12 @@ umi_tools_dedup_config = {
         "Params": {
             # 参数精确到 rule:整段透传(Params.umi_tools.<rule>.<key>)
             "umi_tools": config.get('Params',{}).get('umi_tools', {}),
+            # keep_intermediates 透传(modules.md temp 规范):dedup bam/bai 中间
+            # 产物受字段控制,缺省 True=保留;CLIP 模板定 false(交付物是
+            # PureCLIP/bedtools 结果)。若交付物流程复用本模块,缺省 true 保证不误删
+            "UmiTools": {
+                "keep_intermediates": config.get('Params',{}).get('UmiTools',{}).get('keep_intermediates', True)
+            },
         }
     }
 module UmiTools_dedup:

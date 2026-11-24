@@ -151,6 +151,13 @@ bwa_mem2_confg = {
     "genome": {
         "fasta": genome_ref.get("fasta"),
         "index_prefix": genome_ref.get("bwaMem2_index_prefix")
+    },
+    "Params": {
+        # temp 规范(modules.md):用户 Params.bwa-mem2.keep_intermediates 透传到
+        # 模块读点 Params.bwa-mem2.keep_intermediates(缺省 True=兜底保留)
+        "bwa-mem2": {
+            "keep_intermediates": config.get("Params", {}).get("bwa-mem2", {}).get("keep_intermediates", True)
+        }
     }
 }
 
@@ -210,6 +217,10 @@ gatk_prepare_config = {
                 "RGPL": config.get("addReadsGroup", {}).get("RGPL"),
                 "RGPU": config.get("addReadsGroup", {}).get("RGPU")
             }
+        },
+        # temp 规范(modules.md):addReadsGroup 中间 bam/bai 受字段控制
+        "gatk_prepare": {
+            "keep_intermediates": config.get("Params", {}).get("gatk_prepare", {}).get("keep_intermediates", True)
         }
     },
     "genome": {
@@ -280,6 +291,10 @@ gatk_somatic_config = {
             "Mutect2": {
                 "panel_of_normals": config.get("Params", {}).get("gatk", {}).get("Mutect2", {}).get("panel_of_normals")
             }
+        },
+        # temp 规范(modules.md):somaticMutect2 中间 vcf/stats 受字段控制
+        "gatk_somatic": {
+            "keep_intermediates": config.get("Params", {}).get("gatk_somatic", {}).get("keep_intermediates", True)
         }
     },
 }
@@ -343,6 +358,12 @@ gatk_germline_config = {
         "fai_index": genome_ref.get("fai_index"),
         "dict_index": genome_ref.get("dict_index"),
         "targets": _targets_bed
+    },
+    "Params": {
+        # temp 规范(modules.md):HaplotypeCaller raw vcf 受字段控制
+        "gatk_germline": {
+            "keep_intermediates": config.get("Params", {}).get("gatk_germline", {}).get("keep_intermediates", True)
+        }
     }
 }
 module gatk_germline:

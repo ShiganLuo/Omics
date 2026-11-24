@@ -20,6 +20,9 @@
         "quality": 25
       }
     },
+    "hisat2": {
+      "keep_intermediates": false
+    },
     "bamCoverage": {
       "bamCoverage": {
         "normalizeUsing": "CPM"

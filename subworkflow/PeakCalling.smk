@@ -111,6 +111,14 @@ bowtie2_config = {
         "bowtie2-build": config.get("Procedure", {}).get("bowtie2-build"),
         "bowtie2": config.get("Procedure", {}).get("bowtie2")
     },
+    "Params": {
+        # keep_intermediates 透传(modules.md temp 规范):bowtie2 中间产物
+        # (bam/unmapped fq)受字段控制,缺省 True=保留;PeakCalling 模板定 false
+        # (比对 bam 是中间文件,交付物是 markdup bam/peaks)。metrics 不在字段范围
+        "bowtie2": {
+            "keep_intermediates": config.get("Params", {}).get("bowtie2", {}).get("keep_intermediates", True)
+        }
+    },
     "genome": {
         "fasta": genome_ref.get("fasta"),
         "index_prefix": genome_ref.get("bowtie2_index_prefix")
@@ -144,7 +152,13 @@ gatk_prepare_config = {
         "samtools": config.get("Procedure", {}).get("samtools") or "samtools"
     },
     "Params": {
-        "gatk": config.get("Params", {}).get("gatk", {})
+        "gatk": config.get("Params", {}).get("gatk", {}),
+        # keep_intermediates 透传(modules.md temp 规范):gatk_prepare 中间产物
+        # (RG bam)受字段控制,缺省 True=保留;PeakCalling 模板定 false。交付物
+        # 4_markdup_bam/{s}/{s}.sorted_markdup.bam 不在字段范围内
+        "gatk_prepare": {
+            "keep_intermediates": config.get("Params", {}).get("gatk_prepare", {}).get("keep_intermediates", True)
+        }
     },
     "genome": {
         "fasta": genome_ref.get("fasta")

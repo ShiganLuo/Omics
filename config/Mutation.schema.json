@@ -61,6 +61,30 @@
         "required": true
       }
     },
+    "bwa-mem2": {
+      "keep_intermediates": {
+        "type": "bool",
+        "required": false
+      }
+    },
+    "gatk_prepare": {
+      "keep_intermediates": {
+        "type": "bool",
+        "required": false
+      }
+    },
+    "gatk_somatic": {
+      "keep_intermediates": {
+        "type": "bool",
+        "required": false
+      }
+    },
+    "gatk_germline": {
+      "keep_intermediates": {
+        "type": "bool",
+        "required": false
+      }
+    },
     "gatk": {
       "addReadsGroup": {
         "RGLB": {

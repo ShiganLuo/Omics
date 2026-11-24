@@ -422,6 +422,9 @@
         "RGPU": "HiFi"
       }
     },
+    "gatk_prepare": {
+      "keep_intermediates": false
+    },
     "bamCoverage": {
       "bin_size": 50,
       "normalizeUsing": "CPM"

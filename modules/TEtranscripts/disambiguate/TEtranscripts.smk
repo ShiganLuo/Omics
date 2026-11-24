@@ -1,6 +1,9 @@
 include: "../../common/common.smk"
 
 from typing import Tuple
+# temp 规范(modules.md):本模块的中间文件用 maybe_temp(path, "TEtranscripts") 包裹,
+# 是否标 temp 由 Params.TEtranscripts.keep_intermediates 决定(缺省 True=兜底保留)。
+# per-sample cntTable 是 combine 的中间输入;all_TEcount/all_TElocal 合并表是交付物。
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir = config.get("indir", "output/disambiguate")
@@ -23,7 +26,7 @@ rule TEcount:
     input:
         bamA = get_input_for_TEcount
     output:
-        project = outdir + "/TEcount/{genome}/{sample_id}.TEcount.cntTable"
+        project = maybe_temp(outdir + "/TEcount/{genome}/{sample_id}.TEcount.cntTable", "TEtranscripts")
     params:
         project = lambda wildcards: f"{wildcards.sample_id}.TEcount",
         outdir = lambda wildcards: outdir + f"/TEcount/{wildcards.genome}",
@@ -137,7 +140,7 @@ rule TElocal:
     input:
         bam = get_input_for_TElocal
     output:
-        project = outdir + "/TElocal/{genome}/{sample_id}.TElocal.cntTable"
+        project = maybe_temp(outdir + "/TElocal/{genome}/{sample_id}.TElocal.cntTable", "TEtranscripts")
     log:
         logdir + "/{sample_id}/{genome}/TElocal.log"
     params:

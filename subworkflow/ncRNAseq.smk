@@ -106,6 +106,7 @@ else:
             "single_samples": single_samples,
             "Params": {
                 "subsample": {
+                    "keep_intermediates": config.get('Params',{}).get('subsample',{}).get('keep_intermediates', True),
                     "abund_small_rnas": config.get("Params", {}).get("ncRNAseq", {}).get("abund_small_rnas", []),
                     "subsample_n": config.get("Params", {}).get("ncRNAseq", {}).get("subsample_n", 100000),
                     "subsample_seed": config.get("Params", {}).get("ncRNAseq", {}).get("subsample_seed", 42),
@@ -199,7 +200,10 @@ if aligner == "hisat2":
             "samtools": config.get("Procedure", {}).get("samtools") or "samtools"
         },
         "Params": {
-            "gatk": config.get("Params", {}).get("gatk", {})
+            "gatk": config.get("Params", {}).get("gatk", {}),
+            "gatk_prepare": {
+                "keep_intermediates": config.get("Params", {}).get("gatk_prepare", {}).get("keep_intermediates", True)
+            }
         },
         "genome": {
             "fasta": config.get("genome", {}).get("references", {}).get(genome, {}).get("fasta")
@@ -297,7 +301,10 @@ elif aligner == "star":
             "samtools": config.get("Procedure", {}).get("samtools") or "samtools"
         },
         "Params": {
-            "gatk": config.get("Params", {}).get("gatk", {})
+            "gatk": config.get("Params", {}).get("gatk", {}),
+            "gatk_prepare": {
+                "keep_intermediates": config.get("Params", {}).get("gatk_prepare", {}).get("keep_intermediates", True)
+            }
         },
         "genome": {
             "fasta": config.get("genome", {}).get("references", {}).get(genome, {}).get("fasta")

@@ -210,7 +210,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="workflow")
     parser.add_argument('-m','--meta', type=str, default=None, help='meta input file or data dir which condatain fastq file')
     parser.add_argument('-w','--workflow_name', type=str, nargs='+',
-        choices=["all", "CoCulture", "MERIP", "RNAseq", "ncRNAseq", "scRNAseq", "tRNAseq", "CLIP", "Mutation", "PacVar", "KARRseq", "PeakCalling", "QuantMS", "Fiberseq", "LRtranscriptome", "DR", "Population_genomics", "spatial_transcriptomics"],
+        choices=["all", "CoCulture", "MERIP", "RNAseq", "ncRNAseq", "scRNAseq", "tRNAseq", "CLIP", "Mutation", "PacVar", "KARRseq", "PeakCalling", "QuantMS", "Fiberseq", "LRtranscriptome", "DR", "RIPseq", "Population_genomics", "spatial_transcriptomics"],
         default=['CoCulture'], help='workflow name(s), multiple for parallel execution; "all" = every registered workflow')
     parser.add_argument('-o','--output_dir','--output-dir', dest='output_dir', type=str, default=None, help='output dir')
     parser.add_argument('-t','--threads', type=int, default=None,

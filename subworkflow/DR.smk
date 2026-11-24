@@ -178,6 +178,13 @@ bwa_mem2_confg = {
     "genome": {
         "fasta": genome_ref.get("fasta"),
         "index_prefix": genome_ref.get("bwaMem2_index_prefix")
+    },
+    "Params": {
+        # temp 规范(modules.md):用户 Params.bwa-mem2.keep_intermediates 透传到
+        # 模块读点 Params.bwa-mem2.keep_intermediates(缺省 True=兜底保留)
+        "bwa-mem2": {
+            "keep_intermediates": config.get("Params", {}).get("bwa-mem2", {}).get("keep_intermediates", True)
+        }
     }
 }
 module bwa_mem2:
@@ -225,6 +232,10 @@ gatk_prepare_config = {
                 "RGPL": config.get("addReadsGroup", {}).get("RGPL"),
                 "RGPU": config.get("addReadsGroup", {}).get("RGPU")
             }
+        },
+        # temp 规范(modules.md):addReadsGroup 中间 bam/bai 受字段控制
+        "gatk_prepare": {
+            "keep_intermediates": config.get("Params", {}).get("gatk_prepare", {}).get("keep_intermediates", True)
         }
     },
     "genome": {
@@ -283,6 +294,10 @@ gatk_somatic_config = {
             "Mutect2": {
                 "panel_of_normals": config.get("Params", {}).get("gatk", {}).get("Mutect2", {}).get("panel_of_normals")
             }
+        },
+        # temp 规范(modules.md):somaticMutect2 中间 vcf/stats 受字段控制
+        "gatk_somatic": {
+            "keep_intermediates": config.get("Params", {}).get("gatk_somatic", {}).get("keep_intermediates", True)
         }
     },
 }
@@ -345,6 +360,13 @@ gatk_germline_config = {
         "fai_index": genome_ref.get("fai_index"),
         "dict_index": genome_ref.get("dict_index"),
         "targets": _targets_bed
+    },
+    "Params": {
+        # temp 规范(modules.md):HaplotypeCaller raw vcf 受字段控制;DR 的 raw.vcf.gz
+        # 是 DRclass 交付物,模板不设字段(缺省 True=兜底保留),wrap 本身安全
+        "gatk_germline": {
+            "keep_intermediates": config.get("Params", {}).get("gatk_germline", {}).get("keep_intermediates", True)
+        }
     }
 }
 module gatk_germline:
@@ -825,6 +847,7 @@ if aligner_TEtranscripts == 'hisat2':
         },
         "Params": {
             "hisat2": {
+                "keep_intermediates": config.get('Params', {}).get('hisat2_TEtranscripts', {}).get('keep_intermediates', True),
                 "score_min": config.get('Params', {}).get('hisat2_TEtranscripts', {}).get('score_min') or "L,0,-0.2",
                 "flag_params": config.get('Params', {}).get('hisat2_TEtranscripts', {}).get('flag_params') or "--no-mixed --no-discordant",
                 "k": config.get('Params', {}).get('hisat2_TEtranscripts', {}).get('k') or 100
@@ -861,6 +884,7 @@ elif aligner_TEtranscripts == 'star':
             # STAR_TEtranscripts.star_align 新键,config 全量路径读取,
             # 无旧扁平键回退),缺省值保持 RNAseq.smk 同款默认
             "star": {
+                "keep_intermediates": config.get('Params', {}).get('STAR_TEtranscripts', {}).get('keep_intermediates', True),
                 "star_align": {
                     "alignEndsType": config.get('Params', {}).get('STAR_TEtranscripts', {}).get('star_align', {}).get('alignEndsType') or "Local",
                     "outFilterMultimapNmax": config.get('Params', {}).get('STAR_TEtranscripts', {}).get('star_align', {}).get('outFilterMultimapNmax') or 100,
@@ -890,6 +914,11 @@ rna_TEtranscripts_config = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
+    "Params": {
+        "TEtranscripts": {
+            "keep_intermediates": config.get('Params',{}).get('TEtranscripts',{}).get('keep_intermediates', True)
+        }
+    },
     "Procedure": {
         "TEcount": config.get('Procedure', {}).get('TEcount') or 'TEcount',
         "TElocal": config.get('Procedure', {}).get('TElocal') or 'TElocal'
@@ -941,6 +970,11 @@ rna_featureCounts_config = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
+    "Params": {
+        "featureCounts": {
+            "keep_intermediates": config.get('Params',{}).get('featureCounts',{}).get('keep_intermediates', True)
+        }
+    },
     "Procedure": {
         "featureCounts": config.get('Procedure', {}).get('featureCounts') or 'featureCounts'
     },
@@ -1025,6 +1059,7 @@ rna_hisat2_config_for_StringTie = {
     },
     "Params": {
         "hisat2": {
+            "keep_intermediates": config.get('Params',{}).get('hisat2_stringtie', {}).get('keep_intermediates', True),
             "k": config.get('Params', {}).get('hisat2_stringtie', {}).get('k') or 1,
             "flag_params": config.get('Params', {}).get('hisat2_stringtie', {}).get('flag_params') or "-q --no-unal --dta",
         }
@@ -1105,6 +1140,7 @@ rna_bowtie2_rRNA_config = {
     "genome": config.get('genome', {}),
     "Params": {
         "bowtie2": {
+            "keep_intermediates": config.get('Params',{}).get('bowtie2_rRNA', {}).get('keep_intermediates', True),
             "sam-append-comment": config.get('Params', {}).get('bowtie2_rRNA', {}).get('sam-append-comment')
         }
     },
@@ -1135,6 +1171,7 @@ rna_star_config_for_fusion = {
         # 参数精确到 rule:Params.star.star_align.<key>(源读 STAR_fusion.star_align
         # 新键,config 全量路径读取,无旧扁平键回退),缺省值保持 RNAseq.smk 同款默认
         "star": {
+            "keep_intermediates": config.get('Params', {}).get('STAR_fusion', {}).get('keep_intermediates', True),
             "star_align": {
                 "outFilterMultimapNmax": config.get('Params', {}).get('STAR_fusion', {}).get('star_align', {}).get('outFilterMultimapNmax') or 1,
                 "outFilterMismatchNmax": config.get('Params', {}).get('STAR_fusion', {}).get('star_align', {}).get('outFilterMismatchNmax') or 3,
@@ -1233,7 +1270,10 @@ rna_star_config_for_SNP = {
     "Procedure": {
         "star": config.get('Procedure', {}).get('STAR_SNP')
     },
-    "Params": config.get('Params'),
+    # RNAseq.smk 同款:整段透传 + star.keep_intermediates 从 STAR_SNP 显式映射
+    "Params": {**(config.get('Params') or {}),
+               "star": {**((config.get('Params') or {}).get('star') or {}),
+                        "keep_intermediates": (config.get('Params') or {}).get('STAR_SNP', {}).get('keep_intermediates', True)}},
     "genome": config.get('genome', {}),
     "resources": config.get("resources", {}),
 }
@@ -1293,6 +1333,11 @@ rna_gatk_RNAseq_config = {
     "outdir": f"{outdir}/RNA/variation/germline_snv_indel_RNAseq",
     "logdir": os.path.join(logdir, "sample"),
     "logdir_combine": os.path.join(logdir, "group"),
+    "Params": {
+        "gatk_RNAseq": {
+            "keep_intermediates": config.get('Params',{}).get('gatk_RNAseq',{}).get('keep_intermediates', True)
+        }
+    },
     "Procedure": {
         "gatk": config.get("Procedure", {}).get("gatk"),
         "samtools": config.get("Procedure", {}).get("samtools")

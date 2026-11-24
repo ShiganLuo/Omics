@@ -89,8 +89,8 @@ rule addReadsGroup:
     input:
         unpack(get_input_for_addReadsGroup)
     output:
-        bam = temp(outdir + "/{sample_id}/{sample_id}.addReadsGroup.bam"),
-        bai = temp(outdir + "/{sample_id}/{sample_id}.addReadsGroup.bai")
+        bam = maybe_temp(outdir + "/{sample_id}/{sample_id}.addReadsGroup.bam", "gatk_prepare"),
+        bai = maybe_temp(outdir + "/{sample_id}/{sample_id}.addReadsGroup.bai", "gatk_prepare")
     log:
         logdir + "/{sample_id}/addReadsGroup.log"
     conda: "gatk.yaml"

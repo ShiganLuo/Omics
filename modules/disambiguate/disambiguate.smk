@@ -1,6 +1,9 @@
 include: "../common/common.smk"
 
 from typing import List
+# temp 规范(modules.md):本模块的中间文件用 maybe_temp(path, "disambiguate") 包裹,
+# 是否标 temp 由 Params.disambiguate.keep_intermediates 决定(缺省 True=兜底保留)。
+# {sample}.disambiguatedSpecies_*/ambiguousSpecies_* 交付物不包裹。
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -22,14 +25,14 @@ rule ngs_disambiguate:
         bamA = lambda wc: get_inputFile_for_ngs_disambiguate(wc)["bamA"],
         bamB = lambda wc: get_inputFile_for_ngs_disambiguate(wc)["bamB"]
     output:
-        raw_bamA = temp(outdir + "/{sample_id}/{sample_id}.disambiguatedSpeciesA.bam"),
-        raw_bamB = temp(outdir + "/{sample_id}/{sample_id}.disambiguatedSpeciesB.bam"),
-        raw_ambiguousA = temp(outdir + "/{sample_id}/{sample_id}.ambiguousSpeciesA.bam"),
-        raw_ambiguousB = temp(outdir + "/{sample_id}/{sample_id}.ambiguousSpeciesB.bam"),
+        raw_bamA = maybe_temp(outdir + "/{sample_id}/{sample_id}.disambiguatedSpeciesA.bam", "disambiguate"),
+        raw_bamB = maybe_temp(outdir + "/{sample_id}/{sample_id}.disambiguatedSpeciesB.bam", "disambiguate"),
+        raw_ambiguousA = maybe_temp(outdir + "/{sample_id}/{sample_id}.ambiguousSpeciesA.bam", "disambiguate"),
+        raw_ambiguousB = maybe_temp(outdir + "/{sample_id}/{sample_id}.ambiguousSpeciesB.bam", "disambiguate"),
         summary = outdir + "/{sample_id}/{sample_id}_summary.tsv"
     params:
-        bamA_sortN = temp(outdir + "/{sample_id}/{sample_id}.bamA.sortN.bam"),
-        bamB_sortN = temp(outdir + "/{sample_id}/{sample_id}.bamB.sortN.bam"),
+        bamA_sortN = maybe_temp(outdir + "/{sample_id}/{sample_id}.bamA.sortN.bam", "disambiguate"),
+        bamB_sortN = maybe_temp(outdir + "/{sample_id}/{sample_id}.bamB.sortN.bam", "disambiguate"),
         outdir = lambda wc: f"{outdir}/{wc.sample_id}",
         aligner = config.get("Params", {}).get("ngs_disambiguate", {}).get("aligner") or "hisat2",
         ngs_disambiguate = config.get("Procedure", {}).get("ngs_disambiguate") or "ngs_disambiguate",

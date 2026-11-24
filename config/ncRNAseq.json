@@ -141,6 +141,12 @@
         "TERC"
       ]
     },
+    "subsample": {
+      "keep_intermediates": false
+    },
+    "gatk_prepare": {
+      "keep_intermediates": false
+    },
     "track": {
       "igv": {
         "default": "GRCh38",

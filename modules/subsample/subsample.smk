@@ -1,6 +1,9 @@
 include: "../common/common.smk"
 
 
+# temp 规范(modules.md):本模块的中间文件用 maybe_temp(path, "subsample") 包裹,
+# 是否标 temp 由 Params.subsample.keep_intermediates 决定(缺省 True=兜底保留)。
+# subsample 产物未注册为交付物(node.py 不注册),是下游比对/QC 的中间 fastq。
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -26,8 +29,8 @@ rule subsample_fastq:
         r1 = indir + "/{sample_id}/{sample_id}_1.fq.gz",
         r2 = indir + "/{sample_id}/{sample_id}_2.fq.gz",
     output:
-        r1 = outdir + "/{sample_id}/{sample_id}_1.fq.gz",
-        r2 = outdir + "/{sample_id}/{sample_id}_2.fq.gz",
+        r1 = maybe_temp(outdir + "/{sample_id}/{sample_id}_1.fq.gz", "subsample"),
+        r2 = maybe_temp(outdir + "/{sample_id}/{sample_id}_2.fq.gz", "subsample"),
     log:
         logdir + "/{sample_id}/subsample.log"
     threads: rule_res("subsample_fastq").get("threads", 1)

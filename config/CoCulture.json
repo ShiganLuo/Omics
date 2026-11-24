@@ -20,6 +20,12 @@
       "y_genes": null,
       "y_min_rpkm": null,
       "xist_min_rpkm": null
+    },
+    "disambiguate": {
+      "keep_intermediates": false
+    },
+    "TEtranscripts": {
+      "keep_intermediates": false
     }
   },
   "genome": {

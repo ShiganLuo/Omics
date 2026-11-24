@@ -350,11 +350,31 @@
         },
         "single_samples": {
           "type": "list",
-          "required": true
+          "required": false
         },
         "genome_pairs": {
           "type": "list",
           "required": true
+        }
+      }
+    },
+    "disambiguate": {
+      "type": "dict",
+      "required": false,
+      "properties": {
+        "keep_intermediates": {
+          "type": "bool",
+          "required": false
+        }
+      }
+    },
+    "TEtranscripts": {
+      "type": "dict",
+      "required": false,
+      "properties": {
+        "keep_intermediates": {
+          "type": "bool",
+          "required": false
         }
       }
     }

@@ -22,6 +22,18 @@
     "samtools": {
       "onlykeep_properpair": false
     },
+    "bwa-mem2": {
+      "keep_intermediates": false
+    },
+    "gatk_prepare": {
+      "keep_intermediates": false
+    },
+    "gatk_somatic": {
+      "keep_intermediates": false
+    },
+    "gatk_germline": {
+      "keep_intermediates": false
+    },
     "gatk": {
       "addReadsGroup": {
         "RGLB": "mRNA",

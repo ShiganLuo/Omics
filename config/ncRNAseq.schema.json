@@ -458,6 +458,26 @@
     }
   },
   "Params": {
+    "subsample": {
+      "type": "dict",
+      "required": false,
+      "properties": {
+        "keep_intermediates": {
+          "type": "bool",
+          "required": false
+        }
+      }
+    },
+    "gatk_prepare": {
+      "type": "dict",
+      "required": false,
+      "properties": {
+        "keep_intermediates": {
+          "type": "bool",
+          "required": false
+        }
+      }
+    },
     "regionplot": {
       "enabled": {
         "type": "bool",
@@ -544,7 +564,7 @@
       },
       "single_samples": {
         "type": "list",
-        "required": true
+        "required": false
       },
       "ip_samples": {
         "type": "list",

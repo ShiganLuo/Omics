@@ -630,6 +630,16 @@
     }
   },
   "Params": {
+    "gatk_prepare": {
+      "type": "dict",
+      "required": false,
+      "properties": {
+        "keep_intermediates": {
+          "type": "bool",
+          "required": false
+        }
+      }
+    },
     "regionplot": {
       "enabled": {
         "type": "bool",

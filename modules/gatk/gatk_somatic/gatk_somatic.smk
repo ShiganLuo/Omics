@@ -63,8 +63,10 @@ rule somaticMutect2:
        ),
        panel_of_normals = lambda wildcards: [panel_of_normals] if panel_of_normals else [],
     output:
-        vcf = outdir + "/{normal_sample_id}_vs_{experimental_sample_id}/{normal_sample_id}_vs_{experimental_sample_id}.vcf.gz",
-        stats = outdir + "/{normal_sample_id}_vs_{experimental_sample_id}/{normal_sample_id}_vs_{experimental_sample_id}.vcf.gz.stats"
+        # 中间产物:只被 filterMutectCalls 消费,node.py 未注册(注册的是
+        # filtered.vcf.gz),受 Params.gatk_somatic.keep_intermediates 控制
+        vcf = maybe_temp(outdir + "/{normal_sample_id}_vs_{experimental_sample_id}/{normal_sample_id}_vs_{experimental_sample_id}.vcf.gz", "gatk_somatic"),
+        stats = maybe_temp(outdir + "/{normal_sample_id}_vs_{experimental_sample_id}/{normal_sample_id}_vs_{experimental_sample_id}.vcf.gz.stats", "gatk_somatic")
     log:
         logdir + "/gatk/{normal_sample_id}_{experimental_sample_id}/{normal_sample_id}_{experimental_sample_id}_mutect2.log"
     conda:

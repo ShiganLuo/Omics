@@ -558,7 +558,18 @@
         }
       }
     },
-    "hisat2": {},
+    "hisat2": {
+      "keep_intermediates": {
+        "type": "bool",
+        "required": false
+      }
+    },
+    "gatk_prepare": {
+      "keep_intermediates": {
+        "type": "bool",
+        "required": false
+      }
+    },
     "gatk": {
       "gatk_index": {
         "type": "dict",

@@ -33,6 +33,7 @@ if aligner == "star":
         "omics_type": "scRNAseq",
         "Params": {
             "star": {
+            "keep_intermediates": config.get('Params', {}).get('star', {}).get('keep_intermediates', True),
             # 参数精确到 rule:Params.star.star_align.<key>(消费 rule star_align;
             # config 全量路径读取,无旧扁平键回退)
             "star_align": {

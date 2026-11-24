@@ -46,6 +46,9 @@
         "bc_pattern2": "NNNXXXXNN"
       }
     },
+    "UmiTools": {
+      "keep_intermediates": false
+    },
     "igv": {
       "js": "/data/16T/Database/SoftWare/igv.min.js",
       "id": "mm39",

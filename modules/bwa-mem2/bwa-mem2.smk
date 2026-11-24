@@ -117,7 +117,9 @@ rule bwaMem2_alignment:
         fastq = get_alignment_input,
         index = get_bwaMem2_index
     output:
-        bam = outdir + "/{sample_id}/{sample_id}.bam",
+        # 中间产物:仅被 addReadsGroup/bam_flagstat 消费,node.py 未注册(3_sorted_bam
+        # 注册的是 flagstat.txt),受 Params.bwa-mem2.keep_intermediates 控制
+        bam = maybe_temp(outdir + "/{sample_id}/{sample_id}.bam", "bwa-mem2"),
     log:
         logdir + "/{sample_id}/bwa_mem2-alignment.txt"
     threads: rule_res("bwaMem2_alignment").get("threads", 15)

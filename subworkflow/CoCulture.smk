@@ -78,6 +78,11 @@ disambiguate_config = {
         "bam": {
             "aligner": config.get('Procedure',{}).get('aligner') or 'hisat2'
         },
+        "Params": {
+            "disambiguate": {
+                "keep_intermediates": config.get('Params',{}).get('disambiguate',{}).get('keep_intermediates', True)
+            }
+        },
         "Procedure": {
             "ngs_disambiguate": config.get('Procedure',{}).get('ngs_disambiguate') or 'ngs_disambiguate'
         }
@@ -197,6 +202,11 @@ TEtranscripts_config = {
         "Procedure": {
             "TEcount": config.get('Procedure',{}).get('TEcount') or 'TEcount',
             "TElocal": config.get('Procedure',{}).get('TElocal') or 'TElocal'
+        },
+        "Params": {
+            "TEtranscripts": {
+                "keep_intermediates": config.get('Params',{}).get('TEtranscripts',{}).get('keep_intermediates', True)
+            }
         }
     }
 module TEtranscripts:

@@ -1,6 +1,10 @@
 include: "../common/common.smk"
 
 import logging
+# temp 规范(modules.md):本模块的中间文件用 maybe_temp(path, "star") 包裹,
+# 是否标 temp 由 Params.star.keep_intermediates 决定(缺省 True=兜底保留)。
+# bam/bai 在 ncRNAseq/CLIP 是交付物、在 scRNAseq 是中间文件,由实例字段区分:
+# 交付物流程不设 keep_intermediates=false 即可保留。
 logger = logging.getLogger(__name__)
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -156,10 +160,10 @@ rule star_align:
         fastq = get_alignment_input,
         genome_index = get_star_index
     output:
-        bam = outdir + "/{sample_id}/{sample_id}.bam",
-        bai = outdir + "/{sample_id}/{sample_id}.bam.bai",
-        unmapped_r1 = outdir + "/{sample_id}/{sample_id}.Unmapped.out.mate1",
-        unmapped_r2 = outdir + "/{sample_id}/{sample_id}.Unmapped.out.mate2",
+        bam = maybe_temp(outdir + "/{sample_id}/{sample_id}.bam", "star"),
+        bai = maybe_temp(outdir + "/{sample_id}/{sample_id}.bam.bai", "star"),
+        unmapped_r1 = maybe_temp(outdir + "/{sample_id}/{sample_id}.Unmapped.out.mate1", "star"),
+        unmapped_r2 = maybe_temp(outdir + "/{sample_id}/{sample_id}.Unmapped.out.mate2", "star"),
     log:
         logdir + "/{sample_id}/star_align.log"
     threads: rule_res("star_align").get("threads", 12)

@@ -73,6 +73,9 @@ gatk_prepare_config = {
         # RGLB/RGPL/RGPU 都挂在各自 rule 子段(Params.gatk.<rule>.<key>,
         # rule 子段在段内透明传递),旧扁平键不再转发
         "gatk": config.get("Params", {}).get("gatk", {}),
+        "gatk_prepare": {
+            "keep_intermediates": config.get("Params", {}).get("gatk_prepare", {}).get("keep_intermediates", True)
+        },
     },
     "genome": {
         "fasta": genome_ref.get("fasta"),

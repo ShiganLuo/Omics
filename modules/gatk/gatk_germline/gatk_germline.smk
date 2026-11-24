@@ -46,7 +46,10 @@ rule HaplotypeCaller:
     input:
         unpack(get_input_HaplotypeCaller)
     output:
-        vcf = outdir + "/{sample_id}/{sample_id}.raw.vcf.gz"
+        # 中间产物(Mutation 侧被 filterHaplotypeCallerVcf 消费,node.py 只注册
+        # filtered.vcf.gz);DR 侧 raw.vcf.gz 被 DRclass 消费且注册为交付物——
+        # DR 实例不设 keep_intermediates(缺省 True)兜底保留,wrap 本身安全
+        vcf = maybe_temp(outdir + "/{sample_id}/{sample_id}.raw.vcf.gz", "gatk_germline")
     log:
         logdir + "/{sample_id}/haplotypeCaller.log"
     conda:

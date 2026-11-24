@@ -513,6 +513,12 @@
         }
       }
     },
+    "UmiTools": {
+      "keep_intermediates": {
+        "type": "bool",
+        "required": false
+      }
+    },
     "umi_tools": {
       "UmiTools_extract_single": {
         "type": "dict",

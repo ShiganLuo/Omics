@@ -115,7 +115,13 @@ hisat2_config = {
         "samtools": config.get("Procedure", {}).get("samtools") or "samtools"
     },
     "Params": {
-        "hisat2": config.get("Params", {}).get("hisat2", {})
+        # keep_intermediates 透传(modules.md temp 规范):缺省 True=保留,
+        # RIPseq 模板定 false(hisat2 bam 是中间文件,交付物是 markdup bam);
+        # 其余键整段透传保持原行为
+        "hisat2": dict(
+            config.get("Params", {}).get("hisat2", {}),
+            keep_intermediates=config.get("Params", {}).get("hisat2", {}).get("keep_intermediates", True),
+        )
     },
     "genome": {
         "fasta": genome_ref.get("fasta"),
@@ -149,7 +155,13 @@ gatk_prepare_config = {
         "samtools": config.get("Procedure", {}).get("samtools") or "samtools"
     },
     "Params": {
-        "gatk": config.get("Params", {}).get("gatk", {})
+        "gatk": config.get("Params", {}).get("gatk", {}),
+        # keep_intermediates 透传(modules.md temp 规范):gatk_prepare 中间产物
+        # (RG bam)受字段控制,缺省 True=保留;RIPseq 模板定 false。交付物
+        # 4_markdup_bam/{s}/{s}.sorted_markdup.bam 不在字段范围内
+        "gatk_prepare": {
+            "keep_intermediates": config.get("Params", {}).get("gatk_prepare", {}).get("keep_intermediates", True)
+        }
     },
     "genome": {
         "fasta": genome_ref.get("fasta")

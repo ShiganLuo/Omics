@@ -20,9 +20,14 @@
 ```
 {outdir}/{sample_id}/assembly/asm.bp.p_ctg.fa        # 组装主 contig(下游契约路径)
 {outdir}/{sample_id}/assembly/asm.bp.p_ctg.gfa       # hifiasm 主 contig 图(工具产物)
+{outdir}/{sample_id}/assembly/asm.hifiasm.stamp      # GFA 复用指纹(BAM 路径+大小+mtime)
 ```
 
-日志:`{logdir}/{sample_id}/hifiasm_assemble.log`。
+日志:`{logdir}/{sample_id}/hifiasm_assemble.log`。工具自身输出(hifiasm
+`[M::...]` 阶段统计、samtools 提示)直接追加在**同一规则日志**里;注意
+hifiasm 在读段加载/纠错期几乎不输出,统计集中在运行结束时成批打印。引擎
+另在日志里补时间线:工具版本、Stage 1/2(流式组装)与 Stage 2/2(GFA→FASTA)
+的边界与耗时、contig 数/总长/N50,便于中途判断进度。
 
 ### 1.3 参数
 
@@ -32,6 +37,7 @@
 | `bam_substring` | 文件名插入段 | `""` | 见输入(形态 A) |
 | `inputs.hifiasm.bam` / `.pbi` | — | 无 | 见输入(dict-mode,优先于形态 A) |
 | `Procedure.hifiasm` / `samtools` / `python` | — | 同名命令 | 可执行路径 |
+| `--force-reassemble` | 引擎旗标 | 关 | 忽略已有 GFA 与 hifiasm 断点缓存,强制重新组装;缺省时 GFA 带指纹 stamp 可跨重跑复用(阶段 2 失败/中断后重跑不重装) |
 | 线程/内存 | — | 32 / `mem_mb=64000` | 真实入口是 `resources.hifiasm_assemble.threads/.mem_mb`(`rule_res()` 解析并按宿主预算钳制;hifiasm 线程扩展到 ~32 收益明显,再往上递减) |
 
 环境:`conda: "hifiasm.yaml"`。**SIF 复用**:容器模式下显式映射

@@ -47,6 +47,11 @@ config 位于 `Params.trimmomatic` 与 `Procedure.trimmomatic` 下:
 | (threads) | `-threads` | 6 | `rule_res("trimmomatic_*")` 可覆盖 |
 | (mem_mb) | — | 8000(PE)/ 4000(SE) | 资源声明 |
 
+环境:`conda: "trimmomatic.yaml"`(bioconda `trimmomatic=0.40` + openjdk,对应
+SIF `/data/16T/Database/env/trimmomatic/trimmomatic.sif`)。`Procedure.trimmomatic`
+也可指向独立 jar(以 `.jar` 结尾自动 `java -jar`);实测 0.40 与 0.41 jar 的
+`-summary` 格式一致(逐行键值),qc_summary 的 `parse_trimmomatic` 通吃。
+
 固定裁剪步骤(不在 config 暴露,写死于规则):
 
 ```

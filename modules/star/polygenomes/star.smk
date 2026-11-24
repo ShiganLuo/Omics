@@ -13,9 +13,6 @@ omics_type = config.get('omics_type', 'RNA-seq')
 fastq_sample_suffix = config.get('fastq_sample_suffix') or None
 isGenomeSubdir = config.get('isGenomeSubdir', False)
 
-# 参数精确到 rule:Params.star.<rule_name>.<key>(config 全量路径直读;
-# 无 module 级共享回退,star_align 独立键;index 子段仍为 Params.star.index)。
-
 def get_input_for_star_index(wildcards):
     """Dynamically determines the input fasta file for STAR index based on the genome."""
     logger.debug(f"[get_input_for_star_index] called with wildcards: {wildcards}")
@@ -98,10 +95,6 @@ rule star_index:
 
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
-                # Run STAR from inside the genome dir: Log.out and other
-                # run-time files land there and STAR's end-of-run move stays
-                # on one filesystem (cross-mount rename fails under
-                # singularity, emitting the "Could not move Log.out" warning).
                 f.write(f'cd "{sample_outdir}"\n')
                 f.write(" ".join(cmd) + "\n")
                 f.write("echo 'STAR index generation completed successfully.'\n")
@@ -128,13 +121,13 @@ def get_alignment_input(wildcards):
     function: Dynamically determines the input file type: paired-end or single-end sequencing.
     Based on the paired_samples and single_samples lists.This function is called in the star_align rule.
 
-    param: 
+    param:
         wildcards: Snakemake wildcards object containing the sample_id.
         paired_samples = ['sample1', 'sample2', ...]
         single_samples = ['sample3', 'sample4', ...]
     These lists must be defined in the Snakefile or config file.
 
-    return: A list of input file paths for the STAR alignment step. 
+    return: A list of input file paths for the STAR alignment step.
     """
     logger.debug(f"[get_alignment_input] called with wildcards: {wildcards}")
     # 构造可能的输入路径
@@ -169,7 +162,7 @@ def get_alignment_input(wildcards):
         if omics_type == "scRNAseq":
             logger.debug(f"Detected scRNA-seq data for sample {wildcards.sample_id}.R1 is expected to contain cell barcodes and UMIs, R2 contains the transcript sequence.")
             return [paired_r2, paired_r1]
-        else:   
+        else:
             return [paired_r1, paired_r2]
     elif wildcards.sample_id in genome_single_samples.get(wildcards.genome, []):
         logger.debug(f"单端测序：{[single]}")

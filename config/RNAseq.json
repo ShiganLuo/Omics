@@ -32,6 +32,9 @@
         "adapter_se": "/data/16T/Database/SoftWare/Trimmomatic-0.41/adapters/TruSeq3-SE.fa"
       }
     },
+    "STAR_index": {
+
+    },
     "STAR_TEtranscripts": {
       "alignEndsType": "Local",
       "outFilterMismatchNoverReadLmax": 1.0,

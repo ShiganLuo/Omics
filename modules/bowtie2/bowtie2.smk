@@ -4,9 +4,6 @@ outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir= config.get("indir", "input")
 logdir_combine = config.get("logdir_combine", "log/combine")
-
-# 参数精确到 rule:Params.bowtie2.<rule_name>.<key>(config 全量路径直读;
-# 无 module 级共享回退,bowtie2_align_paired / bowtie2_align_single 各自独立键)。
 paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
 
@@ -50,9 +47,9 @@ rule bowtie2_index:
             script = os.path.join(RECEIPT_DIR, f"bowtie2_index_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = f"{outdir}/index/bowtie2_index.sh"
-            cmd = [params.bowtie2_build, 
-                    "--threads", str(threads), 
-                    input.fasta, 
+            cmd = [params.bowtie2_build,
+                    "--threads", str(threads),
+                    input.fasta,
                     params.index_prefix
                     ]
             with open(script, "w") as f:
@@ -73,13 +70,13 @@ def get_alignment_input(wildcards):
     function: Dynamically determines the input file type: paired-end or single-end sequencing.
     Based on the paired_samples and single_samples lists.This function is called in the star_align rule.
 
-    param: 
+    param:
         wildcards: Snakemake wildcards object containing the sample_id.
         paired_samples = ['sample1', 'sample2', ...]
         single_samples = ['sample3', 'sample4', ...]
     These lists must be defined in the Snakefile or config file.
 
-    return: A list of input file paths for the STAR alignment step. 
+    return: A list of input file paths for the STAR alignment step.
     """
     logger.info(f"[get_alignment_input] called with wildcards: {wildcards}")
     # 构造可能的输入路径
@@ -149,9 +146,9 @@ rule bowtie2_align_paired:
             script = os.path.join(RECEIPT_DIR, f"bowtie2_align_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = f"{sample_outdir}/bowtie2_align.sh"
-            cmd1 = [params.bowtie2, 
-                    "-x", params.index_prefix, 
-                    "-1", input.fastq1, 
+            cmd1 = [params.bowtie2,
+                    "-x", params.index_prefix,
+                    "-1", input.fastq1,
                     "-2", input.fastq2,
                     "--threads", str(threads),
                     "--sam-append-comment" if params.sam_append_comment else "",

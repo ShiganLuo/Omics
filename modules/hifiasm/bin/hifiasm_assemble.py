@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """Assemble HiFi BAM into primary-contig FASTA with hifiasm.
 
-Streams ``samtools fastq`` straight into hifiasm's stdin (no intermediate
-FASTQ on disk), then converts the unitig GFA to the primary-contig FASTA that
-downstream rules consume. Emits stage-boundary log lines with elapsed times
+Extracts the BAM to ``<sample>.hifi.fq.gz`` beside the assembly outputs and
+assembles that FILE with hifiasm, then converts the unitig GFA to the
+primary-contig FASTA that downstream rules consume. hifiasm must not be fed
+through /dev/stdin: it re-reads its input while building the k-mer seed
+index, and a non-seekable pipe yields an empty index (zero overlaps and an
+empty assembly). The FASTQ is kept and reused across reruns when it passes
+gzip -t. Emits stage-boundary log lines with elapsed times
 so the rule log stays informative while hifiasm itself is quiet: hifiasm's
 own [M::...] stderr is appended to the same log, but prints in bulk near the
 end of the run.
@@ -118,9 +122,124 @@ def write_stamp(out_prefix: str, bam: str) -> None:
         json.dump(bam_fingerprint(bam), f)
 
 
+def fastq_path(bam: str, out_prefix: str) -> str:
+    """Return the materialized FASTQ path next to the assembly outputs.
+
+    Named after the sample (the BAM basename) so it survives
+    ``--force-reassemble``'s ``<prefix>.*`` cleanup and matches the
+    ``<sample>.hifi.fq.gz`` convention of earlier workflow versions.
+
+    Args:
+        bam: input PacBio HiFi BAM.
+        out_prefix: hifiasm -o prefix (locates the output directory).
+
+    Returns:
+        Absolute-ish path of the per-sample gzipped FASTQ.
+    """
+    sample = os.path.splitext(os.path.basename(bam))[0]
+    return os.path.join(os.path.dirname(out_prefix) or ".",
+                        sample + ".hifi.fq.gz")
+
+
+def fastq_intact(fq_gz: str, bam: str) -> bool:
+    """Decide whether a materialized FASTQ can be reused.
+
+    Requires a clean ``gzip -t`` (an interrupted extraction leaves a
+    truncated file). A matching sidecar fingerprint is preferred; a
+    missing sidecar (older files) reuses with a warning, while a
+    mismatching sidecar refuses reuse so a replaced BAM is re-extracted.
+
+    Args:
+        fq_gz: candidate FASTQ path.
+        bam: input BAM the FASTQ must correspond to.
+
+    Returns:
+        True when the FASTQ is complete and current.
+    """
+    if not os.path.exists(fq_gz) or os.path.getsize(fq_gz) == 0:
+        return False
+    if subprocess.run(["gzip", "-t", fq_gz]).returncode != 0:
+        logger.warning("Existing FASTQ %s fails gzip -t (truncated by an "
+                       "interrupted extraction); re-extracting", fq_gz)
+        return False
+    meta = fq_gz + ".meta.json"
+    if os.path.exists(meta):
+        try:
+            with open(meta) as f:
+                recorded = json.load(f)
+        except (OSError, ValueError):
+            recorded = None
+        if recorded != bam_fingerprint(bam):
+            logger.warning("Existing FASTQ %s was extracted from a different "
+                           "BAM; re-extracting", fq_gz)
+            return False
+    else:
+        logger.warning("Reusing existing FASTQ %s without a fingerprint "
+                       "sidecar; delete %s to force re-extraction",
+                       fq_gz, fq_gz)
+    return True
+
+
+def extract_fastq(bam: str, samtools: str, threads: int, fq_gz: str) -> float:
+    """Extract the BAM to a gzipped FASTQ via ``samtools fastq | gzip -1``.
+
+    Writes to a ``.tmp`` file and renames on success so an interrupted
+    extraction can never masquerade as a complete FASTQ.
+
+    Args:
+        bam: input PacBio HiFi BAM.
+        samtools: samtools executable.
+        threads: threads for samtools fastq.
+        fq_gz: destination ``.fq.gz`` path.
+
+    Returns:
+        Elapsed seconds for the extraction.
+
+    Raises:
+        RuntimeError: samtools or gzip exited non-zero.
+    """
+    start = time.monotonic()
+    tmp = fq_gz + ".tmp"
+    logger.info("Extracting %s to %s (gzip -1)", bam, fq_gz)
+    logger.info("Executing: %s fastq -@ %d %s | gzip -1 > %s",
+                samtools, threads, bam, tmp)
+    with open(tmp, "wb") as fout:
+        sam = subprocess.Popen(
+            [samtools, "fastq", "-@", str(threads), bam],
+            stdout=subprocess.PIPE,
+        )
+        assert sam.stdout is not None
+        gz = subprocess.Popen(["gzip", "-1"], stdin=sam.stdout, stdout=fout)
+        sam.stdout.close()
+        gz_rc = gz.wait()
+        sam_rc = sam.wait()
+    if gz_rc != 0:
+        os.remove(tmp)
+        raise RuntimeError(
+            f"gzip failed (exit {gz_rc}) while extracting {bam}")
+    if sam_rc != 0 and sam_rc not in (-13, 141):
+        os.remove(tmp)
+        raise RuntimeError(
+            f"samtools fastq failed (exit {sam_rc}) for {bam}; "
+            f"check the rule log for tool output.")
+    os.replace(tmp, fq_gz)
+    with open(fq_gz + ".meta.json", "w") as f:
+        json.dump(bam_fingerprint(bam), f)
+    elapsed = time.monotonic() - start
+    logger.info("Extraction finished in %.1f s (%d bytes)", elapsed,
+                os.path.getsize(fq_gz))
+    return elapsed
+
+
 def assemble_from_bam(bam: str, samtools: str, hifiasm: str,
                       out_prefix: str, threads: int) -> float:
-    """Pipe samtools fastq output directly into hifiasm.
+    """Assemble the BAM's reads with hifiasm via a materialized FASTQ.
+
+    hifiasm re-reads its input while building its k-mer seed index, so
+    piping samtools fastq into /dev/stdin produces an empty index (zero
+    overlaps and an empty assembly). The reads are therefore extracted
+    once to <sample>.hifi.fq.gz (reused on reruns when intact) and hifiasm
+    is given that seekable file.
 
     Args:
         bam: input PacBio HiFi BAM (with colocated .bam.pbi index).
@@ -130,43 +249,28 @@ def assemble_from_bam(bam: str, samtools: str, hifiasm: str,
         threads: threads for both tools.
 
     Returns:
-        Elapsed seconds for the streaming assembly.
+        Elapsed seconds for extraction + assembly.
 
     Raises:
         RuntimeError: either tool exited non-zero.
     """
-    logger.info(
-        "Stage 1/2: streaming %s into hifiasm (hifiasm is quiet during read "
-        "loading/correction; its own [M::...] output appears below in bulk "
-        "near the end)", bam)
     start = time.monotonic()
-    logger.info("Executing: %s fastq -@ %d %s | %s -o %s -t %d /dev/stdin",
-                samtools, threads, bam, hifiasm, out_prefix, threads)
-    sam = subprocess.Popen(
-        [samtools, "fastq", "-@", str(threads), bam],
-        stdout=subprocess.PIPE,
-    )
-    assert sam.stdout is not None
-    hi = subprocess.Popen(
-        [hifiasm, "-o", out_prefix, "-t", str(threads), "/dev/stdin"],
-        stdin=sam.stdout,
-    )
-    sam.stdout.close()
-    hi_rc = hi.wait()
-    sam_rc = sam.wait()
-    if hi_rc != 0:
+    fq_gz = fastq_path(bam, out_prefix)
+    if fastq_intact(fq_gz, bam):
+        logger.info("Stage 1/2: reusing existing FASTQ %s", fq_gz)
+    else:
+        extract_fastq(bam, samtools, threads, fq_gz)
+    logger.info(
+        "Stage 1/2: assembling %s with hifiasm (hifiasm is quiet during read "
+        "loading/correction; its own [M::...] output appears below in bulk "
+        "near the end)", fq_gz)
+    logger.info("Executing: %s -o %s -t %d %s",
+                hifiasm, out_prefix, threads, fq_gz)
+    hi = subprocess.run([hifiasm, "-o", out_prefix, "-t", str(threads), fq_gz])
+    if hi.returncode != 0:
         raise RuntimeError(
-            f"hifiasm failed (exit {hi_rc}) for {bam}; "
+            f"hifiasm failed (exit {hi.returncode}) for {fq_gz}; "
             f"check the rule log for tool output.")
-    if sam_rc != 0 and sam_rc not in (-13, 141):
-        raise RuntimeError(
-            f"samtools fastq failed (exit {sam_rc}) for {bam}; "
-            f"check the rule log for tool output.")
-    if sam_rc != 0:
-        logger.warning(
-            "samtools fastq terminated by SIGPIPE (hifiasm stopped reading "
-            "early, e.g. when resuming from its cached overlaps); assembly "
-            "completed successfully")
     elapsed = time.monotonic() - start
     logger.info("Stage 1/2 finished: hifiasm assembly completed in %.1f s",
                 elapsed)

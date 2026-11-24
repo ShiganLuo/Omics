@@ -224,7 +224,17 @@ def plot_telomere_length(results: list[ContigTelomere], sample_name: str,
     (not sample length — see README).
     """
     if not results:
-        return []
+        # Still write the declared figure: a zero-region scan is a valid
+        # result (e.g. an assembly without telomere-spanning contig ends),
+        # and a silently skipped figure fails the rule on missing output.
+        fig, ax = plt.subplots(figsize=(6, 4))
+        ax.text(0.5, 0.5, "no telomeric regions detected at contig ends",
+                ha="center", va="center")
+        ax.set_axis_off()
+        fig.suptitle(f"Assembly telomere length — {sample_name}", fontsize=12)
+        written = save_fig(fig, out_base, formats)
+        plt.close(fig)
+        return written
     sig = [r for r in results if r.tel_length >= 1000]
     show = sig if sig else results
     lengths = [r.tel_length for r in show]

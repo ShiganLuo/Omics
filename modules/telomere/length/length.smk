@@ -416,7 +416,7 @@ rule tidk_scan:
             ]
             _search_tsv = os.path.join(
                 params.output_dir,
-                f"{wildcards.sample_id}_tidk_search_telomeric_repeat.tsv")
+                f"{wildcards.sample_id}_tidk_search_telomeric_repeat_windows.tsv")
             cmd_plot = [
                 "python", params.plot_script,
                 "-i", _search_tsv,
@@ -441,7 +441,7 @@ rule tidk_scan:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
-            search_tsv = os.path.join(params.output_dir, f"{wildcards.sample_id}_tidk_search_telomeric_repeat.tsv")
+            search_tsv = os.path.join(params.output_dir, f"{wildcards.sample_id}_tidk_search_telomeric_repeat_windows.tsv")
             if os.path.exists(search_tsv):
                 shutil.copy2(search_tsv, output.tsv)
                 rule_logger.info(f"Copied tidk search output to {output.tsv}")

@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """Plot telomere repeat locations/lengths from a tidk ``search`` result (Figure 3).
 
-Reads tidk's ``*_telomeric_repeat.tsv`` and renders a per-contig telomere
-picture. The exact tidk column layout varies across versions, so this parser is
+Reads tidk's ``*_telomeric_repeat_windows.tsv`` (the file ``tidk search``
+writes in tidk >= 0.2.x) and renders a per-contig telomere picture. The exact tidk column layout varies across versions, so this parser is
 ADAPTIVE: it detects the contig/sequence column and numeric length/size/count
 columns by name + dtype, then plots the most length-like numeric column (with a
 per-contig panel). If the layout can't be parsed it logs a warning and writes a
 "no parsable data" placeholder instead of crashing.
 
 Usage:
-    python plot_tidk.py -i s1_tidk_search_telomeric_repeat.tsv \
+    python plot_tidk.py -i s1_tidk_search_telomeric_repeat_windows.tsv \
         -s s1 -o out/s1/tidk -F png -F svg
 """
 from __future__ import annotations

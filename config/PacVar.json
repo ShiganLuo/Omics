@@ -9,7 +9,7 @@
       "snv_caller": "deepvariant"
     },
     "igv": {
-      "js": "/data/16T/Database/Reference/igv.min.js",
+      "js": "/data/16T/Database/SoftWare/igv.min.js",
       "id": "mm39",
       "name": "Mouse (GRCm39/mm39)",
       "publicPathMap": {
@@ -411,7 +411,7 @@
     },
     "RepeatMasker": {
       "species": "Mus musculus",
-      "dfam_h5": "/data/16T/Database/env/famdb/dfam39_full.7.h5"
+      "dfam_h5": "/data/16T/Database/Reference/famdb/dfam39_full.7.h5"
     },
     "gatk": {
       "javaOptions": "-Xmx45g",

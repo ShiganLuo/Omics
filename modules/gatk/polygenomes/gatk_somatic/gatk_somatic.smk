@@ -9,7 +9,7 @@ logdir = config.get("logdir") or "log"
 def get_input_somaticMutect2(wildcards):
     """
     This function determines the appropriate input BAM file for the HaplotypeCaller step based on the presence of known_sites and interval parameters.
-    If both known_sites and interval are provided, it assumes that BQSR has been performed and uses the BQSR-corrected BAM file. Otherwise, it falls back to using the MarkDuplicates BAM file. 
+    If both known_sites and interval are provided, it assumes that BQSR has been performed and uses the BQSR-corrected BAM file. Otherwise, it falls back to using the MarkDuplicates BAM file.
     It also checks for the presence of the corresponding index files and includes them as input if they exist.
     """
     in_dict = {}
@@ -22,7 +22,7 @@ def get_input_somaticMutect2(wildcards):
         in_dict["normal_bam"] = f"{indir}/{wildcards.normal_sample_id}/{wildcards.normal_sample_id}.sorted_markdup.bqsr.bam"
         in_dict["experimental_bam"] = f"{indir}/{wildcards.experimental_sample_id}/{wildcards.experimental_sample_id}.sorted_markdup.bqsr.bam"
     else:
-        logger.info("No known_sites or interval specified in config, proceeding without them.")
+        logger.debug("No known_sites or interval specified in config, proceeding without them.")
         in_dict["normal_bam"] = f"{indir}/{wildcards.normal_sample_id}/{wildcards.normal_sample_id}.sorted_markdup.bam"
         in_dict["experimental_bam"] = f"{indir}/{wildcards.experimental_sample_id}/{wildcards.experimental_sample_id}.sorted_markdup.bam"
 
@@ -30,12 +30,12 @@ def get_input_somaticMutect2(wildcards):
     dict_index = config.get("genome", {}).get(wildcards.genome, {}).get("dict_index")
     fasta = config.get("genome", {}).get(wildcards.genome, {}).get("fasta")
     if fai_index and dict_index:
-        logger.info(f"Using provided fai_index: {fai_index} and dict_index: {dict_index}")
+        logger.debug(f"Using provided fai_index: {fai_index} and dict_index: {dict_index}")
         in_dict["fai"] = fai_index
         in_dict["dict"] = dict_index
         in_dict["fasta"] = fasta
     else:
-        logger.info("No fai_index or dict_index specified in config, using rule to generate them.")
+        logger.debug("No fai_index or dict_index specified in config, using rule to generate them.")
         in_dict["fai"] = f"{indir}/index/{wildcards.genome}/genome.fa.fai"
         in_dict["dict"] = f"{indir}/index/{wildcards.genome}/genome.dict"
         in_dict["fasta"] = f"{indir}/index/{wildcards.genome}/genome.fa"

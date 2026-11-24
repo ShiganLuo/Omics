@@ -16,7 +16,7 @@ known_sites = config.get("reference", {}).get("known_sites", [])
 def get_input_HaplotypeCaller(wildcards):
     """
     This function determines the appropriate input BAM file for the HaplotypeCaller step based on the presence of known_sites and interval parameters.
-    If both known_sites and interval are provided, it assumes that BQSR has been performed and uses the BQSR-corrected BAM file. Otherwise, it falls back to using the MarkDuplicates BAM file. 
+    If both known_sites and interval are provided, it assumes that BQSR has been performed and uses the BQSR-corrected BAM file. Otherwise, it falls back to using the MarkDuplicates BAM file.
     It also checks for the presence of the corresponding index files and includes them as input if they exist.
     """
     in_dict = {}
@@ -25,16 +25,16 @@ def get_input_HaplotypeCaller(wildcards):
         include: "../gatk_bqsr/gatk_bqsr.smk"
         in_dict["bam"] = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.sorted_markdup.bqsr.bam"
     else:
-        logger.info("No known_sites or interval specified in config, proceeding without them.")
+        logger.debug("No known_sites or interval specified in config, proceeding without them.")
         in_dict["bam"] = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.sorted_markdup.bam"
 
     if fai_index and dict_index and fasta:
-        logger.info(f"Using provided fai_index: {fai_index} , dict_index: {dict_index}")
+        logger.debug(f"Using provided fai_index: {fai_index} , dict_index: {dict_index}")
         in_dict["fai"] = fai_index
         in_dict["dict"] = dict_index
         in_dict["fasta"] = fasta
     else:
-        logger.info("No fai_index or dict_index specified in config, using rule to generate them.")
+        logger.debug("No fai_index or dict_index specified in config, using rule to generate them.")
         in_dict["fai"] = f"{indir}/index/genome.fa.fai"
         in_dict["dict"] = f"{indir}/index/genome.dict"
         in_dict["fasta"] = f"{indir}/index/genome.fa"
@@ -100,12 +100,12 @@ def get_input_filterHaplotypeCallerVcf(wildcards):
     in_dict = {}
     in_dict["vcf"] = os.path.join(outdir, f"{wildcards.sample_id}/{wildcards.sample_id}.raw.vcf.gz")
     if fai_index and dict_index and fasta:
-        logger.info(f"Using provided fai_index: {fai_index} and dict_index: {dict_index}")
+        logger.debug(f"Using provided fai_index: {fai_index} and dict_index: {dict_index}")
         in_dict["fai"] = fai_index
         in_dict["dict"] = dict_index
         in_dict["fasta"] = fasta
     else:
-        logger.info("No fai_index or dict_index specified in config, using rule to generate them.")
+        logger.debug("No fai_index or dict_index specified in config, using rule to generate them.")
         in_dict["fai"] = f"{indir}/index/genome.fa.fai"
         in_dict["dict"] = f"{indir}/index/genome.dict"
         in_dict["fasta"] = f"{indir}/index/genome.fa"

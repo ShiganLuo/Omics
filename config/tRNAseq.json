@@ -79,7 +79,7 @@
     },
     "mimseq": {
       "mimseq_tRNAtools": {
-        "data_dir": "/home/luosg/Reference/tRNA/mimseq",
+        "data_dir": "/data/16T/Database/Reference/tRNA/mimseq",
         "species": "Hsap",
         "name": "tRNAseq",
         "cluster_id": 0.97,

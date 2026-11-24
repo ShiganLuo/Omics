@@ -9,6 +9,7 @@ samples = config.get("Params", {}).get("workflow", {}).get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 
 sample_data = config.get("Params", {}).get("workflow", {}).get("sample_data", "")
+trimmer = config.get('Params', {}).get('workflow', {}).get('trimmer') or "trim_galore"
 
 # Genome reference resolution — nested default + references pattern
 genome = config.get("genome", {}).get("default")
@@ -44,31 +45,64 @@ module fumitools:
 use rule fumitools_copy_umi from fumitools as tRNAseq_fumitools_copy_umi
 use rule fumitools_copy_umi_single from fumitools as tRNAseq_fumitools_copy_umi_single
 
-cutadapt_config = {
-
-    "resources": config.get("resources", {}),
-            "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
-            "env": config.get("env", {}),
-            "indir": fumitools_config["outdir"],
-            "outdir":  f"{outdir}/fastq/trimmed_fastq",
-            "logdir": logdir,
-            "mode": "UMI",
-            "Procedure": {
-                "trim_galore": config.get('Procedure',{}).get('trim_galore')
-            }
-}
-module cutadapt:
-    snakefile: "../modules/cutadapt/cutadapt.smk"
-    config: cutadapt_config
-logger.info(f"cutadapt_config: {cutadapt_config}")
-use rule trimming_Paired from cutadapt as RNAseq_trimming_Paireds
-use rule trimming_Single from cutadapt as RNAseq_trimming_Single
+# --- trimmer 选择 (UMI 流程,trimmomatic 模块不支持 UMI mode): cutadapt / trim_galore ---
+trimmed_dir = f"{outdir}/fastq/trimmed_fastq"
+if trimmer == "cutadapt":
+    cutadapt_config = {
+        "resources": config.get("resources", {}),
+        "ROOT_DIR": ROOT_DIR,
+        "OUTDIR_ROOT": outdir,
+        "env": config.get("env", {}),
+        "indir": fumitools_config["outdir"],
+        "outdir": trimmed_dir,
+        "logdir": logdir,
+        "mode": "UMI",
+        "Procedure": {
+            "cutadapt": config.get('Procedure',{}).get('cutadapt')
+        },
+        "Params": {
+            # 参数精确到 rule:Params.cutadapt.<rule>.<key>(模块读点)
+            "cutadapt": config.get('Params',{}).get("cutadapt", {}),
+        }
+    }
+    module cutadapt:
+        snakefile: "../modules/cutadapt/cutadapt.smk"
+        config: cutadapt_config
+    logger.info(f"cutadapt_config: {cutadapt_config}")
+    use rule trimming_Paired from cutadapt as tRNAseq_cutadapt_Paired
+    use rule trimming_Single from cutadapt as tRNAseq_cutadapt_Single
+elif trimmer == "trimmomatic":
+    raise ValueError("trimmomatic 模块不支持 UMI mode,tRNAseq 的 Params.workflow.trimmer 只能是 'cutadapt' 或 'trim_galore'")
+else:
+    logger.info("use default trimmer: trim_galore")
+    trim_galore_config = {
+        "resources": config.get("resources", {}),
+        "ROOT_DIR": ROOT_DIR,
+        "OUTDIR_ROOT": outdir,
+        "env": config.get("env", {}),
+        "indir": fumitools_config["outdir"],
+        "outdir": trimmed_dir,
+        "logdir": logdir,
+        "mode": "UMI",
+        "Procedure": {
+            "trim_galore": config.get('Procedure',{}).get('trim_galore')
+        },
+        "Params": {
+            # 参数精确到 rule:Params.trim_galore.<rule>.<key>(模块读点)
+            "trim_galore": config.get('Params',{}).get("trim_galore", {}),
+        }
+    }
+    module trim_galore:
+        snakefile: "../modules/trim-galore/trim-galore.smk"
+        config: trim_galore_config
+    logger.info(f"trim_galore_config: {trim_galore_config}")
+    use rule trimming_Paired from trim_galore as tRNAseq_trim_galore_Paired
+    use rule trimming_Single from trim_galore as tRNAseq_trim_galore_Single
 
 # Module config dict
 mimseq_config = {
     "resources": config.get("resources", {}),
-    "indir": cutadapt_config["outdir"],
+    "indir": trimmed_dir,
     "outdir": f"{outdir}/mimseq",
     "logdir": logdir,
     "meta": config.get("Params", {}).get("workflow", {}).get("meta", ""),

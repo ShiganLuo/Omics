@@ -397,7 +397,7 @@ module telomere_regions:
     config: telomere_regions_config
 use rule regions_telomere from telomere_regions as PacVar_regions_telomere
 
-centromere_config = {
+hifiasm_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -406,9 +406,25 @@ centromere_config = {
     "outdir": centromere_outdir,
     "logdir": logdir,
     "samples": samples,
-    "ROOT_DIR": config.get("ROOT_DIR", "."),
+}
+module hifiasm:
+    snakefile: "../modules/hifiasm/hifiasm.smk"
+    config: hifiasm_config
+logger.debug(f"hifiasm_config: {hifiasm_config}")
+use rule hifiasm_assemble from hifiasm as PacVar_hifiasm_assemble
+use rule hifiasm_result from hifiasm as PacVar_hifiasm_result
+
+centromere_config = {
+    "resources": config.get("resources", {}),
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": centromere_outdir,
+    "assembly_dir": hifiasm_config["outdir"],
+    "logdir": logdir,
+    "logdir_combine": f"{logdir}/group",
+    "samples": samples,
     "Params": {
-        "hifiasm": config.get("Params", {}).get("hifiasm", {}),
         "RepeatMasker": config.get("Params", {}).get("RepeatMasker", {}),
     },
 }

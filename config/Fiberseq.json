@@ -964,7 +964,8 @@
     "qc_summary": "/data/16T/Database/env/report/report.sif",
     "sigtest": "/data/16T/Database/env/sv/sv.sif",
     "telomere": "/data/16T/Database/env/telomere/telomere.sif",
-    "centromere": "/data/16T/Database/env/centromere/centromere.sif"
+    "centromere": "/data/16T/Database/env/centromere/centromere.sif",
+    "hifiasm": "/data/16T/Database/env/centromere/centromere.sif"
   },
   "resources": {
     "default": {
@@ -1174,7 +1175,7 @@
       "threads": 4
     },
     "hifiasm_assemble": {
-      "threads": 12,
+      "threads": 32,
       "mem_mb": 64000
     },
     "hiphase_phase": {

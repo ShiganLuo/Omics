@@ -524,7 +524,7 @@ logger.debug(f"fiberseq_track config: {fiberseq_track_config}")
 use rule fiberseq_track_run from fiberseq_track as Fiberseq_track_run
 
 assembly_outdir = f"{outdir}/assembly"
-centromere_config = {
+hifiasm_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -540,8 +540,25 @@ centromere_config = {
             "pbi": {s: f"{outdir}/common/1_raw_data/{s}/{s}.bam.pbi" for s in samples},
         },
     },
+}
+module hifiasm:
+    snakefile: "../modules/hifiasm/hifiasm.smk"
+    config: hifiasm_config
+logger.debug(f"hifiasm_config: {hifiasm_config}")
+use rule hifiasm_assemble from hifiasm as Fiberseq_hifiasm_assemble
+use rule hifiasm_result from hifiasm as Fiberseq_hifiasm_result
+
+centromere_config = {
+    "resources": config.get("resources", {}),
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": assembly_outdir,
+    "assembly_dir": hifiasm_config["outdir"],
+    "logdir": f"{logdir}/sample",
+    "logdir_combine": f"{logdir}/group",
+    "samples": samples,
     "Params": {
-        "hifiasm": config.get("Params", {}).get("hifiasm", {}),
         "RepeatMasker": config.get("Params", {}).get("RepeatMasker", {}),
     },
 }

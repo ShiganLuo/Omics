@@ -185,6 +185,9 @@ python workflow/Omics/run.py -m data/meta/fastq -w scRNAseq -o output \
 需要该数据库（含各物种参考基因组、MGP/gnomAD 种系变异资源、预构建 SIF 容器镜像等）的，
 请邮件联系：**[goodzyx36@gmail.com](mailto:goodzyx36@gmail.com)**
 
+`Database/` 下所有资源均可整体迁移后复用（跨服务器移动无需重新下载/构建），
+但 **STAR 索引（`star_index_dir`）除外**——迁移后不能直接复用，需在目标服务器上重新构建。
+
 更多生信相关内容欢迎访问：
 
 - **博客**：<https://blog.shiganluo.top/home> —— 生信分析笔记与流程使用心得

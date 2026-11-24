@@ -91,7 +91,7 @@ echo；引擎脚本自包含（规范 #0）、入口 `main()` 只编排、阶段
 - `telomere` 模块是"端粒长度分析"这一个原子分析步骤,内含 telogator2 / 组装扫描 /
   读段密度 / tidk 多种**测量方法**(同一分析的多种实现,由 `Params.telomere.method` 选择),
   合为一个模块合理
-- `centromere` 模块包含 `hifiasm` + `repeatmasker` 两步（组装→注释），但它们是同一个分析的上下游步骤，合为一个模块合理
+- `hifiasm` 组装被 `centromere`（着丝粒分析）与 telomere `assembly_scan`/`tidk` 等多个下游消费，按「可复用的分析能力是一个独立模块」拆为独立的 `hifiasm` 模块，下游经 subworkflow `module` + `use rule` 消费其输出文件（布局契约 `{outdir}/{sample_id}/assembly/asm.bp.p_ctg.fa`）；`centromere` 模块 = RepeatMasker 注释 + 统计提取两步，同为一个原子分析步骤的上下游，合为一个模块合理
 - 将 telomere 和 centromere 合为一个模块是**错误的**：两者工具链完全不同
 
 # 目录布局

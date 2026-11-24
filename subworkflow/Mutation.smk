@@ -6,6 +6,7 @@ logdir = config.get("Params", {}).get("workflow", {}).get("logdir", "logs")
 outfiles = config.get("outfiles", [])
 paired_samples = config.get("Params", {}).get("workflow", {}).get("paired_samples", [])
 single_samples = config.get("Params", {}).get("workflow", {}).get("single_samples", [])
+trimmer = config.get('Params', {}).get('workflow', {}).get('trimmer') or "trim_galore"
 # Genome reference resolution - nested `default` + `references` pattern
 default_genome = config.get("genome", {}).get("default")
 genome_ref = config.get("genome", {}).get("references", {}).get(default_genome, {}) if default_genome else {}
@@ -36,29 +37,79 @@ module fastqc_raw:
 logger.info(f"fastqc_raw_config: {fastqc_raw_config}")
 use rule fastqc from fastqc_raw as Mutation_fastqc_raw
 
-cutadapt_config = {
-
-    "resources": config.get("resources", {}),
+# --- trimmer 三选一 (RNAseq.smk 同款): cutadapt / trimmomatic / trim_galore ---
+trimmed_dir = f"{outdir}/common/2_trimmed_fastq"
+if trimmer == "cutadapt":
+    cutadapt_config = {
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": indir,
-        "outdir": f"{outdir}/common/2_trimmed_fastq",
+        "outdir": trimmed_dir,
+        "logdir": f"{logdir}/sample",
+        "Procedure": {
+            "cutadapt": config.get('Procedure',{}).get('cutadapt')
+        },
+        "Params": {
+            # 参数精确到 rule:Params.cutadapt.<rule>.<key>(模块读点)
+            "cutadapt": config.get('Params',{}).get("cutadapt", {}),
+        },
+    }
+    module cutadapt:
+        snakefile: "../modules/cutadapt/cutadapt.smk"
+        config: cutadapt_config
+    logger.info(f"Cutadapt parameters: {cutadapt_config}")
+    use rule trimming_Paired from cutadapt as Mutation_cutadapt_Paired
+    use rule trimming_Single from cutadapt as Mutation_cutadapt_Single
+elif trimmer == "trimmomatic":
+    trimmomatic_config = {
+        "resources": config.get("resources", {}),
+        "ROOT_DIR": ROOT_DIR,
+        "OUTDIR_ROOT": outdir,
+        "env": config.get("env", {}),
+        "indir": indir,
+        "outdir": trimmed_dir,
+        "logdir": f"{logdir}/sample",
+        "Procedure": {
+            "trimmomatic": config.get('Procedure',{}).get('trimmomatic')
+        },
+        "Params": {
+            # 参数精确到 rule:整段透传(adapter_pe 挂 trimmomatic_Paired,
+            # adapter_se 挂 trimmomatic_Single 各自 rule 子键)
+            "trimmomatic": config.get('Params',{}).get("trimmomatic", {}),
+        },
+    }
+    module trimmomatic:
+        snakefile: "../modules/trimmomatic/trimmomatic.smk"
+        config: trimmomatic_config
+    logger.info(f"Trimmomatic parameters: {trimmomatic_config}")
+    use rule trimmomatic_Paired from trimmomatic as Mutation_trimmomatic_Paired
+    use rule trimmomatic_Single from trimmomatic as Mutation_trimmomatic_Single
+else:
+    logger.info("use default trimmer: trim_galore")
+    trim_galore_config = {
+        "resources": config.get("resources", {}),
+        "ROOT_DIR": ROOT_DIR,
+        "OUTDIR_ROOT": outdir,
+        "env": config.get("env", {}),
+        "indir": indir,
+        "outdir": trimmed_dir,
         "logdir": f"{logdir}/sample",
         "Procedure": {
             "trim_galore": config.get('Procedure',{}).get('trim_galore')
         },
         "Params": {
-            # 参数精确到 rule:整段透传(Params.trim_galore.<rule>.<key>)
+            # 参数精确到 rule:Params.trim_galore.<rule>.<key>(模块读点)
             "trim_galore": config.get('Params',{}).get("trim_galore", {}),
         },
     }
-
-module cutadapt:
-    snakefile: "../modules/cutadapt/cutadapt.smk"
-    config: cutadapt_config
-logger.info(f"Cutadapt parameters: {cutadapt_config}")
-use rule trimming_Paired from cutadapt as Mutation_trimming_Paired
+    module trim_galore:
+        snakefile: "../modules/trim-galore/trim-galore.smk"
+        config: trim_galore_config
+    logger.info(f"Trim_galore parameters: {trim_galore_config}")
+    use rule trimming_Paired from trim_galore as Mutation_trim_galore_Paired
+    use rule trimming_Single from trim_galore as Mutation_trim_galore_Single
 
 fastqc_trimmed_config = {
 
@@ -66,7 +117,7 @@ fastqc_trimmed_config = {
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
-        "indir": cutadapt_config["outdir"],
+        "indir": trimmed_dir,
         "outdir":  f"{outdir}/quality/fastqc/trimmed",
         "logdir": f"{logdir}/sample",
         "paired_samples": paired_samples,
@@ -88,7 +139,7 @@ bwa_mem2_confg = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
-    "indir": cutadapt_config["outdir"],
+    "indir": trimmed_dir,
     "outdir":  f"{outdir}/common/3_sorted_bam",
     "logdir": f"{logdir}/sample",
     "paired_samples": paired_samples,
@@ -554,7 +605,7 @@ qc_summary_config = {
     "qc_dirs": {
         "fastqc_raw": fastqc_raw_config["outdir"],
         "fastqc_trimmed": fastqc_trimmed_config["outdir"],
-        "cutadapt": cutadapt_config["outdir"],
+        "cutadapt": trimmed_dir,
         "flagstat": samtools_config["outdir"],
         "bwa_mem2": f"{logdir}/sample",
         "markdup": gatk_prepare_config["outdir"],

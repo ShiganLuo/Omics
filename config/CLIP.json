@@ -11,7 +11,8 @@
       "input_samples": [],
       "treated_ip_samples": [],
       "treated_input_samples": [],
-      "aligner": "star"
+      "aligner": "star",
+      "trimmer": "trim_galore"
     },
     "trim_galore": {
       "trimming_Paired": {
@@ -46,28 +47,28 @@
       }
     },
     "igv": {
-      "js": "/data/pub/zhousha/Reference/igv.min.js",
+      "js": "/data/16T/Database/Reference/igv.min.js",
       "id": "mm39",
       "name": "Mouse (GRCm39/mm39)",
       "publicPathMap": {
         "/data/pub/zhousha/": "/data/",
         "/data/pub/zhousha/Reference/": "/ref/"
       },
-      "fastaURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-      "indexURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
-      "cytobandURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/mm39.cytoBand.txt",
+      "fastaURL": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+      "indexURL": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
+      "cytobandURL": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/mm39.cytoBand.txt",
       "tracks": [
         {
           "name": "Gencode vM38 genes",
           "format": "gtf",
-          "url": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.basic.gene_exon.sorted.gtf.gz",
-          "indexURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.basic.gene_exon.sorted.gtf.gz.tbi"
+          "url": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.basic.gene_exon.sorted.gtf.gz",
+          "indexURL": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.basic.gene_exon.sorted.gtf.gz.tbi"
         },
         {
           "name": "Gencode rmsk repeats",
           "format": "gtf",
-          "url": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz",
-          "indexURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz.tbi"
+          "url": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz",
+          "indexURL": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz.tbi"
         }
       ]
     },
@@ -100,11 +101,11 @@
     "default": "GRCm39",
     "references": {
       "GRCm39": {
-        "fasta": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-        "gtf": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
-        "hisat2_index_prefix": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/hisat2/genome",
-        "star_index_dir": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/star",
-        "chrom_sizes": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/chrom.sizes",
+        "fasta": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+        "gtf": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
+        "hisat2_index_prefix": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/hisat2/genome",
+        "star_index_dir": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/star",
+        "chrom_sizes": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/chrom.sizes",
         "sex_chroms": [
           "chrX",
           "chrY"
@@ -225,9 +226,9 @@
     }
   },
   "Procedure": {
-    "trim_galore": "/home/zhousha/tools/TrimGalore-0.6.10/trim_galore",
-    "hisat2": "/home/zhousha/tools/hisat2-2.2.1/hisat2",
-    "hisat2_build": "/home/zhousha/tools/hisat2-2.2.1/hisat2-build",
+    "trim_galore": null,
+    "hisat2": null,
+    "hisat2_build": null,
     "samtools": null,
     "bamCoverage": null,
     "bedtools": null,

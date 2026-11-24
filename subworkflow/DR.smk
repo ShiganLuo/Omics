@@ -12,7 +12,7 @@ drclass_samples = config.get("Params", {}).get("workflow", {}).get("drclass_samp
 dna_paired_samples = config.get("Params", {}).get("workflow", {}).get("dna_paired_samples", [])
 dna_single_samples = config.get("Params", {}).get("workflow", {}).get("dna_single_samples", [])
 dna_indir = config.get("Params", {}).get("workflow", {}).get("dna_indir", "")         # DNA 原始 fastq 根
-trimmer = config.get('Params', {}).get('workflow', {}).get('trimmer') or "cutadapt"
+trimmer = config.get('Params', {}).get('workflow', {}).get('trimmer') or "trim_galore"
 aligner_TEtranscripts = config.get('Params', {}).get('workflow', {}).get('aligner_TEtranscripts') or "star"
 outfiles = config.get("outfiles", [])
 default_genome = config.get("genome", {}).get("default")
@@ -68,25 +68,79 @@ module fastqc_raw:
     config: fastqc_raw_config
 use rule fastqc from fastqc_raw as DR_DNA_fastqc_raw
 
-dna_cutadapt_config = {
-    "resources": config.get("resources", {}),
-    "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
-    "env": config.get("env", {}),
-    "indir": dna_raw_dir,
-    "outdir": f"{outdir}/DNA/common/2_trimmed_fastq",
-    "logdir": f"{logdir}/sample",
-    "Procedure": {"trim_galore": config.get('Procedure', {}).get('trim_galore')},
-    "Params": {
-        # 参数精确到 rule:整段透传(Params.trim_galore.<rule>.<key>)
-        "trim_galore": config.get('Params', {}).get("trim_galore", {}),
-    },
-}
-module dna_cutadapt:
-    snakefile: "../modules/cutadapt/cutadapt.smk"
-    config: dna_cutadapt_config
-use rule trimming_Paired from dna_cutadapt as DR_DNA_trimming_Paired
-use rule trimming_Single from dna_cutadapt as DR_DNA_trimming_Single
+# --- trimmer 三选一 (RNA 侧同款): cutadapt / trimmomatic / trim_galore ---
+dna_trimmed_dir = f"{outdir}/DNA/common/2_trimmed_fastq"
+if trimmer == "cutadapt":
+    dna_cutadapt_config = {
+        "resources": config.get("resources", {}),
+        "ROOT_DIR": ROOT_DIR,
+        "OUTDIR_ROOT": outdir,
+        "env": config.get("env", {}),
+        "indir": dna_raw_dir,
+        "outdir": dna_trimmed_dir,
+        "logdir": os.path.join(logdir, "sample"),
+        "Procedure": {
+            "cutadapt": config.get('Procedure', {}).get('cutadapt')
+        },
+        "Params": {
+            # 参数精确到 rule:Params.cutadapt.<rule>.<key>(模块读点)
+            "cutadapt": config.get('Params', {}).get("cutadapt", {}),
+        },
+    }
+    module dna_cutadapt:
+        snakefile: "../modules/cutadapt/cutadapt.smk"
+        config: dna_cutadapt_config
+    logger.debug(f"dna_cutadapt_config: {dna_cutadapt_config}")
+    use rule trimming_Paired from dna_cutadapt as DR_DNA_cutadapt_Paired
+    use rule trimming_Single from dna_cutadapt as DR_DNA_cutadapt_Single
+elif trimmer == "trimmomatic":
+    dna_trimmomatic_config = {
+        "resources": config.get("resources", {}),
+        "ROOT_DIR": ROOT_DIR,
+        "OUTDIR_ROOT": outdir,
+        "env": config.get("env", {}),
+        "indir": dna_raw_dir,
+        "outdir": dna_trimmed_dir,
+        "logdir": os.path.join(logdir, "sample"),
+        "Procedure": {
+            "trimmomatic": config.get('Procedure', {}).get('trimmomatic')
+        },
+        "Params": {
+            # 参数精确到 rule:整段透传(adapter_pe 挂 trimmomatic_Paired,
+            # adapter_se 挂 trimmomatic_Single 各自 rule 子键)
+            "trimmomatic": config.get('Params', {}).get("trimmomatic", {}),
+        },
+    }
+    module dna_trimmomatic:
+        snakefile: "../modules/trimmomatic/trimmomatic.smk"
+        config: dna_trimmomatic_config
+    logger.debug(f"dna_trimmomatic_config: {dna_trimmomatic_config}")
+    use rule trimmomatic_Paired from dna_trimmomatic as DR_DNA_trimmomatic_Paired
+    use rule trimmomatic_Single from dna_trimmomatic as DR_DNA_trimmomatic_Single
+else:
+    logger.info("use default trimmer: trim_galore")
+    dna_trim_galore_config = {
+        "resources": config.get("resources", {}),
+        "ROOT_DIR": ROOT_DIR,
+        "OUTDIR_ROOT": outdir,
+        "env": config.get("env", {}),
+        "indir": dna_raw_dir,
+        "outdir": dna_trimmed_dir,
+        "logdir": os.path.join(logdir, "sample"),
+        "Procedure": {
+            "trim_galore": config.get('Procedure', {}).get('trim_galore')
+        },
+        "Params": {
+            # 参数精确到 rule:Params.trim_galore.<rule>.<key>(与 RNAseq.json 一致)
+            "trim_galore": config.get('Params', {}).get("trim_galore", {}),
+        },
+    }
+    module dna_trim_galore:
+        snakefile: "../modules/trim-galore/trim-galore.smk"
+        config: dna_trim_galore_config
+    logger.debug(f"dna_trim_galore_config: {dna_trim_galore_config}")
+    use rule trimming_Paired from dna_trim_galore as DR_DNA_trim_galore_Paired
+    use rule trimming_Single from dna_trim_galore as DR_DNA_trim_galore_Single
 
 fastqc_trimmed_config = {
 
@@ -94,7 +148,7 @@ fastqc_trimmed_config = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
-    "indir": dna_cutadapt_config["outdir"],
+    "indir": dna_trimmed_dir,
     "outdir": f"{outdir}/DNA/quality/fastqc/trimmed",
     "logdir": f"{logdir}/sample",
     "paired_samples": dna_paired_samples,
@@ -112,7 +166,7 @@ bwa_mem2_confg = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
-    "indir": dna_cutadapt_config["outdir"],
+    "indir": dna_trimmed_dir,
     "outdir": f"{outdir}/DNA/common/3_sorted_bam",
     "logdir": f"{logdir}/sample",
     "paired_samples": dna_paired_samples,
@@ -553,7 +607,7 @@ qc_summary_config = {
     "qc_dirs": {
         "fastqc_raw": fastqc_raw_config["outdir"],
         "fastqc_trimmed": fastqc_trimmed_config["outdir"],
-        "cutadapt": dna_cutadapt_config["outdir"],
+        "cutadapt": dna_trimmed_dir,
         "flagstat": samtools_config["outdir"],
         "bwa_mem2": f"{logdir}/sample",
         "markdup": gatk_prepare_config["outdir"],

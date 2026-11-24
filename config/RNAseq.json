@@ -32,9 +32,7 @@
         "adapter_se": "/data/16T/Database/SoftWare/Trimmomatic-0.41/adapters/TruSeq3-SE.fa"
       }
     },
-    "STAR_index": {
-
-    },
+    "STAR_index": {},
     "STAR_TEtranscripts": {
       "alignEndsType": "Local",
       "outFilterMismatchNoverReadLmax": 1.0,
@@ -326,7 +324,7 @@
         "TE_gtf": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf",
         "TEind": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf.locInd",
         "hisat2_index_prefix": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/hisat2/genome",
-        "star_index_dir": null,
+        "star_index_dir": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/star",
         "rRNA_fasta": null,
         "bowtie2_index_prefix_for_rRNA": null
       },
@@ -340,7 +338,7 @@
         "TE_gtf": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf",
         "TEind": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf.locInd",
         "hisat2_index_prefix": "/data/16T/Database/Reference/human/GENCODE/GRCh38/hisat2/GRCh38",
-        "star_index_dir": null,
+        "star_index_dir": "/data/16T/Database/Reference/human/GENCODE/GRCh38/star",
         "rRNA_fasta": null,
         "bowtie2_index_prefix_for_rRNA": null
       },
@@ -355,7 +353,7 @@
         "TEind": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/rheMac10_rmsk_TE.gtf.locInd.locations",
         "hisat2_index_prefix": null,
         "rRNA_fasta": null,
-        "star_index_dir": null
+        "star_index_dir": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/star"
       }
     }
   },

@@ -8,10 +8,16 @@
       "paired_samples": [],
       "single_samples": [],
       "paired_design": [],
-      "pair_strains": {}
+      "pair_strains": {},
+      "trimmer": "trim_galore"
     },
     "trim_galore": {
-      "quality": 25
+      "trimming_Paired": {
+        "quality": 25
+      },
+      "trimming_Single": {
+        "quality": 25
+      }
     },
     "samtools": {
       "onlykeep_properpair": false
@@ -92,6 +98,7 @@
         "min_mutations": 200,
         "min_exposure_frac": 0.02,
         "family_map": null,
+        "nmf_min_samples": 20,
         "max_rank": 8,
         "restarts": 20,
         "seed": 42,

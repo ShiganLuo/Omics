@@ -1,0 +1,11 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "samples": [],
+    "Procedure": {
+        "hifiasm": "hifiasm",
+        "samtools": "samtools",
+        "python": "python"
+    }
+}

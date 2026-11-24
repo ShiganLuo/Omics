@@ -1403,6 +1403,12 @@
                 "required": false,
                 "description": "签名->家族映射表文件;留空=脚本默认"
               },
+              "nmf_min_samples": {
+                "type": "int",
+                "nullable": true,
+                "required": false,
+                "description": "de novo NMF 最小样本数,低于该值 node.py 不注册 NMF 产出(both 降级 refit,nmf 报错);<=0 关闭保护"
+              },
               "max_rank": {
                 "type": "int",
                 "nullable": true,

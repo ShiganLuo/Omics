@@ -8,7 +8,7 @@ logdir = config.get("Params", {}).get("workflow", {}).get("logdir","logs")
 genome_paired_samples = config.get("Params", {}).get("workflow", {}).get("genome_paired_samples", {})
 genome_single_samples = config.get("Params", {}).get("workflow", {}).get("genome_single_samples", {})
 aligner_TEtranscripts = config.get('Params',{}).get('workflow', {}).get('aligner_TEtranscripts') or "star"
-trimmer = config.get('Params',{}).get('workflow', {}).get('trimmer') or "cutadapt"
+trimmer = config.get('Params',{}).get('workflow', {}).get('trimmer') or "trim_galore"
 
 outfiles = config.get("outfiles", [])
 genomes = set(genome_paired_samples.keys()).union(set(genome_single_samples.keys()))
@@ -64,7 +64,11 @@ if trimmer == "cutadapt":
             "outdir":  trimmed_fastq_dir,
             "logdir": os.path.join(logdir,"sample"),
             "Procedure": {
-                "trim_galore": config.get('Procedure',{}).get('trim_galore')
+                "cutadapt": config.get('Procedure',{}).get('cutadapt')
+            },
+            "Params": {
+                # 参数精确到 rule:Params.cutadapt.<rule>.<key>(模块读点)
+                "cutadapt": config.get('Params',{}).get("cutadapt", {}),
             },
         "resources": config.get("resources", {}),
         }
@@ -111,6 +115,10 @@ else:
             "logdir": os.path.join(logdir,"sample"),
             "Procedure": {
                 "trim_galore": config.get('Procedure',{}).get('trim_galore')
+            },
+            "Params": {
+                # 参数精确到 rule:Params.trim_galore.<rule>.<key>(模块读点)
+                "trim_galore": config.get('Params',{}).get("trim_galore", {}),
             },
         "resources": config.get("resources", {}),
         }

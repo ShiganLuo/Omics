@@ -7,8 +7,11 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import logging
+import sys
 from collections import defaultdict
-from pathlib import Path
+
+logger = logging.getLogger("extract_centromere_stats")
 
 CENTROMERE_FAMILIES = {
     "mouse": {
@@ -21,6 +24,44 @@ CENTROMERE_FAMILIES = {
         "Satellite": ["SATA", "SATR", "HSAT"],
     },
 }
+
+SPECIES_ALIASES = {
+    "mouse": "mouse",
+    "mus musculus": "mouse",
+    "human": "human",
+    "homo sapiens": "human",
+}
+
+
+def resolve_species(raw: str) -> str:
+    """Map a species term to a CENTROMERE_FAMILIES key.
+
+    Accepts the script vocabulary ('mouse'/'human') and RepeatMasker -species
+    terms ('Mus musculus'/'Homo sapiens'), case-insensitively. Any other
+    non-empty term passes through unchanged: without a species family table
+    the statistics fall back to generic satellite detection.
+
+    Args:
+        raw: species term from the CLI or config (Params.RepeatMasker.species).
+
+    Returns:
+        Canonical key of CENTROMERE_FAMILIES, or the term unchanged when no
+        family table exists for it.
+
+    Raises:
+        ValueError: the term is empty (missing config; never guess a species).
+    """
+    if not raw.strip():
+        raise ValueError(
+            "Missing species: set 'Params.RepeatMasker.species' in the "
+            "workflow config JSON (never guess a species).")
+    key = SPECIES_ALIASES.get(raw.strip().lower())
+    if key is not None:
+        return key
+    logger.warning(
+        "No centromere family table for species '%s'; reporting generic "
+        "satellite statistics only.", raw.strip())
+    return raw.strip()
 
 
 def parse_repeatmasker_out(rm_out: str) -> list[dict]:
@@ -201,23 +242,32 @@ def write_stats(rm_out: str, output: str, species: str,
         else:
             f.write(f"  No satellite blocks >= {min_block_len:,} bp found.\n")
 
-    print(f"Wrote: {output}")
+    logger.info("Wrote: %s", output)
 
 
 def main() -> None:
+    """Parse arguments, resolve the species term, and write the stats file."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--rm_out", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--species", default="mouse",
-                        choices=list(CENTROMERE_FAMILIES.keys()))
+                        help="Species for centromere family lookup: mouse/human "
+                             "or a RepeatMasker -species term such as "
+                             "'Mus musculus' (default: mouse)")
     parser.add_argument("--max_gap", type=int, default=50_000,
                         help="Max gap (bp) between satellite hits to merge into one block (default: 50000)")
     parser.add_argument("--min_block_len", type=int, default=100_000,
                         help="Minimum satellite block length to report (default: 100000)")
     args = parser.parse_args()
-    write_stats(args.rm_out, args.output, args.species,
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    write_stats(args.rm_out, args.output, resolve_species(args.species),
                 max_gap=args.max_gap, min_block_len=args.min_block_len)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as exc:
+        logger.error("%s", exc)
+        sys.exit(1)

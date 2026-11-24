@@ -1,201 +1,114 @@
 """Centromere analysis module.
 
 This module performs:
-1. Assembly with hifiasm
-2. RepeatMasker for satellite DNA annotation
-3. Centromere statistics extraction
+1. RepeatMasker for satellite DNA annotation
+2. Centromere statistics extraction
 
-Note: This module includes common.smk for shared utilities.
+Assembly comes from the upstream hifiasm module (modules/hifiasm): the input
+FASTA is expected at the shared layout {assembly_dir}/{sample_id}/assembly/
+asm.bp.p_ctg.fa. Note: This module includes common.smk for shared utilities.
 """
 
-# Include common utilities
 include: "../common/common.smk"
 
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
-indir = config.get("indir", "input")
+logdir_combine = config.get("logdir_combine", logdir)
 samples = config.get("samples", [])
-bam_substring = config.get("bam_substring") or ""
+assembly_dir = config.get("assembly_dir") or outdir
+RepeatMasker_params = config.get("Params", {}).get("RepeatMasker", {})
 
-def get_input_for_hifiasm(wildcards):
-    """Get input files for hifiasm assembly.
+def get_input_for_repeatmasker_init(wildcards):
+    """Declare repeatmasker_init inputs.
 
-    Dict-mode (inputs.hifiasm.bam / inputs.hifiasm.pbi, per-sample) wins —
-    e.g. Fiberseq's staged ``{raw}/{sample}/{sample}.bam`` layout; else the
-    module's standalone flat shape A ``{indir}/{sample_id}[.bam_substring].
-    bam`` (+ its colocated ``.bam.pbi`` index, the same naming contract
-    shape A uses).
+    The custom Dfam h5 joins only when configured (optional file, pattern 1);
+    without it the engine warms the cache with RepeatMasker's built-in
+    libraries. Configured-but-missing fails at DAG build via the input
+    declaration.
     """
-    per = (config.get("inputs", {}) or {}).get("hifiasm", {}) or {}
-    bam_map = per.get("bam", {}) or {}
-    pbi_map = per.get("pbi", {}) or {}
-    if wildcards.sample_id in bam_map:
-        bam = bam_map[wildcards.sample_id]
-        return {"bam": bam,
-                "bai": pbi_map.get(wildcards.sample_id) or (bam + ".pbi")}
-    in_dict = {}
-    if bam_substring != "":
-        in_dict["bam"] = os.path.join(indir, f"{wildcards.sample_id}." + bam_substring + ".bam")
-        in_dict["bai"] = os.path.join(indir, f"{wildcards.sample_id}." + bam_substring + ".bam.pbi")
-    else:
-        in_dict["bam"] = os.path.join(indir, f"{wildcards.sample_id}.bam")
-        in_dict["bai"] = os.path.join(indir, f"{wildcards.sample_id}.bam.pbi")
-    return in_dict
+    files = {}
+    if RepeatMasker_params.get("dfam_h5"):
+        files["dfam_h5"] = RepeatMasker_params.get("dfam_h5")
+    return files
 
-def get_dfam_h5(wildcards):
-    """RepeatMasker Dfam h5 library — required explicit config.
+def get_input_for_repeatmasker(wildcards):
+    """Declare RepeatMasker inputs.
 
-    ``Params.RepeatMasker.dfam_h5`` must be set (never guess a library);
-    unset fails fast naming the JSON key.
+    The lib-init marker joins only when a custom Dfam h5 is configured: its
+    producer (repeatmasker_init) then runs once before all samples; without a
+    custom library RepeatMasker uses its built-in defaults and no cache init
+    is needed.
     """
-    return _require(config.get("Params", {}).get("RepeatMasker", {}).get("dfam_h5"),
-                    "Params.RepeatMasker.dfam_h5", "centromere")
-
-rule hifiasm_assemble:
-    """Assemble HiFi reads with hifiasm."""
-    input:
-        unpack(get_input_for_hifiasm)
-    output:
-        fasta = outdir + "/{sample_id}/assembly/asm.bp.p_ctg.fa"
-    log:
-        logdir + "/{sample_id}/hifiasm.log"
-    conda: "centromere.yaml"
-    container:
-        sif("centromere.yaml", "hifiasm_assemble")
-    threads: rule_res("hifiasm_assemble").get("threads", 12)
-    benchmark: logdir + "/{sample_id}/hifiasm.benchmark.tsv",
-    resources:
-        mem_mb = lambda wildcards, input, attempt: rule_res(
-            "hifiasm_assemble", input_size=input_size_mb(input),
-            attempt=attempt).get("mem_mb", 64000),
-    params:
-        prefix = outdir + "/{sample_id}/assembly/asm"
-    run:
-        try:
-            open(log[0], "a").close()
-            logger = setup_logger(logger_name="hifiasm_assemble", log_file=log[0])
-            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            logger.info(f"Start hifiasm assembly for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"hifiasm_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
-            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/hifiasm.sh")
-            os.makedirs(os.path.join(outdir, wildcards.sample_id, "assembly"), exist_ok=True)
-            fq_gz = os.path.join(outdir, f"{wildcards.sample_id}/assembly/{wildcards.sample_id}.hifi.fq.gz")
-            cmd0 = [
-                "samtools", "fastq", "-@", str(threads), input.bam, "|", "gzip", "-c", ">", fq_gz
-            ]
-            cmd1 = [
-                "hifiasm", "-o", params.prefix, "-t", str(threads), fq_gz
-            ]
-            cmd2 = [
-                "awk", "'/^S/{print \">$2; print $3}'", f"{params.prefix}.bp.p_ctg.gfa", ">", output.fasta
-            ]
-            cmd3 = ["rm", "-f", fq_gz]
-            with open(script, "w") as f:
-                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
-                f.write(" ".join(cmd0) + "\n")
-                f.write(" ".join(cmd1) + "\n")
-                f.write(" ".join(cmd2) + "\n")
-                f.write(" ".join(cmd3) + "\n")
-                f.write(f'echo "script completed successfully"\n')
-            shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
-                script_only_touch(output)
-            else:
-                shell(f"bash {plain_script} >> {log[0]} 2>&1")
-        except Exception as e:
-            logger.error(f"hifiasm assembly failed for sample {wildcards.sample_id}: {e}\n")
-            raise RuntimeError(f"hifiasm assembly failed for sample {wildcards.sample_id} with error: {e}, you can check the log file {log[0]} for more details.")
+    files = {
+        "fasta": os.path.join(assembly_dir, f"{wildcards.sample_id}/assembly/asm.bp.p_ctg.fa"),
+    }
+    if RepeatMasker_params.get("dfam_h5"):
+        files["lib_init"] = os.path.join(outdir, ".repeatmasker_lib_init.done")
+    return files
 
 rule repeatmasker_init:
     """Build RepeatMasker library cache once to avoid concurrent makeblastdb conflicts."""
     input:
-        dfam_h5 = get_dfam_h5
+        unpack(get_input_for_repeatmasker_init)
     output:
-        outdir + "/.repeatmasker_lib_init.done"
+        done = outdir + "/.repeatmasker_lib_init.done"
     log:
-        logdir + "/all/RepeatMasker/repeatmasker_init.log"
+        logdir_combine + "/centromere/repeatmasker_init.log"
+    benchmark:
+        logdir_combine + "/centromere/repeatmasker_init.benchmark.tsv"
     conda: "centromere.yaml"
     container:
         sif("centromere.yaml", "repeatmasker_init")
-    params:
-        species = config.get("Params", {}).get("RepeatMasker", {}).get("repeatmasker_init", {}).get("species", "Mus musculus"),   # Params.RepeatMasker.repeatmasker_init.species(与 repeatmasker_run 各自)
-        RepeatMasker = config.get("Procedure", {}).get("RepeatMasker") or "RepeatMasker"
     threads: rule_res("repeatmasker_init").get("threads", 1)
-    benchmark: logdir + "/all/RepeatMasker/repeatmasker_init.benchmark.tsv",
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(
             "repeatmasker_init", input_size=input_size_mb(input),
             attempt=attempt).get("mem_mb", 8000),
+    params:
+        script = os.path.join(ROOT_DIR, "modules/centromere/bin/repeatmasker_init.py"),
+        python = config.get("Procedure", {}).get("python") or "python",
+        RepeatMasker = config.get("Procedure", {}).get("RepeatMasker") or "RepeatMasker",
+        species = RepeatMasker_params.get("repeatmasker_init", {}).get("species") or RepeatMasker_params.get("species"),
     run:
+        log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("repeatmasker_init", log_file=log_path)
         try:
-            open(log[0], "a").close()
-            rule_logger = setup_logger(logger_name="repeatmasker_init", log_file=log[0])
-            rule_logger.info("Building RepeatMasker library cache (one-time init)")
-            tmpdir = tempfile.mkdtemp()
-            dummy_fa = os.path.join(tmpdir, "dummy.fa")
-            with open(dummy_fa, "w") as f:
-                f.write(">dummy\nATCGATCGATCG\n")
-            cmd1 = [
-                params.RepeatMasker,
-                "-species", f"'{params.species}'",
-                "-pa", str(threads),
-                "-dir", tmpdir,
-                "-gff",
-                dummy_fa
-            ]
-            cmd3 = ["touch", output[0]]
-            cmd2 = ["rm", "-rf", tmpdir]
-            cmd4 = ["echo", "RepeatMasker library cache initialized."]
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start RepeatMasker library cache init at {current_time}")
+            sample_outdir = os.path.dirname(str(output.done))
+            os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"repeatmasker_init_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
-            plain_script = os.path.join(os.path.dirname(str(output[0])), "repeatmasker_init.sh")
-            if input.dfam_h5 and os.path.exists(input.dfam_h5):
-                rule_logger.warning("RepeatMasker don't support specifying custom Dfam h5 directly, pipeline will try to find the corresponding library dir and link your dfam h5 to the library dir with a name that RepeatMasker can recognize. Please ensure the Dfam h5 you provided is compatible with your RepeatMasker version and includes relevant satellite DNA for target species.")
-                RepeatMasker_lib_dir = ""
-                try:
-                    RepeatMasker_dir = shutil.which(params.RepeatMasker)
-                    if RepeatMasker_dir is None:
-                        rule_logger.error(f"RepeatMasker executable not found: {params.RepeatMasker}")
-                        raise FileNotFoundError(f"RepeatMasker executable not found: {params.RepeatMasker}")
-                    RepeatMasker_lib_dir = os.path.join(os.path.dirname(RepeatMasker_dir), "../share/RepeatMasker/Libraries/famdb")
-                    target_h5_path = os.path.join(RepeatMasker_lib_dir, os.path.basename(input.dfam_h5))
-                    if os.path.exists(target_h5_path):
-                        rule_logger.info(f"Custom Dfam h5 already exists in RepeatMasker library directory: {target_h5_path}, skipping linking.")
-                    elif not os.path.exists(RepeatMasker_lib_dir):
-                        # container env (sif): the lib dir is not host-visible/writable.
-                        # Expect the FamDB to be provided inside the env (baked links)
-                        # or via bind mount; linking from host is impossible.
-                        rule_logger.warning(f"RepeatMasker library directory not visible from host (container env): {RepeatMasker_lib_dir}. Skipping linking; expecting FamDB inside the env or via bind mount.")
-                    else:
-                        os.symlink(input.dfam_h5, target_h5_path)
-                        rule_logger.info(f"Linked custom Dfam h5 to RepeatMasker library directory: {target_h5_path}")
-                except OSError as e:
-                    rule_logger.warning(f"Could not link custom Dfam h5 into {RepeatMasker_lib_dir}: {e}. Continuing; expecting FamDB inside the env or via bind mount.")
-            else:
-                rule_logger.warning("No valid Dfam h5 provided for RepeatMasker, using default libraries. please ensure the default libraries include relevant satellite DNA for target species.")
+            plain_script = os.path.join(sample_outdir, "repeatmasker_init.sh")
+            cmd = [
+                params.python, params.script,
+                "--repeatmasker", params.RepeatMasker,
+                "--species", params.species or "",
+                "--threads", str(threads),
+                "--marker", str(output.done),
+            ]
+            dfam_h5 = getattr(input, "dfam_h5", "")
+            if dfam_h5:
+                cmd += ["--dfam-h5", str(dfam_h5)]
+            cmd_str = " ".join(shlex.quote(str(x)) for x in cmd)
             with open(script, "w") as f:
-                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
-                f.write(" ".join(cmd1) + "\n")
-                f.write(" ".join(cmd2) + "\n")
-                f.write(" ".join(cmd3) + "\n")
-                f.write(" ".join(cmd4) + "\n")
-                f.write(f'echo "script completed successfully"\n')
+                f.write("#!/bin/bash\nset -euo pipefail\n")
+                f.write(f"export OMP_NUM_THREADS={threads}\n")
+                f.write(f"export OPENBLAS_NUM_THREADS={threads}\n")
+                f.write(f"export MKL_NUM_THREADS={threads}\n")
+                f.write(f"export NUMBA_NUM_THREADS={threads}\n")
+                f.write(f"export VECLIB_MAXIMUM_THREADS={threads}\n")
+                f.write(cmd_str + "\n")
+                f.write('echo "RepeatMasker library cache init was completed successfully"\n')
+            rule_logger.info("Executing: " + cmd_str)
             shutil.copyfile(script, plain_script)
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
-                shell(f"bash {plain_script} >> {log[0]} 2>&1")
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            raise RuntimeError(f"RepeatMasker init failed with error: {e}")
-
-def get_input_for_repeatmasker(wildcards):
-    """Get input files for RepeatMasker."""
-    in_dict = {}
-    in_dict["fasta"] = os.path.join(outdir, f"{wildcards.sample_id}/assembly/asm.bp.p_ctg.fa")
-    in_dict["lib_init"] = os.path.join(outdir, ".repeatmasker_lib_init.done")
-    return in_dict
+            rule_logger.error(f"Error occurred during RepeatMasker library cache init: {e}\n")
+            raise RuntimeError(f"Error occurred during RepeatMasker library cache init: {e}, you can check the log file {log_path} for more details.\n")
 
 rule repeatmasker_run:
     """Run RepeatMasker on assembled contigs to annotate satellite DNA."""
@@ -205,49 +118,61 @@ rule repeatmasker_run:
         out = outdir + "/{sample_id}/RepeatMasker/asm.bp.p_ctg.fa.out",
         tbl = outdir + "/{sample_id}/RepeatMasker/asm.bp.p_ctg.fa.tbl"
     log:
-        logdir + "/{sample_id}/repeatmasker.log"
+        logdir + "/{sample_id}/repeatmasker_run.log"
+    benchmark:
+        logdir + "/{sample_id}/repeatmasker_run.benchmark.tsv"
     conda: "centromere.yaml"
     container:
         sif("centromere.yaml", "repeatmasker_run")
-    threads: rule_res("repeatmasker_run").get("threads", 12)
-    benchmark: logdir + "/{sample_id}/repeatmasker.benchmark.tsv",
+    threads: rule_res("repeatmasker_run").get("threads", 24)
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(
             "repeatmasker_run", input_size=input_size_mb(input),
             attempt=attempt).get("mem_mb", 32000),
     params:
-        species = config.get("Params", {}).get("RepeatMasker", {}).get("repeatmasker_run", {}).get("species", "Mus musculus"),   # Params.RepeatMasker.repeatmasker_run.species(与 repeatmasker_init 各自)
         rm_dir = outdir + "/{sample_id}/RepeatMasker",
         RepeatMasker = config.get("Procedure", {}).get("RepeatMasker") or "RepeatMasker",
+        species = RepeatMasker_params.get("repeatmasker_run", {}).get("species") or RepeatMasker_params.get("species"),
     run:
-        # setup_logger is now available from common.smk
+        log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("repeatmasker_run", log_file=log_path)
         try:
-            open(log[0], "a").close()
-            logger = setup_logger(logger_name="repeatmasker_run", log_file=log[0])
+            if not params.species:
+                raise ValueError("Missing RepeatMasker species: set 'Params.RepeatMasker.species' in the workflow config JSON (never guess a species).")
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            logger.info(f"Start RepeatMasker for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"repeatmasker_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
-            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/repeatmasker.sh")
+            rule_logger.info(f"Start RepeatMasker for sample {wildcards.sample_id} at {current_time}")
+            sample_outdir = os.path.dirname(str(output.out))
+            os.makedirs(sample_outdir, exist_ok=True)
+            script = os.path.join(RECEIPT_DIR, f"repeatmasker_run_{wildcards.sample_id}_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"repeatmasker_run_{wildcards.sample_id}.sh")
             cmd = [
                 params.RepeatMasker,
-                "-species", f"'{params.species}'",
+                "-species", params.species,
                 "-pa", str(threads),
                 "-dir", params.rm_dir,
                 "-gff",
-                input.fasta
+                str(input.fasta),
             ]
+            cmd_str = " ".join(shlex.quote(str(x)) for x in cmd)
             with open(script, "w") as f:
-                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
-                f.write(" ".join(cmd) + "\n")
-                f.write(f'echo "script completed successfully"\n')
+                f.write("#!/bin/bash\nset -euo pipefail\n")
+                f.write(f"export OMP_NUM_THREADS={threads}\n")
+                f.write(f"export OPENBLAS_NUM_THREADS={threads}\n")
+                f.write(f"export MKL_NUM_THREADS={threads}\n")
+                f.write(f"export NUMBA_NUM_THREADS={threads}\n")
+                f.write(f"export VECLIB_MAXIMUM_THREADS={threads}\n")
+                f.write(cmd_str + "\n")
+                f.write(f'echo "RepeatMasker annotation for {wildcards.sample_id} was completed successfully"\n')
+            rule_logger.info("Executing: " + cmd_str)
             shutil.copyfile(script, plain_script)
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
-                shell(f"bash {plain_script} >> {log[0]} 2>&1")
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            raise RuntimeError(f"RepeatMasker failed for sample {wildcards.sample_id} with error: {e}")
+            rule_logger.error(f"Error occurred during RepeatMasker for sample {wildcards.sample_id}: {e}\n")
+            raise RuntimeError(f"Error occurred during RepeatMasker for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.\n")
 
 rule centromere_extract:
     """Extract satellite DNA statistics from RepeatMasker output."""
@@ -257,43 +182,56 @@ rule centromere_extract:
         stats = outdir + "/{sample_id}/{sample_id}.centromere_stats.txt"
     log:
         logdir + "/{sample_id}/centromere_extract.log"
-    params:
-        script = os.path.join(ROOT_DIR, "modules/centromere/bin/extract_centromere_stats.py"),
-        python = config.get("Procedure", {}).get("python") or "python"
+    benchmark:
+        logdir + "/{sample_id}/centromere_extract.benchmark.tsv"
+    conda: "centromere.yaml"
+    container:
+        sif("centromere.yaml", "centromere_extract")
     threads: rule_res("centromere_extract").get("threads", 1)
-    benchmark: logdir + "/{sample_id}/centromere_extract.benchmark.tsv",
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(
             "centromere_extract", input_size=input_size_mb(input),
             attempt=attempt).get("mem_mb", 8000),
-    conda: "centromere.yaml"
-    container:
-        sif("centromere.yaml", "centromere_extract")
+    params:
+        script = os.path.join(ROOT_DIR, "modules/centromere/bin/extract_centromere_stats.py"),
+        python = config.get("Procedure", {}).get("python") or "python",
+        species = RepeatMasker_params.get("repeatmasker_run", {}).get("species") or RepeatMasker_params.get("species"),
     run:
+        log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("centromere_extract", log_file=log_path)
         try:
-            open(log[0], "a").close()
-            logger = setup_logger(logger_name="centromere_extract", log_file=log[0])
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            logger.info(f"Start centromere stats extraction for sample {wildcards.sample_id} at {current_time}")
+            rule_logger.info(f"Start centromere stats extraction for sample {wildcards.sample_id} at {current_time}")
+            sample_outdir = os.path.dirname(str(output.stats))
+            os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"centromere_extract_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
-            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/centromere_extract.sh")
+            plain_script = os.path.join(sample_outdir, f"centromere_extract_{wildcards.sample_id}.sh")
             cmd = [
-                "python", params.script,
-                "--rm_out", input.out,
-                "--output", output.stats
+                params.python, params.script,
+                "--rm_out", str(input.out),
+                "--output", str(output.stats),
+                "--species", params.species or "",
             ]
+            cmd_str = " ".join(shlex.quote(str(x)) for x in cmd)
             with open(script, "w") as f:
-                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
-                f.write(" ".join(cmd) + "\n")
-                f.write(f'echo "script completed successfully"\n')
+                f.write("#!/bin/bash\nset -euo pipefail\n")
+                f.write(f"export OMP_NUM_THREADS={threads}\n")
+                f.write(f"export OPENBLAS_NUM_THREADS={threads}\n")
+                f.write(f"export MKL_NUM_THREADS={threads}\n")
+                f.write(f"export NUMBA_NUM_THREADS={threads}\n")
+                f.write(f"export VECLIB_MAXIMUM_THREADS={threads}\n")
+                f.write(cmd_str + "\n")
+                f.write(f'echo "centromere stats extraction for {wildcards.sample_id} was completed successfully"\n')
+            rule_logger.info("Executing: " + cmd_str)
             shutil.copyfile(script, plain_script)
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
-                shell(f"bash {plain_script} >> {log[0]} 2>&1")
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            raise RuntimeError(f"Centromere stats extraction failed for sample {wildcards.sample_id} with error: {e}")
+            rule_logger.error(f"Error occurred during centromere stats extraction for sample {wildcards.sample_id}: {e}\n")
+            raise RuntimeError(f"Error occurred during centromere stats extraction for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.\n")
 
 rule centromere_result:
     """Result aggregation rule for subworkflow use rule import."""

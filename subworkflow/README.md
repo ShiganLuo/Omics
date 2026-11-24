@@ -249,7 +249,8 @@ FASTQ
   - telomere assembly scan：基于 assembly 的端粒扫描（推荐用于小鼠）
   - telomere read density：基于 read 的端粒 k-mer 密度估算
   - tidk：社区工具端粒扫描
-  - centromere：着丝粒分析（hifiasm + RepeatMasker）
+  - hifiasm：HiFi 基因组组装（独立模块，供 centromere/telomere 等下游复用）
+  - centromere：着丝粒分析（RepeatMasker 注释 + 卫星统计）
   - decoil：eccDNA / ecDNA 环状结构重建（可选；需 `genome.gtf`）
   - sv：SV 比较分析（SURVIVOR 合并 + VEP 注释 exp-specific SV、GO/KEGG 富集、circos、gene model、跨比较 diff、OncoPrint）
 - **输入**：PacBio BAM/fastq；如启用 eccDNA 步骤需要基因注释 GTF；SV 比较分析需 meta `design` 列（ctrl_TAG / exp_TAG 配对）或在 `Params.sv.comparisons` 手工配置

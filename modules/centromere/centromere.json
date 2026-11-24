@@ -1,20 +1,20 @@
 {
-    "indir": "input",
     "outdir": "output",
     "logdir": "logs",
     "samples": [],
     "Params": {
-        "hifiasm": {
-            "threads": 48
-        },
         "RepeatMasker": {
             "species": "mouse",
-            "threads": 16,
-            "dfam_h5": null
+            "dfam_h5": null,
+            "repeatmasker_init": {
+                "species": null
+            },
+            "repeatmasker_run": {
+                "species": null
+            }
         }
     },
     "Procedure": {
-        "hifiasm": "hifiasm",
         "RepeatMasker": "RepeatMasker",
         "python": "python"
     }

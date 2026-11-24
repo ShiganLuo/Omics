@@ -1434,19 +1434,9 @@
         }
       }
     },
-    "hifiasm": {
-      "threads": {
-        "type": "int",
-        "required": true
-      }
-    },
     "RepeatMasker": {
       "species": {
         "type": "str",
-        "required": true
-      },
-      "threads": {
-        "type": "int",
         "required": true
       },
       "dfam_h5": {

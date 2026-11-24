@@ -66,7 +66,16 @@
         "mESC-1ngRNA-1",
         "mESC-1ngRNA-2"
       ],
-      "sample_data": ""
+      "sample_data": "",
+      "trimmer": "trim_galore"
+    },
+    "trim_galore": {
+      "trimming_Paired": {
+        "quality": 20
+      },
+      "trimming_Single": {
+        "quality": 20
+      }
     },
     "mimseq": {
       "mimseq_tRNAtools": {
@@ -153,7 +162,7 @@
         "trnas": "",
         "trnaout": "",
         "mito_trnas": "",
-        "fasta": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+        "fasta": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
         "sex_chroms": [
           "chrX",
           "chrY"
@@ -227,6 +236,6 @@
   "outfiles": [
     "/data/pub/zhousha/20260207_Exome/output/tRNAseq/mimseq/mimseq"
   ],
-  "ROOT_DIR": "/data/pub/zhousha/20260207_Exome/workflow/Omics",
+  "ROOT_DIR": null,
   "tmp_dir": null
 }

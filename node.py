@@ -286,6 +286,60 @@ def _figs(base: str, fmts) -> List[str]:
     return [f"{base}.{fmt}" for fmt in fmts]
 
 
+def _nmf_sample_guard(
+        sig_cfg: Dict[str, Any],
+        n_spectrum_samples: int,
+        mode: str,
+) -> str:
+    """Sample-count guard for de novo NMF output registration.
+
+    With too few samples the NMF rank scan caps at the sample count, the
+    rank diagnostics saturate (cophenetic/stability near 1 at every rank,
+    KL divergence hitting ~0 at K = n_samples), and the extracted
+    components degenerate into sample grouping instead of mutational
+    processes. Below ``signature.nmf_min_samples`` (default 20; <= 0
+    disables the guard) the NMF outputs are not registered: mode ``nmf``
+    fails fast, mode ``both`` degrades to ``refit`` with a warning.
+
+    Parameters
+    ----------
+    sig_cfg : dict
+        ``Params.somatic_spectrum.signature`` configuration block.
+    n_spectrum_samples : int
+        Somatic samples entering the spectrum matrix (one column each).
+    mode : str
+        Requested signature mode (``refit`` / ``nmf`` / ``both``).
+
+    Returns
+    -------
+    str
+        The mode whose outputs should be registered.
+    """
+    if mode not in ("nmf", "both"):
+        return mode
+    nmf_min = sig_cfg.get("nmf_min_samples")
+    nmf_min = 20 if nmf_min is None else int(nmf_min)
+    if nmf_min <= 0 or n_spectrum_samples >= nmf_min:
+        return mode
+    if mode == "nmf":
+        raise ValueError(
+            "somatic_spectrum: signature.mode 'nmf' needs at least "
+            f"signature.nmf_min_samples ({nmf_min}) somatic samples for de "
+            f"novo extraction; got {n_spectrum_samples}. Below this floor the "
+            "NMF rank is not resolvable and the components track sample "
+            "grouping. Lower Params.somatic_spectrum.signature.nmf_min_samples "
+            "(<= 0 disables the guard) or use mode 'refit'."
+        )
+    logger.warning(
+        "somatic_spectrum: skipping de novo signature NMF - "
+        f"{n_spectrum_samples} somatic samples < signature.nmf_min_samples "
+        f"({nmf_min}); rank selection is not resolvable at this sample size. "
+        "Refit outputs are unaffected; set "
+        "Params.somatic_spectrum.signature.nmf_min_samples to override."
+    )
+    return "refit"
+
+
 def _register_regionplot(
         datajson: Dict[str, Any],
         samples_info_dict: Dict[str, SampleInfo],
@@ -1462,6 +1516,12 @@ def runMutation(
         _sig_cfg = datajson["Params"].get("somatic_spectrum", {}).get("signature", {}) or {}
         if _sig_cfg.get("enabled"):
             _sig_mode = str(_sig_cfg.get("mode", "both")).lower()
+            # De novo NMF sample-count guard: below signature.nmf_min_samples
+            # the rank is not resolvable (modules/spectrum/README.md,
+            # "de novo NMF 的样本量与突变负荷要求"); mode 'nmf' fails fast,
+            # 'both' degrades to refit. <= 0 disables the guard.
+            _sig_mode = _nmf_sample_guard(
+                _sig_cfg, len(sample_somatic_vcf_dict), _sig_mode)
             if _sig_mode in ("refit", "both"):
                 _sig_fmts = (datajson.get("Params", {}).get("somatic_spectrum", {})
                              .get("signature", {}).get("formats") or ["png"])
@@ -3004,6 +3064,7 @@ def runFiberseq(
     _fill_mei_rm_species(datajson, "Fiberseq")
     _fill_telomere_species(datajson, "Fiberseq")
     _fill_telomere_n_chrom_arms(datajson, "Fiberseq")
+    _fill_repeatmasker_species(datajson, "Fiberseq")
     comparisons = dict(sv_params.get("comparisons") or {})
     if enable_sv and not comparisons:
         for gp in group_pairs:
@@ -3880,6 +3941,12 @@ def runDR(
         _sig_cfg = datajson["Params"].get("somatic_spectrum", {}).get("signature", {}) or {}
         if _sig_cfg.get("enabled"):
             _sig_mode = str(_sig_cfg.get("mode", "both")).lower()
+            # De novo NMF sample-count guard: below signature.nmf_min_samples
+            # the rank is not resolvable (modules/spectrum/README.md,
+            # "de novo NMF 的样本量与突变负荷要求"); mode 'nmf' fails fast,
+            # 'both' degrades to refit. <= 0 disables the guard.
+            _sig_mode = _nmf_sample_guard(
+                _sig_cfg, len(sample_somatic_vcf_dict), _sig_mode)
             if _sig_mode in ("refit", "both"):
                 _sig_fmts = (datajson.get("Params", {}).get("somatic_spectrum", {})
                              .get("signature", {}).get("formats") or ["png"])

@@ -9,21 +9,21 @@
       "snv_caller": "deepvariant"
     },
     "igv": {
-      "js": "/data/pub/zhousha/Reference/igv.min.js",
+      "js": "/data/16T/Database/Reference/igv.min.js",
       "id": "mm39",
       "name": "Mouse (GRCm39/mm39)",
       "publicPathMap": {
         "/data/pub/zhousha/": "/data/"
       },
-      "fastaURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-      "indexURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
-      "cytobandURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/mm39.cytoBand.txt",
+      "fastaURL": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+      "indexURL": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
+      "cytobandURL": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/mm39.cytoBand.txt",
       "tracks": [
         {
           "name": "Gencode vM38 genes",
           "format": "gtf",
-          "url": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.basic.gene_exon.sorted.gtf.gz",
-          "indexUrl": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.basic.gene_exon.sorted.gtf.gz.tbi"
+          "url": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.basic.gene_exon.sorted.gtf.gz",
+          "indexUrl": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.basic.gene_exon.sorted.gtf.gz.tbi"
         }
       ]
     },
@@ -409,12 +409,8 @@
         ]
       }
     },
-    "hifiasm": {
-      "threads": 48
-    },
     "RepeatMasker": {
       "species": "Mus musculus",
-      "threads": 16,
       "dfam_h5": "/data/16T/Database/env/famdb/dfam39_full.7.h5"
     },
     "gatk": {
@@ -510,7 +506,7 @@
       "GRCh38": {
         "fasta": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
         "subtel_ref": null,
-        "gtf": "/data/pub/zhousha/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
+        "gtf": "/data/16T/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
         "repeat_bed": null,
         "te_lib": "/data/16T/Database/Reference/famdb/human_te_lib.fa",
         "fai_index": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa.fai",
@@ -519,7 +515,7 @@
       "GRCm39": {
         "fasta": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
         "subtel_ref": null,
-        "gtf": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
+        "gtf": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
         "repeat_bed": null,
         "te_lib": "/data/16T/Database/Reference/famdb/mouse_te_lib.fa",
         "fai_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
@@ -553,6 +549,7 @@
     "env_dir": "/data/pub/zhousha/Database/env",
     "genome": "/data/pub/zhousha/Database/env/genome/genome.sif",
     "centromere": "/data/pub/zhousha/Database/env/centromere/centromere.sif",
+    "hifiasm": "/data/pub/zhousha/Database/env/centromere/centromere.sif",
     "deeptools": "/data/pub/zhousha/Database/env/deeptools/deeptools.sif",
     "deepvariant": "/data/pub/zhousha/Database/env/deepvariant/deepvariant.sif",
     "decoil": "/data/pub/zhousha/Database/env/decoil/decoil.sif",
@@ -695,7 +692,7 @@
       "threads": 4
     },
     "hifiasm_assemble": {
-      "threads": 12,
+      "threads": 32,
       "mem_mb": 64000
     },
     "hiphase_phase": {
@@ -743,7 +740,7 @@
       "mem_mb": 8000
     },
     "repeatmasker_run": {
-      "threads": 12,
+      "threads": 24,
       "mem_mb": 32000
     },
     "sexcheck": {

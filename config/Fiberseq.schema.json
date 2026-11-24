@@ -12,7 +12,7 @@
   "nullable": true,
   "required": false,
   "path": "dir",
-  "description": "可选覆盖:外部已有 hifiasm 组装目录(布局 {assembly_dir}/{sample_id}/assembly/asm.bp.p_ctg.fa),设置后跳过流程内 hifiasm。缺省不设:组装由 Fiberseq_centromere_hifiasm_assemble 产出到 {outdir}/assembly"
+  "description": "可选覆盖:外部已有 hifiasm 组装目录(布局 {assembly_dir}/{sample_id}/assembly/asm.bp.p_ctg.fa),设置后跳过流程内 hifiasm。缺省不设:组装由 Fiberseq_hifiasm_assemble 产出到 {outdir}/assembly"
  },
  "logdir": {
   "type": "str",

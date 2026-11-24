@@ -44,7 +44,7 @@
     "default": "GRCm39",
     "references": {
       "GRCm39": {
-        "star_index_dir": null,
+        "star_index_dir": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/star",
         "sex_chroms": [
           "chrX",
           "chrY"

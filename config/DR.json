@@ -5,7 +5,7 @@
       "raw_files": [],
       "outdir": "output",
       "logdir": "logs",
-      "trimmer": "cutadapt",
+      "trimmer": "trim_galore",
       "paired_design": [],
       "pair_strains": {},
       "dr_pairs": {},
@@ -38,7 +38,14 @@
         "panel_of_normals": null
       }
     },
-    "cutadapt": {},
+    "cutadapt": {
+      "trimming_Paired": {
+        "minimum_length": 1
+      },
+      "trimming_Single": {
+        "minimum_length": 1
+      }
+    },
     "DRclass": {
       "drclass_pileup": {
         "min_mq": 20,
@@ -90,6 +97,7 @@
         "min_mutations": 200,
         "min_exposure_frac": 0.02,
         "family_map": null,
+        "nmf_min_samples": 20,
         "max_rank": 8,
         "restarts": 20,
         "seed": 42,
@@ -445,7 +453,7 @@
         "TE_gtf": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf",
         "TEind": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf.locInd",
         "hisat2_index_prefix": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/hisat2/genome",
-        "star_index_dir": null,
+        "star_index_dir": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/star",
         "rRNA_fasta": null,
         "bowtie2_index_prefix_for_rRNA": null
       }

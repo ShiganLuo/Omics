@@ -294,6 +294,10 @@
             "nullable": true,
             "required": false
           },
+          "nmf_min_samples": {
+            "type": "int",
+            "required": false
+          },
           "max_rank": {
             "type": "int",
             "required": false

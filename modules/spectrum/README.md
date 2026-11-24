@@ -46,6 +46,7 @@ WES 数据用同目录 `_exome.txt` 变体（外显子机会数归一化版本�
       "min_mutations": 200,
       "min_exposure_frac": 0.02,
       "family_map": null,
+      "nmf_min_samples": 20,
       "max_rank": 8,
       "restarts": 20,
       "seed": 42,
@@ -70,6 +71,7 @@ WES 数据用同目录 `_exome.txt` 变体（外显子机会数归一化版本�
 | `min_mutations` | 200 | 低于此 SNV 数的样本标记 unreliable（采样噪声不可忽略） |
 | `min_exposure_frac` | 0.02 | refit 剪枝阈值，低于此曝光比例的签名逐轮剔除后重拟合 |
 | `family_map` | null | 自定义家族映射 TSV（`family<TAB>SBS1,SBS2`）；null 用内置表（Clock-like/APOBEC/MMR/POLE_POLD1/HRD/UV 等） |
+| `nmf_min_samples` | 20 | de novo NMF 样本数保护：体细胞样本数低于该值时 node.py 不注册 NMF 产出（`mode: "both"` 降级为只出 refit 并告警，`mode: "nmf"` 直接报错）；`<= 0` 关闭保护。依据见下文「de novo NMF 的样本量要求与保护」 |
 | `max_rank` | 8 | NMF 扫描的最大秩 |
 | `restarts` | 20 | 每个秩的随机重启次数 |
 | `seed` | 42 | 随机种子（可复现） |
@@ -97,7 +99,7 @@ WES 数据用同目录 `_exome.txt` 变体（外显子机会数归一化版本�
 | `signature_refit_exposure_stacked_bar.<fmt>` / `_exposure_heatmap.<fmt>` | 曝光图;`<fmt>` 取自 `signature.formats`(默认 png) |
 | `signature_refit_signature_cosine.<fmt>` | 用到的签名两两余弦热图（简并证据：高余弦对之间的逐签名归属不可辨识，应读家族级） |
 
-`somatic_signature_nmf`（P2，de novo 提取）：
+`somatic_signature_nmf`（P2，de novo 提取；体细胞样本数 ≥ `nmf_min_samples` 时才注册，见下文保护）：
 
 | 文件 | 内容 |
 |---|---|
@@ -134,3 +136,32 @@ python modules/spectrum/bin/signature_nmf.py \
 
 人类 COSMIC 签名拟合小鼠数据（或反之）仅作**跨物种参考**，不构成同源赋值；
 小鼠数据建议以 de novo NMF 为主、COSMIC 注释为辅（详见原理文档 §5.6）。
+
+## de novo NMF 的样本量要求与保护
+
+de novo 提取对样本量的要求远高于 refit，原理推导见
+《突变签名分析_原理与影响因素.md》§3.4（可辨识性）：
+
+- **经验下限**：NMF 分离 K 个过程要求各样本的混合比例有足够变化，约需
+  ≥ 20–50 个样本、每样本数百到数千 SNV；文献中的 de novo 提取队列为
+  30 例起（Maura et al., Nat Commun 2019 的最小队列，且已出现签名合并与
+  伪影问题），大规模发现均在数百至数万样本（Alexandrov et al.,
+  Nature 2020；SigProfilerExtractor 基准，Islam et al.,
+  Cell Genomics 2022）。
+- **样本过少时诊断指标失效**：秩扫描上限是 min(96, 样本数)；样本数 = N 时
+  KL 散度在 K=N 平凡归零（是平凡饱和，不是拟合优度证据），cophenetic 与
+  稳定性在所有秩上都接近 1、无跌点可判。此时提取出的成分退化为样本分组
+  而非突变过程——实测 4 样本案例中，两个"签名"的曝光即按 KSR / TLSC
+  分组分离。
+- **结论**：样本量低于下限时只做 refit（按家族级解读），不报告 de novo
+  签名。
+
+对应保护由 node.py 在注册产出时执行（Mutation / DR 工作流一致）：
+
+- `signature.nmf_min_samples`（默认 20）：体细胞样本数低于该值时不注册
+  NMF 产出——`mode: "both"` 自动降级为只出 refit 并告警，`mode: "nmf"`
+  直接报错（fail fast）；`<= 0` 关闭保护。
+- NMF 被跳过时下游 Mutation_report 正常降级（"signature NMF not run"），
+  refit 产出不受影响。
+- CLI 直跑 `bin/signature_nmf.py` 不经过该保护，样本量是否足够由使用者
+  自行判断。

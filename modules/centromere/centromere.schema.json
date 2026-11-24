@@ -1,9 +1,4 @@
 {
-  "indir": {
-    "type": "str",
-    "nullable": true,
-    "required": true
-  },
   "outdir": {
     "type": "str",
     "nullable": true,
@@ -24,18 +19,6 @@
     "nullable": true,
     "required": false,
     "properties": {
-      "hifiasm": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          }
-        }
-      },
       "RepeatMasker": {
         "type": "dict",
         "nullable": true,
@@ -46,10 +29,34 @@
             "nullable": true,
             "required": false
           },
-          "threads": {
-            "type": "int",
+          "dfam_h5": {
+            "type": "str",
             "nullable": true,
             "required": false
+          },
+          "repeatmasker_init": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "species": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "repeatmasker_run": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "species": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }
@@ -60,11 +67,6 @@
     "nullable": true,
     "required": false,
     "properties": {
-      "hifiasm": {
-        "type": "str",
-        "nullable": true,
-        "required": false
-      },
       "RepeatMasker": {
         "type": "str",
         "nullable": true,

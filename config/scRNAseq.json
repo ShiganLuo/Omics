@@ -295,7 +295,7 @@
         "te_bed": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.bed",
         "scTE_index": null,
         "cellranger_ref_dir": null,
-        "star_index_dir": null,
+        "star_index_dir": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/star",
         "fai_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
         "dict_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.dict"
       },
@@ -306,7 +306,7 @@
         "te_bed": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.bed",
         "scTE_index": null,
         "cellranger_ref_dir": null,
-        "star_index_dir": null,
+        "star_index_dir": "/data/16T/Database/Reference/human/GENCODE/GRCh38/star",
         "fai_index": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa.fai",
         "dict_index": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.dict"
       },
@@ -316,8 +316,8 @@
         "geneIDAnno": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/geneIDAnnotation.csv",
         "te_bed": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/rheMac10_rmsk_TE.bed",
         "scTE_index": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/scTE_index/Mmul_10.exclusive.idx",
-        "cellranger_ref_dir": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/Mmul_10",
-        "star_index_dir": null,
+        "cellranger_ref_dir": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/cellranger",
+        "star_index_dir": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/star",
         "fai_index": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.fa.fai",
         "dict_index": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.dict"
       }

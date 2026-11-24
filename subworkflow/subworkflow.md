@@ -269,7 +269,7 @@ star_config = {
 
 ## 组装→telomere 衔接（Fiberseq 实例，2026-11 定案）
 
-hifiasm 组装（`modules/centromere` 的 `hifiasm_assemble`）作为 telomere `assembly_scan`/`tidk` 的上游时：产出目录用模块级常量 `assembly_outdir = f"{outdir}/assembly"`（布局 `{assembly_outdir}/{sample_id}/assembly/asm.bp.p_ctg.fa`），telomere_config 的 `assembly_dir` 引用该常量，写法 `config.get("assembly_dir") or assembly_outdir`——顶层 `assembly_dir` 是可选显式覆盖（外部已有组装时指向它、跳过 hifiasm），缺省即流程内产出（有 DAG 生产者）。组装仅在 `Params.telomere.method` 含 `assembly_scan`/`tidk` 时被 DAG 拉起。hifiasm 输入走 dict-mode（`inputs.hifiasm.bam`/`inputs.hifiasm.pbi`，Fiberseq 的 `{raw}/{sample}/{sample}.bam` staging 布局无法用形态 A 平铺表达）。
+hifiasm 组装（`modules/hifiasm` 的 `hifiasm_assemble`）作为 telomere `assembly_scan`/`tidk` 的上游时：产出目录用模块级常量 `assembly_outdir = f"{outdir}/assembly"`（布局 `{assembly_outdir}/{sample_id}/assembly/asm.bp.p_ctg.fa`），telomere_config 的 `assembly_dir` 引用该常量，写法 `config.get("assembly_dir") or assembly_outdir`——顶层 `assembly_dir` 是可选显式覆盖（外部已有组装时指向它、跳过 hifiasm），缺省即流程内产出（有 DAG 生产者）。组装仅在 `Params.telomere.method` 含 `assembly_scan`/`tidk` 时被 DAG 拉起。hifiasm 输入走 dict-mode（`inputs.hifiasm.bam`/`inputs.hifiasm.pbi`，Fiberseq 的 `{raw}/{sample}/{sample}.bam` staging 布局无法用形态 A 平铺表达）。
 
 ## 模块级常量
 

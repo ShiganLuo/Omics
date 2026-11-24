@@ -44,7 +44,7 @@ def teffect_analyze_inputs(wildcards):
     for s in samples:
         files[f"drclass_dna_{s}"] = f"{drclass_dir}/{s}/{s}.dna_anchored.tsv"
         files[f"anchors_{s}"] = f"{drclass_dir}/{s}/anchors.tsv"
-        files[f"cnv_{s}"] = f"{cnv_dir}/{s}/{s}.call.cns"
+        files[f"cnv_{s}"] = f"{cnv_dir}/{s}/{s}.cns"
     if gmt:
         files["gmt"] = gmt
     if gtf:

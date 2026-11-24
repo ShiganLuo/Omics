@@ -198,7 +198,7 @@ def cnv_analysis(genes, expressed, cnv_dir, samples, groups, sex_chroms):
     summary = []
     for s in samples:
         segs = []
-        path = os.path.join(cnv_dir, s, f"{s}.call.cns")
+        path = os.path.join(cnv_dir, s, f"{s}.cns")
         with open_text(path) as fh:
             for r in csv.DictReader(fh, delimiter="\t"):
                 segs.append((r["chromosome"], int(r["start"]), int(r["end"]),
@@ -605,7 +605,7 @@ def main():
                    help="sample=group,可重复;缺省样本各归一组 G")
     a.add_argument("--drclass-dir", required=True)
     a.add_argument("--counts", required=True, help="featureCounts 合并矩阵")
-    a.add_argument("--cnv-dir", required=True, help="含 <sample>/<sample>.call.cns")
+    a.add_argument("--cnv-dir", required=True, help="含 <sample>/<sample>.cns")
     a.add_argument("--gmt", default=None, help="基因集 GMT(P5 反向检验)")
     a.add_argument("--gene-sets", default=None,
                    help="GMT 集合名,| 分隔;缺省 12 个基因组稳定性通路")

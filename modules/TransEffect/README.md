@@ -15,7 +15,7 @@ null）、CNV 表达剂量一致性、稳定性程序基因反向检验（P5）�
 | `sample_group_dict` (config) | sample → 分组名；Δ' 组内对照按此分组，组内需 ≥2 样本 |
 | `drclass_dir` | DRclass 输出根，消费 `<sample>/<sample>.dna_anchored.tsv` 与 `<sample>/anchors.tsv` |
 | `counts_matrix` | featureCounts 合并矩阵（`{genome}_featureCounts.tsv`），列名含样本 BAM 路径 |
-| `cnv_dir` | CNVkit 输出根，消费 `<sample>/<sample>.call.cns` |
+| `cnv_dir` | CNVkit 输出根，消费 `<sample>/<sample>.cns`(cnvkit 模块产出命名) |
 | `gmt`（可选） | 基因集 GMT；缺省跳过 P5 反向检验及对应图 |
 | `gene_sets`（可选） | GMT 内参与交集的集合名（\| 分隔）；缺省 12 个基因组稳定性通路 |
 | `gtf`（可选） | gene_id→gene_name 映射来源（图内标注 / P5 符号映射） |
@@ -80,7 +80,7 @@ python3 run_module.py -m TransEffect            # 默认目标 = 全部表 + 4 �
   的假偏移），本模块实现为组内对照版；同组多携带的基因剔除（无法归因）。
 - **随机 null**：等量随机表达基因、同剔除规则，`null_reps` 次重复，给 Δ' 分布
   的零假设参照。判读：变异基因 Δ' 与 null 一致 → 变异不伴随表达偏离。
-- **CNV 剂量一致性**：表达基因按中点落入 call.cns 段分类(gain cn>2 / loss
+- **CNV 剂量一致性**：表达基因按中点落入 cns 段分类(gain cn>2 / loss
   cn<2 / neutral)，逐样本算类内 Δ' 分布；另分开报告常染色体
   （^(chr)?数字+$）与未定位支架的 cn≠2 段数（雄性 chrX/chrY 半合子与支架
   伪段不是体细胞 CNV）。

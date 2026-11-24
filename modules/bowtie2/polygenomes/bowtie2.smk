@@ -9,6 +9,8 @@ logdir_combine = config.get("logdir_combine", "log/group")
 # 无 module 级共享回退,bowtie2_align_paired / bowtie2_align_single 各自独立键)。
 genome_paired_samples = config.get("genome_paired_samples") or {}
 genome_single_samples = config.get("genome_single_samples") or {}
+# temp 规范(modules.md):本模块的中间文件用 maybe_temp(path, "<key>") 包裹,
+# 是否标 temp 由 Params.<key>.keep_intermediates 决定(缺省 True=兜底保留)。
 
 BOWTIE2_IDX_SUFFIX = ["1.bt2", "2.bt2", "3.bt2", "4.bt2", "rev.1.bt2", "rev.2.bt2"]
 
@@ -122,10 +124,10 @@ rule bowtie2_align_paired:
         fastq2 = indir + "/{sample_id}/{sample_id}_2.fq.gz",
         index = get_bowtie2_index
     output:
-        bam = outdir + "/{genome}/{sample_id}/{sample_id}.bam",
+        bam = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}.bam", "bowtie2"),
         metrics = outdir + "/{genome}/{sample_id}/{sample_id}_bowtie2_metrics.txt",
-        unmapped1 = outdir + "/{genome}/{sample_id}/{sample_id}_unmapped_1.fq.gz",
-        unmapped2 = outdir + "/{genome}/{sample_id}/{sample_id}_unmapped_2.fq.gz"
+        unmapped1 = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}_unmapped_1.fq.gz", "bowtie2"),
+        unmapped2 = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}_unmapped_2.fq.gz", "bowtie2")
     log:
         logdir + "/{sample_id}/{genome}/bowtie2_align.log"
     threads: rule_res("bowtie2_align_paired").get("threads", 8)
@@ -184,9 +186,9 @@ rule bowtie2_align_single:
         fastq = indir + "/{sample_id}/{sample_id}.single.fq.gz",
         index = get_bowtie2_index
     output:
-        bam = outdir + "/{genome}/{sample_id}/{sample_id}.bam",
+        bam = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}.bam", "bowtie2"),
         metrics = outdir + "/{genome}/{sample_id}/{sample_id}_bowtie2_metrics.txt",
-        unmapped = outdir + "/{genome}/{sample_id}/{sample_id}_unmapped.single.fq.gz"
+        unmapped = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}_unmapped.single.fq.gz", "bowtie2")
     log:
         logdir + "/{sample_id}/{genome}/bowtie2_align.log"
     threads: rule_res("bowtie2_align_single").get("threads", 8)

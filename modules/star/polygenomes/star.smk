@@ -1,6 +1,10 @@
 include: "../../common/common.smk"
 
 import logging
+# temp 规范(modules.md):本模块的中间文件用 maybe_temp(path, "<key>") 包裹,
+# 是否标 temp 由 Params.<key>.keep_intermediates 决定(缺省 True=兜底保留)。
+
+
 outdir = config.get("outdir", "output")
 index_dir = config.get("index_dir",outdir)
 logdir = config.get("logdir", "log")
@@ -176,10 +180,10 @@ rule star_align:
         fastq = get_alignment_input,
         genome_index = get_star_index
     output:
-        bam = outdir + "/{genome}/{sample_id}/{sample_id}.bam",
-        bai = outdir + "/{genome}/{sample_id}/{sample_id}.bam.bai",
-        unmapped_r1 = outdir + "/{genome}/{sample_id}/{sample_id}.Unmapped.out.mate1",
-        unmapped_r2 = outdir + "/{genome}/{sample_id}/{sample_id}.Unmapped.out.mate2",
+        bam = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}.bam", "star"),
+        bai = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}.bam.bai", "star"),
+        unmapped_r1 = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}.Unmapped.out.mate1", "star"),
+        unmapped_r2 = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}.Unmapped.out.mate2", "star"),
     log:
         logdir + "/{sample_id}/{genome}/star_align.log"
     threads: rule_res("star_align").get("threads", 12)

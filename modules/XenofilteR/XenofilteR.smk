@@ -3,6 +3,10 @@ include: "../common/common.smk"
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
+# temp 规范(modules.md):本模块的中间文件用 maybe_temp(path, "<key>") 包裹,
+# 是否标 temp 由 Params.<key>.keep_intermediates 决定(缺省 True=兜底保留)。
+
+
 # first col: target(human) genome,second col: contaminating genome. human sample may contaminated by mouse genome
 
 def get_input_for_XenofilteR(wildcards):
@@ -25,9 +29,9 @@ rule XenofilteR:
     input:
         unpack(get_input_for_XenofilteR)
     output:
-        csvIn = outdir + "/{genome}/{sample_id}/{sample_id}.csv",
-        outBam = temp(outdir + "/{genome}/{sample_id}/{sample_id}.bam"),
-        outBai = temp(outdir + "/{genome}/{sample_id}/{sample_id}.bam.bai"),
+        csvIn = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}.csv", "XenofilteR"),
+        outBam = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}.bam", "XenofilteR"),
+        outBai = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}.bam.bai", "XenofilteR"),
     log:
         logdir + "/{sample_id}/{genome}/XenofilteR.log"
     threads: rule_res("XenofilteR").get("threads", 8)

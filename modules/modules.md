@@ -312,6 +312,44 @@ pandas、json、gzip …）才在模块里 import。重复导入不报错、不�
 长耗时脚本带缓存时尤其依赖此条——缓存放在 directory() 输出里,每次重跑
 都会被清空,永远命不中。
 
+# temp 中间产物规范(强制)
+
+## temp 原则
+
+只给"本次跑完后大概率不会再用到"的中间文件标 `temp()`。交付物、QC 证据
+(如 Markdup-metrics、trimming/bowtie2 报告)、报告、index、clean fastq 等
+**非中间文件永不包裹**——它们是各模块确定的常量,不属于字段范围。一个模块
+的中间文件清单是穷尽的:要么全部受字段控制,要么该模块无中间文件、不设字段,
+不存在"一半删一半留"的字段歧义。
+
+## keep_intermediates 字段
+
+- 用户配置:`Params.<模块实例段>.keep_intermediates`(bool)。模块被多次使用
+  时(如 star 的 STAR_TEtranscripts / STAR_featureCounts / STAR_fusion /
+  STAR_SNP),每个实例段各一个字段,互不影响。
+- 语义:`true` = 全部中间文件常驻;`false` = 全部中间文件用完即删。
+- **缺省 = true(兜底保留)**:保留中间文件不影响任何交付产物;未传字段的
+  流程一律按 true 处理,永不误删。
+- 无中间产物的模块(qc_summary、sexcheck、report 等)不设该字段。
+
+## 用法
+
+    # modules/common/common.smk 提供 maybe_temp;模块 output 中:
+    bam = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}.bam", "<mod>")
+
+`maybe_temp(path, mod_key)` 读 `Params.<mod_key>.keep_intermediates`(缺省
+True),显式 false 时返回 `temp(path)`,否则原样返回。子流程负责把用户实例段
+的取值翻译到模块 config dict 的 `Params.<mod>.keep_intermediates`(整体透传
+的实例段自动直达,无需翻译)。
+
+## 已确认的前置事实
+
+- 同一 output 块内 temp 与非 temp 混用合法(temp 文件在全部消费 job 完成后
+  自动删除,非 temp 常驻)。
+- temp 只作用于声明的 output;工具旁路输出(如 STAR 的 Log.out /
+  Chimeric.out.*)不受管理,需清理要显式声明或另跑清理。
+- temp 文件在后续 `--forcerun` 单步重跑时会级联重算上游——接受的代价。
+
 # 命名约定
 
 - 规则名描述动作：`*_index` / `*_align` / `*_run` / `*_phase`

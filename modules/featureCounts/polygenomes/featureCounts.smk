@@ -5,6 +5,8 @@ logdir = config.get("logdir", "log")
 ROOT_DIR = config.get("ROOT_DIR", "./")
 genome_paired_samples = config.get("genome_paired_samples", {})
 genome_single_samples = config.get("genome_single_samples", {})
+# temp 规范(modules.md):本模块的中间文件用 maybe_temp(path, "<key>") 包裹,
+# 是否标 temp 由 Params.<key>.keep_intermediates 决定(缺省 True=兜底保留)。
 
 def get_bams_for_featureCounts_single(wildcards):
     logger.debug(f"[get_bams_for_featureCounts_single] called with wildcards: {wildcards}")
@@ -26,7 +28,7 @@ rule featureCounts_single_noMultiple:
     input:
         unpack(get_bams_for_featureCounts_single)
     output:
-        outfile = outdir + "/{genome}/{genome}_single_featureCounts.tsv"
+        outfile = maybe_temp(outdir + "/{genome}/{genome}_single_featureCounts.tsv", "featureCounts")
     log:
         logdir + "/{genome}/featureCounts_single_noMultiple.log"
     conda: 
@@ -93,7 +95,7 @@ rule featureCounts_paired_noMultiple:
     input:
         unpack(get_bams_for_featureCounts_paired)
     output:
-        outfile = outdir + "/{genome}/{genome}_paired_featureCounts.tsv",
+        outfile = maybe_temp(outdir + "/{genome}/{genome}_paired_featureCounts.tsv", "featureCounts"),
     log:
         logdir + "/{genome}/featureCounts_paired_noMultiple.log"
     conda:

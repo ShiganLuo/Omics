@@ -88,6 +88,22 @@ except ImportError as e:
     )
 
 # ---------------------------------------------------------------------------
+# temp 中间产物规范(详见 modules.md temp 规范)
+# ---------------------------------------------------------------------------
+# temp 原则:只给"本次跑完后大概率不会再用到"的中间文件标 temp。交付物、
+# QC 证据、报告、index、clean fastq 等非中间文件永不包裹(它们是各模块
+# 确定的常量,不属于字段范围)。保留中间文件是兜底规则:
+# Params.<mod>.keep_intermediates 缺省 True(常驻),未传字段的流程不会发生
+# 任何删除;显式 false 时模块的全部中间文件用完即删。同一 output 块内
+# temp 与非 temp 混用合法。用户配置挂在 Params.<模块实例段>.keep_intermediates,
+# 子流程翻译到模块 config dict 的 Params.<mod>.keep_intermediates。
+def maybe_temp(path, mod_key):
+    """按 Params.<mod_key>.keep_intermediates 决定 path 是否标 temp(缺省保留)。"""
+    keep = config.get("Params", {}).get(mod_key, {}).get("keep_intermediates", True)
+    return path if keep is not False else temp(path)
+
+
+# ---------------------------------------------------------------------------
 # Required-input helper
 # ---------------------------------------------------------------------------
 

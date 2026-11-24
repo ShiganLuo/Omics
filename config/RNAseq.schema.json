@@ -843,7 +843,8 @@
           "type": [
             "str",
             "int",
-            "float"
+            "float",
+            "bool"
           ]
         }
       },
@@ -854,7 +855,8 @@
           "type": [
             "str",
             "int",
-            "float"
+            "float",
+            "bool"
           ]
         }
       },
@@ -862,6 +864,10 @@
         "type": "dict",
         "required": false,
         "properties": {
+          "keep_intermediates": {
+            "type": "bool",
+            "required": false
+          },
           "score_min": {
             "type": "str",
             "required": false
@@ -880,6 +886,10 @@
         "type": "dict",
         "required": false,
         "properties": {
+          "keep_intermediates": {
+            "type": "bool",
+            "required": false
+          },
           "k": {
             "type": "int",
             "required": false
@@ -1320,6 +1330,10 @@
         "type": "dict",
         "required": false,
         "properties": {
+          "keep_intermediates": {
+            "type": "bool",
+            "required": false
+          },
           "sample_groups": {
             "type": "dict",
             "required": false

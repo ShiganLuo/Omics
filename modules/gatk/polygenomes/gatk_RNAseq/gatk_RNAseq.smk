@@ -3,6 +3,10 @@ include: "../../../common/common.smk"
 indir = config.get("indir") or "input"
 outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
+# temp 规范(modules.md):本模块的中间文件用 maybe_temp(path, "<key>") 包裹,
+# 是否标 temp 由 Params.<key>.keep_intermediates 决定(缺省 True=兜底保留)。
+
+
 # 参数精确到 rule:javaOptions/tmp-dir 按 rule 独立配置(Params.gatk.<rule_name>
 # .javaOptions/.tmp-dir),无 module 级共享。
 
@@ -33,7 +37,7 @@ rule SplitNCigarReads:
     input:
         unpack(get_input_for_SplitNCigarReads)
     output:
-        bam = temp(outdir + "/{genome}/{sample_id}/{sample_id}.split.bam")
+        bam = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}.split.bam", "gatk_RNAseq")
     params:
         javaOptions = config.get("Params", {}).get("gatk", {}).get("SplitNCigarReads", {}).get("javaOptions", "-Xmx30g"),
         tmp_dir = config.get("Params", {}).get("gatk", {}).get("SplitNCigarReads", {}).get("tmp-dir", None),
@@ -107,7 +111,7 @@ rule VarientCalling:
     input:
         unpack(get_input_for_VarientCalling)
     output:
-        vcf = outdir + "/{genome}/{sample_id}/{sample_id}.raw.vcf.gz"
+        vcf = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}.raw.vcf.gz", "gatk_RNAseq")
     log:
         logdir + "/{sample_id}/{genome}/VarientCalling.log"
     conda: "../../gatk.yaml"

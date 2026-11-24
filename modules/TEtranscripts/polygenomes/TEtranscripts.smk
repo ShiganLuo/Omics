@@ -6,6 +6,8 @@ indir= config.get("indir", "output/raw_fastq")
 logdir_combine = config.get("logdir_combine", "log/combine")
 ROOT_DIR = config.get("ROOT_DIR", "./")
 genome_samples = config.get("genome_samples", {})
+# temp 规范(modules.md):本模块的中间文件用 maybe_temp(path, "TEtranscripts") 包裹,
+# 是否标 temp 由 Params.TEtranscripts.keep_intermediates 决定(缺省 True=兜底保留)。
 
 def get_input_for_TEcount(wildcards):
     logger.debug(f"[get_input_for_TEcount] called with wildcards: {wildcards}")
@@ -27,7 +29,7 @@ rule TEcount:
     input:
         unpack(get_input_for_TEcount)
     output:
-        project = outdir + "/{genome}/{sample_id}/{sample_id}.TEcount.cntTable"
+        project = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}.TEcount.cntTable", "TEtranscripts")
     threads: rule_res("TEcount").get("threads", 2)
     benchmark: logdir + "/{sample_id}/{genome}/TEcount.benchmark.tsv",
     resources:
@@ -174,7 +176,7 @@ rule TElocal:
     input:
         unpack(get_input_for_TElocal)
     output:
-        project = outdir + "/{genome}/{sample_id}/{sample_id}.TElocal.cntTable"
+        project = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}.TElocal.cntTable", "TEtranscripts")
     log:
         logdir + "/{sample_id}/{genome}/TElocal.log"
     params:

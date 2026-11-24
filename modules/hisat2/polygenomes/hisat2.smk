@@ -6,6 +6,10 @@ logdir = config.get("logdir", "log")
 logdir_combine = config.get("logdir_combine", "log/combine")
 genome_paired_samples = config.get('genome_paired_samples', {})
 genome_single_samples = config.get('genome_single_samples', {})
+# temp 规范(modules.md):本模块的中间文件用 maybe_temp(path, "<key>") 包裹,
+# 是否标 temp 由 Params.<key>.keep_intermediates 决定(缺省 True=兜底保留)。
+
+
 def get_input_for_hisat2_index(wildcards):
     """Dynamically determines the input fasta file for hisat2 index based on the genome."""
     logger.debug(f"[get_input_for_hisat2_index] called with wildcards: {wildcards}")
@@ -104,8 +108,8 @@ rule hisat2_align:
         fastq = get_alignment_input,
         index = get_hisat2_index
     output:
-        outfile = outdir + "/{genome}/{sample_id}/{sample_id}.bam",
-        splice = outdir + "/{genome}/{sample_id}/{sample_id}.splice.txt"
+        outfile = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}.bam", "hisat2"),
+        splice = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}.splice.txt", "hisat2")
     log:
         logdir + "/{sample_id}/{genome}/hisat2_align.log"
     threads: rule_res("hisat2_align").get("threads", 12)

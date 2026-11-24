@@ -34,6 +34,7 @@
     },
     "STAR_index": {},
     "STAR_TEtranscripts": {
+      "keep_intermediates": false,
       "alignEndsType": "Local",
       "outFilterMismatchNoverReadLmax": 1.0,
       "outFilterMismatchNmax": 10,
@@ -41,6 +42,7 @@
       "winAnchorMultimapNmax": 100
     },
     "STAR_fusion": {
+      "keep_intermediates": false,
       "outFilterMultimapNmax": 1,
       "outFilterMismatchNmax": 3,
       "chimSegmentMin": 10,
@@ -55,21 +57,36 @@
       "chimSegmentReadGapMax": 3
     },
     "STAR_SNP": {
+      "keep_intermediates": false,
       "twopassMode": "Basic",
       "outSAMattributes": "NM",
       "outSAMtype": "BAM SortedByCoordinate"
     },
-    "STAR_featureCounts": {},
+    "STAR_featureCounts": {
+      "keep_intermediates": false
+    },
     "hisat2_TEtranscripts": {
+      "keep_intermediates": false,
       "score_min": "L,0,-0.2",
       "flag_params": "--no-mixed --no-discordant",
       "k": 100
     },
     "hisat2_stringtie": {
+      "keep_intermediates": false,
       "k": 1,
       "flag_params": "-q --no-unal --dta"
     },
+    "bowtie2_rRNA": {
+      "keep_intermediates": false
+    },
+    "TEtranscripts": {
+      "keep_intermediates": false
+    },
+    "featureCounts": {
+      "keep_intermediates": false
+    },
     "XenofilteR": {
+      "keep_intermediates": false,
       "sample_contamination": {
         "sample1": {
           "host": "GRCm39",
@@ -85,6 +102,7 @@
       "enabled": true
     },
     "StringTie": {
+      "keep_intermediates": false,
       "enabled": true,
       "sample_groups": {},
       "formats": [
@@ -96,7 +114,11 @@
         ]
       }
     },
+    "gatk_prepare": {
+      "keep_intermediates": false
+    },
     "gatk_RNAseq": {
+      "keep_intermediates": false,
       "enabled": true
     },
     "arriba": {

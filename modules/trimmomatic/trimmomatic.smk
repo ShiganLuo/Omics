@@ -13,8 +13,8 @@ rule trimmomatic_Paired:
         fastq1 = indir + "/{sample_id}_1.fq.gz",
         fastq2 = indir + "/{sample_id}_2.fq.gz"
     output:
-        fastq1 = temp(outdir + "/{sample_id}/{sample_id}_1.fq.gz"),
-        fastq2 = temp(outdir + "/{sample_id}/{sample_id}_2.fq.gz"),
+        fastq1 = outdir + "/{sample_id}/{sample_id}_1.fq.gz",
+        fastq2 = outdir + "/{sample_id}/{sample_id}_2.fq.gz",
         report = outdir + "/{sample_id}/trimmomatic_report.txt"
     params:
         outdir = outdir,
@@ -73,7 +73,7 @@ rule trimmomatic_Single:
     input:
         fastq = indir + "/{sample_id}.single.fq.gz"
     output:
-        fastq = temp(outdir + "/{sample_id}/{sample_id}.single.fq.gz"),
+        fastq = outdir + "/{sample_id}/{sample_id}.single.fq.gz",
         report = outdir + "/{sample_id}/trimmomatic_report.txt"
     params:
         outdir = outdir,

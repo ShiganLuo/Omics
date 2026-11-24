@@ -38,7 +38,7 @@ trimmed_fastq_dir = f"{outdir}/common/2_trimmed_fastq"
 
 star_config_for_index = {
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "outdir":  f"{outdir}/genome",
         "logdir_index": os.path.join(logdir,"group"),
         "env": config.get("env", {}),
@@ -58,7 +58,7 @@ if trimmer == "cutadapt":
     trimmed_fastq_dir = f"{outdir}/common/2_trimmed_fastq"
     cutadapt_config = {
             "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+            "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
             "indir": indir,
             "outdir":  trimmed_fastq_dir,
@@ -82,7 +82,7 @@ elif trimmer == "trimmomatic":
     trimmed_fastq_dir = f"{outdir}/common/2_trimmed_fastq"
     trimmomatic_config = {
             "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+            "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
             "indir": indir,
             "outdir":  trimmed_fastq_dir,
@@ -108,7 +108,7 @@ else:
     logger.info("use default trimmer: trim_galore")
     trim_galore_config = {
             "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+            "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
             "indir": indir,
             "outdir":  trimmed_fastq_dir,
@@ -132,7 +132,7 @@ else:
 if aligner_TEtranscripts == 'hisat2':
     hisat2_config_for_TEtranscripts = {
             "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+            "OUTDIR_ROOT": outdir,
             "indir": trimmed_fastq_dir,
             "outdir":  f"{outdir}/common/3_TEtranscripts_bam",
             "env": config.get("env", {}),
@@ -145,6 +145,7 @@ if aligner_TEtranscripts == 'hisat2':
             },
             "Params": {
                 "hisat2": {
+                    "keep_intermediates": config.get('Params',{}).get('hisat2_TEtranscripts', {}).get('keep_intermediates', True),
                     "score_min": config.get('Params',{}).get('hisat2_TEtranscripts', {}).get('score_min') or "L,0,-0.2",
                     "flag_params": config.get('Params',{}).get('hisat2_TEtranscripts', {}).get('flag_params') or "--no-mixed --no-discordant",
                     "k": config.get('Params',{}).get('hisat2_TEtranscripts', {}).get('k') or 100
@@ -163,7 +164,7 @@ if aligner_TEtranscripts == 'hisat2':
 elif aligner_TEtranscripts == 'star':
     star_config_for_TEtranscripts = {
             "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+            "OUTDIR_ROOT": outdir,
             "indir": trimmed_fastq_dir,
             "outdir":  f"{outdir}/common/3_TEtranscripts_bam",
             "logdir": os.path.join(logdir,"sample"),
@@ -181,6 +182,7 @@ elif aligner_TEtranscripts == 'star':
                 # STAR_TEtranscripts.star_align 新键,config 全量路径读取,
                 # 无旧扁平键回退),缺省值保持原转发默认
                 "star": {
+                    "keep_intermediates": config.get('Params', {}).get('STAR_TEtranscripts', {}).get('keep_intermediates', True),
                     "star_align": {
                         "alignEndsType": config.get('Params', {}).get('STAR_TEtranscripts', {}).get('star_align', {}).get('alignEndsType') or "Local",
                         "outFilterMultimapNmax": config.get('Params', {}).get('STAR_TEtranscripts', {}).get('star_align', {}).get('outFilterMultimapNmax') or 100,
@@ -203,12 +205,17 @@ else:
 ### gene and TE expression quantification using TEtranscripts
 TEtranscripts_config = {
         "indir": star_config_for_TEtranscripts["outdir"] if aligner_TEtranscripts == 'star' else hisat2_config_for_TEtranscripts["outdir"],
+        "Params": {
+            "TEtranscripts": {
+                "keep_intermediates": config.get('Params',{}).get('TEtranscripts',{}).get('keep_intermediates', True)
+            }
+        },
         "outdir":  f"{outdir}/counts/TEtranscripts",
         "logdir": os.path.join(logdir,"sample"),
         "logdir_combine": os.path.join(logdir,"group"),
         "genome_samples": genome_samples,
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "Procedure": {
             "TEcount": config.get('Procedure',{}).get('TEcount') or 'TEcount',
@@ -226,7 +233,7 @@ use rule * from TEtranscripts as RNAseq_*
 
 star_config_for_featureCounts = {
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "indir": trimmed_fastq_dir,
         "outdir":  f"{outdir}/common/11_featureCounts_bam",
         "logdir": os.path.join(logdir,"sample"),
@@ -254,6 +261,11 @@ use rule star_align from star_for_featureCounts as RNAseq_star_align_for_feature
 ### gene expression quantification using featureCounts (for GSVA downstream)
 featureCounts_config = {
     "indir": star_config_for_featureCounts["outdir"],
+    "Params": {
+        "featureCounts": {
+            "keep_intermediates": config.get('Params',{}).get('featureCounts',{}).get('keep_intermediates', True)
+        }
+    },
     "outdir": f"{outdir}/counts/featureCounts",
     "logdir": os.path.join(logdir, "group"),
     "genome_paired_samples": genome_paired_samples,
@@ -282,7 +294,7 @@ DESeq2_config = {
         "outdir":  f"{outdir}/diff_expression",
         "logdir": os.path.join(logdir,"group"),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "group_pairs": config.get("Params", {}).get("DESeq2", {}).get("group_pairs"),
         "Params": {
@@ -345,6 +357,7 @@ hisat2_config_for_StringTie = {
     },
     "Params": {
         "hisat2": {
+            "keep_intermediates": config.get('Params',{}).get('hisat2_stringtie', {}).get('keep_intermediates', True),
             "k": config.get('Params',{}).get('hisat2_stringtie', {}).get('k') or 1,
             "flag_params": config.get('Params',{}).get('hisat2_stringtie', {}).get('flag_params') or "-q --no-unal --dta",
         }
@@ -367,7 +380,7 @@ StringTie_config = {
         "logdir_combine": os.path.join(logdir,"group"),
         "genome_samples": genome_samples,
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "sample_groups": config.get("Params",{}).get("StringTie",{}).get('sample_groups'),
         "Params": {
             # wholesale section so formats (and future keys) reach the module;
@@ -427,6 +440,7 @@ bowtie2_rRNA_config = {
     "genome": config.get('genome',{}),
     "Params": {
         "bowtie2": {
+            "keep_intermediates": config.get('Params',{}).get('bowtie2_rRNA', {}).get('keep_intermediates', True),
             "sam-append-comment": config.get('Params',{}).get('bowtie2_rRNA', {}).get('sam-append-comment')
         }
     },
@@ -456,6 +470,7 @@ star_config_for_fusion = {
         # 参数精确到 rule:Params.star.star_align.<key>(源读 STAR_fusion.star_align
         # 新键,config 全量路径读取,无旧扁平键回退),缺省值保持原转发默认
         "star": {
+            "keep_intermediates": config.get('Params', {}).get('STAR_fusion', {}).get('keep_intermediates', True),
             "star_align": {
                 "outFilterMultimapNmax": config.get('Params', {}).get('STAR_fusion', {}).get('star_align', {}).get('outFilterMultimapNmax') or 1,
                 "outFilterMismatchNmax": config.get('Params', {}).get('STAR_fusion', {}).get('star_align', {}).get('outFilterMismatchNmax') or 3,
@@ -482,6 +497,11 @@ use rule * from star_for_fusion as RNAseq_fusion_*
 logger.debug(f"star_config_for_fusion: {star_config_for_fusion}")
 
 gatk_prepare_config = {
+    "Params": {
+        "gatk_prepare": {
+            "keep_intermediates": config.get('Params',{}).get('gatk_prepare',{}).get('keep_intermediates', True)
+        }
+    },
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -509,7 +529,7 @@ arriba_config = {
         "logdir": os.path.join(logdir,"sample"),
         "logdir_combine": os.path.join(logdir,"group"),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "bam_substring": "sorted_markdup",
         "genome_samples": genome_samples,
@@ -540,7 +560,7 @@ logger.debug(f"arriba_config: {arriba_config}")
 
 star_config_for_SNP = {
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "indir": trimmed_fastq_dir,
         "outdir":  f"{outdir}/common/8_SNP_bam",
         "logdir": os.path.join(logdir,"sample"),
@@ -553,7 +573,9 @@ star_config_for_SNP = {
         "Procedure": {
             "star": config.get('Procedure',{}).get('STAR_SNP')
         },
-        "Params": config.get('Params'),
+        "Params": {**(config.get('Params') or {}),
+                   "star": {**((config.get('Params') or {}).get('star') or {}),
+                            "keep_intermediates": (config.get('Params') or {}).get('STAR_SNP', {}).get('keep_intermediates', True)}},
         "genome": config.get('genome',{}),
     "resources": config.get("resources", {}),
     }
@@ -587,6 +609,11 @@ logger.debug(f"XenofilteR_config: {XenofilteR_config}")
 
 
 gatk_prepare_SNP_config = {
+    "Params": {
+        "gatk_prepare": {
+            "keep_intermediates": config.get('Params',{}).get('gatk_prepare',{}).get('keep_intermediates', True)
+        }
+    },
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -613,6 +640,11 @@ gatk_RNAseq_config = {
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": gatk_prepare_SNP_config['outdir'],
+    "Params": {
+        "gatk_RNAseq": {
+            "keep_intermediates": config.get('Params',{}).get('gatk_RNAseq',{}).get('keep_intermediates', True)
+        }
+    },
     "outdir":  f"{outdir}/variation/germline_snv_indel_RNAseq",
     "logdir": os.path.join(logdir,"sample"),
     "logdir_combine": os.path.join(logdir,"group"),

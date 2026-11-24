@@ -6,6 +6,10 @@ logdir = config.get("logdir") or "log"
 logdir_combine = config.get("logdir_combine") or "log"
 genome_samples = config.get("genome_samples") or {}
 sample_groups = config.get("sample_groups") or {}
+# temp 规范(modules.md):本模块的中间文件用 maybe_temp(path, "<key>") 包裹,
+# 是否标 temp 由 Params.<key>.keep_intermediates 决定(缺省 True=兜底保留)。
+
+
 ROOT_DIR = config.get("ROOT_DIR", ".")
 
 # TEChimericPlot image formats (modules.md #9) — ① parse 期读入 + 规范化
@@ -31,7 +35,7 @@ rule stringTie:
     input:
         unpack(get_input_for_stringTie)
     output:
-        gtf = outdir + "/{genome}/raw/{sample_id}/{sample_id}.gtf"
+        gtf = maybe_temp(outdir + "/{genome}/raw/{sample_id}/{sample_id}.gtf", "StringTie")
     log:
         logdir + "/{sample_id}/{genome}/stringTie.log"
     params:

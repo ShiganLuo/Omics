@@ -1,0 +1,25 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "samples": [],
+    "bam_substring": "",
+    "Procedure": {
+        "sawfish": null,
+        "bgzip": null,
+        "bcftools": null
+    },
+    "Params": {
+        "sawfish": {
+            "call_sv": false,
+            "fast_cnv_mode": null,
+            "expected_cn": null,
+            "cnv_excluded_regions": null,
+            "treat_single_copy_as_haploid": false
+        }
+    },
+    "genome": {
+        "fasta": "path/to/genome.fa",
+        "fai_index": "path/to/genome.fa.fai"
+    }
+}

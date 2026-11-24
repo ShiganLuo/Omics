@@ -1,0 +1,39 @@
+# Auto-generated Apptainer definition file for TransEffect conda environment
+# Source YAML: TransEffect.yaml
+# Build: apptainer build TransEffect.sif TransEffect.def
+# Or:   apptainer build <output.sif> <def_file>
+# Backend: micromamba
+# Install mode: explicit spec TransEffect.spec.txt
+
+Bootstrap: docker
+From: docker.1ms.run/mambaorg/micromamba:latest
+
+%files
+    TransEffect.spec.txt /opt/conda/TransEffect.spec.txt
+
+%post
+    /bin/bash << 'ENDOFSCRIPT'
+    set -euo pipefail
+    export MAMBA_ROOT_PREFIX="/opt/conda"
+    micromamba create -y -p /opt/conda/envs/TransEffect -f /opt/conda/TransEffect.spec.txt < /dev/null
+    micromamba clean -afy
+    rm /opt/conda/TransEffect.spec.txt
+
+    echo 'export PATH="/opt/conda/envs/TransEffect/bin:$PATH"' >> /etc/profile.d/conda_TransEffect.sh
+    echo 'export CONDA_DEFAULT_ENV=TransEffect' >> /etc/profile.d/conda_TransEffect.sh
+ENDOFSCRIPT
+
+%environment
+    export PATH="/opt/conda/envs/TransEffect/bin:$PATH"
+    export CONDA_DEFAULT_ENV=TransEffect
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName TransEffect
+
+%help
+    Apptainer image for conda environment 'TransEffect'.
+    Generated from TransEffect.yaml.

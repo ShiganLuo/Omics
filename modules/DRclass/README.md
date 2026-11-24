@@ -98,7 +98,7 @@ WES somatic 检出的突变是否真的在肿瘤 RNA 中转录?RNA-seq 变异检
   - RNA VCF 检出且无伪影 → `D1R1`;检出但带伪影标记(germline/strain/
     splice/editing/multiallelic)→ `D1R4`(REJECTED);
   - 未检出按 pileup 判:DP>min_dp 且 AF≥min_af 且 ALT_AD>min_ad → `D1R2`
-    (HIT-strong);DP>min_dp 且 AF≥min_af → `D1R3`(HIT-weak,sensitivity);
+    (HIT-strong);DP>min_dp 且 AF≥min_af → `D1R3`(HIT-weak,弱支持);
     仅 DP>min_dp → `D1R6`(ABSENT);否则 `D1R5`(NOINFO)。
 - **表 2(RNA 锚,R 轴恒 HIT-pass,判 D 轴,锚级伪影先剔除)**:
   - germline/strain 命中 → `D0R1`;splice/editing/multiallelic →
@@ -106,15 +106,12 @@ WES somatic 检出的突变是否真的在肿瘤 RNA 中转录?RNA-seq 变异检
   - 其余按 somatic VCF 判:AF≥min_af 且 DP>min_dp 且 ALT_AD>min_ad →
     `D2R1`;AF≥min_af 且 DP>min_dp → `D3R1`;仅 DP>min_dp → `D6R1`;
     否则或不在 callset → `D5R1`。
-- **Tier 映射**:D1R1/D1R2→A,D1R3→sensitivity,D1R4→rejected,D1R6→B,
-  D1R5→U,D2R1/D3R1→C1,D6R1→C2,D5R1→C3,D0R1→germline,
-  R1-ANCHOR-REJ→rejected。
 - **汇总(O3)**:穿透率 = (D1R1+D1R2)/(D1R1+D1R2+D1R6);
   r4_fraction = D1R4/(D1R1+D1R4),超过 `max_r4_fraction` 报
   `WARN:r4_fraction>…`,否则 QC=OK。
 - **结果怎么读**:`*.dna_anchored.tsv`/`*.rna_anchored.tsv` 每行一个锚位点,
   含 DNA/RNA 两侧的 call status、FILTER、AF/AD/DP、`artifact_flags`、
-  `germline_hit_source`、`dr_label` 与 `tier`;`DRclass_summary.tsv` 每样本
+  `germline_hit_source` 与 `dr_label`;`DRclass_summary.tsv` 每样本
   一行给出 12 类标签计数、穿透率与 QC。
 
 ## 3. 参考文献

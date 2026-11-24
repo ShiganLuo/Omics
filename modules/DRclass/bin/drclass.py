@@ -10,7 +10,7 @@
 子命令:
   anchors   从 somatic VCF(PASS) + RNA VCF 生成锚表与锚 BED
   classify  逐位点判定 DR 标签, 输出 O1(dna_anchored) O2(rna_anchored)
-  summary   汇总 O1/O2 -> DRclass_summary.tsv (计数/Tier/穿透率/质控)
+  summary   汇总 O1/O2 -> DRclass_summary.tsv (计数/穿透率/质控)
 
 仅用 python3 标准库; VCF 读取兼容 bgzip (gzip 模块).
 """
@@ -202,16 +202,8 @@ OUT_HEADER = [
     "sample", "chrom", "pos", "ref", "alt", "anchor",
     "dna_call_status", "dna_filter", "dna_AF", "dna_AD", "dna_DP",
     "rna_call_status", "rna_filter", "rna_AD", "rna_DP", "rna_AF",
-    "artifact_flags", "germline_hit_source", "dr_label", "tier",
+    "artifact_flags", "germline_hit_source", "dr_label",
 ]
-
-TIER = {
-    "D1R1": "A", "D1R2": "A", "D1R3": "sensitivity", "D1R4": "rejected",
-    "D1R6": "B", "D1R5": "U",
-    "D2R1": "C1", "D3R1": "C1", "D6R1": "C2", "D5R1": "C3",
-    "D0R1": "germline", "R1-ANCHOR-REJ": "rejected",
-}
-
 
 def cmd_classify(args):
     min_af, min_ad, min_dp = args.min_af, args.min_ad, args.min_dp
@@ -310,7 +302,7 @@ def cmd_classify(args):
                          round(d_af, 4), d_alt, d_dp,
                          rna_status, r_filter, r_ad, r_dp, round(r_af, 4),
                          ";".join(art) if art else ".", gsrc,
-                         label, TIER[label]])
+                         label])
         else:
             # ---- 表2: R 轴恒 HIT-pass, 判 D 轴; 锚级伪影先剔除 ----
             art = rna_artifacts(key, rrec)
@@ -342,7 +334,7 @@ def cmd_classify(args):
                          "detected", rrec["filter"] if rrec else ".",
                          r_ad, r_dp, round(r_af, 4),
                          ";".join(art) if art else ".", gsrc,
-                         label, TIER[label]])
+                         label])
     out1.close()
     out2.close()
     print(f"classify {args.sample}: tables -> {args.out_dna}, {args.out_rna}")

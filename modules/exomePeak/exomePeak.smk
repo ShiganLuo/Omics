@@ -6,21 +6,28 @@ logdir = config.get("logdir", "log")
 ROOT_DIR = config.get("ROOT_DIR", ".")
 Procedure = config.get("Procedure", {})
 gtf = config.get("gtf", "")
+bam_suffix = config.get("bam_suffix", ".dedup")
 ip_samples = config.get("ip_samples", [])
 input_samples = config.get("input_samples", [])
 treated_ip_samples = config.get("treated_ip_samples", [])
 treated_input_samples = config.get("treated_input_samples", [])
 
 
-def get_input_for_diff_exomePeak(wildcards):
-    """声明差异分析全部输入文件;缺文件在建图期即失败。"""
+def get_input_for_call_exomePeak(wildcards):
+    """声明峰调用全部输入文件;缺文件在建图期即失败。"""
     return {
-        "ip_bams": [indir + f"/{sample_id}/{sample_id}.dedup.bam" for sample_id in ip_samples],
-        "input_bams": [indir + f"/{sample_id}/{sample_id}.dedup.bam" for sample_id in input_samples],
-        "treated_ip_bams": [indir + f"/{sample_id}/{sample_id}.dedup.bam" for sample_id in treated_ip_samples],
-        "treated_input_bams": [indir + f"/{sample_id}/{sample_id}.dedup.bam" for sample_id in treated_input_samples],
+        "ip_bams": [indir + f"/{sample_id}/{sample_id}" + bam_suffix + ".bam" for sample_id in ip_samples],
+        "input_bams": [indir + f"/{sample_id}/{sample_id}" + bam_suffix + ".bam" for sample_id in input_samples],
         "gtf": gtf,
     }
+
+
+def get_input_for_diff_exomePeak(wildcards):
+    """声明差异分析全部输入文件;缺文件在建图期即失败。"""
+    files = get_input_for_call_exomePeak(wildcards)
+    files["treated_ip_bams"] = [indir + f"/{sample_id}/{sample_id}" + bam_suffix + ".bam" for sample_id in treated_ip_samples]
+    files["treated_input_bams"] = [indir + f"/{sample_id}/{sample_id}" + bam_suffix + ".bam" for sample_id in treated_input_samples]
+    return files
 
 
 rule diff_exomePeak:
@@ -88,15 +95,6 @@ rule diff_exomePeak:
         except Exception as e:
             rule_logger.error(f"Error occurred during exomePeak diff: {e}\n")
             raise RuntimeError(f"Error occurred during exomePeak diff: {e}, you can check the log file {log_path} for more details.\n")
-
-
-def get_input_for_call_exomePeak(wildcards):
-    """声明峰调用全部输入文件;缺文件在建图期即失败。"""
-    return {
-        "ip_bams": [indir + f"/{sample_id}/{sample_id}.bam" for sample_id in ip_samples],
-        "input_bams": [indir + f"/{sample_id}/{sample_id}.bam" for sample_id in input_samples],
-        "gtf": gtf,
-    }
 
 
 rule call_exomePeak:

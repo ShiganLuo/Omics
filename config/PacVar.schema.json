@@ -593,6 +593,11 @@
       "nullable": true,
       "required": false
     },
+    "sawfish": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
     "bgzip": {
       "type": "null",
       "nullable": true,

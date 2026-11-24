@@ -222,11 +222,33 @@ rule drclass_classify:
             raise RuntimeError(f"Error occurred during drclass classify for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.\n")
 
 
+def drclass_summary_inputs(wildcards):
+    """O3 summary inputs: one O1/O2 table pair per DRclass sample.
+
+    Cross-sample rules take their per-sample argument list from these input
+    files; an empty samples table would build a zero-argument command line
+    (``drclass.py summary --tables`` with no values), so fail at DAG build
+    naming the config key instead of dying inside the tool's argparse.
+    """
+    if not samples:
+        raise ValueError(
+            "DRclass summary has no input tables: the module 'samples' table "
+            "(workflow config key 'Params.workflow.drclass_samples') is empty. "
+            "node.py runDR fills it from DNA design pairs (meta 'design' column "
+            "in ctr_/exp_ format) mapped through 'Params.workflow.dr_pairs'; "
+            "with zero entries the summary output is not registered and this "
+            "rule is never scheduled in a workflow run."
+        )
+    return {
+        "tables": expand(outdir + "/{s}/{s}.dna_anchored.tsv", s=samples.keys()) +
+                  expand(outdir + "/{s}/{s}.rna_anchored.tsv", s=samples.keys()),
+    }
+
+
 rule drclass_summary:
     """O3: 每样本标签计数 + 穿透率 + R4 质控, 全样本汇总."""
     input:
-        tables=expand(outdir + "/{s}/{s}.dna_anchored.tsv", s=samples.keys()) +
-               expand(outdir + "/{s}/{s}.rna_anchored.tsv", s=samples.keys()),
+        unpack(drclass_summary_inputs),
     output:
         tsv=outdir + "/DRclass_summary.tsv",
     log:

@@ -30,6 +30,14 @@
     "snv": {
       "enabled": false
     },
+    "sawfish": {
+      "enabled": false,
+      "call_sv": false,
+      "fast_cnv_mode": null,
+      "expected_cn": null,
+      "cnv_excluded_regions": null,
+      "treat_single_copy_as_haploid": false
+    },
     "sv": {
       "enabled": true,
       "comparisons": {},
@@ -549,6 +557,7 @@
     "hiphase": "/data/pub/zhousha/Database/env/hiphase/hiphase.sif",
     "pbmm2": "/data/pub/zhousha/Database/env/pbmm2/pbmm2.sif",
     "pbsv": "/data/pub/zhousha/Database/env/pbsv/pbsv.sif",
+    "sawfish": "/data/pub/zhousha/Database/env/sawfish/sawfish.sif",
     "sv": "/data/pub/zhousha/Database/env/sv/sv.sif",
     "telomere": "/data/pub/zhousha/Database/env/telomere/telomere.sif",
     "trgt": "/data/pub/zhousha/Database/env/trgt/trgt.sif",
@@ -702,6 +711,18 @@
       "threads": 4,
       "mem_mb": 16000
     },
+    "sawfish_cnv_filter": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "sawfish_discover": {
+      "threads": 8,
+      "mem_mb": 8000
+    },
+    "sawfish_joint_call": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
     "qc_summary": {
       "threads": 1,
       "mem_mb": 8000
@@ -788,6 +809,7 @@
     "deepvariant": null,
     "gatk": null,
     "pbsv": null,
+    "sawfish": null,
     "bgzip": null,
     "tabix": null,
     "bcftools": null,

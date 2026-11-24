@@ -1225,6 +1225,95 @@
           }
         }
       },
+      "TransEffect": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "enabled": {
+            "type": "bool",
+            "nullable": true,
+            "required": false,
+            "description": "转录效应分析开关(关闭则不注册输出)"
+          },
+          "sample_group_dict": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "description": "sample -> 分组名(组内对照 Δ');node.py 缺省从 meta group 填"
+          },
+          "counts_matrix": {
+            "type": "string",
+            "nullable": true,
+            "required": false,
+            "description": "featureCounts 合并矩阵;缺省由 node.py 按 genome 推导"
+          },
+          "gmt": {
+            "type": "string",
+            "nullable": true,
+            "required": false,
+            "description": "P5 反向检验基因集 GMT;缺省取 Params.function.<genome>.function_gsva.gmt"
+          },
+          "gene_sets": {
+            "type": "string",
+            "nullable": true,
+            "required": false,
+            "description": "GMT 集合名(| 分隔);缺省 12 个基因组稳定性通路"
+          },
+          "teffect_analyze": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "dna_af_min": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "dna_dp_min": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "min_cpm": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_expressed": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "null_reps": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "null_plot_reps": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "seed": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "sex_chroms": {
+                "type": "string",
+                "nullable": true,
+                "required": false
+              },
+              "gene_sets": {
+                "type": "string",
+                "nullable": true,
+                "required": false
+              }
+            }
+          }
+        }
+      },
       "derive_targets": {
         "type": "dict",
         "nullable": true,

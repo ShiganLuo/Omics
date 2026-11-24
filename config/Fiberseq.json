@@ -215,6 +215,14 @@
       "max_sv_len": 1000000,
       "min_fibers": 10
     },
+    "sawfish": {
+      "enabled": false,
+      "call_sv": false,
+      "fast_cnv_mode": null,
+      "expected_cn": null,
+      "cnv_excluded_regions": null,
+      "treat_single_copy_as_haploid": false
+    },
     "haplotype": {
       "enabled": true,
       "fiberseq_haplotype_diff": {
@@ -938,6 +946,7 @@
     "ldsc": "/data/16T/Database/env/ldsc/ldsc.sif",
     "deepvariant": "/data/16T/Database/env/deepvariant/deepvariant.sif",
     "pbsv": "/data/16T/Database/env/pbsv/pbsv.sif",
+    "sawfish": "/data/16T/Database/env/sawfish/sawfish.sif",
     "sv": "/data/16T/Database/env/sv/sv.sif",
     "hiphase": "/data/16T/Database/env/hiphase/hiphase.sif",
     "genome": "/data/16T/Database/env/genome/genome.sif",
@@ -1195,6 +1204,18 @@
       "threads": 4,
       "mem_mb": 16000
     },
+    "sawfish_cnv_filter": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "sawfish_discover": {
+      "threads": 8,
+      "mem_mb": 8000
+    },
+    "sawfish_joint_call": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
     "qc_summary": {
       "threads": 1,
       "mem_mb": 8000
@@ -1272,6 +1293,7 @@
     "samtools": null,
     "deepvariant": null,
     "pbsv": null,
+    "sawfish": null,
     "hiphase": null,
     "ldsc": null,
     "munge_sumstats": null,

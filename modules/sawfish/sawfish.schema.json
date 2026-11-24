@@ -1,0 +1,104 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "bam_substring": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "sawfish": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "bgzip": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "bcftools": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "sawfish": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "call_sv": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          },
+          "fast_cnv_mode": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          },
+          "expected_cn": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          },
+          "cnv_excluded_regions": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          },
+          "treat_single_copy_as_haploid": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "genome": {
+    "fasta": {
+      "type": "str",
+      "path": "file",
+      "nullable": true,
+      "required": false
+    },
+    "fai_index": {
+      "type": "str",
+      "path": "file",
+      "nullable": true,
+      "required": false
+    }
+  }
+}

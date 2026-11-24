@@ -1,0 +1,34 @@
+{
+  "outdir": "/data/16T/luosg/output/Totipotency/DR/TransEffect",
+  "logdir": "/data/16T/luosg/output/Totipotency/DR/log/group",
+  "samples": ["KSR-1", "KSR-2", "TLSCS-1", "TLSCS-2"],
+  "sample_group_dict": {
+    "KSR-1": "KSR",
+    "KSR-2": "KSR",
+    "TLSCS-1": "TLSCS",
+    "TLSCS-2": "TLSCS"
+  },
+  "drclass_dir": "/data/16T/luosg/output/Totipotency/DR/DRclass",
+  "counts_matrix": "/data/16T/luosg/output/Totipotency/DR/RNA/counts/featureCounts/GRCm39/GRCm39_featureCounts.tsv",
+  "cnv_dir": "/data/16T/luosg/output/Totipotency/DR/DNA/variation/cnv",
+  "gmt": "/data/16T/Database/Reference/geneset/GSI_mouse.gmt",
+  "gtf": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gene_exon.sorted.gtf.gz",
+  "Procedure": {
+    "python3": "python3"
+  },
+  "Params": {
+    "TransEffect": {
+      "teffect_analyze": {
+        "dna_af_min": 0.1,
+        "dna_dp_min": 10,
+        "min_cpm": 1.0,
+        "min_expressed": 2,
+        "null_reps": 20,
+        "null_plot_reps": 3,
+        "seed": 42,
+        "sex_chroms": "chrX,chrY,chrM,X,Y,MT,M",
+        "gene_sets": null
+      }
+    }
+  }
+}

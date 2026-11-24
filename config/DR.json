@@ -56,6 +56,24 @@
         "max_r4_fraction": 0.3
       }
     },
+    "TransEffect": {
+      "enabled": true,
+      "sample_group_dict": {},
+      "counts_matrix": null,
+      "gmt": null,
+      "gene_sets": null,
+      "teffect_analyze": {
+        "dna_af_min": 0.1,
+        "dna_dp_min": 10,
+        "min_cpm": 1.0,
+        "min_expressed": 2,
+        "null_reps": 20,
+        "null_plot_reps": 3,
+        "seed": 42,
+        "sex_chroms": "chrX,chrY,chrM,X,Y,MT,M",
+        "gene_sets": null
+      }
+    },
     "derive_targets": {
       "min_depth": 10,
       "min_bq": 20,
@@ -446,6 +464,7 @@
     "STAR_SNP": "/data/16T/Database/env/star/star.sif",
     "bcftools": "/data/16T/Database/env/bcftools/bcftools.sif",
     "DRclass": "/data/16T/Database/env/bcftools/bcftools.sif",
+    "TransEffect": "/data/16T/Database/env/TransEffect/TransEffect.sif",
     "burden": "/data/16T/Database/env/burden/burden.sif",
     "cnvkit": "/data/16T/Database/env/cnvkit/cnvkit.sif",
     "fragment_size": "/data/16T/Database/env/fragment_size/fragment_size.sif",

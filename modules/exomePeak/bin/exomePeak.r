@@ -51,8 +51,8 @@ main <- function() {
   parser$add_argument("--gtf", required = TRUE, help = "Path to the GTF annotation file")
   parser$add_argument("--ip_bams", nargs = "+", required = TRUE, help = "List of IP BAM files")
   parser$add_argument("--input_bams", nargs = "+", required = TRUE, help = "List of Input BAM files")
-  parser$add_argument("--treated_ip_bams", nargs = "*", default = character(0), help = "List of treated IP BAM files")
-  parser$add_argument("--treated_input_bams", nargs = "*", default = character(0), help = "List of treated Input BAM files")
+  parser$add_argument("--treated_ip_bams", nargs = "*", help = "List of treated IP BAM files")
+  parser$add_argument("--treated_input_bams", nargs = "*", help = "List of treated Input BAM files")
   parser$add_argument("--outdir", default = ".", help = "Output directory for results")
 
   args <- parser$parse_args()

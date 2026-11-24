@@ -541,10 +541,20 @@ def build_cmd(wrapper: str, config_path: str, args: argparse.Namespace,
     return cmd
 
 
+TEST_PATH_INFRA_KEYS = {"indir", "outdir", "logdir", "logdir_combine",
+                        "ROOT_DIR", "OUTDIR_ROOT"}
+
+
+def _is_template_value(v: Any) -> bool:
+    """模板占位值(如 'path/to/gtf_file.gtf')视为待填字段,测试模式可替换。"""
+    return isinstance(v, str) and v.strip().strip("/").startswith("path/to")
+
+
 def inject_test_paths(cfg: Dict[str, Any], schema_path: str, test_data: str) -> None:
-    """schema 驱动的测试路径注入(测试模式用):空的嵌套
-    路径字段(genome.fasta、index 前缀等)用 assests/test/data 下的占位补齐,
-    已有值优先不覆盖。"""
+    """schema 驱动的测试路径注入(测试模式用):空值或 'path/to/...' 模板的
+    路径字段(genome.fasta、index 前缀、顶层 gtf 等)用 assests/test/data 下的
+    占位补齐,已有真实值优先不覆盖。基础设施键(indir/outdir/logdir/ROOT_DIR
+    等)不注入。"""
     if not os.path.isfile(schema_path):
         return
     try:
@@ -553,13 +563,86 @@ def inject_test_paths(cfg: Dict[str, Any], schema_path: str, test_data: str) -> 
         tp = gen.generate_test_paths(test_data, "GRCm39")
         for key, val in tp.items():
             if "." not in key:
-                continue  # keep indir/outdir/logdir overrides
+                if key in TEST_PATH_INFRA_KEYS:
+                    continue
+                if not cfg.get(key) or _is_template_value(cfg.get(key)):
+                    cfg[key] = val
+                continue
             head, tail = key.split(".", 1)
             node = cfg.setdefault(head, {})
-            if isinstance(node, dict) and not node.get(tail):
+            if isinstance(node, dict) and (not node.get(tail) or _is_template_value(node.get(tail))):
                 node[tail] = val
     except Exception as e:
         logger.debug(f"test-path injection skipped: {e}")
+
+
+def _create_missing_input_placeholders(exc: BaseException,
+                                       allowed_roots: List[str]) -> List[str]:
+    """从 snakemake 的 MissingInputException 输出解析缺失输入文件并创建空占位
+    (测试模式专用)。只创建 allowed_roots 之下的文件,其余跳过并告警,避免在
+    仓库目录里落占位垃圾。返回本次创建的路径列表。"""
+    cause = getattr(exc, "__cause__", None)
+    text = "".join(getattr(cause, attr, "") or ""
+                   for attr in ("stderr", "stdout"))
+    if "MissingInputException" not in text:
+        return []
+    missing: List[str] = []
+    in_block = False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("affected files:"):
+            in_block = True
+            continue
+        if in_block:
+            if line[:1] in (" ", "\t") and stripped:
+                missing.append(stripped)
+            else:
+                in_block = False
+    roots = [os.path.abspath(r) for r in allowed_roots if r]
+    created: List[str] = []
+    for m in missing:
+        p = m if os.path.isabs(m) else os.path.normpath(os.path.join(ROOT_DIR, m))
+        if not any(p == r or p.startswith(r + os.sep) for r in roots):
+            logger.warning("missing input outside test roots, not touched: %s", p)
+            continue
+        d = os.path.dirname(p)
+        if d:
+            os.makedirs(d, exist_ok=True)
+        if not os.path.exists(p):
+            open(p, "a").close()
+            created.append(p)
+    return created
+
+
+def _run_cmd_with_test_inputs(cmd: List[str], allowed_roots: List[str],
+                              max_rounds: int = 5) -> str:
+    """测试模式的 snakemake 执行:MissingInputException 时自动创建占位输入后
+    重跑,直到 DAG 通过或不再有可建占位(原异常照抛)。"""
+    for round_no in range(max_rounds):
+        try:
+            return _run_cmd(cmd, cwd=ROOT_DIR)
+        except RuntimeError as e:
+            created = _create_missing_input_placeholders(e, allowed_roots)
+            if not created or round_no == max_rounds - 1:
+                raise
+            logger.info("test input placeholders created (round %d): %d file(s)",
+                        round_no + 1, len(created))
+    raise RuntimeError("unreachable")
+
+
+def _test_sample_ids(cfg: Dict[str, Any]) -> List[str]:
+    """测试模式的目标样本 ID:优先取模块 config 自己的样本键(兼容 samples
+    dict/list 与 pairs dict),没有则回退通用占位名。"""
+    ids: List[str] = []
+    s = cfg.get("samples")
+    if isinstance(s, dict):
+        ids = [str(k) for k in s]
+    elif isinstance(s, list):
+        ids = [str(x) for x in s]
+    p = cfg.get("pairs")
+    if isinstance(p, dict):
+        ids = ids + [str(k) for k in p if str(k) not in ids]
+    return ids or ["TestSample1", "TestSample2"]
 
 
 def infer_module_from_snakefile(snakefile: str) -> str:
@@ -622,6 +705,13 @@ def main(argv: List[str] | None = None) -> None:
         schema_validator = SchemaValidator()
         schema_validator._schema = schema
         schema_errors = schema_validator.validate(cfg)
+        if args.test is not None:
+            # 测试模式:'Required field is empty' 视为待填模板,不判失败
+            for e in [e for e in schema_errors
+                      if e.startswith("Required field is empty")]:
+                logger.info(f"[schema] {e} (test mode: unfilled template, ignored)")
+            schema_errors = [e for e in schema_errors
+                             if not e.startswith("Required field is empty")]
         if schema_errors:
             for e in schema_errors:
                 logger.error(f"[schema] {e}")
@@ -689,10 +779,11 @@ def main(argv: List[str] | None = None) -> None:
     # smk is never modified.
     wrapper = None
     if not args.target and not args.until and not args.list_rules:
+        target_samples = args.samples
+        if not target_samples and args.test is not None:
+            target_samples = _test_sample_ids(cfg)
         patterns = default_targets(snakefile, effective_config, cfg["outdir"],
-                                   args.samples or (["TestSample1", "TestSample2"]
-                                                    if args.test is not None
-                                                    else []), args.rules,
+                                   target_samples, args.rules,
                                    _sample_genomes_from_config(effective_config),
                                    args.genome)
         if not patterns:
@@ -706,7 +797,13 @@ def main(argv: List[str] | None = None) -> None:
     cmd = build_cmd(wrapper or snakefile, effective_config, args, mem_mb)
     logger.info("%s", cmd)
     try:
-        _run_cmd(cmd, cwd=ROOT_DIR)
+        if args.test is not None:
+            test_roots = [outdir, os.path.join(ROOT_DIR, "assests", "test", "data")]
+            if cfg.get("indir"):
+                test_roots.append(cfg["indir"])
+            _run_cmd_with_test_inputs(cmd, test_roots)
+        else:
+            _run_cmd(cmd, cwd=ROOT_DIR)
     finally:
         if os.environ.get("OMICS_SCRIPT_ONLY", "") == "1":
             _cleanup_script_only_placeholders(outdir)

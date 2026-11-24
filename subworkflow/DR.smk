@@ -1370,3 +1370,43 @@ module DRclass:
     config: drclass_config
 use rule * from DRclass as DR_drclass_*
 logger.debug(f"drclass_config: {drclass_config}")
+
+# ############################################
+# 链 3: TransEffect module (转录效应分析, 3.2.2.3 第四节):
+#       DRclass O1 位点 + featureCounts 表达矩阵 + CNVkit 段
+#       -> RNA 支持位点 VAF / RNA-DNA 比值 / 变异基因 Δ'(组内对照+随机 null)
+#       / CNV 剂量一致性 / 稳定性程序基因反向检验 + 4 图
+# 样本 = DRclass 已分类样本; sample_group_dict/gmt 由 node.py runDR 写入
+# Params.TransEffect(node.py 仅在 Params.TransEffect.enabled 时注册输出,
+# 输出决定流程走向)。
+# ############################################
+
+teffect_config = {
+    "resources": config.get("resources", {}),
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": f"{outdir}/TransEffect",
+    "logdir": f"{logdir}/group",
+    "samples": sorted(drclass_samples),
+    "sample_group_dict": config.get("Params", {}).get("TransEffect", {}).get("sample_group_dict", {}),
+    "drclass_dir": f"{outdir}/DRclass",
+    "counts_matrix": config.get("Params", {}).get("TransEffect", {}).get("counts_matrix")
+        or (f"{outdir}/RNA/counts/featureCounts/{default_genome}/{default_genome}_featureCounts.tsv"
+            if default_genome else ""),
+    "cnv_dir": f"{outdir}/DNA/variation/cnv",
+    "gmt": config.get("Params", {}).get("TransEffect", {}).get("gmt"),
+    "gtf": genome_ref.get("gtf"),
+    "Procedure": {
+        "python3": config.get("Procedure", {}).get("python3") or "python3",
+    },
+    "Params": {
+        "TransEffect": config.get("Params", {}).get("TransEffect", {}),
+    },
+}
+module TransEffect:
+    snakefile: "../modules/TransEffect/TransEffect.smk"
+    config: teffect_config
+use rule teffect_analyze from TransEffect as DR_teffect_analyze
+use rule teffect_figures from TransEffect as DR_teffect_figures
+logger.debug(f"teffect_config: {teffect_config}")

@@ -1080,6 +1080,11 @@ def runPacVar(
     enable_repeat = _enabled(datajson, "repeat")
     enable_telomere = _enabled(datajson, "telomere")
     enable_eccdna = _enabled(datajson, "decoil")  # Decoil is the eccDNA reconstruction step
+    # sawfish CNV calling: 默认不开启(Params.sawfish.enabled 默认 false);
+    # 断点 SV 鉴定输出同样默认不开启(Params.sawfish.call_sv 默认 false)。
+    _sawfish_params = params.get("sawfish", {}) or {}
+    enable_cnv = bool(_sawfish_params.get("enabled", False))
+    cnv_call_sv = bool(_sawfish_params.get("call_sv", False))
 
     _genome_ref = _resolve_genome_ref(datajson, samples_info_dict, "PacVar")
     _genome_name = datajson["genome"]["default"]
@@ -1114,6 +1119,16 @@ def runPacVar(
             outfiles += _figs(
                 f"{outdir}/repeat/trgt/plot/{sample_id}/{sample_id}.trgt.repeat",
                 _trgt_fmts)
+
+    # CNV calling (sawfish cohort-level joint-call; module wired in
+    # subworkflow/PacVar.smk). Default OFF — see Params.sawfish.enabled.
+    if enable_cnv:
+        outfiles.append(f"{outdir}/variation/germline_cnv/cnv/sawfish.cnv.vcf.gz")
+        outfiles.append(f"{outdir}/variation/germline_cnv/cnv/sawfish.cnv.vcf.gz.csi")
+        outfiles.append(f"{outdir}/variation/germline_cnv/cnv/sawfish_cnv_summary.tsv")
+        if cnv_call_sv:
+            outfiles.append(f"{outdir}/variation/germline_cnv/cnv/sawfish.sv.vcf.gz")
+            outfiles.append(f"{outdir}/variation/germline_cnv/cnv/sawfish.sv.vcf.gz.csi")
 
     # eccDNA / ecDNA reconstruction via Decoil
     # Decoil is reconstruction-only: SV VCF comes from pbsv upstream and the
@@ -2754,6 +2769,11 @@ def runFiberseq(
     want_motif = enable_motif or enable_footprint
     want_quant = enable_quant or enable_diff or enable_haplotype
     want_eccdna = _enabled(datajson, "decoil") and default_ref.get("gtf")
+    # sawfish CNV calling: 默认不开启(Params.sawfish.enabled 默认 false);
+    # 断点 SV 鉴定输出同样默认不开启(Params.sawfish.call_sv 默认 false)。
+    _sawfish_params = datajson.get("Params", {}).get("sawfish", {}) or {}
+    enable_cnv = bool(_sawfish_params.get("enabled", False))
+    cnv_call_sv = bool(_sawfish_params.get("call_sv", False))
 
     ### collect data
     for sample_id, sample_info in samples_info_dict.items():
@@ -2941,6 +2961,16 @@ def runFiberseq(
             outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.svsig.gz")
             outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz")
             outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz.csi")
+
+    # CNV calling (sawfish cohort-level joint-call; module wired in
+    # subworkflow/Fiberseq.smk). Default OFF — see Params.sawfish.enabled.
+    if enable_cnv:
+        outfiles.append(f"{outdir}/variation/germline_cnv/cnv/sawfish.cnv.vcf.gz")
+        outfiles.append(f"{outdir}/variation/germline_cnv/cnv/sawfish.cnv.vcf.gz.csi")
+        outfiles.append(f"{outdir}/variation/germline_cnv/cnv/sawfish_cnv_summary.tsv")
+        if cnv_call_sv:
+            outfiles.append(f"{outdir}/variation/germline_cnv/cnv/sawfish.sv.vcf.gz")
+            outfiles.append(f"{outdir}/variation/germline_cnv/cnv/sawfish.sv.vcf.gz.csi")
 
     # Comparison figure modules (not per-sample): telocen_norm (fig2) and
     # epi_drift (fig9). Both are ON by default: without a configured two-group
@@ -3790,6 +3820,13 @@ def runDR(
         # chain-1 RNA products (so the DAG builds them)
         outfiles += [rna_vcf, rna_bam]
 
+    if dr_pairs and not drclass_samples:
+        logger.warning(
+            f"DR: all {len(dr_pairs)} Params.workflow.dr_pairs entries were "
+            "skipped (none is a somatic tumor of a DNA design pair), so the "
+            "DRclass chain and DRclass_summary.tsv are not registered for "
+            "this run")
+
     # --- chain-0 DNA products: full Mutation.smk analysis set ---
     # Sequencing assay -> CNVkit --seq-method (Mutation parity; judged over the
     # DNA rows only — RNA rows share the meta). The meta `assay` column wins
@@ -4104,7 +4141,36 @@ def runDR(
         # 以 manifest.tsv 锚定 DAG 与磁盘一致)
         outfiles.append(f"{outdir}/DNA/figures/manifest.tsv")
 
-    outfiles.append(f"{outdir}/DRclass/DRclass_summary.tsv")
+    # O3 summary exists only when there are DRclass entries: with an empty
+    # samples table nothing may demand it (outputs decide the flow, TransEffect
+    # parity below) or rule all schedules a summary that can never run.
+    if drclass_samples:
+        outfiles.append(f"{outdir}/DRclass/DRclass_summary.tsv")
+
+    # --- TransEffect (转录效应分析, modules/TransEffect): DRclass O1 位点 +
+    # featureCounts 矩阵 + CNVkit 段 -> 转录效应表 + 图 (3.2.2.3 第四节)。
+    # Params.TransEffect.enabled 关闭则不注册(输出决定流程走向)。
+    if _enabled(datajson, "TransEffect") and drclass_samples:
+        teffect_cfg = datajson["Params"].setdefault("TransEffect", {})
+        if not teffect_cfg.get("sample_group_dict"):
+            teffect_cfg["sample_group_dict"] = {
+                t: sample_group_dict.get(t, "") or "G" for t in drclass_samples
+            }
+        _teffect_genome = str(datajson["genome"].get("default") or "")
+        if not teffect_cfg.get("counts_matrix") and _teffect_genome:
+            teffect_cfg["counts_matrix"] = (
+                f"{outdir}/RNA/counts/featureCounts/{_teffect_genome}/"
+                f"{_teffect_genome}_featureCounts.tsv")
+        if not teffect_cfg.get("gmt"):
+            teffect_cfg["gmt"] = (
+                datajson["Params"].get("function", {}).get(_teffect_genome, {})
+                .get("function_gsva", {}).get("gmt"))
+        outfiles.append(f"{outdir}/TransEffect/teffect_report.md")
+        outfiles.append(f"{outdir}/TransEffect/fig_rna_support_vaf.png")
+        outfiles.append(f"{outdir}/TransEffect/fig_variant_gene_delta.png")
+        outfiles.append(f"{outdir}/TransEffect/fig_cnv_overview.png")
+        if teffect_cfg.get("gmt"):
+            outfiles.append(f"{outdir}/TransEffect/fig_program_overlap.png")
 
     datajson["Params"]["workflow"]["dr_pairs"] = dr_pairs
     datajson["Params"]["workflow"]["drclass_samples"] = drclass_samples

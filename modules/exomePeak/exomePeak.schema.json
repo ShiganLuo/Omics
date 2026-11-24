@@ -26,6 +26,11 @@
     "nullable": true,
     "required": false
   },
+  "bam_suffix": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
   "ip_samples": {
     "type": "list",
     "nullable": true,

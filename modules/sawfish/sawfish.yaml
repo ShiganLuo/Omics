@@ -1,0 +1,10 @@
+name: sawfish
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - sawfish=2.3.1
+  - htslib=1.23.1
+  - bcftools=1.23.1
+  - python=3.12

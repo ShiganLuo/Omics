@@ -117,10 +117,11 @@ def build_ena_http_urls(srr_id: str) -> List[str]:
 
 
 def _ena_remote_file_exists(url: str) -> bool:
-    """Probe an ENA fastq URL with an HTTP HEAD request.
+    """Probe an ENA fastq URL and report whether a real file is served.
 
-    Uses curl so that socks/HTTP proxy environment variables are honoured
-    (urllib does not support socks proxies on this network).
+    Delegates to :func:`probe_ena_http_file`: a tiny ranged GET classifies the
+    URL as file / directory / missing, which a HEAD request cannot distinguish
+    (the ENA HTTPS layer also throttles HEAD with 403).
 
     Parameters
     ----------
@@ -130,13 +131,53 @@ def _ena_remote_file_exists(url: str) -> bool:
     Returns
     -------
     bool
-        True when the remote answers HTTP 200.
+        True when the URL serves real fastq data.
+    """
+    return probe_ena_http_file(url) == "file"
+
+
+def probe_ena_http_file(url: str, connect_timeout: int = 30) -> str:
+    """Classify one ENA fastq URL with a tiny ranged GET.
+
+    Parameters
+    ----------
+    url : str
+        Full ENA fastq URL.
+    connect_timeout : int, default=30
+        curl -m timeout in seconds.
+
+    Returns
+    -------
+    str
+        "file"    — real gzip payload (magic 1f8b);
+        "dir"     — server-side corruption: the name resolves to a directory
+                    (ENA answers 301 to the slash-suffixed path and serves an
+                    "Index of" listing page), the file can never download;
+        "missing" — HTTP 404;
+        "unknown" — anything else (proxy hiccup, portal page), treated as
+                    "let the download attempt decide".
     """
     result = subprocess.run(
-        ["curl", "-sI", "-m", "30", "-o", "/dev/null", "-w", "%{http_code}", url],
-        capture_output=True, text=True,
+        ["curl", "-sL", "-r", "0-511", "-m", str(connect_timeout),
+         "-w", "\n%{http_code}", url],
+        capture_output=True,
     )
-    return result.returncode == 0 and result.stdout.strip() == "200"
+    if result.returncode != 0:
+        return "unknown"
+    raw = result.stdout
+    cut = raw.rfind(b"\n")
+    if cut >= 0:
+        body, code = raw[:cut], raw[cut + 1:].decode("ascii", "ignore").strip()
+    else:
+        body, code = raw, ""
+    if code == "404":
+        return "missing"
+    if body[:2] == b"\x1f\x8b":
+        return "file"
+    head = body[:2048].lower()
+    if head.lstrip().startswith((b"<!doctype", b"<html")) and b"index of" in head:
+        return "dir"
+    return "unknown"
 
 
 # ============================================================
@@ -520,11 +561,14 @@ def ena_download_single_srr(
     logger.info(f"[ascp] {srr_id} 候选远端路径:\n    " + "\n    ".join(paths))
 
     if library_type == "PAIRED":
-        if (ascp_download(paths[0], dest, key) and
-                ascp_download(paths[1], dest, key)):
+        if ascp_download(paths[0], dest, key) and \
+                ascp_download(paths[1], dest, key):
             return verify_fastq_gzip(local[0]) and verify_fastq_gzip(local[1])
-        if ascp_download(paths[2], dest, key):
-            return verify_fastq_gzip(local[2])
+        if probe_ena_http_file(build_ena_http_urls(srr_id)[2]) == "file":
+            if ascp_download(paths[2], dest, key):
+                return verify_fastq_gzip(local[2])
+        else:
+            logger.warning(f"[ascp] {srr_id}.fastq.gz 不在 ENA 上，跳过 single-end 回退")
         return False
     else:  # SINGLE
         for i in (2, 0, 1):
@@ -655,13 +699,16 @@ def aria2c_download_single_srr(srr_id: str, library_type: str, dest: Path) -> bo
             logger.warning(f"[aria2c] {srr_id}_1 下载失败，尝试 single-end fallback")
             local[0].unlink(missing_ok=True)
 
-        # fallback: single-end (.fastq.gz)
-        if aria2c_download_single(urls[2], dest):
-            if verify_fastq_gzip(local[2]):
-                # 清理可能残留的 _1/_2
-                local[0].unlink(missing_ok=True)
-                local[1].unlink(missing_ok=True)
-                return True
+        # fallback: single-end (.fastq.gz)——仅当 ENA 上真有该文件才尝试
+        if probe_ena_http_file(urls[2]) == "file":
+            if aria2c_download_single(urls[2], dest):
+                if verify_fastq_gzip(local[2]):
+                    # 清理可能残留的 _1/_2
+                    local[0].unlink(missing_ok=True)
+                    local[1].unlink(missing_ok=True)
+                    return True
+        else:
+            logger.warning(f"[aria2c] {srr_id}.fastq.gz 不在 ENA 上，跳过 single-end 回退")
         return False
     else:  # SINGLE
         for i in (2, 0, 1):
@@ -974,13 +1021,16 @@ def curl_download_single_srr(srr_id: str, library_type: str, dest: Path) -> bool
             logger.warning(f"[curl] {srr_id}_1 下载失败，尝试 single-end fallback")
             local[0].unlink(missing_ok=True)
 
-        # fallback: single-end (.fastq.gz)
-        if curl_download_single(urls[2], dest):
-            if _verify(local[2]):
-                # 清理可能残留的 _1/_2
-                local[0].unlink(missing_ok=True)
-                local[1].unlink(missing_ok=True)
-                return True
+        # fallback: single-end (.fastq.gz)——仅当 ENA 上真有该文件才尝试
+        if f"{srr_id}.fastq.gz" in md5_map:
+            if curl_download_single(urls[2], dest):
+                if _verify(local[2]):
+                    # 清理可能残留的 _1/_2
+                    local[0].unlink(missing_ok=True)
+                    local[1].unlink(missing_ok=True)
+                    return True
+        else:
+            logger.warning(f"[curl] {srr_id}.fastq.gz 不在 ENA 文件清单中，跳过 single-end 回退")
         return False
     else:  # SINGLE
         for i in (2, 0, 1):
@@ -1190,6 +1240,33 @@ def download_spin(
                 f"实为 PAIRED run，自动升级为 PAIRED 下载"
             )
             library_type = "PAIRED"
+
+    # ENA 端损坏快检：fastq.gz 名字在服务端实际是个空目录（损坏自生成日起
+    # 即存在），任何 ENA 方法与重试都下不到；有 SRA Toolkit 就从 .sra 重建，
+    # 否则快速失败并给出修复指引，不耗尽重试。
+    if library_type == "PAIRED" and method in ("ascp", "aria2c", "curl"):
+        urls = build_ena_http_urls(srr_id)
+        bad = [u for u in urls[:2] if probe_ena_http_file(u) == "dir"]
+        if bad:
+            names = ", ".join(Path(urllib.parse.urlparse(u).path).name for u in bad)
+            logger.error(
+                f"[ENA] {srr_id} 服务端数据损坏：{names} 在 ENA 上是空目录"
+                f"（301 到带斜杠路径且目录为空），无法从 ENA 下载，重试无效"
+            )
+            if shutil.which("prefetch") and shutil.which("fasterq-dump"):
+                logger.warning(
+                    f"[sra] {srr_id} 自动切换 sra 工具链（prefetch+fasterq-dump）从 .sra 重建 fastq"
+                )
+                return spin_until_success(
+                    lambda: sra_download_single_srr(srr_id, "PAIRED", dest),
+                    f"{srr_id} PAIRED(sra 重建)", sleep_base, sleep_max,
+                    max_retries=min(max_retries, 3))
+            logger.error(
+                "[sra] 本机未安装 SRA Toolkit（prefetch/fasterq-dump）；安装后用 "
+                "-m sra 单独重跑该 SRR 可从 NCBI 重建 fastq："
+                "conda install -n base -c conda-forge -c bioconda sra-tools"
+            )
+            return False
 
     # 缓存：已存在且完整则跳过
     if _fastq_exists(dest, srr_id, library_type):

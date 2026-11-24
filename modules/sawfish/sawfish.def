@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for sawfish conda environment
+# Source YAML: sawfish.yaml
+# Build: apptainer build sawfish.sif sawfish.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    sawfish.yaml /opt/conda/sawfish.yaml
+
+%post
+    conda env create -f /opt/conda/sawfish.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/sawfish.yaml
+
+    echo 'export PATH="/opt/conda/envs/sawfish/bin:$PATH"' >> /etc/profile.d/conda_sawfish.sh
+    echo 'export CONDA_DEFAULT_ENV=sawfish' >> /etc/profile.d/conda_sawfish.sh
+
+%environment
+    export PATH="/opt/conda/envs/sawfish/bin:$PATH"
+    export CONDA_DEFAULT_ENV=sawfish
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName sawfish
+
+%help
+    Apptainer image for conda environment 'sawfish'.
+    Generated from sawfish.yaml.

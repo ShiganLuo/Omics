@@ -222,6 +222,39 @@ logger.debug(f"pbsv_config: {pbsv_config}")
 use rule pbsv_discover from pbsv as PacVar_pbsv_discover
 use rule pbsv_call from pbsv as PacVar_pbsv_call
 
+sawfish_config = {
+
+    "resources": config.get("resources", {}),
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "indir": gatk_prepare_config["outdir"],
+    "outdir": f"{outdir}/variation/germline_cnv",
+    "logdir": logdir,
+    "samples": samples,
+    "bam_substring": "sorted_markdup",
+    "Procedure": {
+        "sawfish": config.get("Procedure", {}).get("sawfish"),
+        "bgzip": config.get("Procedure", {}).get("bgzip"),
+        "bcftools": config.get("Procedure", {}).get("bcftools"),
+        "python": config.get("Procedure", {}).get("python")
+    },
+    "Params": {
+        "sawfish": config.get("Params", {}).get("sawfish", {})
+    },
+    "genome": {
+        "fasta": genome_ref.get("fasta"),
+        "fai_index": genome_ref.get("fai_index")
+    }
+}
+module sawfish:
+    snakefile: "../modules/sawfish/sawfish.smk"
+    config: sawfish_config
+logger.debug(f"sawfish_config: {sawfish_config}")
+use rule sawfish_discover from sawfish as PacVar_sawfish_discover
+use rule sawfish_joint_call from sawfish as PacVar_sawfish_joint_call
+use rule sawfish_cnv_filter from sawfish as PacVar_sawfish_cnv_filter
+
 hiphase_snp_config = {
 
     "resources": config.get("resources", {}),

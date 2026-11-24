@@ -48,6 +48,11 @@
    "nullable": true,
    "required": false
   },
+  "sawfish": {
+   "type": "null",
+   "nullable": true,
+   "required": false
+  },
   "hiphase": {
    "type": "null",
    "nullable": true,

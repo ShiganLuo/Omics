@@ -18,3 +18,5 @@ data
 /assests/test/fastq/
 /assests/test/bam/
 /assests/test/ms/
+# fontconfig 缓存(运行时误生成)
+.fontconfig/

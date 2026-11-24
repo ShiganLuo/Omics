@@ -495,6 +495,7 @@ PARSERS = {
     "fastqc_trimmed": parse_fastqc,
     "fastqc": parse_fastqc,
     "cutadapt": parse_cutadapt,
+    "cutadapt_single": parse_cutadapt,
     "flagstat": parse_flagstat,
     "bwa_mem2": parse_bwa_mem2,
     "markdup": parse_markdup,

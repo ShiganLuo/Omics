@@ -279,10 +279,18 @@ qc_summary_config = {
         "sexcheck": sexcheck_config["outdir"],
     },
     "qc_anchors": {
-        "cutadapt": "{sample}/{sample}.cutadapt_report.txt",
         "sexcheck": "sexcheck.tsv",
     },
 }
+# trimming QC anchors: only the selected trimmer produces reports (条件注入,
+# 不得无条件声明);cutadapt 的单端报告命名不同,按样本类型拆锚点覆盖
+if trimmer == "cutadapt":
+    if paired_samples:
+        qc_summary_config["qc_anchors"]["cutadapt"] = "{sample}/{sample}.cutadapt_report.txt"
+        qc_summary_config["qc_anchor_samples"] = {"cutadapt": paired_samples}
+    if single_samples:
+        qc_summary_config["qc_anchors"]["cutadapt_single"] = "{sample}/{sample}.single.cutadapt_report.txt"
+        qc_summary_config.setdefault("qc_anchor_samples", {})["cutadapt_single"] = single_samples
 module qc_summary:
     snakefile: "../modules/qc_summary/qc_summary.smk"
     config: qc_summary_config

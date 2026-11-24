@@ -11,6 +11,7 @@
 |---|---|---|
 | `fastqc_raw` / `fastqc_trimmed` | `<sample>/*_fastqc/fastqc_data.txt`（FastQC） | `parse_fastqc` |
 | `cutadapt` | `<sample>/<sample>.cutadapt_report.txt`（单端为 `.single.`） | `parse_cutadapt` |
+| `cutadapt_single` | `<sample>/<sample>.single.cutadapt_report.txt`（cutadapt 单端报告的锚点别名，与 `cutadapt` 同解析同列） | `parse_cutadapt` |
 | `flagstat` | `<sample>/<sample>_flagstat.txt`（samtools flagstat） | `parse_flagstat` |
 | `bwa_mem2` | `<sample>/bwa_mem2-alignment.txt`（比对规则日志） | `parse_bwa_mem2` |
 | `markdup` | `<sample>/<sample>.Markdup-metrics.txt`（GATK MarkDuplicates） | `parse_markdup` |
@@ -20,6 +21,9 @@
 
 表内列顺序由 `build_table()` 的 `core_order` 决定；缺失 stage/文件对应单元格保持
 `NA`（可选 stage 由 node.py 的 outfiles 注册门控，属预期行为而非错误）。
+trimmer 三选一（cutadapt/trimmomatic/trim_galore）下只有 cutadapt 报告进表：
+trimmomatic/trim_galore 的报告未接解析器，`cutadapt_*` 列为 NA（subworkflow
+侧锚点按 trimmer 条件注入，只有被选中的 trimmer 才声明报告锚点）。
 
 消费方：`Mutation_report` 报告对 `mapped_rate`（< 80% WARN）与
 `percent_duplication`（> 30% WARN）做红/黄着色（`generate_report.py` 的

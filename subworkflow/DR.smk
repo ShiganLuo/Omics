@@ -616,7 +616,6 @@ qc_summary_config = {
         "sexcheck": sexcheck_config["outdir"],
     },
     "qc_anchors": {
-        "cutadapt": "{sample}/{sample}.cutadapt_report.txt",
         "flagstat": "{sample}/{sample}_flagstat.txt",
         "bwa_mem2": "{sample}/bwa_mem2-alignment.txt",
         "markdup": "{sample}/{sample}.Markdup-metrics.txt",
@@ -632,6 +631,15 @@ qc_summary_config = {
 # resolved by node.py); WGS runs keep the stage unanchored and best-effort.
 if _targets_bed:
     qc_summary_config["qc_anchors"]["hs_metrics"] = "{sample}/{sample}.hs_metrics.txt"
+# trimming QC anchors: only the selected trimmer produces reports (条件注入,
+# 不得无条件声明);cutadapt 的单端报告命名不同,按样本类型拆锚点覆盖
+if trimmer == "cutadapt":
+    if dna_paired_samples:
+        qc_summary_config["qc_anchors"]["cutadapt"] = "{sample}/{sample}.cutadapt_report.txt"
+        qc_summary_config["qc_anchor_samples"]["cutadapt"] = dna_paired_samples
+    if dna_single_samples:
+        qc_summary_config["qc_anchors"]["cutadapt_single"] = "{sample}/{sample}.single.cutadapt_report.txt"
+        qc_summary_config["qc_anchor_samples"]["cutadapt_single"] = dna_single_samples
 module qc_summary:
     snakefile: "../modules/qc_summary/qc_summary.smk"
     config: qc_summary_config

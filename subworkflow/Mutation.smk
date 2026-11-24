@@ -605,7 +605,6 @@ qc_summary_config = {
     "qc_dirs": {
         "fastqc_raw": fastqc_raw_config["outdir"],
         "fastqc_trimmed": fastqc_trimmed_config["outdir"],
-        "cutadapt": trimmed_dir,
         "flagstat": samtools_config["outdir"],
         "bwa_mem2": f"{logdir}/sample",
         "markdup": gatk_prepare_config["outdir"],
@@ -629,15 +628,29 @@ qc_summary_config = {
 # resolved by node.py); WGS runs keep the stage unanchored and best-effort.
 if _targets_bed:
     qc_summary_config["qc_anchors"]["hs_metrics"] = "{sample}/{sample}.hs_metrics.txt"
-# trimming QC anchors: only the selected trimmer produces reports (条件注入,
-# 不得无条件声明);cutadapt 的单端报告命名不同,按样本类型拆锚点覆盖
+# trimming QC: stage key follows the selected trimmer (三种去接头报告格式与
+# 命名各异,各自解析器都已接入);锚点条件注入,PE/SE 命名不同的按样本类型拆
 if trimmer == "cutadapt":
+    qc_summary_config["qc_dirs"]["cutadapt"] = trimmed_dir
     if paired_samples:
         qc_summary_config["qc_anchors"]["cutadapt"] = "{sample}/{sample}.cutadapt_report.txt"
         qc_summary_config["qc_anchor_samples"]["cutadapt"] = paired_samples
     if single_samples:
+        qc_summary_config["qc_dirs"]["cutadapt_single"] = trimmed_dir
         qc_summary_config["qc_anchors"]["cutadapt_single"] = "{sample}/{sample}.single.cutadapt_report.txt"
         qc_summary_config["qc_anchor_samples"]["cutadapt_single"] = single_samples
+elif trimmer == "trimmomatic":
+    qc_summary_config["qc_dirs"]["trimmomatic"] = trimmed_dir
+    qc_summary_config["qc_anchors"]["trimmomatic"] = "{sample}/trimmomatic_report.txt"
+else:
+    qc_summary_config["qc_dirs"]["trim_galore"] = trimmed_dir
+    if paired_samples:
+        qc_summary_config["qc_anchors"]["trim_galore"] = "{sample}/trimming_statistics_1.txt"
+        qc_summary_config["qc_anchor_samples"]["trim_galore"] = paired_samples
+    if single_samples:
+        qc_summary_config["qc_dirs"]["trim_galore_single"] = trimmed_dir
+        qc_summary_config["qc_anchors"]["trim_galore_single"] = "{sample}/trimming_statistics.txt"
+        qc_summary_config["qc_anchor_samples"]["trim_galore_single"] = single_samples
 module qc_summary:
     snakefile: "../modules/qc_summary/qc_summary.smk"
     config: qc_summary_config

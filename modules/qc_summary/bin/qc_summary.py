@@ -259,6 +259,109 @@ def parse_cutadapt(stage_dir: str, sample: str) -> Dict[str, str]:
     return {k: v for k, v in metrics.items() if v != ""}
 
 
+def parse_trim_galore(stage_dir: str, sample: str) -> Dict[str, str]:
+    """Parse Trim Galore trimming statistics (per-mate cutadapt reports).
+
+    Trim Galore saves the raw cutadapt run per input file: PE writes
+    ``<sample>/trimming_statistics_1.txt`` and ``_2.txt`` (one per mate),
+    SE writes ``<sample>/trimming_statistics.txt``. Each file carries the
+    cutadapt ``=== Summary ===`` block. Counts are summed across files and
+    percentages recomputed from the summed counts (PE mates are counted
+    individually, so ``trim_galore_reads_in`` counts reads, not pairs).
+    """
+    paths = []
+    for name in (f"{sample}/trimming_statistics_1.txt",
+                 f"{sample}/trimming_statistics_2.txt",
+                 f"{sample}/trimming_statistics.txt"):
+        cand = os.path.join(stage_dir, name)
+        if os.path.isfile(cand):
+            paths.append(cand)
+    if not paths:
+        return {}
+
+    reads_in = reads_written = bp_processed = qtrimmed = bp_written = 0
+    for path in paths:
+        with open(path) as fh:
+            for line in fh:
+                m = re.match(r"^Total reads processed:\s*([\d,]+)", line)
+                if m:
+                    reads_in += int(m.group(1).replace(",", ""))
+                    continue
+                m = re.match(r"^Reads written \(passing filters\):\s*([\d,]+)",
+                             line)
+                if m:
+                    reads_written += int(m.group(1).replace(",", ""))
+                    continue
+                m = re.match(r"^Total basepairs processed:\s*([\d,]+)", line)
+                if m:
+                    bp_processed += int(m.group(1).replace(",", ""))
+                    continue
+                m = re.match(r"^Quality-trimmed:\s*([\d,]+)", line)
+                if m:
+                    qtrimmed += int(m.group(1).replace(",", ""))
+                    continue
+                m = re.match(r"^Total written \(filtered\):\s*([\d,]+)", line)
+                if m:
+                    bp_written += int(m.group(1).replace(",", ""))
+    if reads_in == 0 or bp_processed == 0:
+        return {}
+    return {
+        "trim_galore_reads_in": str(reads_in),
+        "trim_galore_reads_written_pct": f"{100.0 * reads_written / reads_in:.1f}",
+        "trim_galore_quality_trimmed_pct": f"{100.0 * qtrimmed / bp_processed:.1f}",
+        "trim_galore_bases_written_pct": f"{100.0 * bp_written / bp_processed:.1f}",
+    }
+
+
+def parse_trimmomatic(stage_dir: str, sample: str) -> Dict[str, str]:
+    """Parse the Trimmomatic -summary report (<sample>/trimmomatic_report.txt).
+
+    Trimmomatic 0.41 writes one ``Key: value`` per line (verified against
+    trimmomatic-0.41.jar): PE has ``Input Read Pairs`` / ``Both Surviving
+    Reads`` / ``Forward Only Surviving`` / ``Reverse Only Surviving`` /
+    ``Dropped Reads`` with matching ``... Read Percent`` lines; SE has
+    ``Input Reads`` / ``Surviving Reads`` / ``Dropped Reads`` likewise.
+    """
+    path = None
+    for cand in (
+        os.path.join(stage_dir, sample, "trimmomatic_report.txt"),
+        os.path.join(stage_dir, "trimmomatic_report.txt"),
+    ):
+        if os.path.isfile(cand):
+            path = cand
+            break
+    if not path:
+        return {}
+
+    kv: Dict[str, str] = {}
+    with open(path) as fh:
+        for line in fh:
+            m = re.match(r"^\s*(.+?):\s*([\d,.]+)\s*$", line)
+            if m:
+                kv[m.group(1).strip()] = m.group(2).replace(",", "")
+    if "Input Read Pairs" in kv:
+        return {
+            "trimmomatic_pairs_in": kv["Input Read Pairs"],
+            "trimmomatic_pairs_surviving_pct":
+                kv.get("Both Surviving Read Percent", ""),
+            "trimmomatic_fwd_only_pct":
+                kv.get("Forward Only Surviving Read Percent", ""),
+            "trimmomatic_rev_only_pct":
+                kv.get("Reverse Only Surviving Read Percent", ""),
+            "trimmomatic_pairs_dropped_pct":
+                kv.get("Dropped Read Percent", ""),
+        }
+    if "Input Reads" in kv:
+        return {
+            "trimmomatic_reads_in": kv["Input Reads"],
+            "trimmomatic_reads_surviving_pct":
+                kv.get("Surviving Read Percent", ""),
+            "trimmomatic_reads_dropped_pct":
+                kv.get("Dropped Read Percent", ""),
+        }
+    return {}
+
+
 def parse_bwa_mem2(stage_dir: str, sample: str) -> Dict[str, str]:
     """Parse bwa-mem2 alignment log (bwa_mem2-alignment.txt in the rule-log
     dir): PE insert-size distribution inferred from the dominant FR
@@ -496,6 +599,9 @@ PARSERS = {
     "fastqc": parse_fastqc,
     "cutadapt": parse_cutadapt,
     "cutadapt_single": parse_cutadapt,
+    "trim_galore": parse_trim_galore,
+    "trim_galore_single": parse_trim_galore,
+    "trimmomatic": parse_trimmomatic,
     "flagstat": parse_flagstat,
     "bwa_mem2": parse_bwa_mem2,
     "markdup": parse_markdup,
@@ -545,6 +651,12 @@ def build_table(samples: List[str], stages: Dict[str, Dict[str, Dict[str, str]]]
         "cutadapt_read_pairs", "cutadapt_reads",
         "cutadapt_pairs_written_pct", "cutadapt_reads_written_pct",
         "cutadapt_quality_trimmed_pct", "cutadapt_bases_written_pct",
+        "trim_galore_reads_in", "trim_galore_reads_written_pct",
+        "trim_galore_quality_trimmed_pct", "trim_galore_bases_written_pct",
+        "trimmomatic_pairs_in", "trimmomatic_pairs_surviving_pct",
+        "trimmomatic_fwd_only_pct", "trimmomatic_rev_only_pct",
+        "trimmomatic_pairs_dropped_pct", "trimmomatic_reads_in",
+        "trimmomatic_reads_surviving_pct", "trimmomatic_reads_dropped_pct",
         "total", "mapped", "mapped_rate", "properly_paired",
         "insert_size_mean", "insert_size_median", "insert_size_std",
         "bwa_unique_pairs_fr",

@@ -275,22 +275,34 @@ qc_summary_config = {
     "qc_dirs": {
         "fastqc_raw": fastqc_raw_config["outdir"],
         "fastqc_trimmed": fastqc_trimmed_config["outdir"],
-        "cutadapt": trimmed_dir,
         "sexcheck": sexcheck_config["outdir"],
     },
     "qc_anchors": {
         "sexcheck": "sexcheck.tsv",
     },
+    "qc_anchor_samples": {},
 }
-# trimming QC anchors: only the selected trimmer produces reports (条件注入,
-# 不得无条件声明);cutadapt 的单端报告命名不同,按样本类型拆锚点覆盖
+# trimming QC: stage key follows the selected trimmer (三种去接头报告格式与
+# 命名各异,各自解析器都已接入;trimmomatic 不支持 UMI,见上方分支);锚点
+# 条件注入,PE/SE 命名不同的按样本类型拆
 if trimmer == "cutadapt":
+    qc_summary_config["qc_dirs"]["cutadapt"] = trimmed_dir
     if paired_samples:
         qc_summary_config["qc_anchors"]["cutadapt"] = "{sample}/{sample}.cutadapt_report.txt"
-        qc_summary_config["qc_anchor_samples"] = {"cutadapt": paired_samples}
+        qc_summary_config["qc_anchor_samples"]["cutadapt"] = paired_samples
     if single_samples:
+        qc_summary_config["qc_dirs"]["cutadapt_single"] = trimmed_dir
         qc_summary_config["qc_anchors"]["cutadapt_single"] = "{sample}/{sample}.single.cutadapt_report.txt"
-        qc_summary_config.setdefault("qc_anchor_samples", {})["cutadapt_single"] = single_samples
+        qc_summary_config["qc_anchor_samples"]["cutadapt_single"] = single_samples
+else:
+    qc_summary_config["qc_dirs"]["trim_galore"] = trimmed_dir
+    if paired_samples:
+        qc_summary_config["qc_anchors"]["trim_galore"] = "{sample}/trimming_statistics_1.txt"
+        qc_summary_config["qc_anchor_samples"]["trim_galore"] = paired_samples
+    if single_samples:
+        qc_summary_config["qc_dirs"]["trim_galore_single"] = trimmed_dir
+        qc_summary_config["qc_anchors"]["trim_galore_single"] = "{sample}/trimming_statistics.txt"
+        qc_summary_config["qc_anchor_samples"]["trim_galore_single"] = single_samples
 module qc_summary:
     snakefile: "../modules/qc_summary/qc_summary.smk"
     config: qc_summary_config

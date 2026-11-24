@@ -731,7 +731,6 @@ qc_summary_config = {
     "logdir": f"{logdir}/group",
     "samples": [s for g in list(genome_paired_samples) + list(genome_single_samples) for s in genome_paired_samples.get(g, []) + genome_single_samples.get(g, [])],
     "qc_dirs": {
-        "cutadapt": trimmed_fastq_dir,
         "markdup": gatk_prepare_config["outdir"],
         "sexcheck": sexcheck_config["outdir"],
     },
@@ -739,6 +738,13 @@ qc_summary_config = {
         "sexcheck": "sexcheck.tsv",
     },
 }
+# trimming QC: stage key follows the selected trimmer (RNA 侧 discovery-only)
+if trimmer == "cutadapt":
+    qc_summary_config["qc_dirs"]["cutadapt"] = trimmed_fastq_dir
+elif trimmer == "trimmomatic":
+    qc_summary_config["qc_dirs"]["trimmomatic"] = trimmed_fastq_dir
+else:
+    qc_summary_config["qc_dirs"]["trim_galore"] = trimmed_fastq_dir
 module qc_summary:
     snakefile: "../modules/qc_summary/qc_summary.smk"
     config: qc_summary_config

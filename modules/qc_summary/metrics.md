@@ -12,6 +12,8 @@
 | `fastqc_raw` / `fastqc_trimmed` | `<sample>/*_fastqc/fastqc_data.txt`（FastQC） | `parse_fastqc` |
 | `cutadapt` | `<sample>/<sample>.cutadapt_report.txt`（单端为 `.single.`） | `parse_cutadapt` |
 | `cutadapt_single` | `<sample>/<sample>.single.cutadapt_report.txt`（cutadapt 单端报告的锚点别名，与 `cutadapt` 同解析同列） | `parse_cutadapt` |
+| `trim_galore` / `trim_galore_single` | `<sample>/trimming_statistics_1.txt` + `_2.txt`（Trim Galore 每端一份；单端为 `<sample>/trimming_statistics.txt`） | `parse_trim_galore` |
+| `trimmomatic` | `<sample>/trimmomatic_report.txt`（Trimmomatic `-summary` 输出） | `parse_trimmomatic` |
 | `flagstat` | `<sample>/<sample>_flagstat.txt`（samtools flagstat） | `parse_flagstat` |
 | `bwa_mem2` | `<sample>/bwa_mem2-alignment.txt`（比对规则日志） | `parse_bwa_mem2` |
 | `markdup` | `<sample>/<sample>.Markdup-metrics.txt`（GATK MarkDuplicates） | `parse_markdup` |
@@ -21,9 +23,8 @@
 
 表内列顺序由 `build_table()` 的 `core_order` 决定；缺失 stage/文件对应单元格保持
 `NA`（可选 stage 由 node.py 的 outfiles 注册门控，属预期行为而非错误）。
-trimmer 三选一（cutadapt/trimmomatic/trim_galore）下只有 cutadapt 报告进表：
-trimmomatic/trim_galore 的报告未接解析器，`cutadapt_*` 列为 NA（subworkflow
-侧锚点按 trimmer 条件注入，只有被选中的 trimmer 才声明报告锚点）。
+trimmer 三选一（cutadapt/trimmomatic/trim_galore）各有解析器与独立指标列；
+一次运行只用一种 trimmer，未选中 trimmer 的指标列不出现（core_order 缺列跳过）。
 
 消费方：`Mutation_report` 报告对 `mapped_rate`（< 80% WARN）与
 `percent_duplication`（> 30% WARN）做红/黄着色（`generate_report.py` 的
@@ -57,6 +58,37 @@ raw 为原始下机数据，trimmed 为 cutadapt 去接头后；两 stage 指标
 | `cutadapt_reads_written_pct` | SE 保留 reads 百分比（%） | `Reads written (passing filters):` 行 `(...%)` | 同上，SE 版 |
 | `cutadapt_quality_trimmed_pct` | 低质量碱基调低质量修剪的 reads 占比（%） | `Quality-trimmed:` 行 `(...%)` | 测序质量健康度。大幅偏高 → 测序仪该轮质量下滑 |
 | `cutadapt_bases_written_pct` | 输出碱基占输入碱基百分比（%） | `Total written (filtered):` 行 `(...%)` | 总信息保留率，综合了长度过滤与修剪 |
+
+## 2b. 去接头（trim_galore）
+
+Trim Galore 把每次输入文件的原生 cutadapt 运行保存为
+`trimming_statistics_1.txt` / `_2.txt`（PE 每端一份）或
+`trimming_statistics.txt`（SE），内含 cutadapt `=== Summary ===` 块。
+解析时**跨文件求和原始计数**再重算百分比（PE 两端各计一次，`reads_in`
+是 reads 不是 pairs）。
+
+| 指标 | 含义 | 计算原理 | 反映了什么 / 怎么看 |
+|---|---|---|---|
+| `trim_galore_reads_in` | 输入 reads 总数（PE 双端合计） | 各文件 `Total reads processed:` 求和 | trimming 入口通量，PE 时应 ≈ fastqc_raw `total_sequences` |
+| `trim_galore_reads_written_pct` | 保留 reads 百分比（%） | Σ`Reads written (passing filters):` / Σ`Total reads processed:` × 100 | 同 `cutadapt_reads_written_pct`；偏低常见于插入片段短、MINLEN 过严 |
+| `trim_galore_quality_trimmed_pct` | 低质量修剪碱基占比（%） | Σ`Quality-trimmed:` bp / Σ`Total basepairs processed:` × 100 | 同 `cutadapt_quality_trimmed_pct` |
+| `trim_galore_bases_written_pct` | 输出碱基占比（%） | Σ`Total written (filtered):` bp / Σ`Total basepairs processed:` × 100 | 同 `cutadapt_bases_written_pct` |
+
+## 2c. 去接头（trimmomatic）
+
+Trimmomatic `-summary` 报告（0.41 实测为逐行 `Key: value` 格式）；PE 与 SE
+键名不同，按 `Input Read Pairs` / `Input Reads` 判别。
+
+| 指标 | 含义 | 计算原理 | 反映了什么 / 怎么看 |
+|---|---|---|---|
+| `trimmomatic_pairs_in` | 输入 read pairs 总数（PE） | `Input Read Pairs:` 行 | trimming 入口通量 |
+| `trimmomatic_pairs_surviving_pct` | 双端均保留的 pairs 百分比（%） | `Both Surviving Read Percent:` 行 | 主保留率；偏低见于质量差或 adapter read-through |
+| `trimmomatic_fwd_only_pct` | 仅 R1 保留百分比（%） | `Forward Only Surviving Read Percent:` 行 | 与 rev 端合看：单侧偏高提示该端质量/接头问题 |
+| `trimmomatic_rev_only_pct` | 仅 R2 保留百分比（%） | `Reverse Only Surviving Read Percent:` 行 | 同上 |
+| `trimmomatic_pairs_dropped_pct` | 双端都丢弃的 pairs 百分比（%） | `Dropped Read Percent:` 行 | 丢弃率高 → 文库质量差或 MINLEN 过严 |
+| `trimmomatic_reads_in` | 输入 reads 总数（SE） | `Input Reads:` 行 | trimming 入口通量，SE 版 |
+| `trimmomatic_reads_surviving_pct` | SE 保留 reads 百分比（%） | `Surviving Read Percent:` 行 | 同 `trimmomatic_pairs_surviving_pct`，SE 版 |
+| `trimmomatic_reads_dropped_pct` | SE 丢弃 reads 百分比（%） | `Dropped Read Percent:` 行 | 同 `trimmomatic_pairs_dropped_pct`，SE 版 |
 
 ## 3. 比对（flagstat，作用于排序 BAM）
 

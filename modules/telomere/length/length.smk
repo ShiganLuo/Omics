@@ -19,138 +19,40 @@ indir = config.get("indir", "input")
 samples = config.get("samples", [])
 bam_substring = config.get("bam_substring") or ""
 assembly_dir = config.get("assembly_dir", "")
-# Per-method input dict (字典模式): inputs[method][file_key][sample_id].
-# Each method can point at its own file (e.g. telogator2→aligned BAM+.bai,
-# read_density→raw/unmapped BAM). Absent entry falls back to legacy shape A
-# (indir + bam_substring).
 _inputs = config.get("inputs", {}) or {}
-# Params.telomere: common fields (enabled/method/formats) at top; per-method
-# fields (species/assembly_scan_length/n_chrom_arms/…) under method keys.
 _tel = config.get("Params", {}).get("telomere", {})
 species = _tel.get("telogator2", {}).get("species", "human")
-# Plot output formats (common field; parse-期模块级变量,见 modules.md 出图多格式)。
 _tel_formats = _tel.get("formats") or ["png"]
 if isinstance(_tel_formats, str):
     _tel_formats = [_tel_formats]
 
-_TEL_REF_ARM_SUFFIX = ("p", "q")
-# chr-part vocab accepted by telogator2's LEXICO_2_IND (chr1..chr22, chrX,
-# chrY, chrM, chrF=failed, chrB=blank, chrU=unclustered).
-_TEL_REF_CHR_VOCAB = {"X", "Y", "M", "F", "B", "U"}
-# Species whose telogator2 built-in subtel ref is verified shipped in the
-# telogator2 install (source/resources/non-human/telogator-ref-<s>.fa.gz);
-# checked against telogator2 2.2.3 (maize, mouse only).
 _TEL_BUILTIN_REF_SPECIES = {"mouse", "maize"}
 
 
-def _tel_ref_name_ok(name: str) -> bool:
-    """telogator2 reference-name contract: '<build>_<chr><arm>'.
-
-    telogator2 parses anchor names with ``n.split('_')[1]`` (must yield
-    ``<chr><arm>``), ``[:-1]`` as the chr key into ``LEXICO_2_IND`` and
-    ``[-1]`` as the p/q arm — so exactly ONE underscore, a chr part from the
-    vocab above, and an arm suffix. Its own refs obey this
-    (t2t-chm13_chr1p, t2t-mouse_chr1p, ZMMo17_chr1p).
-    """
-    parts = name.split("_")
-    if len(parts) != 2:
-        return False
-    chr_arm = parts[1]
-    if len(chr_arm) < 4 or chr_arm[-1] not in _TEL_REF_ARM_SUFFIX:
-        return False
-    core = chr_arm[:-1]  # e.g. 'chr1'
-    if not core.startswith("chr"):
-        return False
-    suffix = core[3:]
-    return suffix.isdigit() or suffix in _TEL_REF_CHR_VOCAB
-
-
 def _validate_telogator_ref(path: str) -> str:
-    """Fail fast if `path`'s contig names violate the -t naming contract.
-
-    Scans up to 50 headers (bounded read: at most 20 MB) and raises naming
-    'Params.telomere.telogator2.subtel_ref' — a whole-genome FASTA passed as
-    -t otherwise crashes telogator2 hours into the run with a cryptic
-    ``KeyError: '133406.'`` at its anchor-sorting step.
-    """
-    import gzip
-    opener = gzip.open if path.endswith(".gz") else open
-    checked = 0
-    bytes_read = 0
-    with opener(path, "rt") as f:
-        for line in f:
-            bytes_read += len(line)
-            if not line.startswith(">"):
-                if bytes_read > 20_000_000:
-                    break
-                continue
-            name = line[1:].strip().split()[0]
-            if not _tel_ref_name_ok(name):
-                raise ValueError(
-                    f"telogator2 -t reference '{path}' contig '{name}' violates "
-                    f"telogator2's naming contract '<build>_<chr><arm>' (e.g. "
-                    f"'t2t-chm13_chr1p': exactly one underscore, chr part "
-                    f"chr1-22/X/Y, arm suffix p/q — one contig per chromosome "
-                    f"arm tip, ~500 kb). A whole-genome FASTA cannot be passed "
-                    f"as -t. Set 'Params.telomere.telogator2.subtel_ref' to a "
-                    f"telogator2 subtelomere-tip reference instead.")
-            checked += 1
-            if checked >= 50 or bytes_read > 20_000_000:
-                break
-    if checked == 0:
+    if not os.path.exists(path):
         raise ValueError(
-            f"telogator2 -t reference '{path}': no FASTA headers found; set "
-            f"'Params.telomere.telogator2.subtel_ref' to a valid FASTA.")
+            f"telogator2 -t reference '{path}' does not exist; set "
+            f"'genome.references.<genome>.subtel_ref' to an existing file.")
     return path
 
 
 def get_telogator2_ref():
-    """telogator2 -t reference: a subtelomere ARM-TIP FASTA, never the genome.
-
-    telogator2's ``-t`` is a per-arm tip reference (its own refs are
-    t2t-chm13_chr1p / t2t-mouse_chr1p …, 500 kb per arm tip); the anchor
-    parsing in telogator2.py hard-codes that shape (``n.split('_')[1]``,
-    ``LEXICO_2_IND[...[:-1]]``, p/q arm), so a whole-genome FASTA (e.g.
-    RefSeq ``NC_133406.1`` contigs) crashes with ``KeyError`` at the anchor
-    step. Resolution order (explicit config first, never guess a species):
-
-    1. ``Params.telomere.telogator2.subtel_ref`` — explicit tip reference
-       (validated against the naming contract)
-    2. ``genome.fasta`` — accepted ONLY if its contigs satisfy the contract
-       (a prepared tip reference passed as the genome)
-    3. human -> telogator2's built-in default (t2t-chm13 arm tips)
-    4. shipped non-human alias (mouse/maize) -> telogator2's built-in
-       ``resources/non-human/telogator-ref-<species>.fa.gz`` (resolved
-       inside the container via importlib.resources)
-    5. otherwise fail fast naming the config key to fill.
-    """
-    explicit = _tel.get("telogator2", {}).get("subtel_ref") or ""
+    explicit = config.get("genome", {}).get("subtel_ref") or ""
     if explicit:
         return _validate_telogator_ref(explicit)
-    fasta = config.get("genome", {}).get("fasta", "")
-    if fasta and os.path.exists(fasta):
-        try:
-            return _validate_telogator_ref(fasta)
-        except ValueError:
-            logger.warning(
-                f"genome fasta '{fasta}' is not a telogator2 tip reference "
-                f"(naming contract '<build>_<chr><arm>') — not using it as -t")
     if species == "human":
-        return ""  # use default (t2t-chm13 arm tips)
-    # Non-human: prefer a real telogator2 install on the host (path check),
-    # else hand telogator2 the resource NAME (it resolves its own
-    # resources/ inside the container via importlib.resources).
+        return ""
     try:
         result = subprocess.run(["which", "telogator2"], capture_output=True, text=True)
         telogator2_bin = result.stdout.strip()
         if telogator2_bin:
-            # Resources are in site-packages/source/resources/
             pyver = f"python{'.'.join(map(str, __import__('sys').version_info[:2]))}"
             resource_dir = os.path.join(os.path.dirname(telogator2_bin), "..",
                 "lib", pyver, "site-packages", "source", "resources")
             ref_file = os.path.join(resource_dir, "non-human", f"telogator-ref-{species}.fa.gz")
             if os.path.exists(ref_file):
-                return _validate_telogator_ref(ref_file)
+                return ref_file
     except Exception as e:
         logger.warning(f"Error finding telogator2 ref: {e}")
     if species in _TEL_BUILTIN_REF_SPECIES:
@@ -158,12 +60,10 @@ def get_telogator2_ref():
     raise ValueError(
         f"telogator2 has no built-in subtelomere reference for species "
         f"'{species}' (shipped non-human refs: {sorted(_TEL_BUILTIN_REF_SPECIES)}); "
-        f"set 'Params.telomere.telogator2.subtel_ref' in the config JSON to a "
-        f"telogator2-format tip reference (contigs '<build>_<chr><arm>', "
-        f"~500 kb per arm tip — see modules/telomere/length/README.md).")
+        f"set 'genome.references.<genome>.subtel_ref' in the config JSON.")
+
 
 def _inp(method: str, key: str, sample_id: str):
-    """Dict-mode input: inputs[method][key][sample_id]; None if absent."""
     d = _inputs.get(method, {})
     if isinstance(d, dict):
         k = d.get(key, {})
@@ -173,14 +73,12 @@ def _inp(method: str, key: str, sample_id: str):
 
 
 def _shapeA_bam(sample_id: str, want_bai: bool = False) -> str:
-    """Legacy shape A: {indir}/{sample}/{sample}[.bam_substring].bam|.bai"""
     base = (os.path.join(indir, f"{sample_id}/{sample_id}." + bam_substring)
             if bam_substring != "" else os.path.join(indir, f"{sample_id}/{sample_id}"))
     return base + (".bai" if want_bai else ".bam")
 
 
 def get_input_for_telogator2(wildcards):
-    """telogator2 needs an aligned BAM + .bai (dict-mode entry 'telogator2')."""
     logger.info(f"telogator2_run called with {wildcards}")
     bam = _inp("telogator2", "bam", wildcards.sample_id) or _shapeA_bam(wildcards.sample_id)
     bai = _inp("telogator2", "bai", wildcards.sample_id) or _shapeA_bam(wildcards.sample_id, True)
@@ -188,21 +86,11 @@ def get_input_for_telogator2(wildcards):
 
 
 def get_input_for_read_density(wildcards):
-    """read_density wants the RAW/unmapped BAM (all reads) — dict-mode
-    entry 'read_density' lets it point at a different BAM than telogator2."""
     bam = _inp("read_density", "bam", wildcards.sample_id) or _shapeA_bam(wildcards.sample_id)
     return {"bam": bam}
 
 
 def get_assembly_fasta(wildcards):
-    """Assembly FASTA for assembly_scan/tidk (dict-mode 'assembly_scan'/'tidk').
-
-    Explicit config only — NO guessed fallback paths: per-sample dict-mode
-    ``inputs.assembly_scan.fasta`` / ``inputs.tidk.fasta``, or ``assembly_dir``
-    (``{assembly_dir}/{sample_id}/assembly/asm.bp.p_ctg.fa``). Unset config
-    fails fast naming the key to fill (never fabricate a path no rule
-    produces — it turns a config error into a confusing MissingInputException).
-    """
     fa = (_inp("assembly_scan", "fasta", wildcards.sample_id)
           or _inp("tidk", "fasta", wildcards.sample_id))
     if fa:
@@ -214,22 +102,11 @@ def get_assembly_fasta(wildcards):
 
 
 def get_depth_qc_bed(wildcards):
-    """Telomere regions BED for depth QC (⑤诊断) — explicit config only.
-
-    Requires ``Params.telomere.depth_qc.telomere_bed`` (reference-coordinate
-    telomere_core/subtelomere BED). NO fallback path: a guessed BED name with
-    no producer only hides the missing config key.
-    """
     return _require(_tel.get("depth_qc", {}).get("telomere_bed"),
                     "Params.telomere.depth_qc.telomere_bed", "telomere")
 
 
 def get_tidk_scan_input(wildcards):
-    """Get input dict for tidk_scan.
-
-    If tidk database already exists (~/.local/share/tidk/tidk_database.csv),
-    skip tidk_init dependency. Otherwise include it.
-    """
     in_dict = {"fasta": get_assembly_fasta(wildcards)}
     tidk_db = os.path.expanduser("~/.local/share/tidk/tidk_database.csv")
     if not os.path.exists(tidk_db):
@@ -269,7 +146,7 @@ rule telogator2_run:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start telogator2 for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"telogator2_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             output_dir = os.path.join(outdir, "telogator2", wildcards.sample_id)
             os.makedirs(output_dir, exist_ok=True)
             plain_script = os.path.join(output_dir, f"telogator2_run_{wildcards.sample_id}.sh")
@@ -291,7 +168,7 @@ rule telogator2_run:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "telogator2_run completed successfully"')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -339,7 +216,7 @@ rule assembly_telomere_scan:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start assembly telomere scan for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"assembly_telomere_scan_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, "assembly_scan", wildcards.sample_id, f"assembly_telomere_scan_{wildcards.sample_id}.sh")
             os.makedirs(os.path.dirname(plain_script), exist_ok=True)
             cmd = [
@@ -349,7 +226,7 @@ rule assembly_telomere_scan:
                 "--output_dir", params.output_dir,
                 "--scan_length", str(params.scan_length)
             ]
-            for _f in params.formats:  # multi-format figure output (规范 #9)
+            for _f in params.formats:
                 cmd += ["-F", _f]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
@@ -361,7 +238,7 @@ rule assembly_telomere_scan:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "assembly_telomere_scan completed successfully"')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -409,7 +286,7 @@ rule read_density_telomere:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start read density telomere for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"read_density_telomere_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, "read_density", wildcards.sample_id, f"read_density_telomere_{wildcards.sample_id}.sh")
             os.makedirs(os.path.dirname(plain_script), exist_ok=True)
             cmd = [
@@ -419,7 +296,7 @@ rule read_density_telomere:
                 "--output_dir", params.output_dir,
                 "--n_chrom_arms", str(params.n_chrom_arms)
             ]
-            for _f in params.formats:  # multi-format figure output (规范 #9)
+            for _f in params.formats:
                 cmd += ["-F", _f]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
@@ -431,7 +308,7 @@ rule read_density_telomere:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "read_density_telomere completed successfully"')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -467,7 +344,7 @@ rule tidk_init:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info("Building tidk reference database (one-time init)")
             script = os.path.join(RECEIPT_DIR, f"tidk_init_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, "tidk_init.sh")
             cmd = [params.tidk, "build"]
             cmd_touch = ["touch", output[0]]
@@ -482,7 +359,7 @@ rule tidk_init:
                 f.write(" ".join(cmd_touch) + "\n")
                 f.write(f'echo "tidk_init completed successfully"')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -527,10 +404,9 @@ rule tidk_scan:
             rule_logger.info(f"Start tidk scan for sample {wildcards.sample_id} at {current_time}")
 
             script = os.path.join(RECEIPT_DIR, f"tidk_scan_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, "tidk", wildcards.sample_id, f"tidk_scan_{wildcards.sample_id}.sh")
             os.makedirs(os.path.dirname(plain_script), exist_ok=True)
-            # tidk search: --string, --output (prefix), --dir, positional FASTA
             cmd_search = [
                 params.tidk, "search",
                 "--string", params.motif,
@@ -538,7 +414,6 @@ rule tidk_scan:
                 "--dir", params.output_dir,
                 input.fasta
             ]
-            # Figure 3: plot the tidk result (runs after tidk search in the receipt)
             _search_tsv = os.path.join(
                 params.output_dir,
                 f"{wildcards.sample_id}_tidk_search_telomeric_repeat.tsv")
@@ -549,7 +424,7 @@ rule tidk_scan:
                 "-o", params.output_dir,
                 "--out_base", f"{wildcards.sample_id}_tidk_telomeres",
             ]
-            for _f in params.formats:  # multi-format figure output (规范 #9)
+            for _f in params.formats:
                 cmd_plot += ["-F", _f]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
@@ -562,11 +437,10 @@ rule tidk_scan:
                 f.write(" ".join(cmd_plot) + "\n")
                 f.write(f'echo "tidk_scan completed successfully"')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
-            # tidk search outputs <output>_telomeric_repeat.tsv in --dir
             search_tsv = os.path.join(params.output_dir, f"{wildcards.sample_id}_tidk_search_telomeric_repeat.tsv")
             if os.path.exists(search_tsv):
                 shutil.copy2(search_tsv, output.tsv)

@@ -192,40 +192,6 @@ def _fill_telomere_species(datajson: Dict[str, Any], workflow: str) -> None:
         f"(genome '{genome_key}')")
 
 
-# Genome reference key -> telogator2-format subtelomere tip reference
-# (contigs '<build>_<chr><arm>', ~500 kb per arm tip — telogator2's -t
-# contract, see modules/telomere/length/length.smk get_telogator2_ref).
-# A whole-genome FASTA is NOT a valid -t; each genome needs its own tip
-# reference. Filled into Params.telomere.telogator2.subtel_ref when unset —
-# genomes without an entry must set it explicitly, never guess.
-GENOME_TELOGATOR2_SUBTEL_REF = {
-    "Mmul_T2T": "/data/16T/Database/Reference/mulatta/NCBI/Mmul_T2T/telogator-ref-macaca_mulatta.fa.gz",
-}
-
-
-def _fill_telomere_subtel_ref(datajson: Dict[str, Any], workflow: str) -> None:
-    """Auto-fill Params.telomere.telogator2.subtel_ref from genome.default.
-
-    telogator2 -t takes a per-arm subtelomere tip reference, not the genome
-    FASTA (its anchor parsing hard-codes '<build>_<chr><arm>' contig names).
-    Explicit config wins; genomes without a GENOME_TELOGATOR2_SUBTEL_REF
-    entry fall through to telogator2's built-in refs (human default,
-    mouse/maize aliases) or fail fast in the module — never guess.
-    """
-    tel = (datajson.get("Params", {}).get("telomere", {}) or {})
-    if (tel.get("telogator2", {}) or {}).get("subtel_ref"):
-        return
-    genome_key = str(datajson.get("genome", {}).get("default"))
-    subtel_ref = GENOME_TELOGATOR2_SUBTEL_REF.get(genome_key)
-    if not subtel_ref:
-        return
-    datajson.setdefault("Params", {}).setdefault("telomere", {}).setdefault(
-        "telogator2", {})["subtel_ref"] = subtel_ref
-    logger.info(
-        f"{workflow}: Params.telomere.telogator2.subtel_ref := '{subtel_ref}' "
-        f"(genome '{genome_key}')")
-
-
 # Genome reference key -> diploid chromosome count, the denominator of
 # read_density's "Avg telomere per arm" (= total_tel_bp / n_chrom_arms;
 # modules/telomere/length/README.md §3.3). Module default 40 is the mouse
@@ -1249,7 +1215,6 @@ def runPacVar(
     _validate_te_lib(datajson, "PacVar")
     _fill_mei_rm_species(datajson, "PacVar")
     _fill_telomere_species(datajson, "PacVar")
-    _fill_telomere_subtel_ref(datajson, "PacVar")
     _fill_telomere_n_chrom_arms(datajson, "PacVar")
     _fill_repeatmasker_species(datajson, "PacVar")
     comparisons = dict(sv_params.get("comparisons") or {})
@@ -3038,7 +3003,6 @@ def runFiberseq(
     _validate_te_lib(datajson, "Fiberseq")
     _fill_mei_rm_species(datajson, "Fiberseq")
     _fill_telomere_species(datajson, "Fiberseq")
-    _fill_telomere_subtel_ref(datajson, "Fiberseq")
     _fill_telomere_n_chrom_arms(datajson, "Fiberseq")
     comparisons = dict(sv_params.get("comparisons") or {})
     if enable_sv and not comparisons:

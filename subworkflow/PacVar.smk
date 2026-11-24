@@ -17,8 +17,6 @@ rule all:
 
 
 genome_config = {
-
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -33,7 +31,6 @@ module genome:
 use rule genome_index from genome as PacVar_genome_index
 
 pbmm2_config = {
-
     "resources": config.get("resources", {}),
     "indir": indir,
     "outdir": f"{outdir}/common/2_sorted_bam",
@@ -59,10 +56,6 @@ use rule pbmm2_align from pbmm2 as PacVar_pbmm2_align
 
 
 gatk_prepare_config = {
-
-
-
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -97,11 +90,6 @@ use rule addReadsGroup from gatk_prepare as PacVar_addReadsGroup
 use rule MarkDuplicates from gatk_prepare as PacVar_MarkDuplicates
 
 
-# ============================================
-# Sex check (coverage on sex chromosomes)
-# ============================================
-# Wired unconditionally over the alignment BAMs; node.py registers the
-# sexcheck outputs (subworkflow.md QC wiring).
 sexcheck_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -134,14 +122,6 @@ logger.info(f"sexcheck_config: {sexcheck_config}")
 use rule sexcheck_idxstats from sexcheck as PacVar_sexcheck_idxstats
 use rule sexcheck from sexcheck as PacVar_sexcheck
 
-
-
-# ============================================
-# QC Summary (cross-sample metric aggregation)
-# ============================================
-# Wired unconditionally; node.py registers the qc_summary outputs (see
-# subworkflow.md QC wiring spec). Only stages with qc_summary parsers are
-# declared; unregistered stages stay best-effort scans.
 qc_summary_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -198,7 +178,6 @@ elif snv_caller == "gatk4":
     pass
 
 pbsv_config = {
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -223,7 +202,6 @@ use rule pbsv_discover from pbsv as PacVar_pbsv_discover
 use rule pbsv_call from pbsv as PacVar_pbsv_call
 
 sawfish_config = {
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -256,7 +234,6 @@ use rule sawfish_joint_call from sawfish as PacVar_sawfish_joint_call
 use rule sawfish_cnv_filter from sawfish as PacVar_sawfish_cnv_filter
 
 hiphase_snp_config = {
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -284,7 +261,6 @@ logger.debug(f"hiphase_snp_config: {hiphase_snp_config}")
 use rule hiphase_phase from hiphase_snp as PacVar_hiphase_snp
 
 hiphase_sv_config = {
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -313,8 +289,6 @@ use rule hiphase_phase from hiphase_sv as PacVar_hiphase_sv
 
 
 trgt_config = {
-
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -343,14 +317,9 @@ logger.debug(f"trgt_config: {trgt_config}")
 use rule trgt_genotype from trgt as PacVar_trgt_genotype
 use rule trgt_plot from trgt as PacVar_trgt_plot
 
-
-# ============================================================
-# Step 7: Telomere analysis + Centromere
-# ============================================================
 centromere_outdir = f"{outdir}/repeat/centromere"
 
 telomere_config = {
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -361,7 +330,8 @@ telomere_config = {
     "samples": samples,
     "bam_substring": "sorted_markdup",
     "assembly_dir": centromere_outdir,
-    "genome": {"fasta": genome_ref.get("fasta")},
+    "genome": {"fasta": genome_ref.get("fasta"),
+               "subtel_ref": genome_ref.get("subtel_ref")},
     "Procedure": {
         "telogator2": config.get("Procedure", {}).get("telogator2"),
         "tidk": config.get("Procedure", {}).get("tidk")
@@ -383,7 +353,6 @@ use rule read_density_combined from telomere as PacVar_read_density_combined
 use rule telomere_method_overview from telomere as PacVar_telomere_method_overview
 use rule telomere_depth_qc from telomere as PacVar_telomere_depth_qc
 
-# Telomere composition + regions sub-modules (telomere family)
 telomere_composition_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -429,7 +398,6 @@ module telomere_regions:
 use rule regions_telomere from telomere_regions as PacVar_regions_telomere
 
 centromere_config = {
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -449,20 +417,6 @@ module centromere:
     config: centromere_config
 logger.debug(f"centromere_config: {centromere_config}")
 use rule * from centromere as PacVar_centromere_*
-
-
-# ============================================================
-# Step 8: eccDNA / ecDNA reconstruction (Decoil)
-# ============================================================
-# Reference:
-#   Giurgiu et al., "Reconstructing extrachromosomal DNA structural heterogeneity
-#   from long-read sequencing data using Decoil", Genome Research, 2024.
-#   DOI: 10.1101/gr.279123.124.  https://github.com/madagiurgiu25/decoil-pre
-#
-# Pipeline shape:
-#   - SV VCF   <- pbsv upstream (outdir/variation/germline_sv/<sample_id>/...)
-#   - Coverage <- decoil/coverage submodule (deeptools bamCoverage on markdup BAM)
-#   - Decoil   <- decoil module (reconstruction-only: BAM + VCF + BW in, BED out)
 
 DECOIL_COV_DIR = f"{outdir}/eccdna/coverage"
 
@@ -491,11 +445,6 @@ logger.debug(f"bamCoverage_config: {bamCoverage_config}")
 use rule bamCoverage from bamCoverage as PacVar_bamCoverage
 
 
-# ============================================================
-# Region-focused multi-sample track stacking plots (modules/regionplot)
-#   Consumes this workflow's bigwigs; gated by Params.regionplot in
-#   node.py (subworkflow wiring is unconditional per repo convention).
-# ============================================================
 regionplot_params = config.get("Params", {}).get("regionplot", {})
 regionplot_config = {
     "ROOT_DIR": ROOT_DIR,
@@ -559,18 +508,7 @@ use rule decoil_igv from decoil as PacVar_decoil_igv
 use rule decoil_ucsc from decoil as PacVar_decoil_ucsc
 
 
-# ============================================================
-# Step 9: SV comparison analysis (modules/sv)
-#   exp-specific SV extraction (SURVIVOR merge + VEP annotate) →
-#   GO/KEGG enrichment → circos → gene model → cross-comparison
-#   diff analysis + OncoPrint (Params.sv gates in node.py).
-#   Params.sv.comparisons follows the DESeq2 group_pairs design
-#   (name -> group names + sample name lists); SV VCF paths are
-#   resolved per sample from vcf_dir/vcf_suffix.
-# ============================================================
 sv_params = config.get("Params", {}).get("sv", {})
-# mei.te_buckets: per-species dict (keyed like genome.references) -> the
-# active genome's list; a plain list passes through.
 _mei = sv_params.get("mei", {})
 if isinstance(_mei.get("te_buckets"), dict):
     sv_params = {**sv_params, "mei": {**_mei,
@@ -578,7 +516,6 @@ if isinstance(_mei.get("te_buckets"), dict):
 sv_outdir = f"{outdir}/variation/germline_sv_analysis"
 
 sv_config = {
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,

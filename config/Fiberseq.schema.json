@@ -1981,10 +1981,6 @@
      "type": "str",
      "required": false
     },
-    "subtel_ref": {
-     "type": "str",
-     "required": false
-    },
     "threads": {
      "type": "int",
      "required": false
@@ -2678,6 +2674,20 @@
     }
    },
    "genome_index": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+     "threads": {
+      "type": "int",
+      "required": false
+     },
+     "mem_mb": {
+      "type": "int",
+      "required": false
+     }
+    }
+   },
+   "hifiasm_assemble": {
     "type": "dict",
     "required": false,
     "properties": {

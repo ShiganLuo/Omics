@@ -1,24 +1,3 @@
-"""Fiber-seq subworkflow for single-molecule chromatin accessibility analysis.
-
-Workflow:
-  Step 1: fiberseq/1_prepare — predict-m6a (auto-skip if SPRQ) + add-nuc + fire
-  Step 2: common/2_aligned  — pbmm2 align → aligned fiberseq BAM
-  Step 3: fiberseq/3_extract — extract BED12 + call-peaks (FDR) + qc + fire BED
-  Step 4: fiberseq/4_downstream — annotate, motif, footprint, nucpos, quant,
-          tracks, coactuation, censat (Params.*.enabled gates in node.py)
-  Step 5: fiberseq/5_haplotype — deepvariant + pbsv + hiphase → hap split
-          extracts → haplotype diff (Params.haplotype.enabled)
-  Step 6: enrichment — GO/KEGG of non-promoter peak genes
-  Step 7: ldsc — partitioned heritability interface (Params.ldsc)
-
-Reference:
-  - Stergachis et al., 2020, Science (DOI: 10.1126/science.aaz1646)
-  - Jha, Bohaczuk et al., 2024, Genome Research (DOI: 10.1101/gr.279095.124)
-  - Single chromatin fiber profiling ..., Cell Rep Methods 2024 (DOI: 10.1016/j.crmeth.2024.100911)
-  - DNA methylation influences human centromere positioning ..., Nat Genet 2025
-    (DOI: 10.1038/s41588-025-02324-w)
-  - https://fiberseq.github.io/
-"""
 shell.prefix("set -x; set -e;")
 from snakemake.logging import logger
 
@@ -29,7 +8,6 @@ outdir = config.get("Params",{}).get("workflow",{}).get("outdir") or "output"
 logdir = config.get("Params",{}).get("workflow",{}).get("logdir") or "log"
 samples = config.get("Params",{}).get("workflow",{}).get("samples") or []
 
-# ---- Resolve genome reference ----
 genome_cfg = config.get("genome", {})
 default_genome = genome_cfg.get("default", "")
 genome_ref = genome_cfg.get("references", {}).get(default_genome, {})
@@ -60,10 +38,6 @@ module genome:
     config: genome_config
 use rule genome_index from genome as Fiberseq_genome_index
 
-# ============================================================
-# Step 1: Prepare fiberseq BAM → common/2_fiberseq_bam
-#   predict-m6a (auto-skip if SPRQ) → add-nucleosomes → fire
-# ============================================================
 prepare_outdir = f"{outdir}/common/2_fiberseq_bam"
 
 fibertools_prepare_config = {
@@ -94,13 +68,9 @@ use rule ft_add_nucleosomes from fibertools_prepare as Fiberseq_ft_add_nucleosom
 use rule ft_fire from fibertools_prepare as Fiberseq_ft_fire
 
 
-# ============================================================
-# Step 2: Align to genome → common/3_align_bam
-# ============================================================
 aligned_dir = f"{outdir}/common/3_align_bam"
 
 pbmm2_config = {
-
     "resources": config.get("resources", {}),
     "indir": prepare_outdir,
     "outdir": aligned_dir,
@@ -125,11 +95,6 @@ module pbmm2:
 logger.debug(f"Fiber-seq pbmm2 config: {pbmm2_config}")
 use rule pbmm2_align from pbmm2 as Fiberseq_pbmm2_align
 
-# ============================================
-# Sex check (coverage on sex chromosomes)
-# ============================================
-# Wired unconditionally over the alignment BAMs; node.py registers the
-# sexcheck outputs (subworkflow.md QC wiring).
 sexcheck_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -163,12 +128,6 @@ use rule sexcheck_idxstats from sexcheck as Fiberseq_sexcheck_idxstats
 use rule sexcheck from sexcheck as Fiberseq_sexcheck
 
 
-# ============================================
-# QC Summary (cross-sample metric aggregation)
-# ============================================
-# Wired unconditionally; node.py registers the qc_summary outputs (see
-# subworkflow.md QC wiring spec). Only stages with qc_summary parsers are
-# declared; unregistered stages stay best-effort scans.
 qc_summary_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -191,13 +150,6 @@ logger.debug(f"qc_summary_config: {qc_summary_config}")
 use rule qc_summary from qc_summary as Fiberseq_qc_summary
 
 
-
-
-# ============================================================
-# Step 3: Extract BED + peaks + QC → common/4_elements
-#   (element BEDs' single authoritative location; fire.bed
-#   is bgzip+tabix compressed)
-# ============================================================
 extract_outdir = f"{outdir}/common/4_elements"
 
 fibertools_analysis_config = {
@@ -233,19 +185,9 @@ use rule ft_qc from fibertools_analysis as Fiberseq_ft_qc
 use rule ft_extract_fire from fibertools_analysis as Fiberseq_ft_extract_fire
 
 
-# ============================================================
-# Step 4: Downstream interpretation (one module per analysis;
-#   node.py gates outputs per Params.*.enabled)
-#   indir = extract step's outdir (element BEDs' single
-#   authoritative location). Cross-module inputs always
-#   reference the producing module's config["outdir"], so a
-#   path is written exactly once and wiring follows the DAG.
-# ============================================================
 analysis_outdir = f"{outdir}/fiberseq_analysis"
 extract_config = fibertools_analysis_config
 elements_dir = extract_config["outdir"]
-# phased-BAM dir: defined once; hiphase writes into it (Step 5) and the
-# quant module reads per-hap element BEDs from it (Step 4)
 phased_dir = f"{outdir}/common/5_phased_bam"
 
 params = config.get("Params", {})
@@ -364,15 +306,6 @@ use rule fiberseq_quant_run from fiberseq_quant as Fiberseq_quant_run
 use rule fiberseq_quant_hap from fiberseq_quant as Fiberseq_quant_hap
 use rule fiberseq_quant_merge from fiberseq_quant as Fiberseq_quant_merge
 
-# ============================================================
-# Modification significance (fiberseq/mods): m6A/CpG calls over FIRE peaks
-# or TE loci -> long table -> sigtest per contrast x tested level (its own
-# module, file interface) -> significant objects TSV + regionplot-ready
-# BED + TE top loci. node.py derives contrasts/group_samples from the meta
-# design (group_pairs) and gates registration via Params.fiberseq_mods.
-# ============================================================
-# sigtest module output dir — hoisted so both configs reference one
-# definition (subworkflow executes sequentially; no forward refs)
 sigtest_dir = f"{analysis_outdir}/sigtest"
 
 fiberseq_mods_config = {
@@ -383,14 +316,9 @@ fiberseq_mods_config = {
     "outdir": f"{analysis_outdir}/mods",
     "logdir": f"{logdir}/group",
     "samples": samples,
-    # TE region axis (Params.fiberseq_mods.region_axis=te): RepeatMasker
-    # loci BED; sorted copy cached under tmp_dir
     "te_bed": genome_ref.get("repeat_bed"),
     "tmp_dir": config.get("tmp_dir") or f"{outdir}/tmp",
-    # postprocess rules consume the sigtest module's outputs from here
     "sigtest_dir": sigtest_dir,
-    # contrasts + group_samples are written by node.py into the config
-    # (derived from the meta design / group_pairs) before the DAG builds
     "contrasts": (config.get("Params", {}).get("fiberseq_mods", {})
                   or {}).get("contrasts", []),
     "Params": {
@@ -406,8 +334,6 @@ use rule fiberseq_mods_longtable from fiberseq_mods as Fiberseq_mods_longtable
 use rule fiberseq_mods_split from fiberseq_mods as Fiberseq_mods_split
 use rule fiberseq_mods_top_loci from fiberseq_mods as Fiberseq_mods_top_loci
 
-# sigtest module: consumes the mods long table (sigtest_table written by
-# node.py); per-contrast group pairs ride in Params.sigtest.groups_by_contrast
 fiberseq_sigtest_config = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -516,10 +442,6 @@ module fiberseq_censat:
 logger.debug(f"fiberseq_censat config: {fiberseq_censat_config}")
 use rule fiberseq_censat_run from fiberseq_censat as Fiberseq_censat_run
 
-# ============================================================
-# Comparison figure modules (fig2 / fig9 style): two-group designs,
-# groups = Params.<step>.groups {label: [samples]} (exactly 2 groups).
-# ============================================================
 fiberseq_telocen_norm_config = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -629,13 +551,6 @@ module centromere:
 logger.debug(f"centromere_config: {centromere_config}")
 use rule * from centromere as Fiberseq_centromere_*
 
-# ============================================================
-# Telomere length analysis (modules/telomere)
-#   indir = aligned fire.bam (telogator2 needs .bai). NOTE: read_density's
-#   reference-free k-mer method ideally consumes the RAW/unmapped HiFi BAM
-#   (loses pure-telomere reads in an aligned BAM — see module README §3.1/§3.4).
-#   Method selection lives in Params.telomere.method (node.py gates outputs).
-# ============================================================
 telomere_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -647,9 +562,7 @@ telomere_config = {
     "samples": samples,
     "bam_substring": "fiberseq.fire.sorted",
     "assembly_dir": config.get("assembly_dir") or assembly_outdir,
-    "genome": {"fasta": fasta},
-    # 字典模式输入(每方法一份 sample→path 字典,仿 sexcheck sample_bams):
-    # telogator2 用比对 fire.bam+.bai;read_density 用原始/unmapped HiFi BAM。
+    "genome": {"fasta": fasta, "subtel_ref": genome_ref.get("subtel_ref")},
     "inputs": {
         "telogator2": {
             "bam": {s: f"{aligned_dir}/{s}/{s}.fiberseq.fire.sorted.bam" for s in samples},
@@ -680,9 +593,6 @@ use rule read_density_combined from telomere as Fiberseq_read_density_combined
 use rule telomere_method_overview from telomere as Fiberseq_telomere_method_overview
 use rule telomere_depth_qc from telomere as Fiberseq_telomere_depth_qc
 
-# ============================================================
-# Telomere composition + regions sub-modules (telomere family)
-# ============================================================
 telomere_composition_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -727,10 +637,6 @@ module telomere_regions:
     config: telomere_regions_config
 use rule regions_telomere from telomere_regions as Fiberseq_regions_telomere
 
-
-# ============================================================
-# Step 5: Haplotype chain (variant calling → phasing → per-hap analysis)
-# ============================================================
 variation_outdir = f"{outdir}/variation"
 
 deepvariant_config = {
@@ -763,7 +669,6 @@ logger.debug(f"Fiber-seq deepvariant config: {deepvariant_config}")
 use rule deepvariant_run from deepvariant as Fiberseq_deepvariant_run
 
 pbsv_config = {
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -791,7 +696,6 @@ use rule pbsv_discover from pbsv as Fiberseq_pbsv_discover
 use rule pbsv_call from pbsv as Fiberseq_pbsv_call
 
 sawfish_config = {
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -824,7 +728,6 @@ use rule sawfish_joint_call from sawfish as Fiberseq_sawfish_joint_call
 use rule sawfish_cnv_filter from sawfish as Fiberseq_sawfish_cnv_filter
 
 hiphase_config = {
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -851,7 +754,6 @@ module hiphase:
 logger.debug(f"Fiber-seq hiphase config: {hiphase_config}")
 use rule hiphase_phase from hiphase as Fiberseq_hiphase_phase
 
-# Per-hap element extraction from the phased BAM
 fibertools_hap_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -881,11 +783,6 @@ use rule ft_split_hap from fibertools_hap as Fiberseq_ft_split_hap
 use rule ft_extract_hap from fibertools_hap as Fiberseq_ft_extract_hap
 
 
-# ============================================================
-# Step 6: GO/KEGG + GSEA via the shared function module
-#   (reuses function_go_kegg / function_gsea; input gene tables
-#   are emitted by diff_accessibility in go-kegg.r format)
-# ============================================================
 function_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -914,9 +811,6 @@ use rule function_go_kegg from function as Fiberseq_function_go_kegg
 use rule function_gsea from function as Fiberseq_function_gsea
 
 
-# ============================================================
-# Step 7: LDSC partitioned heritability (interface)
-# ============================================================
 ldsc_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -966,11 +860,7 @@ module bamCoverage:
 logger.debug(f"bamCoverage_config: {bamCoverage_config}")
 use rule bamCoverage from bamCoverage as Fiberseq_bamCoverage
 
-# ============================================================
-# Region-focused multi-sample track stacking plots (modules/regionplot)
-#   Consumes this workflow's bigwigs; gated by Params.regionplot in
-#   node.py (subworkflow wiring is unconditional per repo convention).
-# ============================================================
+
 regionplot_params = config.get("Params", {}).get("regionplot", {})
 regionplot_config = {
     "ROOT_DIR": ROOT_DIR,
@@ -997,13 +887,6 @@ logger.debug(f"regionplot_config: {regionplot_config}")
 use rule regionplot from regionplot as Fiberseq_regionplot
 use rule regionplot_result from regionplot as Fiberseq_regionplot_result
 
-# ============================================================
-# Paper-style fiber-seq locus browser figures (modules/fiberbrowser)
-#   Consumes this workflow's aligned fiberseq BAMs (pbmm2 outdir, form B
-#   dict so DAG dependency tracking follows Fiberseq_pbmm2_align); gated by
-#   Params.fiberbrowser.enabled in node.py (wiring is unconditional per
-#   repo convention; default off = 不主动调用,按参数决定是否输出).
-# ============================================================
 fiberbrowser_params = config.get("Params", {}).get("fiberbrowser", {})
 fiberbrowser_config = {
     "ROOT_DIR": ROOT_DIR,
@@ -1028,13 +911,6 @@ logger.debug(f"fiberbrowser_config: {fiberbrowser_config}")
 use rule fiberbrowser from fiberbrowser as Fiberseq_fiberbrowser
 use rule fiberbrowser_result from fiberbrowser as Fiberseq_fiberbrowser_result
 
-# ============================================================
-# Single-fiber pattern clustering + report package (modules/fibercluster)
-#   Consumes this workflow's ft-extract element BEDs (extract_outdir, shape
-#   A suffix splicing) plus the user-provided regions BED; gated by
-#   Params.fibercluster.enabled in node.py (wiring is unconditional per
-#   repo convention; default off = 不主动调用,按参数决定是否输出).
-# ============================================================
 fibercluster_params = config.get("Params", {}).get("fibercluster", {})
 fibercluster_config = {
     "ROOT_DIR": ROOT_DIR,
@@ -1098,18 +974,7 @@ use rule decoil_igv from decoil as Fiberseq_decoil_igv
 use rule decoil_ucsc from decoil as Fiberseq_decoil_ucsc
 
 
-# ============================================================
-# Step 8: SV comparison analysis (modules/sv)
-#   exp-specific SV extraction (SURVIVOR merge + VEP annotate) →
-#   GO/KEGG enrichment → circos → gene model → cross-comparison
-#   diff analysis + OncoPrint (Params.sv gates in node.py).
-#   Params.sv.comparisons follows the DESeq2 group_pairs design
-#   (name -> group names + sample name lists); SV VCF paths are
-#   resolved per sample from vcf_dir/vcf_suffix.
-# ============================================================
 sv_params = config.get("Params", {}).get("sv", {})
-# mei.te_buckets: per-species dict (keyed like genome.references) -> the
-# active genome's list; a plain list passes through.
 _mei = sv_params.get("mei", {})
 if isinstance(_mei.get("te_buckets"), dict):
     sv_params = {**sv_params, "mei": {**_mei,
@@ -1118,7 +983,6 @@ if isinstance(_mei.get("te_buckets"), dict):
 sv_outdir = f"{variation_outdir}/germline_sv_analysis"
 
 sv_config = {
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -1156,9 +1020,7 @@ use rule sv_diff_analysis from sv as Fiberseq_sv_diff_analysis
 use rule sv_oncoprint from sv as Fiberseq_sv_oncoprint
 use rule sv_result from sv as Fiberseq_sv_result
 
-# Step 8b: SV-affected genes GO/KEGG via modules/function/sv_go
-#   (clusterProfiler + org.Mmu.eg.db → macaque first-class; the gseapy
-#   route above only knows human/mouse). Gated by Params.function.sv_go.
+
 svgokegg_params = config.get("Params", {}).get("function", {}).get("sv_go_kegg", {})
 sv_go_kegg_config = {
     "resources": config.get("resources", {}),

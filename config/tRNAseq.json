@@ -1,9 +1,9 @@
 {
   "Params": {
     "workflow": {
-      "indir": "/data/pub/zhousha/20260207_Exome/output/tRNAseq/fastq/raw_fastq",
-      "outdir": "/data/pub/zhousha/20260207_Exome/output/tRNAseq",
-      "logdir": "/data/pub/zhousha/20260207_Exome/output/tRNAseq/log",
+      "indir": "input",
+      "outdir": "output",
+      "logdir": "log",
       "raw_files": [],
       "samples": [
         "4C-1",
@@ -237,9 +237,7 @@
     }
   },
   "Procedure": {},
-  "outfiles": [
-    "/data/pub/zhousha/20260207_Exome/output/tRNAseq/mimseq/mimseq"
-  ],
+  "outfiles": [],
   "ROOT_DIR": null,
   "tmp_dir": null
 }

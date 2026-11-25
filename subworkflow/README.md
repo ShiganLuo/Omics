@@ -61,6 +61,8 @@ tabix -g gff [gft.gz]
 
 为了让nginx能够获取流程生成html内的内容，特意配置了这个map，以生成相对路径让nginx能够读取
 
+**publicPathMap 的键必须按部署手动配置,仓库不预设**:键是生成 HTML 内资源绝对路径的前缀,值是 nginx 对外的 URL 前缀,两者都取决于部署机器的文件系统布局与 nginx 的 location/alias 配置,无法从仓库推断。仓库内 `/data/pub/zhousha/…` 键是旧服务器(math_zhou)的示例;换机器部署时把键改成当前资源路径的公共前缀(如 `/data/16T/Database/Reference/`、`/data/16T/Database/`),值与 nginx 配置的 URL 对应(`/ref/`、`/data/`)。键与实际路径前缀不匹配时,生成端(`track.py` 的 `_rewrite_resource_url`)会退化为相对路径,浏览器取不到参考文件、IGV 轨道加载失败。
+
 待做：
 - [] 增加UMI提取方式字段
 

@@ -14,7 +14,7 @@ logdir = config.get("logdir", "log")
 ROOT_DIR = config.get("ROOT_DIR", ".")
 
 sigtest_params = config.get("Params", {}).get("sigtest", {})
-# Contrast names come from the subworkflow (derived from its group_pairs);
+# Contrast names come from the subworkflow (derived from its comparisons);
 # the panel rule expands over them at parse time (scanpy_result pattern).
 sigtest_contrasts = [str(c) for c in (config.get("contrasts") or [])]
 

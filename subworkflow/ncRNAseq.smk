@@ -7,14 +7,14 @@ outfiles = config.get("outfiles", [])
 indir = config.get("Params", {}).get("workflow").get("indir", "data/fastq")
 outdir = config.get("Params", {}).get("workflow").get("outdir", "output")
 logdir = config.get("Params", {}).get("workflow").get("logdir", "logs")
-paired_samples = config.get("Params", {}).get("workflow").get("paired_samples", [])
-single_samples = config.get("Params", {}).get("workflow").get("single_samples", [])
-all_samples = config.get("Params", {}).get("workflow").get("samples", [])
+paired_samples = config.get("sample_params", {}).get("paired_samples", [])
+single_samples = config.get("sample_params", {}).get("single_samples", [])
+all_samples = config.get("sample_params", {}).get("samples", [])
 aligner = config.get("Params", {}).get("workflow").get("aligner") or "star"
 
-ip_samples = config.get("Params", {}).get("workflow").get("ip_samples", [])
-input_samples = config.get("Params", {}).get("workflow").get("input_samples", [])
-sample_ip_input_map = config.get("Params", {}).get("workflow").get("sample_ip_input_map", {})
+ip_samples = config.get("sample_params", {}).get("ip_samples", [])
+input_samples = config.get("sample_params", {}).get("input_samples", [])
+sample_ip_input_map = config.get("sample_params", {}).get("sample_ip_input_map", {})
 genome = config.get("genome", {}).get("default")
 
 rule all:

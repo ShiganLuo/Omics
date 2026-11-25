@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 import pandas as pd
 from typing import List, Dict, Optional, Tuple
@@ -530,29 +531,28 @@ def parser_args(
     argparse.Namespace
         Parsed arguments with attributes:
 
-        - ``tab_files`` : list of str -- VEP annotation tab files (``sample=path``).
+        - ``tab_files`` : dict -- group name -> VEP annotation tab path (JSON object).
         - ``cosmic_file`` : str -- path to COSMIC cancer gene list file.
         - ``oncoprint_file`` : str -- path to output oncoprint matrix file.
-        - ``deseq2_files`` : list of str -- DESeq2 result files (``condition=path``).
+        - ``deseq2_files`` : dict -- condition -> DESeq2 result path (JSON object).
         - ``formats`` : list of str -- image output formats (default ``["png"]``).
     """
     parser = argparse.ArgumentParser(description="Run OncoPrint analysis for SV data")
     parser.add_argument(
-        "-g", "--group",
-        action="append",
+        "--groups-json",
         required=True,
-        metavar="NAME:VCF",
-        help="Group in format 'name:vep_annotation_file(tab)'. Can be specified multiple times. "
-             "Example: -g Control:ctrl.vep.txt -g Experiment:exp.vep.txt",
+        metavar="JSON",
+        help="Group name -> VEP annotation tab path mapping as a JSON object "
+             "(e.g. '{\"Control\": \"ctrl.vep.txt\", \"Experiment\": \"exp.vep.txt\"}')",
     )
     parser.add_argument("--cosmic_file", required=True, help="Path to COSMIC cancer gene list file")
     parser.add_argument("-o","--outdir", required=True, help="Path to output directory")
     parser.add_argument(
-        "-d", "--deseq2_files",
-        action="append",
+        "--deseq2-json",
         required=True,
-        metavar="CONDITION:PATH",
-        help="DESeq2 result files (format: condition:path)",
+        metavar="JSON",
+        help="Condition -> DESeq2 result path mapping as a JSON object "
+             "(e.g. '{\"Tumor\": \"tumor_deseq2.csv\"}')",
     )
     parser.add_argument("-f", "--image_format", action="append", dest="image_format", metavar="FMT", help="Image output format (png, pdf, svg, ...). Can be specified multiple times. Default: png.")
     return parser.parse_args()
@@ -569,13 +569,9 @@ def main():
     os.makedirs(outdir, exist_ok=True)
     # -f/--image_format is repeatable; absent = default ["png"]
     image_formats = args.image_format if args.image_format else ["png"]
-    # Parse group_files from "sample:path" format
-    tab_files = {}
-    for item in args.group:
-        if ":" not in item:
-            raise ValueError(f"Invalid group files format '{item}', expected 'sample:path'")
-        sample, path = item.split(":", 1)
-        tab_files[sample] = path
+    tab_files = json.loads(args.groups_json)
+    if not isinstance(tab_files, dict) or not tab_files:
+        raise ValueError("--groups-json must be a non-empty JSON object {name: path}")
     sample_order = list(tab_files.keys())
 
     # Build oncoprint matrix
@@ -597,13 +593,9 @@ def main():
         image_formats=image_formats,
     )
 
-    # Parse deseq2_files from "condition=path" format
-    condition_files = {}
-    for item in args.deseq2_files:
-        if ":" not in item:
-            raise ValueError(f"Invalid deseq2_files format '{item}', expected 'condition:path'")
-        cond, path = item.split(":", 1)
-        condition_files[cond] = path
+    condition_files = json.loads(args.deseq2_json)
+    if not isinstance(condition_files, dict):
+        raise ValueError("--deseq2-json must be a JSON object {condition: path}")
 
     # DESeq2 fold change summary
     result_df = Deseq2_oncoprint_data(

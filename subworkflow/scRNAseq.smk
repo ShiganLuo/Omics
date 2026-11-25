@@ -4,8 +4,8 @@ outfiles = config.get("outfiles") or []
 indir = config.get("Params", {}).get("workflow", {}).get("indir") or "input"
 outdir = config.get("Params", {}).get("workflow", {}).get("outdir") or "output"
 logdir = config.get("Params", {}).get("workflow", {}).get("logdir") or "log"
-paired_samples = config.get("Params", {}).get("workflow", {}).get("paired_samples") or []
-single_samples = config.get("Params", {}).get("workflow", {}).get("single_samples") or []
+paired_samples = config.get("sample_params", {}).get("paired_samples") or []
+single_samples = config.get("sample_params", {}).get("single_samples") or []
 aligner = config.get("Params", {}).get("workflow", {}).get("aligner") or "cellranger"
 
 counters = config.get("Params", {}).get("workflow", {}).get("counters") or ["scTE", "cellranger"]
@@ -108,7 +108,7 @@ elif aligner == "cellranger":
             "logdir": f"{logdir}/sample",
             "logdir_ref": f"{logdir}/group",
             "h5ad_outdir": h5ad_outdir,
-            "cellranger_input_dict": config.get("Params", {}).get("workflow", {}).get("cellranger_input_dict", {}),
+            "cellranger_input_dict": config.get("sample_params", {}).get("cellranger_input_dict", {}),
             "Params": {
                 "cellranger": config.get("Params", {}).get("cellranger", {}),
             },
@@ -168,7 +168,7 @@ elif aligner == "cellranger":
             "logdir_ref": f"{logdir}/group",
             "ctd_input_mode": "cellranger_dir",
             "h5ad_outdir": h5ad_outdir,
-            "cellranger_input_dict": config.get("Params", {}).get("workflow", {}).get("cellranger_input_dict", {}),
+            "cellranger_input_dict": config.get("sample_params", {}).get("cellranger_input_dict", {}),
             "Params": {
                 "cellranger": config.get("Params", {}).get("cellranger", {}),
             },

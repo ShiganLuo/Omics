@@ -5,12 +5,12 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("Params", {}).get("workflow", {}).get("indir", "data/fastq")
 outdir = config.get("Params", {}).get("workflow", {}).get("outdir", "output")
 logdir = config.get("Params", {}).get("workflow", {}).get("logdir", "logs")
-genome_paired_samples = config.get("Params", {}).get("workflow", {}).get("genome_paired_samples", {})
-genome_single_samples = config.get("Params", {}).get("workflow", {}).get("genome_single_samples", {})
-dr_pairs = config.get("Params", {}).get("workflow", {}).get("dr_pairs", {})          # {dna: rna}
-drclass_samples = config.get("Params", {}).get("workflow", {}).get("drclass_samples", {})
-dna_paired_samples = config.get("Params", {}).get("workflow", {}).get("dna_paired_samples", [])
-dna_single_samples = config.get("Params", {}).get("workflow", {}).get("dna_single_samples", [])
+genome_paired_samples = config.get("sample_params", {}).get("genome_paired_samples", {})
+genome_single_samples = config.get("sample_params", {}).get("genome_single_samples", {})
+dr_pairs = config.get("sample_params", {}).get("dr_pairs", {})          # {dna: rna}
+drclass_samples = config.get("sample_params", {}).get("drclass_samples", {})
+dna_paired_samples = config.get("sample_params", {}).get("dna_paired_samples", [])
+dna_single_samples = config.get("sample_params", {}).get("dna_single_samples", [])
 dna_indir = config.get("Params", {}).get("workflow", {}).get("dna_indir", "")         # DNA 原始 fastq 根
 trimmer = config.get('Params', {}).get('workflow', {}).get('trimmer') or "trim_galore"
 aligner_TEtranscripts = config.get('Params', {}).get('workflow', {}).get('aligner_TEtranscripts') or "star"
@@ -286,8 +286,8 @@ gatk_somatic_config = {
         "germline_resource": genome_ref.get("germline_resource"),
         "strain_resource": genome_ref.get("strain_resource")
     },
-    "pair_strains": config.get("Params", {}).get("workflow", {}).get("pair_strains", {}),
-    "design_pairs": config.get("Params", {}).get("workflow", {}).get("paired_design", []),
+    "pair_strains": config.get("sample_params", {}).get("pair_strains", {}),
+    "design_pairs": config.get("sample_params", {}).get("paired_design", []),
     "Params": {
         "gatk": {
             "Mutect2": {
@@ -312,7 +312,7 @@ use rule filterMutectCalls from gatk_somatic as DR_DNA_filterMutectCalls
 # ============================================
 msi_pairs = {
     rec["experimental"]: rec["control"]
-    for rec in config.get("Params", {}).get("workflow", {}).get("paired_design", [])
+    for rec in config.get("sample_params", {}).get("paired_design", [])
     if rec.get("experimental") and rec.get("control")
 }
 msi_config = {
@@ -506,7 +506,7 @@ use rule manta_run_somatic from manta_somatic as DR_DNA_manta_run_somatic
 # Wired unconditionally; node.py controls whether it runs by registering
 # (or omitting) the CNVkit outputs (Params.cnvkit.enabled; control_samples
 # additionally registers the reference panel output).
-control_samples = config.get("Params", {}).get("workflow", {}).get("control_samples", [])
+control_samples = config.get("sample_params", {}).get("control_samples", [])
 cnvkit_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -518,7 +518,7 @@ cnvkit_config = {
     "logdir": f"{logdir}/group",
     "samples": dna_paired_samples + dna_single_samples,
     "control_samples": control_samples,
-    "paired_design": config.get("Params", {}).get("workflow", {}).get("paired_design", []),
+    "paired_design": config.get("sample_params", {}).get("paired_design", []),
     "Procedure": {
         "cnvkit": config.get("Procedure", {}).get("cnvkit"),
         "samtools": config.get("Procedure", {}).get("samtools")
@@ -644,7 +644,7 @@ qc_summary_config = {
     },
     # MSI anchors exist only for the tumor sample of each design pair
     "qc_anchor_samples": {
-        "msi": [rec["experimental"] for rec in config.get("Params", {}).get("workflow", {}).get("paired_design", []) if rec.get("experimental")],
+        "msi": [rec["experimental"] for rec in config.get("sample_params", {}).get("paired_design", []) if rec.get("experimental")],
     },
 }
 # hs_metrics anchor + plot exist only for exome/hybrid runs (targets BED
@@ -700,8 +700,8 @@ use rule qc_summary from qc_summary as DR_DNA_qc_summary
 #     直接消费 (indir 已被 node.py runDR 改写指向那里)。
 # star 索引单独一个模块实例, index 写到 {outdir}/RNA/genome/index/{genome},
 # 各 align 实例通过 index_dir 指向同一目录 (RNAseq.smk 的多实例模式)。
-# RNA 差异对比 (DESeq2.group_pairs): node.py runDR 优先用 config 里手填的
-# Params.DESeq2.group_pairs,否则按 RNA 行 group 列两两组合自动派生。
+# RNA 差异对比 (sample_params.comparisons): node.py runDR 优先用 config 里手填的
+# sample_params.comparisons,否则按 RNA 行 group 列两两组合自动派生。
 # ############################################
 
 rna_star_config_for_index = {
@@ -955,7 +955,7 @@ use rule featureCounts_merge from rna_featureCounts as DR_RNA_featureCounts_merg
 use rule featureCounts_result from rna_featureCounts as DR_RNA_featureCounts_result
 
 ### differential expression analysis using DESeq2
-# group_pairs 由 node.py runDR 写入 (config 手填优先, 否则按 group 列派生)
+# comparisons 由 node.py runDR 写入 (config 手填优先, 否则按 group 列派生)
 rna_DESeq2_config = {
     "indir": rna_TEtranscripts_config["outdir"],
     "outdir": f"{outdir}/RNA/diff_expression",
@@ -963,7 +963,7 @@ rna_DESeq2_config = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
-    "group_pairs": config.get("Params", {}).get("DESeq2", {}).get("group_pairs"),
+    "comparisons": config.get("sample_params", {}).get("comparisons"),
     "Params": {
         "DESeq2": config.get("Params", {}).get("DESeq2", {})
     },
@@ -992,7 +992,7 @@ rna_function_config = {
     "counts_dir": rna_featureCounts_config["outdir"],
     "outdir": f"{outdir}/RNA/function",
     "logdir": os.path.join(logdir, "group"),
-    "group_pairs": config.get("Params", {}).get("DESeq2", {}).get("group_pairs"),
+    "comparisons": config.get("sample_params", {}).get("comparisons"),
     "genome": config.get('genome', {}),
     "Params": {
         "function": config.get("Params", {}).get("function", {})
@@ -1482,10 +1482,10 @@ logger.debug(f"teffect_config: {teffect_config}")
 # (downstream enabled pulls the upstream DAG)。
 # ############################################
 
-# RNA 链差异对比(DESeq2.group_pairs,node.py runDR 派生/写回,形状
+# RNA 链差异对比(sample_params.comparisons,node.py runDR 派生/写回,形状
 # {organism: {contrast_key: {...}}});报告覆盖默认基因组的 RNA 树。
 dr_report_contrasts = list(
-    config.get("Params", {}).get("DESeq2", {}).get("group_pairs", {})
+    config.get("sample_params", {}).get("comparisons", {})
     .get(default_genome, {}).keys()
 )
 _dr_report_rna_samples = sorted(_all_paired | _all_single)
@@ -1501,7 +1501,7 @@ DR_report_config = {
     "rna_samples": _dr_report_rna_samples,
     "paired_samples": sorted(_all_paired),
     "single_samples": sorted(_all_single),
-    "paired_design": config.get("Params", {}).get("workflow", {}).get("paired_design", []),
+    "paired_design": config.get("sample_params", {}).get("paired_design", []),
     "contrasts": dr_report_contrasts,
     # 上游根目录(subworkflow.md 衔接规则:引用 xxx_config["outdir"])
     "dna_dir": f"{outdir}/DNA",

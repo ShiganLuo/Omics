@@ -1,15 +1,17 @@
 {
+  "sample_params": {
+    "cellranger_input_dict": {},
+    "raw_files": [],
+    "cellranger_dirs": [],
+    "paired_samples": [],
+    "single_samples": []
+  },
   "Params": {
     "workflow": {
       "input_mode": "fastq",
-      "cellranger_input_dict": {},
       "indir": null,
-      "raw_files": [],
-      "cellranger_dirs": [],
       "outdir": null,
       "logdir": null,
-      "paired_samples": [],
-      "single_samples": [],
       "aligner": "cellranger",
       "counters": [
         "scTE",

@@ -389,6 +389,40 @@
       "required": false
     }
   },
+  "sample_params": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+      "raw_files": {
+        "type": "list",
+        "required": false
+      },
+      "paired_samples": {
+        "type": "list",
+        "required": true
+      },
+      "single_samples": {
+        "type": "list",
+        "required": false
+      },
+      "ip_samples": {
+        "type": "list",
+        "required": false
+      },
+      "input_samples": {
+        "type": "list",
+        "required": false
+      },
+      "treated_input_samples": {
+        "type": "list",
+        "required": false
+      },
+      "treated_ip_samples": {
+        "type": "list",
+        "required": false
+      }
+    }
+  },
   "Params": {
     "regionplot": {
       "enabled": {
@@ -619,34 +653,6 @@
         "logdir": {
           "type": "null",
           "nullable": true,
-          "required": false
-        },
-        "raw_files": {
-          "type": "list",
-          "required": false
-        },
-        "paired_samples": {
-          "type": "list",
-          "required": true
-        },
-        "single_samples": {
-          "type": "list",
-          "required": false
-        },
-        "ip_samples": {
-          "type": "list",
-          "required": false
-        },
-        "input_samples": {
-          "type": "list",
-          "required": false
-        },
-        "treated_input_samples": {
-          "type": "list",
-          "required": false
-        },
-        "treated_ip_samples": {
-          "type": "list",
           "required": false
         },
         "aligner": {

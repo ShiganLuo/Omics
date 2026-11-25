@@ -1,16 +1,18 @@
 {
+  "sample_params": {
+    "samples": [],
+    "raw_files": [],
+    "paired_samples": [],
+    "single_samples": [],
+    "ip_samples": [],
+    "input_samples": [],
+    "sample_ip_input_map": {}
+  },
   "Params": {
     "workflow": {
       "indir": "input",
       "outdir": "output",
       "logdir": "logs",
-      "samples": [],
-      "raw_files": [],
-      "paired_samples": [],
-      "single_samples": [],
-      "ip_samples": [],
-      "input_samples": [],
-      "sample_ip_input_map": {},
       "aligner": "star"
     },
     "hisat2": {

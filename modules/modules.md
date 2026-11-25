@@ -209,7 +209,7 @@ pandas、json、gzip …）才在模块里 import。重复导入不报错、不�
 | `samples` | 样本 ID 列表 | 大多数模块 |
 | `paired_samples` / `single_samples` | 双端/单端样本列表 | 比对模块 |
 | `sample_groups` | 样本分组字典 | StringTie |
-| `group_pairs` | 对比组定义 | DESeq2 |
+| `comparisons` | 对比组定义 | DESeq2 |
 | `bam_dir` / `vcf_dir` | 独立 BAM/VCF 目录 | hiphase |
 | `Procedure` | 工具可执行路径字典 | 所有模块 |
 | `Params` | 工具参数字典 | 需要额外参数的模块 |

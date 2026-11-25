@@ -1,18 +1,21 @@
 {
+  "sample_params": {
+    "genome_paired_samples": {
+      "GRCm39": [],
+      "GRCh38": []
+    },
+    "genome_single_samples": {
+      "GRCm39": [],
+      "GRCh38": []
+    },
+    "raw_files": [],
+    "comparisons": {}
+  },
   "Params": {
     "workflow": {
       "aligner_TEtranscripts": "star",
       "trimmer": "trim_galore",
-      "genome_paired_samples": {
-        "GRCm39": [],
-        "GRCh38": []
-      },
-      "genome_single_samples": {
-        "GRCm39": [],
-        "GRCh38": []
-      },
       "indir": null,
-      "raw_files": [],
       "outdir": null,
       "logdir": null
     },
@@ -139,36 +142,6 @@
     },
     "DESeq2": {
       "enabled": true,
-      "group_pairs": {
-        "GRCm39": {
-          "control_group_name_vs_experimental_group_name": {
-            "control_group_name": "control_group_name",
-            "experimental_group_name": "experimental_group_name",
-            "control_samples": [
-              "sample1",
-              "sample2"
-            ],
-            "experimental_samples": [
-              "sample3",
-              "sample4"
-            ]
-          }
-        },
-        "GRCh38": {
-          "control_group_name_vs_experimental_group_name": {
-            "control_group_name": "control_group_name",
-            "experimental_group_name": "experimental_group_name",
-            "control_samples": [
-              "sample1",
-              "sample2"
-            ],
-            "experimental_samples": [
-              "sample3",
-              "sample4"
-            ]
-          }
-        }
-      },
       "DESeq2_TElocal_manhattan": {
         "label_top": 10,
         "ylabel": "log2(1+|delta TPM|)",

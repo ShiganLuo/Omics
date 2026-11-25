@@ -4,7 +4,7 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("Params", {}).get("workflow").get("indir", "data/fastq")
 outdir = config.get("Params", {}).get("workflow").get("outdir", "output")
 logdir = config.get("Params", {}).get("workflow").get("logdir", "logs")
-samples = config.get("Params", {}).get("workflow").get("samples", [])
+samples = config.get("sample_params", {}).get("samples", [])
 snv_caller = config.get("Params", {}).get("workflow").get("snv_caller", "deepvariant")
 outfiles = config.get("outfiles", [])
 # Genome reference resolution — nested `default` + `references` pattern
@@ -533,8 +533,9 @@ sv_config = {
     "env": config.get("env", {}),
     "indir": pbsv_config["outdir"],
     "outdir": sv_outdir,
-    "logdir": logdir,
-    "comparisons": sv_params.get("comparisons", {}),
+    "logdir": f"{logdir}/sample",
+    "logdir_combine": f"{logdir}/group",
+    "comparisons": {n: c for _oc in (config.get("sample_params", {}).get("comparisons") or {}).values() for n, c in _oc.items()},
     "vcf_dir": pbsv_config["outdir"],
     "vcf_suffix": ".sv.vcf.gz",
     "Params": {
@@ -557,7 +558,6 @@ logger.debug(f"sv_config: {sv_config}")
 use rule sv_exp_specific from sv as PacVar_sv_exp_specific
 use rule sv_mei from sv as PacVar_sv_mei
 use rule sv_tra_te from sv as PacVar_sv_tra_te
-use rule sv_exp_enrichment from sv as PacVar_sv_exp_enrichment
 use rule sv_exp_circos from sv as PacVar_sv_exp_circos
 use rule sv_gene_model from sv as PacVar_sv_gene_model
 use rule sv_diff_analysis from sv as PacVar_sv_diff_analysis

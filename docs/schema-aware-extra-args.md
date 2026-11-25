@@ -37,7 +37,7 @@ python run.py -w RNAseq --Params.star.outFilterMultimapNmax 3 --counters S1 S2
 | `float`  | `Params.function.lfc_cut`                | `--Params.function.lfc_cut 1.5` |
 | `bool`   | `Params.function.enabled`                | `--Params.function.enabled true` |
 | `list`   | `counters`, `paired_samples`             | `--counters S1 S2 S3` 或 `--counters S1` |
-| `array`  | `Params.DESeq2.group_pairs`（带 items）   | 复杂结构，不通过 CLI 覆盖     |
+| `array`  | `sample_params.comparisons`（带 items）   | 复杂结构，不通过 CLI 覆盖     |
 | `dict`   | `Params.scanpy.tissue_samples`           | 复杂结构，不通过 CLI 覆盖     |
 | `object` | `genome`（顶层容器）                      | 不直接覆盖                    |
 | `null`   | `ROOT_DIR`, `indir`                      | `--indir null`                |
@@ -159,7 +159,7 @@ CLI
 ## 边界情况
 
 1. **schema 未定义的 key**：走 `smart_cast`，不报错。允许用户覆盖 config 中 schema 未约束的字段。
-2. **array 的 items 是 object**（如 `DESeq2.group_pairs`）：不做自动转换，这类复杂结构用户应通过 JSON 文件传。
+2. **array 的 items 是 object**（如 `sample_params.comparisons`）：不做自动转换，这类复杂结构用户应通过 JSON 文件传。
 3. **bool 合法值**：`true/false/yes/no/1/0`（大小写不敏感）。
 4. **int 接受范围**：只接受可解析为整数的字符串（如 `"42"`），`"42.5"` 不接受。
 5. **genome 两种 schema 结构**：`get_field_type` 先尝试 `properties` 子树，再 fallback 直接子树。

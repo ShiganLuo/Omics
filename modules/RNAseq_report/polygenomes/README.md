@@ -22,7 +22,7 @@ GSVA、arriba 融合、DESeq2 每对比结果、GO/KEGG/GSEA)汇总为 PPT 报�
 | 每对比 DESeq2 | `diff_expression/{genome}/{contrast}/TEcount/` 下 group.tsv、PCA、火山图、热图、upDown 三表、Gene/TE/Gene_TE name.tsv |
 | 每对比功能富集 | `function/{genome}/{contrast}/` 下 go/kegg 背靠背图与 up/down csv、up/down genes、GSEA jpeg/csv |
 
-contrast 列表取 `Params.DESeq2.group_pairs.<genome>` 的键;脚本运行前规则
+contrast 列表取 `sample_params.comparisons.<genome>` 的键;脚本运行前规则
 把 `indir` 下产物软链成脚本约定的 `analysis_dir/{transcripts,fusion,counts,...}`
 布局。
 
@@ -42,7 +42,7 @@ contrast 列表取 `Params.DESeq2.group_pairs.<genome>` 的键;脚本运行前�
 | 参数 | CLI(generate_report.py) | 默认 | 说明 |
 |---|---|---|---|
 | `genome_paired_samples` / `genome_single_samples` | `--samples` / `--paired-samples` / `--single-samples` | `{}` | genome → 样本列表 |
-| `Params.DESeq2.group_pairs.<genome>` | `--contrasts`(键列表) | `{}` | 对比组定义 |
+| `sample_params.comparisons.<genome>` | `--contrasts`(键列表) | `{}` | 对比组定义 |
 | `Params.report.title` | `--title` | `RNA-seq Analysis Report` | 标题 |
 | `Params.report.subtitle` | `--subtitle` | `""` | 副标题 |
 | `Params.report.pipeline` | `--pipeline` | `""` | 流程说明 |

@@ -16,7 +16,7 @@ comparison and gates it behind `Params.function.sv_go`.
 | key | meaning |
 | --- | --- |
 | `indir` | root containing `<comparison>/<comparison>_annotated.tab` (modules/sv outdir) |
-| `comparisons` | comparison name map (from Params.sv.comparisons; drives target registration) |
+| `comparisons` | comparison name map (from sample_params.comparisons; drives target registration) |
 
 ## Parameters (`Params.function.sv_go`)
 

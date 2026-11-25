@@ -255,11 +255,11 @@ FASTQ
   - centromere：着丝粒分析（RepeatMasker 注释 + 卫星统计）
   - decoil：eccDNA / ecDNA 环状结构重建（可选；需 `genome.gtf`）
   - sv：SV 比较分析（SURVIVOR 合并 + VEP 注释 exp-specific SV、GO/KEGG 富集、circos、gene model、跨比较 diff、OncoPrint）
-- **输入**：PacBio BAM/fastq；如启用 eccDNA 步骤需要基因注释 GTF；SV 比较分析需 meta `design` 列（ctrl_TAG / exp_TAG 配对）或在 `Params.sv.comparisons` 手工配置
+- **输入**：PacBio BAM/fastq；如启用 eccDNA 步骤需要基因注释 GTF；SV 比较分析需 meta `design` 列（ctrl_TAG / exp_TAG 配对）或在 `sample_params.comparisons` 手工配置
 - **输出**：SNP VCF、SV VCF、phasing 结果、重复序列分析结果、端粒长度、着丝粒统计、ecDNA 重建（reconstruct.bed / summary.txt）、SV 比较分析（`{outdir}/variation/germline_sv_analysis/{ctr}_vs_{exp}/`）
 - **特点**：
   - 支持跳过特定步骤（skip_snp/skip_sv/skip_phase/skip_repeat/skip_eccdna）
-  - SV 比较分析：`Params.sv.enabled` 开启；`Params.sv.comparisons` 采用 DESeq2 group_pairs 式设计（比较名 → 对照/实验组名 + 样本名列表，不含 VCF 路径，规则按样本名解析 pbsv SV VCF），未配置时由 meta 设计列自动推导；可选 gene model（`Params.sv.genes`）与 OncoPrint（`Params.sv.oncoprint.cosmic_file`）
+  - SV 比较分析：`Params.sv.enabled` 开启；`sample_params.comparisons` 采用 sample_params.comparisons 式设计（比较名 → 对照/实验组名 + 样本名列表，不含 VCF 路径，规则按样本名解析 pbsv SV VCF），未配置时由 meta 设计列自动推导；可选 gene model（`Params.sv.genes`）与 OncoPrint（`Params.sv.oncoprint.cosmic_file`）
   - 支持多种 SNV caller（deepvariant/gatk4）
   - 支持端粒分析（4 种方法）和着丝粒分析
   - 端粒方法：telogator2（TL_p75）、assembly scan（推荐小鼠）、read density（全基因组平均）、tidk
@@ -378,10 +378,10 @@ FASTQ
   - sv：SV 比较分析（SURVIVOR 合并 + VEP 注释 exp-specific SV、GO/KEGG 富集、circos、gene model、跨比较 diff、OncoPrint）
   - telocen_norm：端粒/着丝粒区域深度归一化两组比较 + fig2 图（默认开启，配置 `Params.telocen_norm.groups` 两组样本后自动生效；未配置时告警跳过）
   - epi_drift：单纤维 m5CpG 方差表观漂移检验 + fig9 图（默认开启，配置 `Params.epi_drift.groups` 后自动生效；未配置时告警跳过）
-- **输入**：PacBio HiFi BAM；SV 比较分析需 meta `design` 列（ctrl_TAG / exp_TAG 配对）或在 `Params.sv.comparisons` 手工配置
+- **输入**：PacBio HiFi BAM；SV 比较分析需 meta `design` 列（ctrl_TAG / exp_TAG 配对）或在 `sample_params.comparisons` 手工配置
 - **输出**：m6A 甲基化 BAM、核小体 BAM、FIRE 区域、提取结果、SV 比较分析（`{outdir}/variation/germline_sv_analysis/{ctr}_vs_{exp}/`）
 - **特点**：
-  - SV 比较分析：`Params.sv.enabled` 开启；`Params.sv.comparisons` 采用 DESeq2 group_pairs 式设计（比较名 → 对照/实验组名 + 样本名列表，不含 VCF 路径，规则按样本名解析 pbsv SV VCF），未配置时由 meta 设计列自动推导
+  - SV 比较分析：`Params.sv.enabled` 开启；`sample_params.comparisons` 采用 sample_params.comparisons 式设计（比较名 → 对照/实验组名 + 样本名列表，不含 VCF 路径，规则按样本名解析 pbsv SV VCF），未配置时由 meta 设计列自动推导
 
 ### 13. Population_genomics.smk
 - **用途**：群体基因组学分析。

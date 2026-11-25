@@ -5,7 +5,7 @@ counts_dir = config.get("counts_dir", "output/counts")
 outdir = config.get("outdir", "output/function")
 logdir = config.get("logdir", "logs")
 ROOT_DIR = config.get("ROOT_DIR", ".")
-group_pairs = config.get("group_pairs", {})
+comparisons = config.get("comparisons", {})
 genome = config.get("genome", {})
 
 # 参数精确到 rule:参数挂在消费它的 rule 名下
@@ -131,10 +131,10 @@ rule function_go_kegg:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start GO/KEGG analysis for {wildcards.contrast} at {current_time}")
 
-            if wildcards.contrast not in group_pairs.get(wildcards.genome, {}):
-                raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
-            ctrl = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name")
-            exp = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name")
+            if wildcards.contrast not in comparisons.get(wildcards.genome, {}):
+                raise ValueError(f"Group pair {wildcards.contrast} not found in comparisons configuration.")
+            ctrl = comparisons.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name")
+            exp = comparisons.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name")
             sample_outdir = os.path.dirname(str(output.func_go_plot[0]))
 
             if not os.path.exists(input.deseq2_result):
@@ -214,14 +214,14 @@ rule function_gsea:
         rule_logger = setup_logger("function_gsea", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            if wildcards.contrast not in group_pairs.get(wildcards.genome, {}):
-                raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
-            ctrl = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name")
-            exp = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name")
+            if wildcards.contrast not in comparisons.get(wildcards.genome, {}):
+                raise ValueError(f"Group pair {wildcards.contrast} not found in comparisons configuration.")
+            ctrl = comparisons.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name")
+            exp = comparisons.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name")
             rule_logger.info(f"Start GSEA analysis for {wildcards.contrast} at {current_time}")
 
-            if wildcards.contrast not in group_pairs.get(wildcards.genome, {}):
-                raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
+            if wildcards.contrast not in comparisons.get(wildcards.genome, {}):
+                raise ValueError(f"Group pair {wildcards.contrast} not found in comparisons configuration.")
             sample_outdir = os.path.dirname(str(output.func_gsea_plot[0]))
             script = os.path.join(RECEIPT_DIR, f"gsea_{wildcards.contrast}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符

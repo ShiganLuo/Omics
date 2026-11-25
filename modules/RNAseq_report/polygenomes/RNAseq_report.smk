@@ -97,9 +97,9 @@ def get_input_for_generate_report(wildcards):
     in_dict["high_medium_fusions"] = indir + f"/fusion/{wildcards.genome}/arriba_report/high_medium_confidence_fusions.tsv"
     in_dict["inframe_fusions"] = indir + f"/fusion/{wildcards.genome}/arriba_report/inframe_fusions.tsv"
     in_dict["fusion_figs"] = [indir + f"/fusion/{wildcards.genome}/arriba_report/figures/{base}." + _producer_fmt(_arriba_formats) for base in FUSION_FIG_BASES]
-    contrasts = list(config.get("Params", {}).get("DESeq2", {}).get("group_pairs", {}).get(wildcards.genome, {}).keys())
+    contrasts = list(config.get("comparisons", {}).get(wildcards.genome, {}).keys())
     if not contrasts:
-        logger.warning(f"No contrasts found for genome {wildcards.genome} in group_pairs configuration.")
+        logger.warning(f"No contrasts found for genome {wildcards.genome} in comparisons configuration.")
     in_dict["contrast_group"] = [indir + f"/diff_expression/{wildcards.genome}/{contrast}/TEcount/group.tsv" for contrast in contrasts]
     in_dict["contrast_pca"] = [indir + f"/diff_expression/{wildcards.genome}/{contrast}/TEcount/PCA/{contrast}.cpmPCA." + _producer_fmt(_deseq2_formats) for contrast in contrasts]
     in_dict["contrast_gene_volcano"] = [indir + f"/diff_expression/{wildcards.genome}/{contrast}/TEcount/volcano/{contrast}.TEcount_Gene_volcano." + _producer_fmt(_deseq2_formats) for contrast in contrasts]
@@ -145,7 +145,7 @@ rule generate_report:
         samples = lambda wildcards: genome_paired_samples.get(wildcards.genome, []) + genome_single_samples.get(wildcards.genome, []),
         paired_samples = lambda wildcards: genome_paired_samples.get(wildcards.genome, []),
         single_samples = lambda wildcards: genome_single_samples.get(wildcards.genome, []),
-        contrasts = lambda wildcards: list(config.get("Params", {}).get("DESeq2", {}).get("group_pairs", {}).get(wildcards.genome, {}).keys()),
+        contrasts = lambda wildcards: list(config.get("comparisons", {}).get(wildcards.genome, {}).keys()),
         title = config.get("Params", {}).get("report", {}).get("generate_report", {}).get("title") or "RNA-seq Analysis Report",
         subtitle = config.get("Params", {}).get("report", {}).get("generate_report", {}).get("subtitle") or "",
         pipeline = config.get("Params", {}).get("report", {}).get("generate_report", {}).get("pipeline") or "",

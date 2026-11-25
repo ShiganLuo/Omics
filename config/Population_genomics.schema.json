@@ -77,6 +77,28 @@
       }
     }
   },
+  "sample_params": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+      "raw_files": {
+        "type": "list",
+        "required": false
+      },
+      "samples": {
+        "type": "list",
+        "required": false
+      },
+      "sample_bams": {
+        "type": "dict",
+        "required": false
+      },
+      "populations": {
+        "type": "dict",
+        "required": false
+      }
+    }
+  },
   "Params": {
     "workflow": {
       "type": "dict",
@@ -92,22 +114,6 @@
         },
         "logdir": {
           "type": "str",
-          "required": false
-        },
-        "raw_files": {
-          "type": "list",
-          "required": false
-        },
-        "samples": {
-          "type": "list",
-          "required": false
-        },
-        "sample_bams": {
-          "type": "dict",
-          "required": false
-        },
-        "populations": {
-          "type": "dict",
           "required": false
         }
       }

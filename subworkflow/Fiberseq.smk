@@ -6,7 +6,7 @@ outfiles = config.get("outfiles") or []
 indir = config.get("Params",{}).get("workflow",{}).get("indir") or "input"
 outdir = config.get("Params",{}).get("workflow",{}).get("outdir") or "output"
 logdir = config.get("Params",{}).get("workflow",{}).get("logdir") or "log"
-samples = config.get("Params",{}).get("workflow",{}).get("samples") or []
+samples = config.get("sample_params", {}).get("samples") or []
 
 genome_cfg = config.get("genome", {})
 default_genome = genome_cfg.get("default", "")
@@ -792,6 +792,19 @@ logger.debug(f"Fiber-seq hap extract config: {fibertools_hap_config}")
 use rule ft_split_hap from fibertools_hap as Fiberseq_ft_split_hap
 use rule ft_extract_hap from fibertools_hap as Fiberseq_ft_extract_hap
 
+# function 模块对比视图:group 名排序定角色(匹配 diff_accessibility 约定,
+# 即旧 sample_params.comparisons 语义),从 sample_params.comparisons 推导
+def _fn_sorted_comparisons(cfg):
+    view = {}
+    for _oc in (cfg.get("sample_params", {}).get("comparisons") or {}).values():
+        for _n, _c in _oc.items():
+            _g1, _g2 = sorted((_c["control_group_name"], _c["experimental_group_name"]))
+            _s1 = _c["control_samples"] if _c["control_group_name"] == _g1 else _c["experimental_samples"]
+            _s2 = _c["experimental_samples"] if _s1 == _c["control_samples"] else _c["control_samples"]
+            view[_n] = {"control_group_name": _g1, "experimental_group_name": _g2,
+                        "control_samples": _s1, "experimental_samples": _s2}
+    return view
+
 function_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -801,7 +814,7 @@ function_config = {
     "outdir": f"{outdir}/function",
     "logdir": f"{logdir}/sample",
     "samples": samples,
-    "group_pairs": config.get("Params", {}).get("function", {}).get("group_pairs", {}),
+    "comparisons": _fn_sorted_comparisons(config),
     "genome": {
         "geneIDAnno": genome_ref.get("geneIDAnno"),
     },
@@ -995,8 +1008,9 @@ sv_config = {
     "env": config.get("env", {}),
     "indir": pbsv_config["outdir"],
     "outdir": sv_outdir,
-    "logdir": f"{logdir}/group",
-    "comparisons": sv_params.get("comparisons", {}),
+    "logdir": f"{logdir}/sample",
+    "logdir_combine": f"{logdir}/group",
+    "comparisons": {n: c for _oc in (config.get("sample_params", {}).get("comparisons") or {}).values() for n, c in _oc.items()},
     "vcf_dir": pbsv_config["outdir"],
     "vcf_suffix": ".sv.vcf.gz",
     "Params": {
@@ -1019,7 +1033,6 @@ logger.debug(f"Fiber-seq sv config: {sv_config}")
 use rule sv_exp_specific from sv as Fiberseq_sv_exp_specific
 use rule sv_mei from sv as Fiberseq_sv_mei
 use rule sv_tra_te from sv as Fiberseq_sv_tra_te
-use rule sv_exp_enrichment from sv as Fiberseq_sv_exp_enrichment
 use rule sv_exp_circos from sv as Fiberseq_sv_exp_circos
 use rule sv_gene_model from sv as Fiberseq_sv_gene_model
 use rule sv_diff_analysis from sv as Fiberseq_sv_diff_analysis

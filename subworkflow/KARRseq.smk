@@ -27,8 +27,8 @@ indir = config.get("Params", {}).get("workflow", {}).get("indir", "data/fastq")
 outdir = config.get("Params", {}).get("workflow", {}).get("outdir", "output")
 logdir = config.get("Params", {}).get("workflow", {}).get("logdir", "log")
 outfiles = config.get("outfiles", [])
-paired_samples = config.get("Params", {}).get("workflow", {}).get("paired_samples", [])
-single_samples = config.get("Params", {}).get("workflow", {}).get("single_samples", [])
+paired_samples = config.get("sample_params", {}).get("paired_samples", [])
+single_samples = config.get("sample_params", {}).get("single_samples", [])
 samples = paired_samples + single_samples
 ROOT_DIR = config.get("ROOT_DIR", os.path.dirname(os.path.dirname(__file__)))
 

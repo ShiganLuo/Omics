@@ -2,13 +2,14 @@ shell.prefix("set -x; set -e;")
 from snakemake.logging import logger
 ROOT_DIR = config.get("ROOT_DIR", ".")
 _wf = config.get("Params", {}).get("workflow", {})
+_sp = config.get("sample_params", {})
 indir = _wf.get("indir") or "data/fastq"
 outdir = _wf.get("outdir") or "output"
 logdir = _wf.get("logdir") or "logs"
-paired_samples = _wf.get("paired_samples") or []
-single_samples = _wf.get("single_samples") or []
-genome_paired_samples = _wf.get("genome_paired_samples") or {}
-genome_single_samples = _wf.get("genome_single_samples") or {}
+paired_samples = _sp.get("paired_samples") or []
+single_samples = _sp.get("single_samples") or []
+genome_paired_samples = _sp.get("genome_paired_samples") or {}
+genome_single_samples = _sp.get("genome_single_samples") or {}
 genome_pairs = _wf.get("genome_pairs") or []
 genome = config.get("genome", {})
 outfiles = config.get("outfiles", [])

@@ -1,14 +1,16 @@
 {
+  "sample_params": {
+    "raw_files": [],
+    "paired_samples": [],
+    "single_samples": [],
+    "paired_design": [],
+    "pair_strains": {}
+  },
   "Params": {
     "workflow": {
       "indir": "input",
-      "raw_files": [],
       "outdir": "output",
       "logdir": "logs",
-      "paired_samples": [],
-      "single_samples": [],
-      "paired_design": [],
-      "pair_strains": {},
       "trimmer": "trim_galore"
     },
     "trim_galore": {

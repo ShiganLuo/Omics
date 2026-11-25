@@ -1,12 +1,14 @@
 {
+  "sample_params": {
+    "samples": [],
+    "raw_files": [],
+    "expdesign": ""
+  },
   "Params": {
     "workflow": {
       "indir": "input",
       "outdir": "output",
       "logdir": "logs",
-      "samples": [],
-      "raw_files": [],
-      "expdesign": "",
       "quantification_method": "lfq"
     },
     "diann": {

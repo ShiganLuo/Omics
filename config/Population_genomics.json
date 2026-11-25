@@ -1,13 +1,15 @@
 {
+  "sample_params": {
+    "raw_files": [],
+    "samples": [],
+    "sample_bams": {},
+    "populations": {}
+  },
   "Params": {
     "workflow": {
       "indir": "input",
       "outdir": "output",
-      "logdir": "logs",
-      "raw_files": [],
-      "samples": [],
-      "sample_bams": {},
-      "populations": {}
+      "logdir": "logs"
     },
     "analysis": {
       "pca": true,

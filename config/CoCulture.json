@@ -1,12 +1,14 @@
 {
+  "sample_params": {
+    "raw_files": [],
+    "paired_samples": [],
+    "single_samples": []
+  },
   "Params": {
     "workflow": {
       "indir": null,
       "outdir": null,
       "logdir": null,
-      "raw_files": [],
-      "paired_samples": [],
-      "single_samples": [],
       "genome_pairs": [
         "GRCm39",
         "GRCh38"

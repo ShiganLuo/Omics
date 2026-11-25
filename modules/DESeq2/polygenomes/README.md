@@ -14,7 +14,7 @@ te_manhattan.py、te_locus_boxplot.py、te_subfamily_bar.py)。
 | 输入 | 说明 |
 |---|---|
 | `indir` + 布局参数 | 形态 A 拼接,计数矩阵 `{indir}/{genome}/{genome}_TEcount.tsv`、`{indir}/{genome}/{genome}_TElocal.tsv`(TEtranscripts/TElocal 定量产出) |
-| `group_pairs` | 顶层 config 键(注意:json 示例把对比定义放在 `Params.DESeq2.group_pairs`,本 .smk 从顶层 `group_pairs` 读)。结构 `{genome: {contrast: {control_group_name, experimental_group_name, control_samples, experimental_samples}}}` |
+| `comparisons` | 顶层 config 键(注意:json 示例把对比定义放在 `sample_params.comparisons`,本 .smk 从顶层 `comparisons` 读)。结构 `{genome: {contrast: {control_group_name, experimental_group_name, control_samples, experimental_samples}}}` |
 | `genome.references.<g>.geneIDAnno` | 基因 ID 注释 CSV(`-a`);.smk 读 `genome.references`(复数),json 示例平铺 `genome.<g>.*`,以 .smk 为准 |
 | `genome.references.<g>.gtf` / `.gene_map` | 注释 GTF 与 gene_map pkl(`gene_id2name.py` 用),缺失报错 |
 | `genome.references.<g>.TEind` | TElocal 位点索引 `.locInd`(TE 位点图的坐标来源),缺失报错 |
@@ -46,7 +46,7 @@ TElocal 专属图：
 
 ### 1.3 参数
 
-对比定义(顶层 `group_pairs.<genome>.<contrast>`):`control_group_name`、
+对比定义(顶层 `comparisons.<genome>.<contrast>`):`control_group_name`、
 `experimental_group_name`、`control_samples`、`experimental_samples`
 (任一为空即报错)。
 
@@ -98,7 +98,7 @@ python modules/DESeq2/bin/te_locus_boxplot.py \
 ## 2. 算法原理与生物学意义
 
 DESeq2 用负二项广义线性模型 + 收缩估计做 RNA-seq 差异表达,输出
-log2FC 与 BH 校正 padj;本模块按 `group_pairs` 的 control/experimental
+log2FC 与 BH 校正 padj;本模块按 `comparisons` 的 control/experimental
 对比三层定量矩阵分别分析:Gene(基因表达)、TE(TE 亚家族表达)、
 Gene_TE(基因-TE 融合计数,TEtranscripts 口径),并把基因 ID 注释为
 gene name(`gene_id2name.py`)。TE 位点图基于 TElocal 逐位点结果:

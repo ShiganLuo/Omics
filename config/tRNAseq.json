@@ -1,13 +1,14 @@
 {
+  "sample_params": {
+    "raw_files": [],
+    "samples": [],
+    "sample_data": ""
+  },
   "Params": {
     "workflow": {
       "indir": "input",
       "outdir": "output",
       "logdir": "log",
-      "raw_files": [],
-      "samples": [
-      ],
-      "sample_data": "",
       "trimmer": "trim_galore"
     },
     "trim_galore": {

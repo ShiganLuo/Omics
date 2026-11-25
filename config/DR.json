@@ -1,21 +1,24 @@
 {
+  "sample_params": {
+    "raw_files": [],
+    "paired_design": [],
+    "pair_strains": {},
+    "dr_pairs": {},
+    "drclass_samples": {},
+    "drclass_strain_vcfs": {},
+    "control_samples": [],
+    "dna_paired_samples": [],
+    "dna_single_samples": [],
+    "comparisons": {}
+  },
   "Params": {
     "workflow": {
       "indir": "input",
-      "raw_files": [],
       "outdir": "output",
       "logdir": "logs",
       "trimmer": "trim_galore",
-      "paired_design": [],
-      "pair_strains": {},
-      "dr_pairs": {},
-      "drclass_samples": {},
-      "drclass_strain_vcfs": {},
-      "control_samples": [],
       "aligner_TEtranscripts": "star",
-      "dna_indir": "",
-      "dna_paired_samples": [],
-      "dna_single_samples": []
+      "dna_indir": ""
     },
     "trim_galore": {
       "trimming_Paired": {
@@ -397,7 +400,6 @@
     },
     "DESeq2": {
       "enabled": true,
-      "group_pairs": {},
       "DESeq2_TElocal_manhattan": {
         "label_top": 10,
         "ylabel": "log2(1+|delta TPM|)",

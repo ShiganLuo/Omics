@@ -801,7 +801,8 @@ def _init_raw_json(
     raw_files: List[str],
     workflow: Optional[str] = None
 ) -> str:
-    """Set common fields for raw.json: ROOT_DIR, indir, outdir, logdir, raw_files.
+    """Set common fields for raw.json: ROOT_DIR, indir, outdir, logdir, raw_files
+    (under sample_params).
 
     Also detects the current server and rewrites any paths that reference a
     foreign server's database directory to use the current server's directory.
@@ -813,15 +814,16 @@ def _init_raw_json(
     if not datajson.get("tmp_dir"):
         os.makedirs(tmp_dir, exist_ok=True)
     # Common fields for raw.json: ROOT_DIR, Params.workflow.{indir,outdir,
-    # logdir,raw_files}, tmp_dir. Workflow-level fields live under
-    # Params.workflow; top level carries only outfiles/ROOT_DIR/tmp_dir/
-    # resources/env/Procedure/genome/Params.
+    # logdir}, sample_params.raw_files, tmp_dir. 流程控制字段住 Params.workflow;
+    # 样本派生参数(随样本集变化)住一级字段 sample_params
+    # (docs/sample-params-split.md)。
     datajson["ROOT_DIR"] = root_dir
     wf = datajson.setdefault("Params", {}).setdefault("workflow", {})
     wf["indir"] = indir
     wf["outdir"] = outdir
     wf["logdir"] = logdir
-    wf["raw_files"] = raw_files
+    sp = datajson.setdefault("sample_params", {})
+    sp["raw_files"] = raw_files
     datajson["tmp_dir"] = tmp_dir
 
     # --- server database path migration ---
@@ -895,8 +897,8 @@ def runCoCulture(
     # (disambiguate later separates organism-specific reads), so the per-genome
     # sample maps used by the polygenomes aligner cover all samples per genome
     _co_genomes = ("GRCh38", "GRCm39")
-    datajson["Params"].setdefault("workflow", {})["genome_paired_samples"] = {g: list(paired_samples) for g in _co_genomes}
-    datajson["Params"].setdefault("workflow", {})["genome_single_samples"] = {g: list(single_samples) for g in _co_genomes}
+    datajson.setdefault("sample_params", {})["genome_paired_samples"] = {g: list(paired_samples) for g in _co_genomes}
+    datajson.setdefault("sample_params", {})["genome_single_samples"] = {g: list(single_samples) for g in _co_genomes}
     # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
     # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
@@ -905,9 +907,8 @@ def runCoCulture(
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
     datajson["outfiles"] = outfiles
-    wf = datajson.setdefault("Params", {}).setdefault("workflow", {})
-    wf["paired_samples"] = paired_samples
-    wf["single_samples"] = single_samples
+    datajson["sample_params"]["paired_samples"] = paired_samples
+    datajson["sample_params"]["single_samples"] = single_samples
     return _write_raw_json(datajson, outdir)
 
 def runMERIP(
@@ -975,13 +976,12 @@ def runMERIP(
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
     datajson["outfiles"] = outfiles
-    wf = datajson.setdefault("Params", {}).setdefault("workflow", {})
-    wf["paired_samples"] = paired_samples
-    wf["single_samples"] = single_samples
-    wf["ip_samples"] = ip_samples
-    wf["input_samples"] = input_samples
-    wf["treated_ip_samples"] = treated_ip_samples
-    wf["treated_input_samples"] = treated_input_samples
+    datajson["sample_params"]["paired_samples"] = paired_samples
+    datajson["sample_params"]["single_samples"] = single_samples
+    datajson["sample_params"]["ip_samples"] = ip_samples
+    datajson["sample_params"]["input_samples"] = input_samples
+    datajson["sample_params"]["treated_ip_samples"] = treated_ip_samples
+    datajson["sample_params"]["treated_input_samples"] = treated_input_samples
     return _write_raw_json(datajson, outdir)
 
 
@@ -1044,8 +1044,8 @@ def runCLIP(
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
     datajson["outfiles"] = outfiles
-    wf["paired_samples"] = paired_samples
-    wf["single_samples"] = single_samples
+    datajson["sample_params"]["paired_samples"] = paired_samples
+    datajson["sample_params"]["single_samples"] = single_samples
     # parameters suggest by https://doi.org/10.1016/j.ymeth.2019.11.008
     datajson["Params"]["bamCoverage"]["offset"] = "-1"
     datajson["Params"]["bamCoverage"]["binSize"] = 1
@@ -1081,7 +1081,7 @@ def runPacVar(
     decides which outfiles (and therefore which DAG leaves) are requested.
 
     `Params.sv.enabled` additionally gates the SV comparison analysis
-    (modules/sv). `Params.sv.comparisons` follows the DESeq2 group_pairs
+    (modules/sv). `sample_params.comparisons` follows the DESeq2 group_pairs
     design (name -> group names + sample name lists); it is filled from the
     meta group pairs when not hand-authored in the config.
     """
@@ -1256,33 +1256,35 @@ def runPacVar(
             outfiles.append(f"{outdir}/repeat/centromere/{sample_id}/{sample_id}.centromere_stats.txt")
 
     # SV comparison analysis (modules/sv): DESeq2-style design —
-    # Params.sv.comparisons maps "{control_group_name}_vs_{experimental_group_name}"
+    # sample_params.comparisons maps "{control_group_name}_vs_{experimental_group_name}"
     # to {control_group_name, experimental_group_name, control_samples,
     # experimental_samples}. Sample names only: the sv rules resolve each
     # sample's SV VCF from vcf_dir/vcf_suffix. A hand-filled config block
     # wins; otherwise it is derived from the meta group pairs, like
-    # runRNAseq fills Params.DESeq2.group_pairs.
+    # runRNAseq fills sample_params.comparisons.
     sv_params = datajson.get("Params", {}).get("sv", {})
     _validate_te_lib(datajson, "PacVar")
     _fill_mei_rm_species(datajson, "PacVar")
     _fill_telomere_species(datajson, "PacVar")
     _fill_telomere_n_chrom_arms(datajson, "PacVar")
     _fill_repeatmasker_species(datajson, "PacVar")
-    comparisons = dict(sv_params.get("comparisons") or {})
-    if enable_sv and not comparisons:
+    # 对比定义统一存 sample_params.comparisons(organism 嵌套,手填优先);本地
+    # comparisons 为平铺视图,供 sv 门控/样本校验。sv.smk 接线同样读
+    # sample_params.comparisons(docs/sample-params-split.md)。
+    _cmp_nested = datajson.setdefault("sample_params", {}).setdefault("comparisons", {})
+    if enable_sv and not _cmp_nested:
         for gp in group_pairs:
-            name = f"{gp.ctr_group_name}_vs_{gp.exp_group_name}"
-            comparisons[name] = {
+            _cmp_nested.setdefault(gp.organism, {})[f"{gp.ctr_group_name}_vs_{gp.exp_group_name}"] = {
                 "control_group_name": gp.ctr_group_name,
                 "experimental_group_name": gp.exp_group_name,
                 "control_samples": gp.ctr_sample_ids,
                 "experimental_samples": gp.exp_sample_ids,
             }
-    datajson["Params"].setdefault("sv", {})["comparisons"] = comparisons
+    comparisons = {n: c for _org_cmps in _cmp_nested.values() for n, c in _org_cmps.items()}
     if enable_sv and not comparisons:
         logger.warning(
             "PacVar: Params.sv.enabled=true but no SV comparisons are defined; "
-            "fill Params.sv.comparisons in the config JSON or the meta design "
+            "fill sample_params.comparisons in the config JSON or the meta design "
             "column (ctrl_TAG / exp_TAG). Skipping SV comparison outputs."
         )
     if enable_sv and comparisons:
@@ -1296,7 +1298,7 @@ def runPacVar(
                 unknown = [s for s in (c.get(key) or []) if s not in known_samples]
                 if unknown:
                     logger.warning(
-                        f"PacVar: Params.sv.comparisons['{name}'].{key} lists "
+                        f"PacVar: sample_params.comparisons['{name}'].{key} lists "
                         f"samples not in the meta: {unknown}"
                     )
             base = f"{sv_outdir}/{name}"
@@ -1304,18 +1306,18 @@ def runPacVar(
             outfiles.append(f"{base}/{name}_only.vcf")
             outfiles.append(f"{base}/{name}_annotated.tab")
             # TE enrichment (RepeatMasker subfamily test) + per-SV stats from
-            # sv_exp_specific — registered so the rule's declared directory
-            # outputs are requested by the DAG
-            outfiles.append(f"{base}/repeatmasker")
-            outfiles.append(f"{base}/statistics")
-            outfiles.append(f"{base}/circos")
+            # sv_exp_specific — registered via the rules' marker files
+            # (directories are never declared as outputs, see modules.md)
+            outfiles.append(f"{base}/repeatmasker/repeatmasker.done")
+            outfiles.append(f"{base}/statistics/statistics.done")
+            outfiles.append(f"{base}/circos/circos.done")
             # MEI suite (sv_mei rule): classified insertions + 6-figure
             # suite; gate via Params.sv.mei.enabled (default on)
             if (datajson.get("Params", {}).get("sv", {}).get("mei", {}) or {}).get("enabled", True):
                 outfiles.append(f"{base}/mei/mei.done")
             if sv_genes:
-                outfiles.append(f"{base}/gene_model")
-        outfiles.append(f"{sv_outdir}/sv_diff_analysis")
+                outfiles.append(f"{base}/gene_model/gene_model.done")
+        outfiles.append(f"{sv_outdir}/sv_diff_analysis/sv_diff_analysis.done")
         if sv_oncoprint.get("cosmic_file"):
             outfiles.append(f"{sv_outdir}/sv_oncoprint/oncoprint_matrix.csv")
         # SV-affected genes GO/KEGG (modules/function/sv_go; macaque-aware
@@ -1346,7 +1348,7 @@ def runPacVar(
                    "gatk_population_haplotype_caller",
                    "gatk_population_joint_genotyping"):
         _gatk.setdefault(_grule, {})["tmp-dir"] = gatk_tmp_dir
-    datajson["Params"]["workflow"]["samples"] = samples
+    datajson["sample_params"]["samples"] = samples
     outfiles += _register_regionplot(datajson, samples_info_dict, samples, outdir, "PacVar")
     # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
     # coverage over the alignment BAMs; registered for every sample BAM.
@@ -1423,7 +1425,7 @@ def runMutation(
         mutect2_samples.append(designPair.exp_sample_id)
         paired_design.append({"control": designPair.ctr_sample_id, "experimental": designPair.exp_sample_id})
 
-    datajson["Params"]["workflow"]["paired_design"] = paired_design
+    datajson["sample_params"]["paired_design"] = paired_design
     # Strain-aware germline filtering (meta ``strain`` column -> per-pair strain
     # map for gatk_somatic; empty when the column is absent/left blank).
     pair_strains = {}
@@ -1431,12 +1433,12 @@ def runMutation(
         strain = getattr(samples_info_dict.get(designPair.exp_sample_id), "strain", None)
         if strain:
             pair_strains[designPair.exp_sample_id] = strain
-    datajson["Params"]["workflow"]["pair_strains"] = pair_strains
+    datajson["sample_params"]["pair_strains"] = pair_strains
     if pair_strains:
         logger.info(f"Mutation: strain-aware germline filtering enabled for pairs: {pair_strains}")
     # CNVkit calling mode resolution (Params.cnvkit.mode; "auto" decides here
     # from the design): matched normals in the design pairs -> paired; else a
-    # normal panel (Params.workflow.control_samples) -> pooled; else flat.
+    # normal panel (sample_params.control_samples) -> pooled; else flat.
     # An explicit mode wins over "auto"; impossible combos hard-error below.
     _cnv_cfg = datajson["Params"].setdefault("cnvkit", {})
     _paired_map = {
@@ -1447,28 +1449,28 @@ def runMutation(
     _cnv_mode = _cnv_cfg.get("mode") or "auto"
     if _cnv_mode == "auto":
         _cnv_mode = "paired" if _paired_map else (
-            "pooled" if (datajson["Params"]["workflow"].get("control_samples") or []) else "flat"
+            "pooled" if (datajson["sample_params"].get("control_samples") or []) else "flat"
         )
         _cnv_cfg["mode"] = _cnv_mode
         logger.info(f"Mutation: cnvkit mode auto -> {_cnv_mode} "
                     f"(design pairs: {len(_paired_map)}, "
-                    f"control_samples: {len(datajson['Params']['workflow'].get('control_samples') or [])})")
+                    f"control_samples: {len(datajson['sample_params'].get('control_samples') or [])})")
     if _cnv_mode == "paired" and not _paired_map:
         raise ValueError(
             "Mutation: Params.cnvkit.mode 'paired' requires matched normal "
             "samples in the meta design; none found. Use mode 'pooled' (with "
             "control_samples) or 'flat'."
         )
-    if _cnv_mode == "pooled" and not (datajson["Params"]["workflow"].get("control_samples") or []):
+    if _cnv_mode == "pooled" and not (datajson["sample_params"].get("control_samples") or []):
         raise ValueError(
             "Mutation: Params.cnvkit.mode 'pooled' requires "
-            "Params.workflow.control_samples; none found. Use mode 'flat' "
+            "sample_params.control_samples; none found. Use mode 'flat' "
             "or provide a normal panel."
         )
     if _cnv_mode == "paired":
         # Paired mode must not also build a pooled reference alongside the
         # per-pair references (conflicting reference semantics).
-        datajson["Params"]["workflow"]["control_samples"] = []
+        datajson["sample_params"]["control_samples"] = []
     # 参数精确到 rule:resolve 结果(以及 meta assay 推导的 method)镜像写入
     # rule 子段——modules/cnvkit 只读 Params.cnvkit.<rule>.mode/.method
     # (rule_param,无 module 级回退),扁平键仅留作 node.py 自身门控/兼容。
@@ -1697,9 +1699,9 @@ def runMutation(
     # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
     datajson["outfiles"] = outfiles
-    datajson["Params"]["workflow"]["paired_samples"] = paired_samples
-    datajson["Params"]["workflow"]["single_samples"] = single_samples
-    datajson["Params"]["workflow"]["control_samples"] = datajson["Params"]["workflow"].get("control_samples", []) or []
+    datajson["sample_params"]["paired_samples"] = paired_samples
+    datajson["sample_params"]["single_samples"] = single_samples
+    datajson["sample_params"]["control_samples"] = datajson["sample_params"].get("control_samples", []) or []
     return _write_raw_json(datajson, outdir)
 
 def runKARRseq(
@@ -1727,9 +1729,8 @@ def runKARRseq(
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
 
-    wf = datajson.setdefault("Params", {}).setdefault("workflow", {})
-    wf["paired_samples"] = paired_samples
-    wf["single_samples"] = single_samples
+    datajson["sample_params"]["paired_samples"] = paired_samples
+    datajson["sample_params"]["single_samples"] = single_samples
     # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
     # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
@@ -1907,13 +1908,12 @@ def runPeakCalling(
     outfiles.append(f"{outdir}/PeakCalling_report.pptx")
     outfiles.append(f"{outdir}/PeakCalling_report.xlsx")
     outfiles.append(f"{outdir}/figures/manifest.tsv")
-    wf = datajson.setdefault("Params", {}).setdefault("workflow", {})
-    wf["paired_samples"] = paired_samples
-    wf["single_samples"] = single_samples
-    wf["samples"] = paired_samples + single_samples
-    wf["ip_samples"] = ip_samples
-    wf["input_samples"] = input_samples
-    wf["sample_ip_input_map"] = sample_ip_input_map
+    datajson["sample_params"]["paired_samples"] = paired_samples
+    datajson["sample_params"]["single_samples"] = single_samples
+    datajson["sample_params"]["samples"] = paired_samples + single_samples
+    datajson["sample_params"]["ip_samples"] = ip_samples
+    datajson["sample_params"]["input_samples"] = input_samples
+    datajson["sample_params"]["sample_ip_input_map"] = sample_ip_input_map
     outfiles += _register_regionplot(datajson, samples_info_dict,
                                      ip_samples + input_samples,
                                      outdir, "PeakCalling")
@@ -2099,13 +2099,12 @@ def runRIPseq(
         outfiles.append(f"{outdir}/RIPseq_report.pptx")
         outfiles.append(f"{outdir}/RIPseq_report.xlsx")
         outfiles.append(f"{outdir}/figures/manifest.tsv")
-    wf = datajson.setdefault("Params", {}).setdefault("workflow", {})
-    wf["paired_samples"] = paired_samples
-    wf["single_samples"] = single_samples
-    wf["samples"] = paired_samples + single_samples
-    wf["ip_samples"] = ip_samples
-    wf["input_samples"] = input_samples
-    wf["sample_ip_input_map"] = sample_ip_input_map
+    datajson["sample_params"]["paired_samples"] = paired_samples
+    datajson["sample_params"]["single_samples"] = single_samples
+    datajson["sample_params"]["samples"] = paired_samples + single_samples
+    datajson["sample_params"]["ip_samples"] = ip_samples
+    datajson["sample_params"]["input_samples"] = input_samples
+    datajson["sample_params"]["sample_ip_input_map"] = sample_ip_input_map
     outfiles += _register_regionplot(datajson, samples_info_dict,
                                      ip_samples + input_samples,
                                      outdir, "RIPseq")
@@ -2199,7 +2198,7 @@ def runQuantMS(
         # is only produced when an experimental design is configured
         # (FileMerger would collapse per-plex sample identity otherwise);
         # the long abundance table is always produced (quantification.smk).
-        if datajson.get("Params", {}).get("workflow", {}).get("expdesign", ""):
+        if datajson.get("sample_params", {}).get("expdesign", ""):
             outfiles.append(f"{outdir}/common/7_quantification/tmt_quantification.mzTab")
         outfiles.append(f"{outdir}/common/7_quantification/tmt_protein_abundances.csv")
     elif quantification_method == "lfq":
@@ -2216,12 +2215,12 @@ def runQuantMS(
     if not datajson.get("Params", {}).get("skip_post_msstats", False) and not use_diann:
         # TMT MSstats needs a plex->channel design; without one there is
         # nothing to convert (the long abundance table is the deliverable).
-        if quantification_method == "tmt" and not datajson.get("Params", {}).get("workflow", {}).get("expdesign", ""):
+        if quantification_method == "tmt" and not datajson.get("sample_params", {}).get("expdesign", ""):
             pass
         else:
             outfiles.append(f"{outdir}/common/8_msstats/msstats_input.csv")
 
-    datajson["Params"]["workflow"]["samples"] = samples
+    datajson["sample_params"]["samples"] = samples
 
     datajson["outfiles"] = outfiles
 
@@ -2241,7 +2240,6 @@ def runRNAseq(
     genome_single_samples = {}
     sample_groups = {}
     sample_contamination = {}
-    datajson["Params"]["DESeq2"]["group_pairs"] = {}
     # read enabled flags from each module's own Params (default True)
     enable_te = _enabled(datajson, "TEtranscripts")
     enable_fusion = _enabled(datajson, "arriba")
@@ -2251,9 +2249,13 @@ def runRNAseq(
     enable_TElocal = _enabled(datajson, "TElocal")
     enable_report = _enabled(datajson, "report")
     enable_StringTie = _enabled(datajson, "StringTie")
+    # 对比定义统一存一级字段 sample_params.comparisons(organism 嵌套;同义旧
+    # 字段 sample_params.comparisons / sample_params.comparisons /
+    # sample_params.comparisons 已废除,见 docs/sample-params-split.md)。
+    # 手填优先,meta 推导只补缺。
+    _comparisons = datajson.setdefault("sample_params", {}).setdefault("comparisons", {})
     for group_pair in group_pairs:
-        datajson["Params"]["DESeq2"]["group_pairs"].setdefault(group_pair.organism, {})
-        datajson["Params"]["DESeq2"]["group_pairs"][group_pair.organism].setdefault(f"{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}", {
+        _comparisons.setdefault(group_pair.organism, {}).setdefault(f"{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}", {
             "control_group_name": group_pair.ctr_group_name,
             "experimental_group_name": group_pair.exp_group_name,
             "control_samples": group_pair.ctr_sample_ids,
@@ -2407,8 +2409,8 @@ def runRNAseq(
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
     datajson["outfiles"] = outfiles
-    datajson["Params"]["workflow"]["genome_paired_samples"] = genome_paired_samples
-    datajson["Params"]["workflow"]["genome_single_samples"] = genome_single_samples
+    datajson["sample_params"]["genome_paired_samples"] = genome_paired_samples
+    datajson["sample_params"]["genome_single_samples"] = genome_single_samples
     return _write_raw_json(datajson, outdir)
 
 def runtRNAseq(
@@ -2442,7 +2444,7 @@ def runtRNAseq(
 
     outfiles = [f"{outdir}/mimseq/mimseq.done"]
 
-    datajson["Params"]["workflow"]["samples"] = samples
+    datajson["sample_params"]["samples"] = samples
     datajson["outfiles"] = outfiles
 
     return _write_raw_json(datajson, outdir)
@@ -2522,13 +2524,13 @@ def runncRNAseq(
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
     datajson["outfiles"] = outfiles
-    datajson["Params"]["workflow"]["samples"] = all_samples
-    datajson["Params"]["workflow"]["raw_files"] = raw_files
-    datajson["Params"]["workflow"]["paired_samples"] = paired_samples
-    datajson["Params"]["workflow"]["single_samples"] = single_samples
-    datajson["Params"]["workflow"]["ip_samples"] = ip_samples
-    datajson["Params"]["workflow"]["input_samples"] = input_samples
-    datajson["Params"]["workflow"]["sample_ip_input_map"] = sample_ip_input_map
+    datajson["sample_params"]["samples"] = all_samples
+    datajson["sample_params"]["raw_files"] = raw_files
+    datajson["sample_params"]["paired_samples"] = paired_samples
+    datajson["sample_params"]["single_samples"] = single_samples
+    datajson["sample_params"]["ip_samples"] = ip_samples
+    datajson["sample_params"]["input_samples"] = input_samples
+    datajson["sample_params"]["sample_ip_input_map"] = sample_ip_input_map
     return _write_raw_json(datajson, outdir)
 
 def runscRNAseq(
@@ -2540,7 +2542,7 @@ def runscRNAseq(
         cellranger_input_dict: Dict[str, CellrangerInput]
     ):
     root_dir = _init_raw_json(datajson, indir, outdir, raw_files, "scRNAseq")
-    datajson["Params"]["workflow"]["cellranger_input_dict"] = {k: v.__dict__ for k, v in cellranger_input_dict.items()}
+    datajson["sample_params"]["cellranger_input_dict"] = {k: v.__dict__ for k, v in cellranger_input_dict.items()}
     outfiles = []
     organisms = set()
     # CLI --extra-args counters=/aligner= land at config top level and win
@@ -2581,9 +2583,9 @@ def runscRNAseq(
                 outfiles.append(f"{outdir}/common/4_qc_h5ad/{sample_id}/{sample_id}_cellranger_qc.h5ad")
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
-    datajson["Params"]["workflow"]["paired_samples"] = paired_samples
-    datajson["Params"]["workflow"]["single_samples"] = single_samples
-    datajson["Params"]["workflow"]["cellranger_dirs"] = cellranger_dirs
+    datajson["sample_params"]["paired_samples"] = paired_samples
+    datajson["sample_params"]["single_samples"] = single_samples
+    datajson["sample_params"]["cellranger_dirs"] = cellranger_dirs
 
     # scCODA compare sharing: Params.sccoda.<counter>.sccoda_run.compare
     # defaults to the pseudobulk comparison design (identical
@@ -2760,7 +2762,7 @@ def runFiberseq(
     Guide: https://fiberseq.github.io/
 
     `Params.sv.enabled` gates the SV comparison analysis (modules/sv).
-    `Params.sv.comparisons` follows the DESeq2 group_pairs design
+    `sample_params.comparisons` follows the DESeq2 group_pairs design
     (name -> group names + sample name lists); it is filled from the meta
     group pairs when not hand-authored in the config.
     """
@@ -3068,21 +3070,23 @@ def runFiberseq(
     _fill_telomere_species(datajson, "Fiberseq")
     _fill_telomere_n_chrom_arms(datajson, "Fiberseq")
     _fill_repeatmasker_species(datajson, "Fiberseq")
-    comparisons = dict(sv_params.get("comparisons") or {})
-    if enable_sv and not comparisons:
+    # 对比定义统一存 sample_params.comparisons(organism 嵌套,手填优先);本地
+    # comparisons 为平铺视图,供 sv 门控/样本校验。sv.smk 接线同样读
+    # sample_params.comparisons(docs/sample-params-split.md)。
+    _cmp_nested = datajson.setdefault("sample_params", {}).setdefault("comparisons", {})
+    if enable_sv and not _cmp_nested:
         for gp in group_pairs:
-            name = f"{gp.ctr_group_name}_vs_{gp.exp_group_name}"
-            comparisons[name] = {
+            _cmp_nested.setdefault(gp.organism, {})[f"{gp.ctr_group_name}_vs_{gp.exp_group_name}"] = {
                 "control_group_name": gp.ctr_group_name,
                 "experimental_group_name": gp.exp_group_name,
                 "control_samples": gp.ctr_sample_ids,
                 "experimental_samples": gp.exp_sample_ids,
             }
-    datajson["Params"].setdefault("sv", {})["comparisons"] = comparisons
+    comparisons = {n: c for _org_cmps in _cmp_nested.values() for n, c in _org_cmps.items()}
     if enable_sv and not comparisons:
         logger.warning(
             "Fiberseq: Params.sv.enabled=true but no SV comparisons are defined; "
-            "fill Params.sv.comparisons in the config JSON or the meta design "
+            "fill sample_params.comparisons in the config JSON or the meta design "
             "column (ctrl_TAG / exp_TAG). Skipping SV comparison outputs."
         )
     if enable_sv and comparisons:
@@ -3096,7 +3100,7 @@ def runFiberseq(
                 unknown = [s for s in (c.get(key) or []) if s not in known_samples]
                 if unknown:
                     logger.warning(
-                        f"Fiberseq: Params.sv.comparisons['{name}'].{key} lists "
+                        f"Fiberseq: sample_params.comparisons['{name}'].{key} lists "
                         f"samples not in the meta: {unknown}"
                     )
             base = f"{sv_outdir}/{name}"
@@ -3104,17 +3108,17 @@ def runFiberseq(
             outfiles.append(f"{base}/{name}_only.vcf")
             outfiles.append(f"{base}/{name}_annotated.tab")
             # TE enrichment (RepeatMasker subfamily test) + per-SV stats from
-            # sv_exp_specific — registered so the rule's declared directory
-            # outputs are requested by the DAG
-            outfiles.append(f"{base}/repeatmasker")
-            outfiles.append(f"{base}/statistics")
-            outfiles.append(f"{base}/circos")
+            # sv_exp_specific — registered via the rules' marker files
+            # (directories are never declared as outputs, see modules.md)
+            outfiles.append(f"{base}/repeatmasker/repeatmasker.done")
+            outfiles.append(f"{base}/statistics/statistics.done")
+            outfiles.append(f"{base}/circos/circos.done")
             # MEI suite (sv_mei rule): classified insertions + 6-figure
             # suite; gate via Params.sv.mei.enabled (default on)
             if (datajson.get("Params", {}).get("sv", {}).get("mei", {}) or {}).get("enabled", True):
                 outfiles.append(f"{base}/mei/mei.done")
             if sv_genes:
-                outfiles.append(f"{base}/gene_model")
+                outfiles.append(f"{base}/gene_model/gene_model.done")
         # SV-affected genes GO/KEGG (modules/function/sv_go; macaque-aware
         # clusterProfiler route). Registered only when the gate is on.
         svgokegg_params = datajson.get("Params", {}).get("function", {}).get("sv_go_kegg", {}) or {}
@@ -3129,7 +3133,7 @@ def runFiberseq(
             datajson["Params"]["function"]["sv_go_kegg"]["species"] = svgokegg_species
             for name in comparisons:
                 outfiles.append(f"{sv_outdir}/{name}/sv_go_kegg/sv_go_kegg.done")
-        outfiles.append(f"{sv_outdir}/sv_diff_analysis")
+        outfiles.append(f"{sv_outdir}/sv_diff_analysis/sv_diff_analysis.done")
         if sv_oncoprint.get("cosmic_file"):
             outfiles.append(f"{sv_outdir}/sv_oncoprint/oncoprint_matrix.csv")
 
@@ -3298,20 +3302,9 @@ def runFiberseq(
             outfiles.append(f"{base}/class_summary_{contrast}.tsv")
             outfiles.append(f"{base}/TEcount/{contrast}.TEcount_Gene.name.tsv")
 
-        # function module needs group_pairs keyed by contrast; derive when absent
-        # (group order matches diff_accessibility: sorted group names -> control,
-        # experimental)
-        if not (datajson.get("Params", {}).get("function", {}) or {}).get("group_pairs"):
-            gp = {}
-            for contrast, groups in contrast_groups.items():
-                (g_ctrl, s_ctrl), (g_exp, s_exp) = sorted(groups.items())
-                gp[contrast] = {
-                    "control_group_name": g_ctrl,
-                    "experimental_group_name": g_exp,
-                    "control_samples": s_ctrl,
-                    "experimental_samples": s_exp,
-                }
-            datajson["Params"].setdefault("function", {})["group_pairs"] = gp
+        # function 模块的对比视图(group 名排序定角色,匹配 diff_accessibility
+        # 约定)由 Fiberseq.smk 接线从 sample_params.comparisons 推导
+        # (旧 sample_params.comparisons 字段已废除,docs/sample-params-split.md)。
 
         # GO/KEGG + GSEA outputs from the shared function module
         if enable_function:
@@ -3351,8 +3344,8 @@ def runFiberseq(
 
     datajson["Params"]["sv"]["exp_specific"]["species"] = genome_version
     datajson["Params"]["sv"]["exp_specific"]["assembly"] = genome_version
-    datajson["Params"]["workflow"]["samples"] = samples
-    datajson["Params"]["workflow"]["raw_files"] = raw_files
+    datajson["sample_params"]["samples"] = samples
+    datajson["sample_params"]["raw_files"] = raw_files
     outfiles += _register_regionplot(datajson, samples_info_dict, samples, outdir, "Fiberseq")
     outfiles += _register_fiberbrowser(datajson, samples_info_dict, samples, outdir, "Fiberseq")
     # Fiber pattern clustering + report package (modules/fibercluster):
@@ -3421,7 +3414,7 @@ def runLRtranscriptome(
             outfiles.append(f"{outdir}/quantification/{sample_id}/{sample_id}.gene_abund.tab")
             outfiles.append(f"{outdir}/quantification/{sample_id}/{sample_id}.quant.gtf")
 
-    wf["samples"] = samples
+    datajson["sample_params"]["samples"] = samples
     # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
     # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
@@ -3479,7 +3472,7 @@ def runDR(
         (DRclass evidence pairing is expressed by group or Params.workflow
         .dr_pairs instead).
       - RNA differential expression contrasts: hand-filled
-        Params.DESeq2.group_pairs wins, else RNA-only design group pairs,
+        sample_params.comparisons wins, else RNA-only design group pairs,
         else all pairs of the RNA rows' group column (alphabetical first =
         control).
       - DRclass evidence pairing: a DNA sample and a RNA sample with the SAME
@@ -3526,7 +3519,7 @@ def runDR(
     paired_design = []          # [{"control": normal_dna, "experimental": tumor_dna}]
     pair_strains = {}
     drclass_samples = {}
-    strain_vcfs = datajson.get("Params", {}).get("workflow", {}).get("drclass_strain_vcfs", {})
+    strain_vcfs = datajson.get("sample_params", {}).get("drclass_strain_vcfs", {})
 
     # --- DNA design pairs (standard ctr_/exp_ semantics, Mutation parity) ---
     # Both endpoints DNA -> matched normal/tumor somatic pair. Cross-type or
@@ -3543,7 +3536,7 @@ def runDR(
             logger.warning(
                 f"DR: ignoring mixed DNA/RNA design pair {ctr_id} vs {exp_id}; "
                 "design pairs never route chains (data_type does) and DRclass "
-                "evidence pairing comes from group or Params.workflow.dr_pairs")
+                "evidence pairing comes from group or sample_params.dr_pairs")
     for designPair in dna_design_pairs:
         paired_design.append({"control": _disp(designPair.ctr_sample_id),
                               "experimental": _disp(designPair.exp_sample_id)})
@@ -3601,7 +3594,7 @@ def runDR(
     # --- RNA chain analysis products (RNAseq.smk parity) ---
     # Counts / DE / enrichment / assembly / fusion / report / QC registration
     # mirrored from runRNAseq, every path scoped under {outdir}/RNA. DE
-    # contrasts (DESeq2.group_pairs): config wins, else the RNA-only design
+    # contrasts (sample_params.comparisons): config wins, else the RNA-only design
     # group pairs, else all pairs of the RNA rows' group column (alphabetical
     # first = control). Function enrichment stays gated by
     # Params.function.<organism>.enabled like runRNAseq.
@@ -3613,8 +3606,12 @@ def runDR(
     enable_report = _enabled(datajson, "report")
     enable_StringTie = _enabled(datajson, "StringTie")
 
-    _deseq_params = datajson["Params"].setdefault("DESeq2", {})
-    if not _deseq_params.get("group_pairs"):
+    # 对比定义统一存 sample_params.comparisons(organism 嵌套,手填优先;旧
+    # sample_params.comparisons 已废除,docs/sample-params-split.md)。以下
+    # 推导只在未手填时进行:1) RNA 行 design 对比(runRNAseq 语义)2) 兜底取
+    # RNA 行 group 列的两两组合(字母序前者为对照)。
+    _comparisons = datajson.setdefault("sample_params", {}).setdefault("comparisons", {})
+    if not _comparisons:
         _derived = {}
         # 1) RNA-only design group pairs (runRNAseq semantics)
         for gp in group_pairs:
@@ -3644,14 +3641,14 @@ def runDR(
                             "experimental_samples": list(_gmap[_exp]),
                         }
             _source = "group column"
-        _deseq_params["group_pairs"] = _derived
+        _comparisons.update(_derived)
         if _derived:
             logger.info(f"DR: RNA DE contrasts derived from {_source}: "
                         f"{ {o: list(v) for o, v in _derived.items()} } "
-                        "(override via Params.DESeq2.group_pairs)")
-    rna_group_pairs = _deseq_params.get("group_pairs") or {}
+                        "(override via sample_params.comparisons)")
+    rna_group_pairs = _comparisons or {}
     if not rna_group_pairs:
-        logger.info("DR: no RNA DE contrasts (need Params.DESeq2.group_pairs, RNA "
+        logger.info("DR: no RNA DE contrasts (need sample_params.comparisons, RNA "
                     "design pairs, or >=2 groups in the RNA rows' group column); "
                     "DE/function pair outputs skipped")
 
@@ -3783,7 +3780,7 @@ def runDR(
     # --- DRclass per-sample explicit file map (chain outputs) ---
     # Evidence pairing rule: a DNA sample and a RNA sample sharing the same
     # sample name (different data_type) are the two assays of one biological
-    # sample -> one DRclass pairing. Hand-filled Params.workflow.dr_pairs
+    # sample -> one DRclass pairing. Hand-filled sample_params.dr_pairs
     # ({dna_name: rna_name}) overrides. Entries need a somatic VCF, so only
     # somatic tumors of the DNA design pairs get classified.
     _paired_map = {
@@ -3791,22 +3788,22 @@ def runDR(
         for rec in paired_design
         if rec.get("experimental") and rec.get("control")
     }
-    dr_pairs_cfg = datajson.get("Params", {}).get("workflow", {}).get("dr_pairs") or {}
+    dr_pairs_cfg = datajson.get("sample_params", {}).get("dr_pairs") or {}
     if dr_pairs_cfg:
         dr_pairs = dict(dr_pairs_cfg)
         for _dna_name, _rna_name in dr_pairs.items():
             if _dna_name not in dna_info or _rna_name not in rna_info_by_name:
                 raise ValueError(
-                    f"DR: Params.workflow.dr_pairs entry {_dna_name} -> {_rna_name} must map a "
+                    f"DR: sample_params.dr_pairs entry {_dna_name} -> {_rna_name} must map a "
                     f"data_type=DNA sample name to a data_type=RNA sample name")
-        logger.info(f"DR: DRclass evidence pairing taken from Params.workflow.dr_pairs: {dr_pairs}")
+        logger.info(f"DR: DRclass evidence pairing taken from sample_params.dr_pairs: {dr_pairs}")
     else:
         dr_pairs = {_n: _n for _n in sorted(dna_info) if _n in rna_info_by_name}
         if dr_pairs:
             logger.info(f"DR: DRclass pairing by same sample name across data_type: {dr_pairs}")
         else:
             logger.info("DR: no DNA/RNA sample-name matches, no DRclass pair (give the two "
-                        "assays of one sample the same name, or set Params.workflow.dr_pairs)")
+                        "assays of one sample the same name, or set sample_params.dr_pairs)")
     _tumors_without_rna = [t for t in sorted(_paired_map) if t not in dr_pairs]
     if _tumors_without_rna:
         logger.warning(f"DR: somatic tumors without same-name RNA evidence, no DRclass "
@@ -3847,7 +3844,7 @@ def runDR(
 
     if dr_pairs and not drclass_samples:
         logger.warning(
-            f"DR: all {len(dr_pairs)} Params.workflow.dr_pairs entries were "
+            f"DR: all {len(dr_pairs)} sample_params.dr_pairs entries were "
             "skipped (none is a somatic tumor of a DNA design pair), so the "
             "DRclass chain and DRclass_summary.tsv are not registered for "
             "this run")
@@ -4035,33 +4032,33 @@ def runDR(
         _cnv_cfg["method"] = _dna_assay_method
     # Calling mode resolution (Mutation parity): matched normals in the
     # design pairs -> paired; else a normal panel
-    # (Params.workflow.control_samples) -> pooled; else flat. An explicit
+    # (sample_params.control_samples) -> pooled; else flat. An explicit
     # mode wins over "auto"; impossible combos hard-error below.
     _cnv_mode = _cnv_cfg.get("mode") or "auto"
     if _cnv_mode == "auto":
         _cnv_mode = "paired" if _paired_map else (
-            "pooled" if (datajson["Params"]["workflow"].get("control_samples") or []) else "flat"
+            "pooled" if (datajson["sample_params"].get("control_samples") or []) else "flat"
         )
         _cnv_cfg["mode"] = _cnv_mode
         logger.info(f"DR: cnvkit mode auto -> {_cnv_mode} "
                     f"(design pairs: {len(_paired_map)}, "
-                    f"control_samples: {len(datajson['Params']['workflow'].get('control_samples') or [])})")
+                    f"control_samples: {len(datajson['sample_params'].get('control_samples') or [])})")
     if _cnv_mode == "paired" and not _paired_map:
         raise ValueError(
             "DR: Params.cnvkit.mode 'paired' requires matched normal "
             "samples in the meta design; none found. Use mode 'pooled' (with "
             "control_samples) or 'flat'."
         )
-    if _cnv_mode == "pooled" and not (datajson["Params"]["workflow"].get("control_samples") or []):
+    if _cnv_mode == "pooled" and not (datajson["sample_params"].get("control_samples") or []):
         raise ValueError(
             "DR: Params.cnvkit.mode 'pooled' requires "
-            "Params.workflow.control_samples; none found. Use mode 'flat' "
+            "sample_params.control_samples; none found. Use mode 'flat' "
             "or provide a normal panel."
         )
     if _cnv_mode == "paired":
         # Paired mode must not also build a pooled reference alongside the
         # per-pair references (conflicting reference semantics).
-        datajson["Params"]["workflow"]["control_samples"] = []
+        datajson["sample_params"]["control_samples"] = []
     # 参数精确到 rule:resolve 结果(以及 meta assay 推导的 method)镜像写入
     # rule 子段——modules/cnvkit 只读 Params.cnvkit.<rule>.mode/.method
     # (rule_param,无 module 级回退),扁平键仅留作 node.py 自身门控/兼容。
@@ -4210,15 +4207,15 @@ def runDR(
         if teffect_cfg.get("gmt"):
             outfiles.append(f"{outdir}/TransEffect/fig_program_overlap.png")
 
-    datajson["Params"]["workflow"]["dr_pairs"] = dr_pairs
-    datajson["Params"]["workflow"]["drclass_samples"] = drclass_samples
-    datajson["Params"]["workflow"]["genome_paired_samples"] = genome_paired_samples
-    datajson["Params"]["workflow"]["genome_single_samples"] = genome_single_samples
-    datajson["Params"]["workflow"]["dna_paired_samples"] = dna_paired_samples
-    datajson["Params"]["workflow"]["dna_single_samples"] = dna_single_samples
-    datajson["Params"]["workflow"]["paired_design"] = paired_design
-    datajson["Params"]["workflow"]["pair_strains"] = pair_strains
-    datajson["Params"]["workflow"]["control_samples"] = datajson["Params"]["workflow"].get("control_samples", []) or []
+    datajson["sample_params"]["dr_pairs"] = dr_pairs
+    datajson["sample_params"]["drclass_samples"] = drclass_samples
+    datajson["sample_params"]["genome_paired_samples"] = genome_paired_samples
+    datajson["sample_params"]["genome_single_samples"] = genome_single_samples
+    datajson["sample_params"]["dna_paired_samples"] = dna_paired_samples
+    datajson["sample_params"]["dna_single_samples"] = dna_single_samples
+    datajson["sample_params"]["paired_design"] = paired_design
+    datajson["sample_params"]["pair_strains"] = pair_strains
+    datajson["sample_params"]["control_samples"] = datajson["sample_params"].get("control_samples", []) or []
     datajson["outfiles"] = outfiles
     return _write_raw_json(datajson, outdir)
 
@@ -4235,32 +4232,31 @@ def runPopulation_genomics(
     gVCF) -> joint genotyping -> bcftools filtering -> plink2 / vcftools /
     admixture / easySFS / PopLDdecay analyses gated by Params.analysis.
 
-    Params.workflow.sample_bams and Params.workflow.populations are
+    sample_params.sample_bams and sample_params.populations are
     user-supplied maps; empty ones fall back to the meta (per-sample ``bam``
     column for sample_bams, ``group`` column for populations).
     """
     root_dir = _init_raw_json(datajson, indir, outdir, raw_files)
-    wf = datajson.setdefault("Params", {}).setdefault("workflow", {})
     analysis = datajson.get("Params", {}).get("analysis", {}) or {}
 
-    wf["samples"] = list(samples_info_dict) or sorted(wf.get("sample_bams") or {})
+    datajson["sample_params"]["samples"] = list(samples_info_dict) or sorted(datajson["sample_params"].get("sample_bams") or {})
     # sample_bams: explicit config entries win; empty slots fall back to the
     # meta's per-sample BAM column.
-    sample_bams = dict(wf.get("sample_bams") or {})
+    sample_bams = dict(datajson["sample_params"].get("sample_bams") or {})
     for sid, info in samples_info_dict.items():
         bam = getattr(info, "bam", None)
         if bam and not sample_bams.get(sid):
             sample_bams[sid] = bam
-    wf["sample_bams"] = sample_bams
-    missing = [sid for sid in wf["samples"] if sid not in sample_bams]
+    datajson["sample_params"]["sample_bams"] = sample_bams
+    missing = [sid for sid in datajson["sample_params"]["samples"] if sid not in sample_bams]
     if missing:
         raise ValueError(
             f"Population_genomics: no BAM for sample(s) {missing}; fill "
-            f"Params.workflow.sample_bams or record the meta 'bam' column"
+            f"sample_params.sample_bams or record the meta 'bam' column"
         )
     # populations: explicit config map wins; otherwise group samples by the
     # meta's ``group`` column.
-    populations = wf.get("populations") or {}
+    populations = datajson["sample_params"].get("populations") or {}
     if not populations:
         by_group: Dict[str, List[str]] = {}
         for sid, info in samples_info_dict.items():
@@ -4268,7 +4264,7 @@ def runPopulation_genomics(
             if group:
                 by_group.setdefault(group, []).append(sid)
         populations = by_group
-    wf["populations"] = populations
+    datajson["sample_params"]["populations"] = populations
 
     # outfiles mirror the fallback list in subworkflow/Population_genomics.smk
     pop_names = sorted(populations)

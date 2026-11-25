@@ -986,6 +986,52 @@
       }
     }
   },
+  "sample_params": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+      "raw_files": {
+        "type": "list",
+        "required": false
+      },
+      "dna_paired_samples": {
+        "type": "list",
+        "required": false
+      },
+      "dna_single_samples": {
+        "type": "list",
+        "required": false
+      },
+      "paired_design": {
+        "type": "list",
+        "required": false
+      },
+      "pair_strains": {
+        "type": "dict",
+        "required": false
+      },
+      "control_samples": {
+        "type": "list",
+        "required": false
+      },
+      "dr_pairs": {
+        "type": "dict",
+        "required": false
+      },
+      "drclass_samples": {
+        "type": "dict",
+        "required": false
+      },
+      "drclass_strain_vcfs": {
+        "type": "dict",
+        "required": false
+      },
+      "comparisons": {
+        "type": "dict",
+        "required": false
+      }
+    }
+  },
   "Params": {
     "type": "dict",
     "nullable": true,
@@ -1856,40 +1902,6 @@
         "type": "dict",
         "required": true,
         "properties": {
-          "group_pairs": {
-            "type": "dict",
-            "required": true,
-            "additionalProperties": {
-              "type": "dict",
-              "additionalProperties": {
-                "type": "dict",
-                "properties": {
-                  "control_group_name": {
-                    "type": "str",
-                    "required": true
-                  },
-                  "experimental_group_name": {
-                    "type": "str",
-                    "required": true
-                  },
-                  "control_samples": {
-                    "type": "list",
-                    "required": true,
-                    "items": {
-                      "type": "str"
-                    }
-                  },
-                  "experimental_samples": {
-                    "type": "list",
-                    "required": true,
-                    "items": {
-                      "type": "str"
-                    }
-                  }
-                }
-              }
-            }
-          },
           "DESeq2_TElocal_manhattan": {
             "type": "dict",
             "required": false,

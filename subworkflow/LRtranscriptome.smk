@@ -6,7 +6,7 @@ indir = config.get("Params", {}).get("workflow", {}).get("indir", "data/fastq")
 outdir = config.get("Params", {}).get("workflow", {}).get("outdir", "output")
 logdir = config.get("Params", {}).get("workflow", {}).get("logdir", "logs")
 outfiles = config.get("outfiles", [])
-samples = config.get("Params", {}).get("workflow", {}).get("samples", [])
+samples = config.get("sample_params", {}).get("samples", [])
 skip_quant = config.get("Params", {}).get("skip_quant", False)
 
 genome = config.get("genome", {}).get("default")

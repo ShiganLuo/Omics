@@ -4,8 +4,8 @@ indir = config.get("Params", {}).get("workflow", {}).get("indir", "data/fastq")
 outdir = config.get("Params", {}).get("workflow", {}).get("outdir", "output")
 logdir = config.get("Params", {}).get("workflow", {}).get("logdir", "logs")
 outfiles = config.get("outfiles", [])
-paired_samples = config.get("Params", {}).get("workflow", {}).get("paired_samples", [])
-single_samples = config.get("Params", {}).get("workflow", {}).get("single_samples", [])
+paired_samples = config.get("sample_params", {}).get("paired_samples", [])
+single_samples = config.get("sample_params", {}).get("single_samples", [])
 trimmer = config.get('Params', {}).get('workflow', {}).get('trimmer') or "trim_galore"
 # Genome reference resolution - nested `default` + `references` pattern
 default_genome = config.get("genome", {}).get("default")
@@ -278,8 +278,8 @@ gatk_somatic_config = {
         "germline_resource": genome_ref.get("germline_resource"),
         "strain_resource": genome_ref.get("strain_resource")
     },
-    "pair_strains": config.get("Params", {}).get("workflow", {}).get("pair_strains", {}),
-    "design_pairs": config.get("Params", {}).get("workflow", {}).get("paired_design", []),
+    "pair_strains": config.get("sample_params", {}).get("pair_strains", {}),
+    "design_pairs": config.get("sample_params", {}).get("paired_design", []),
     "Params": {
         "gatk": {
             "Mutect2": {
@@ -302,7 +302,7 @@ use rule filterMutectCalls from gatk_somatic as Mutation_filterMutectCalls
 
 msi_pairs = {
     rec["experimental"]: rec["control"]
-    for rec in config.get("Params", {}).get("workflow", {}).get("paired_design", [])
+    for rec in config.get("sample_params", {}).get("paired_design", [])
     if rec.get("experimental") and rec.get("control")
 }
 msi_config = {
@@ -495,7 +495,7 @@ use rule manta_run_somatic from manta_somatic as Mutation_manta_run_somatic
 # Wired unconditionally; node.py controls whether it runs by registering
 # (or omitting) the CNVkit outputs (Params.cnvkit.enabled; control_samples
 # additionally registers the reference panel output).
-control_samples = config.get("Params", {}).get("workflow", {}).get("control_samples", [])
+control_samples = config.get("sample_params", {}).get("control_samples", [])
 cnvkit_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -507,7 +507,7 @@ cnvkit_config = {
     "logdir": f"{logdir}/group",
     "samples": paired_samples + single_samples,
     "control_samples": control_samples,
-    "paired_design": config.get("Params", {}).get("workflow", {}).get("paired_design", []),
+    "paired_design": config.get("sample_params", {}).get("paired_design", []),
     "Procedure": {
         "cnvkit": config.get("Procedure", {}).get("cnvkit"),
         "samtools": config.get("Procedure", {}).get("samtools")
@@ -635,7 +635,7 @@ qc_summary_config = {
     },
     # MSI anchors exist only for the tumor sample of each design pair
     "qc_anchor_samples": {
-        "msi": [rec["experimental"] for rec in config.get("Params", {}).get("workflow", {}).get("paired_design", []) if rec.get("experimental")],
+        "msi": [rec["experimental"] for rec in config.get("sample_params", {}).get("paired_design", []) if rec.get("experimental")],
     },
 }
 # hs_metrics anchor + plot exist only for exome/hybrid runs (targets BED
@@ -684,7 +684,7 @@ Mutation_report_config = {
     "outdir": outdir,
     "logdir": f"{logdir}/group",
     "samples": paired_samples + single_samples,
-    "paired_design": config.get("Params", {}).get("workflow", {}).get("paired_design", []),
+    "paired_design": config.get("sample_params", {}).get("paired_design", []),
     "qc_summary": qc_summary_config["outdir"],
     "somatic_dir": gatk_somatic_config["outdir"],
     "spectrum_dir": somatic_spectrum_config["outdir"],

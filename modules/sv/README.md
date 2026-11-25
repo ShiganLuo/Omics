@@ -28,22 +28,24 @@ polygenomes 变体见 `polygenomes/`。
 {outdir}/{comp}/{comp}_merged.vcf            # SURVIVOR 合并 VCF(sv_exp_specific)
 {outdir}/{comp}/{comp}_only.vcf              # 比较特异 SV
 {outdir}/{comp}/{comp}_annotated.tab         # VEP 注释表
-{outdir}/{comp}/repeatmasker/                # RepeatMasker 注释产物
-{outdir}/{comp}/statistics/                  # 统计表
-{outdir}/{comp}/enrichment/                  # TE 富集分析
-{outdir}/{comp}/circos/                      # circos 图(sv_exp_circos)
-{outdir}/{comp}/gene_model/                  # 基因模型 + SV 叠加图(sv_gene_model)
-{outdir}/{comp}/mei/mei.done                 # MEI 分析完成标记(产物与缓存在 mei/ 内)
-{outdir}/{comp}/tra_te/tra_te.done          # TE 介导易位分析完成标记(5 TSV + figs/ 4 图)
+{outdir}/{comp}/repeatmasker/repeatmasker.done  # RepeatMasker 注释完成标记(产物在 repeatmasker/ 内)
+{outdir}/{comp}/statistics/statistics.done      # 统计表完成标记(产物在 statistics/ 内)
+{outdir}/{comp}/circos/circos.done              # circos 图完成标记(sv_exp_circos,图在 circos/ 内)
+{outdir}/{comp}/gene_model/gene_model.done      # 基因模型 + SV 叠加图完成标记(sv_gene_model)
+{outdir}/{comp}/mei/mei.done                    # MEI 分析完成标记(产物与缓存在 mei/ 内)
+{outdir}/{comp}/tra_te/tra_te.done              # TE 介导易位分析完成标记(5 TSV + figs/ 4 图)
 
 # 跨对比
-{outdir}/sv_diff_analysis/                   # 组间 SV 差异分析(pbsv_sv_diff_analysis.py)
-{outdir}/sv_oncoprint/oncoprint_matrix.csv   # OncoPrint 矩阵(+ sv_oncoprint/ 图)
+{outdir}/sv_diff_analysis/sv_diff_analysis.done # 组间 SV 差异分析完成标记(pbsv_sv_diff_analysis.py)
+{outdir}/sv_oncoprint/oncoprint_matrix.csv      # OncoPrint 矩阵(+ sv_oncoprint/ 图)
+{outdir}/sv_oncoprint/oncoprint.done            # OncoPrint 完成标记
 ```
 
-回执:`{outdir}/{comp}/sv_*.sh`、`{outdir}/sv_{diff_analysis,oncoprint}.sh`;
-日志 `{logdir}/sv/{comp}/sv_*.log` 等。`sv_result` 聚合全部产出
-(enrichment 目录由 sv_exp_specific 一并生成)。
+产物目录一律以 `<dir>/<dir>.done` 标记文件接入 DAG,不用 `directory()`
+(见 modules.md「输出声明」)——目录内的引擎产物/缓存重跑时不会被清空。
+回执:`{outdir}/{comp}/sv_*_{comp}.sh`、`{outdir}/sv_{diff_analysis,oncoprint}.sh`
+(时间戳备份在 `log/cmd/`);单对比规则日志 `{logdir}/{comp}/sv_*.log`,
+跨对比规则日志 `{logdir_combine}/sv/sv_*.log`。`sv_result` 聚合全部产出。
 
 ### 1.3 参数
 
@@ -61,10 +63,10 @@ config 位于 `Params.sv.<段>` 下(**注意**:`dist` 例外,读
 | `genome.custom_gtf`(+`.custom_fasta`) | `--custom_gtf` / `--custom_fasta` | "" | 非空才传 |
 | `genome.te_lib` | `--te_lib` / `--te-lib` | "" | TE 共识库(exp_specific 富集 / mei legacy 分类器) |
 | `Params.sv.circos.genome` / `.cytoband` / `.ins_bin_size` | `--genome` / `--cytoband` / `--ins_bin_size` | `mm39` / "" / 100000 | circos 组装名、染色体带、INS 分箱 |
-| `Params.sv.gene_model.threads` | `-j` | 1 | 并行画图 |
+| `Params.sv.gene_model.threads` | `-j` | 1 | 并行画图(兜底值;`resources.sv_gene_model.threads` 优先) |
 | `Params.sv.diff_analysis.large_sv_threshold` | `-s` | 10000 | 大 SV 长度阈值(bp) |
 | `Params.sv.oncoprint.cosmic_file` | `--cosmic_file` | — | 必需 |
-| `Params.sv.oncoprint.deseq2_files` | `-d cond:path` | {} | 表达叠加 |
+| `Params.sv.oncoprint.deseq2_files` | `--deseq2-json`(JSON 对象) | {} | 表达叠加(`{condition: path}` 原生形态直达) |
 | `Params.sv.mei.min_len` | `--min-len` | 100 | MEI 最小 INS 长度 |
 | `Params.sv.mei.full_length` / `.full_length_family` | `--full-length-l1` / `--full-length-family` | 6000 / `L1` | 全长 L1 判定阈值/家族 |
 | `Params.sv.mei.dfam_h5` | `--dfam-h5`(可重复) | [] | Dfam FamDB h5(首选分类器) |
@@ -106,12 +108,13 @@ python modules/sv/bin/utils/tra_te_analysis.py \
     -o out/young_vs_aged/tra_te \
     --threads 4 --n-perm 1000 --seed 42
 
-# 跨组差异 + OncoPrint
+# 跨组差异 + OncoPrint(分组映射走 JSON 对象,name: path 自定义格式已废除)
 python modules/sv/bin/pbsv_sv_diff_analysis.py -o out/sv_diff_analysis \
-    -s 10000 -g young_vs_aged:out/young_vs_aged/young_vs_aged_only.vcf -f png
+    -s 10000 --groups-json '{"young_vs_aged": "out/young_vs_aged/young_vs_aged_only.vcf"}' -f png
 python modules/sv/bin/run_OncoPrint.py --cosmic_file cosmic_cancer_genes.txt \
-    -o out/sv_oncoprint -g young_vs_aged:out/young_vs_aged/young_vs_aged_annotated.tab \
-    -d ctrl:deseq2_ctrl.tsv -f png
+    -o out/sv_oncoprint \
+    --groups-json '{"young_vs_aged": "out/young_vs_aged/young_vs_aged_annotated.tab"}' \
+    --deseq2-json '{"ctrl": "deseq2_ctrl.tsv"}' -f png
 ```
 
 ## 2. 算法原理与生物学意义

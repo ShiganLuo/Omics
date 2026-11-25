@@ -344,6 +344,24 @@
       "required": false
     }
   },
+  "sample_params": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+      "samples": {
+        "type": "list",
+        "required": false
+      },
+      "raw_files": {
+        "type": "list",
+        "required": false
+      },
+      "expdesign": {
+        "type": "str",
+        "required": false
+      }
+    }
+  },
   "Params": {
     "diann": {
       "enabled": {

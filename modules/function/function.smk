@@ -6,7 +6,7 @@ counts_dir = config.get("counts_dir", "output/counts")
 outdir = config.get("outdir", "output/function")
 logdir = config.get("logdir", "logs")
 ROOT_DIR = config.get("ROOT_DIR", ".")
-group_pairs = config.get("group_pairs", {})
+comparisons = config.get("comparisons", {})
 paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
 _go_kegg_formats = config.get("Params", {}).get("function", {}).get("function_go_kegg", {}).get("formats") or ["png"]
@@ -61,10 +61,10 @@ rule function_go_kegg:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start GO/KEGG analysis for {wildcards.contrast} at {current_time}")
 
-            if wildcards.contrast not in group_pairs:
-                raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
-            ctrl = group_pairs[wildcards.contrast]["control_group_name"]
-            exp = group_pairs[wildcards.contrast]["experimental_group_name"]
+            if wildcards.contrast not in comparisons:
+                raise ValueError(f"Group pair {wildcards.contrast} not found in comparisons configuration.")
+            ctrl = comparisons[wildcards.contrast]["control_group_name"]
+            exp = comparisons[wildcards.contrast]["experimental_group_name"]
             sample_outdir = os.path.join(outdir, wildcards.contrast)
             os.makedirs(sample_outdir, exist_ok=True)
 
@@ -108,8 +108,8 @@ rule function_go_kegg:
 def get_input_for_function_gsea(wildcards):
     """Resolve inputs for function_gsea: DESeq2 result + GMT + geneIDAnno."""
     logger.debug(f"[get_input_for_function_gsea] called with wildcards: {wildcards}")
-    if wildcards.contrast not in group_pairs:
-        raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
+    if wildcards.contrast not in comparisons:
+        raise ValueError(f"Group pair {wildcards.contrast} not found in comparisons configuration.")
     in_dict = {}
     deseq2_result = os.path.join(indir, wildcards.contrast, f"{wildcards.contrast}.TEcount_Gene.tsv")
     if not os.path.exists(deseq2_result):
@@ -159,8 +159,8 @@ rule function_gsea:
         rule_logger = setup_logger("function_gsea", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            ctrl = group_pairs[wildcards.contrast]["control_group_name"]
-            exp = group_pairs[wildcards.contrast]["experimental_group_name"]
+            ctrl = comparisons[wildcards.contrast]["control_group_name"]
+            exp = comparisons[wildcards.contrast]["experimental_group_name"]
             rule_logger.info(f"Start GSEA analysis for {wildcards.contrast} at {current_time}")
 
             if not os.path.exists(input.deseq2_result):

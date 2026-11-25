@@ -262,6 +262,40 @@
       "required": false
     }
   },
+  "sample_params": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+      "raw_files": {
+        "type": "list",
+        "required": false
+      },
+      "paired_samples": {
+        "type": "list",
+        "required": true
+      },
+      "single_samples": {
+        "type": "list",
+        "required": false
+      },
+      "ip_samples": {
+        "type": "list",
+        "required": true
+      },
+      "input_samples": {
+        "type": "list",
+        "required": true
+      },
+      "treated_input_samples": {
+        "type": "list",
+        "required": true
+      },
+      "treated_ip_samples": {
+        "type": "list",
+        "required": true
+      }
+    }
+  },
   "Params": {
     "regionplot": {
       "enabled": {
@@ -398,34 +432,6 @@
           "type": "null",
           "nullable": true,
           "required": false
-        },
-        "raw_files": {
-          "type": "list",
-          "required": false
-        },
-        "paired_samples": {
-          "type": "list",
-          "required": true
-        },
-        "single_samples": {
-          "type": "list",
-          "required": false
-        },
-        "ip_samples": {
-          "type": "list",
-          "required": true
-        },
-        "input_samples": {
-          "type": "list",
-          "required": true
-        },
-        "treated_input_samples": {
-          "type": "list",
-          "required": true
-        },
-        "treated_ip_samples": {
-          "type": "list",
-          "required": true
         }
       }
     }

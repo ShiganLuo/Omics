@@ -14,7 +14,7 @@
 |---|---|
 | `indir` (config) | 差异表达目录(上游 DESeq2 的 `outdir`,默认 `output/diff_expression`):go_kegg 取 `{indir}/{contrast}/TEcount/{contrast}.TEcount_Gene.name.tsv`,gsea 取 `{indir}/{contrast}/TEcount/{contrast}.TEcount_Gene.tsv`(缺失即报错) |
 | `counts_dir` (config) | featureCounts 计数目录(gsva 用):`all_paired_featureCounts.tsv` / `all_single_featureCounts.tsv`,按 `paired_samples`/`single_samples` 是否非空决定取哪些 |
-| `group_pairs` (config) | `{contrast: {"control_group_name", "experimental_group_name"}}` 对比定义;contrast 不在其中直接 `ValueError` |
+| `comparisons` (config) | `{contrast: {"control_group_name", "experimental_group_name"}}` 对比定义;contrast 不在其中直接 `ValueError` |
 | `Params.function.gsea.gmt` (config) | GSEA 基因集 GMT(必需,存在性校验;示例 json 写作 `Params.function.gmt`,以 .smk 为准) |
 | `Params.function.gsva.gmt` (config) | GSVA 基因集 GMT(必需) |
 | `genome.references.geneIDAnno` (config) | 基因 ID 注释(gsea 用;注意取的是 `genome.references` 下,错误信息/示例 json 写作 `genome.geneIDAnno`) |

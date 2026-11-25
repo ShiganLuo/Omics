@@ -1,5 +1,6 @@
 import sys
 import os
+import json
 import pandas as pd
 import argparse
 import os
@@ -171,12 +172,11 @@ def main():
         description="pbsv SV differential analysis (VCF / VCF.GZ)"
     )
     parser.add_argument(
-        "-g", "--group",
-        action="append",
+        "--groups-json",
         required=True,
-        metavar="NAME:VCF",
-        help="Group in format 'name:vcf_path'. Can be specified multiple times. "
-             "Example: -g Control:ctrl.vcf -g Experiment:exp.vcf",
+        metavar="JSON",
+        help="Group name -> VCF path mapping as a JSON object "
+             "(e.g. '{\"Control\": \"ctrl.vcf\", \"Experiment\": \"exp.vcf\"}')",
     )
     parser.add_argument("-o", "--outdir", default="pbsv_sv_diff")
     parser.add_argument("-s", "--large-sv-threshold", type=int, default=10_000)
@@ -191,12 +191,12 @@ def main():
 
     args = parser.parse_args()
 
-    group_vcf = {}
-    for g in args.group:
-        if ":" not in g:
-            parser.error(f"Invalid format '{g}', expected 'NAME:VCF'")
-        name, vcf = g.split(":", 1)
-        group_vcf[name] = vcf
+    try:
+        group_vcf = json.loads(args.groups_json)
+    except json.JSONDecodeError as e:
+        parser.error(f"--groups-json is not valid JSON: {e}")
+    if not isinstance(group_vcf, dict) or not group_vcf:
+        parser.error("--groups-json must be a non-empty JSON object {name: vcf_path}")
 
     run_pbsv_diff_analysis(
         group_vcf=group_vcf,

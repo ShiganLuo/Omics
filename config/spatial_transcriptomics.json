@@ -1,10 +1,12 @@
 {
+  "sample_params": {
+    "raw_files": []
+  },
   "Params": {
     "workflow": {
       "indir": "input",
       "outdir": "output",
       "logdir": "logs",
-      "raw_files": [],
       "input_h5ad": "/data/16T/luosg/workflow/Omics/assests/test/data/spatial/TestSpatial1_filtered.h5ad",
       "visium_h5": "",
       "spatial_dir": ""

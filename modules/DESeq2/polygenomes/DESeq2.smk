@@ -4,7 +4,7 @@ indir = config.get("indir", "data")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
 ROOT_DIR = config.get("ROOT_DIR", ".")
-group_pairs = config.get("group_pairs", {})
+comparisons = config.get("comparisons", {})
 
 # ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
 # R figure formats forwarded to DESeq2.r --format (repeatable). Valid set is
@@ -87,12 +87,12 @@ rule DESeq2_TEcount:
             script = os.path.join(RECEIPT_DIR, f"DESeq2_TEcount_{wildcards.genome}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"DESeq2_TEcount.sh")
-            control_group_name = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name")
-            experimental_group_name = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name")
-            if wildcards.contrast not in group_pairs.get(wildcards.genome, {}):
-                raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
-            control_samples = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_samples", [])
-            experimental_samples = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_samples", [])
+            control_group_name = comparisons.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name")
+            experimental_group_name = comparisons.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name")
+            if wildcards.contrast not in comparisons.get(wildcards.genome, {}):
+                raise ValueError(f"Group pair {wildcards.contrast} not found in comparisons configuration.")
+            control_samples = comparisons.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_samples", [])
+            experimental_samples = comparisons.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_samples", [])
             if not control_samples or len(control_samples) == 0:
                 raise ValueError(f"No control samples found for contrast {wildcards.contrast} in genome {wildcards.genome}.")
             if not experimental_samples or len(experimental_samples) == 0:
@@ -215,12 +215,12 @@ rule DESeq2_TElocal:
             script = os.path.join(RECEIPT_DIR, f"DESeq2_TElocal_{wildcards.genome}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"DESeq2_TElocal.sh")
-            control_group_name = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name")
-            experimental_group_name = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name")
-            if wildcards.contrast not in group_pairs.get(wildcards.genome, {}):
-                raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
-            control_samples = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_samples", [])
-            experimental_samples = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_samples", [])
+            control_group_name = comparisons.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name")
+            experimental_group_name = comparisons.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name")
+            if wildcards.contrast not in comparisons.get(wildcards.genome, {}):
+                raise ValueError(f"Group pair {wildcards.contrast} not found in comparisons configuration.")
+            control_samples = comparisons.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_samples", [])
+            experimental_samples = comparisons.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_samples", [])
             if not control_samples or len(control_samples) == 0:
                 raise ValueError(f"No control samples found for contrast {wildcards.contrast} in genome {wildcards.genome}.")
             if not experimental_samples or len(experimental_samples) == 0:
@@ -322,8 +322,8 @@ rule DESeq2_TElocal_manhattan:
         mem_mb=rule_res("DESeq2_TElocal_manhattan").get("mem_mb", 8000),
     params:
         figure_script = ROOT_DIR + "/modules/DESeq2/bin/te_manhattan.py",
-        control_group_name = lambda wildcards: group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name"),
-        experimental_group_name = lambda wildcards: group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name"),
+        control_group_name = lambda wildcards: comparisons.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name"),
+        experimental_group_name = lambda wildcards: comparisons.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name"),
         highlight_families = lambda wildcards: list(config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_manhattan", {}).get("highlight_families", {}).get(wildcards.genome, {}).get(wildcards.contrast, [])),
         label_top = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_manhattan", {}).get("label_top", 10),
         ylabel = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_manhattan", {}).get("ylabel", "log2(1+|delta TPM|)"),
@@ -347,7 +347,7 @@ rule DESeq2_TElocal_manhattan:
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(fig_outdir, "DESeq2_TElocal_manhattan.sh")
             if not params.control_group_name or not params.experimental_group_name:
-                raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
+                raise ValueError(f"Group pair {wildcards.contrast} not found in comparisons configuration.")
             cmd = [
                 "python", params.figure_script,
                 "--deseq", input.deseq,
@@ -397,8 +397,8 @@ rule DESeq2_TElocal_locus_boxplot:
         mem_mb=rule_res("DESeq2_TElocal_locus_boxplot").get("mem_mb", 8000),
     params:
         figure_script = ROOT_DIR + "/modules/DESeq2/bin/te_locus_boxplot.py",
-        control_group_name = lambda wildcards: group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name"),
-        experimental_group_name = lambda wildcards: group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name"),
+        control_group_name = lambda wildcards: comparisons.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name"),
+        experimental_group_name = lambda wildcards: comparisons.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name"),
         families = lambda wildcards: list(config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_locus_boxplot", {}).get("families", {}).get(wildcards.genome, {}).get(wildcards.contrast, [])),
         match_field = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_locus_boxplot", {}).get("match_field", "subfamily"),
         match_mode = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_locus_boxplot", {}).get("match_mode", "exact"),
@@ -424,7 +424,7 @@ rule DESeq2_TElocal_locus_boxplot:
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(fig_outdir, "DESeq2_TElocal_locus_boxplot.sh")
             if not params.control_group_name or not params.experimental_group_name:
-                raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
+                raise ValueError(f"Group pair {wildcards.contrast} not found in comparisons configuration.")
             if not params.families:
                 raise ValueError(
                     f"Params.DESeq2.locus_boxplot.families[{wildcards.genome}][{wildcards.contrast}] "
@@ -476,8 +476,8 @@ rule DESeq2_TElocal_subfamily_bar:
         mem_mb=rule_res("DESeq2_TElocal_subfamily_bar").get("mem_mb", 8000),
     params:
         figure_script = ROOT_DIR + "/modules/DESeq2/bin/te_subfamily_bar.py",
-        control_group_name = lambda wildcards: group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name"),
-        experimental_group_name = lambda wildcards: group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name"),
+        control_group_name = lambda wildcards: comparisons.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name"),
+        experimental_group_name = lambda wildcards: comparisons.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name"),
         families = lambda wildcards: list(config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_subfamily_bar", {}).get("families", {}).get(wildcards.genome, {}).get(wildcards.contrast, [])),
         match_field = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_subfamily_bar", {}).get("match_field", "subfamily"),
         match_mode = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_subfamily_bar", {}).get("match_mode", "exact"),
@@ -505,7 +505,7 @@ rule DESeq2_TElocal_subfamily_bar:
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(fig_outdir, "DESeq2_TElocal_subfamily_bar.sh")
             if not params.control_group_name or not params.experimental_group_name:
-                raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
+                raise ValueError(f"Group pair {wildcards.contrast} not found in comparisons configuration.")
             if not params.families:
                 raise ValueError(
                     f"Params.DESeq2.subfamily_bar.families[{wildcards.genome}][{wildcards.contrast}] "

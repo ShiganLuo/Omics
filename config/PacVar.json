@@ -1,11 +1,14 @@
 {
+  "sample_params": {
+    "samples": [],
+    "raw_files": [],
+    "comparisons": {}
+  },
   "Params": {
     "workflow": {
       "indir": "input",
       "outdir": "output",
       "logdir": "logs",
-      "samples": [],
-      "raw_files": [],
       "snv_caller": "deepvariant"
     },
     "igv": {
@@ -41,7 +44,6 @@
     },
     "sv": {
       "enabled": true,
-      "comparisons": {},
       "exp_specific": {
         "vep_cache": "/data/16T/Database/.vep",
         "species": "mus_musculus",
@@ -475,7 +477,6 @@
       "lfc_cut": 1.0,
       "p_cut": 0.05,
       "top": 10,
-      "group_pairs": {},
       "sv_go_kegg": {
         "enabled": true,
         "species": null,

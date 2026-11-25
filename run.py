@@ -723,9 +723,9 @@ def _expand_wildcard_rule_targets(
                 wf_name, rule, len(tissues) * len(counters), tissues, counters,
             )
         elif set(needs) == {"sample_id", "counter"} and counters:
-            sample_ids = list(((workflow_config.get("Params") or {}).get("workflow") or {}).get(
-                "paired_samples", [])) + list(((workflow_config.get("Params") or {}).get(
-                "workflow") or {}).get("single_samples", []))
+            sample_ids = list(((workflow_config.get("sample_params") or {})).get(
+                "paired_samples", [])) + list(((workflow_config.get("sample_params") or {})).get(
+                "single_samples", []))
             if sample_ids:
                 for sid in sample_ids:
                     for counter in counters:

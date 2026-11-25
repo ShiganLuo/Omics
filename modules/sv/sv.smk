@@ -1,21 +1,19 @@
 
 include: "../common/common.smk"
 
-import json
+import json  # noqa: E402  (common.smk 未导入而本模块需要的包)
 
 ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
+logdir_combine = config.get("logdir_combine", logdir)
 comparisons = config.get("comparisons", {})
 comparison_names = list(comparisons)
 vcf_dir = config.get("vcf_dir", "")
 vcf_suffix = config.get("vcf_suffix", ".sv.vcf.gz")
 
-def _sample_vcfs(sample_ids):
-    """Resolve sample IDs to their SV VCF paths under vcf_dir."""
-    return [f"{vcf_dir}/{s}/{s}{vcf_suffix}" for s in sample_ids]
-
+# 指令派生名: parse 期格式列表(output 指令无法调用函数;str 收成单元素 list)
 _formats_sv_exp_specific = config.get("Params", {}).get("sv", {}).get("sv_exp_specific", {}).get("formats") or ["png"]
 if isinstance(_formats_sv_exp_specific, str):
     _formats_sv_exp_specific = [_formats_sv_exp_specific]
@@ -37,26 +35,38 @@ if isinstance(_formats_sv_mei, str):
 
 # genes 同样 rule 级(Params.sv.sv_gene_model.genes),仅 sv_gene_model 消费。
 _genes_sv_gene_model = config.get("Params", {}).get("sv", {}).get("sv_gene_model", {}).get("genes", [])
+# gene_model 线程数的 Params 兜底(resources.<rule>.threads 优先,见 rule_res)
+_threads_sv_gene_model = config.get("Params", {}).get("sv", {}).get("gene_model", {}).get("threads", 1)
 
-# ========================
-# Per-comparison rules
-# ========================
+
+def sv_exp_specific_inputs(wildcards):
+    """sv_exp_specific file inputs — declared so the DAG validates them up front.
+
+    Per-sample SV VCFs resolve under vcf_dir as
+    ``{vcf_dir}/{sample_id}/{sample_id}{vcf_suffix}``.
+    """
+    c = comparisons[wildcards.comparison]
+    return {
+        "control_vcfs": [f"{vcf_dir}/{s}/{s}{vcf_suffix}" for s in c["control_samples"]],
+        "experiment_vcfs": [f"{vcf_dir}/{s}/{s}{vcf_suffix}" for s in c["experimental_samples"]],
+        "fasta": _require(config.get("genome", {}).get("fasta"), "genome.fasta", "sv"),
+    }
+
 
 rule sv_exp_specific:
     """Run experiment-specific SV analysis: merge, extract, annotate, plot, TE enrichment."""
     input:
-        control_vcfs = lambda wc: _sample_vcfs(comparisons[wc.comparison]["control_samples"]),
-        experiment_vcfs = lambda wc: _sample_vcfs(comparisons[wc.comparison]["experimental_samples"]),
-        fasta = lambda wildcards: _require(config.get("genome", {}).get("fasta"), "genome.fasta", "sv"),
+        unpack(sv_exp_specific_inputs),
     output:
         merged_vcf = outdir + "/{comparison}/{comparison}_merged.vcf",
         specific_vcf = outdir + "/{comparison}/{comparison}_only.vcf",
         annotated_tab = outdir + "/{comparison}/{comparison}_annotated.tab",
-        repeatmasker_dir = directory(outdir + "/{comparison}/repeatmasker"),
-        statistics_dir = directory(outdir + "/{comparison}/statistics"),
+        repeatmasker_done = outdir + "/{comparison}/repeatmasker/repeatmasker.done",
+        statistics_done = outdir + "/{comparison}/statistics/statistics.done",
     log:
-        logdir + "/sv/{comparison}/sv_exp_specific.log"
-    benchmark: logdir + "/sv/{comparison}/sv_exp_specific.benchmark.tsv",
+        logdir + "/{comparison}/sv_exp_specific.log"
+    threads: rule_res("sv_exp_specific").get("threads", 1)
+    benchmark: logdir + "/{comparison}/sv_exp_specific.benchmark.tsv",
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(
             "sv_exp_specific", input_size=input_size_mb(input),
@@ -77,14 +87,16 @@ rule sv_exp_specific:
         sif("sv.yaml", "sv_exp_specific")
     run:
         log_path = str(log)
-        open(log_path, "a").close()
-        rule_logger = setup_logger("sv_exp_specific",log_file = log_path)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("sv_exp_specific", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            outprefix = f"{outdir}/{wildcards.comparison}/{wildcards.comparison}"
-            script_path = os.path.join(RECEIPT_DIR, f"sv_exp_specific_{wildcards.comparison}_{current_time}.sh")
-            plain_script = os.path.join(outdir, f"{wildcards.comparison}/sv_exp_specific.sh")
-            rule_logger.info(f"Running sv_exp_specific for comparison: {wildcards.comparison}")
+            rule_logger.info(f"Start sv_exp_specific for comparison {wildcards.comparison} at {current_time}")
+            sample_outdir = os.path.dirname(str(output.merged_vcf))
+            os.makedirs(sample_outdir, exist_ok=True)
+            outprefix = os.path.join(sample_outdir, wildcards.comparison)
+            script = os.path.join(RECEIPT_DIR, f"sv_exp_specific_{wildcards.comparison}_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"sv_exp_specific_{wildcards.comparison}.sh")
             fmt_args = []
             for fmt in params.formats:
                 fmt_args += ["-f", fmt]
@@ -105,28 +117,43 @@ rule sv_exp_specific:
                     cmd += ["--custom_fasta", params.custom_fasta]
             if params.te_lib:
                 cmd += ["--te_lib", params.te_lib]
-            with open(script_path, "w") as f:
+            with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
-                f.write(" ".join(cmd) + "\n")
-                f.write("echo 'sv_exp_specific completed successfully.'\n")
-            shutil.copyfile(script_path, plain_script)
+                f.write(f"export OMP_NUM_THREADS={threads}\n")
+                f.write(f"export OPENBLAS_NUM_THREADS={threads}\n")
+                f.write(f"export MKL_NUM_THREADS={threads}\n")
+                f.write(f"export NUMBA_NUM_THREADS={threads}\n")
+                f.write(f"export VECLIB_MAXIMUM_THREADS={threads}\n")
+                f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
+                f.write(f'echo "sv_exp_specific for {wildcards.comparison} was completed successfully"\n')
+            rule_logger.info("Executing: " + " ".join(shlex.quote(str(x)) for x in cmd))
+            shutil.copyfile(script, plain_script)
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
+                # completion markers: repeatmasker/ and statistics/ are NOT
+                # directory() outputs, so the engine's artifacts inside survive
+                # reruns; the markers track the dirs in the DAG instead
+                with open(str(output.repeatmasker_done), "w") as f:
+                    f.write("ok\n")
+                with open(str(output.statistics_done), "w") as f:
+                    f.write("ok\n")
         except Exception as e:
-            rule_logger.error(f"sv_exp_specific failed for {wildcards.comparison}: {e}")
-            raise RuntimeError(f"sv_exp_specific failed for {wildcards.comparison}: {e}")
+            rule_logger.error(f"Error occurred during sv_exp_specific for comparison {wildcards.comparison}: {e}\n")
+            raise RuntimeError(f"Error occurred during sv_exp_specific for comparison {wildcards.comparison}: {e}, you can check the log file {log_path} for more details.\n")
+
 rule sv_exp_circos:
     """Generate Circos plot for experiment-specific SVs."""
     input:
         specific_vcf = outdir + "/{comparison}/{comparison}_only.vcf",
         fasta = lambda wildcards: _require(config.get("genome", {}).get("fasta"), "genome.fasta", "sv"),
     output:
-        circos_dir = directory(outdir + "/{comparison}/circos"),
+        circos_done = outdir + "/{comparison}/circos/circos.done",
     log:
-        logdir + "/sv/{comparison}/sv_exp_circos.log"
-    benchmark: logdir + "/sv/{comparison}/sv_exp_circos.benchmark.tsv",
+        logdir + "/{comparison}/sv_exp_circos.log"
+    threads: rule_res("sv_exp_circos").get("threads", 1)
+    benchmark: logdir + "/{comparison}/sv_exp_circos.benchmark.tsv",
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(
             "sv_exp_circos", input_size=input_size_mb(input),
@@ -143,14 +170,15 @@ rule sv_exp_circos:
         sif("sv.yaml", "sv_exp_circos")
     run:
         log_path = str(log)
-        open(log_path, "a").close()
+        open(log_path, "w").close()
         rule_logger = setup_logger("sv_exp_circos", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            circos_outdir = f"{outdir}/{wildcards.comparison}/circos"
-            script_path = os.path.join(RECEIPT_DIR, f"sv_exp_circos_{wildcards.comparison}_{current_time}.sh")
-            plain_script = os.path.join(outdir, f"{wildcards.comparison}/sv_exp_circos.sh")
-            rule_logger.info(f"Running sv_exp_circos for comparison: {wildcards.comparison}")
+            rule_logger.info(f"Start sv_exp_circos for comparison {wildcards.comparison} at {current_time}")
+            circos_outdir = os.path.dirname(str(output.circos_done))
+            os.makedirs(circos_outdir, exist_ok=True)
+            script = os.path.join(RECEIPT_DIR, f"sv_exp_circos_{wildcards.comparison}_{current_time}.sh")
+            plain_script = os.path.join(os.path.dirname(circos_outdir), f"sv_exp_circos_{wildcards.comparison}.sh")
             fmt_args = []
             for fmt in params.formats:
                 fmt_args += ["-f", fmt]
@@ -164,18 +192,26 @@ rule sv_exp_circos:
             ] + fmt_args
             if params.cytoband:
                 cmd += ["--cytoband", params.cytoband]
-            with open(script_path, "w") as f:
+            with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
-                f.write(" ".join(cmd) + "\n")
-                f.write("echo 'sv_exp_circos completed successfully.'\n")
-            shutil.copyfile(script_path, plain_script)
+                f.write(f"export OMP_NUM_THREADS={threads}\n")
+                f.write(f"export OPENBLAS_NUM_THREADS={threads}\n")
+                f.write(f"export MKL_NUM_THREADS={threads}\n")
+                f.write(f"export NUMBA_NUM_THREADS={threads}\n")
+                f.write(f"export VECLIB_MAXIMUM_THREADS={threads}\n")
+                f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
+                f.write(f'echo "sv_exp_circos for {wildcards.comparison} was completed successfully"\n')
+            rule_logger.info("Executing: " + " ".join(shlex.quote(str(x)) for x in cmd))
+            shutil.copyfile(script, plain_script)
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
+                with open(str(output.circos_done), "w") as f:
+                    f.write("ok\n")
         except Exception as e:
-            rule_logger.error(f"sv_exp_circos failed for {wildcards.comparison}: {e}")
-            raise RuntimeError(f"sv_exp_circos failed for {wildcards.comparison}: {e}")
+            rule_logger.error(f"Error occurred during sv_exp_circos for comparison {wildcards.comparison}: {e}\n")
+            raise RuntimeError(f"Error occurred during sv_exp_circos for comparison {wildcards.comparison}: {e}, you can check the log file {log_path} for more details.\n")
 
 rule sv_gene_model:
     """Generate gene model plots with SV overlay for specified genes."""
@@ -184,17 +220,17 @@ rule sv_gene_model:
         specific_vcf = outdir + "/{comparison}/{comparison}_only.vcf",
         gtf = lambda wildcards: _require(config.get("genome", {}).get("gtf"), "genome.gtf", "sv"),
     output:
-        gene_dir = directory(outdir + "/{comparison}/gene_model"),
+        gene_model_done = outdir + "/{comparison}/gene_model/gene_model.done",
     log:
-        logdir + "/sv/{comparison}/sv_gene_model.log"
-    benchmark: logdir + "/sv/{comparison}/sv_gene_model.benchmark.tsv",
+        logdir + "/{comparison}/sv_gene_model.log"
+    threads: rule_res("sv_gene_model").get("threads", _threads_sv_gene_model)
+    benchmark: logdir + "/{comparison}/sv_gene_model.benchmark.tsv",
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(
             "sv_gene_model", input_size=input_size_mb(input),
             attempt=attempt).get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/utils/gene_model.py"),
-        threads = config.get("Params", {}).get("sv", {}).get("gene_model", {}).get("threads", 1),
         genes = _genes_sv_gene_model,   # ③ 转发
         formats = _formats_sv_gene_model,   # ③ 转发
     conda:
@@ -203,14 +239,15 @@ rule sv_gene_model:
         sif("sv.yaml", "sv_gene_model")
     run:
         log_path = str(log)
-        open(log_path, "a").close()
+        open(log_path, "w").close()
         rule_logger = setup_logger("sv_gene_model", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            gene_outdir = f"{outdir}/{wildcards.comparison}/gene_model"
-            script_path = os.path.join(RECEIPT_DIR, f"sv_gene_model_{wildcards.comparison}_{current_time}.sh")
-            plain_script = os.path.join(outdir, f"{wildcards.comparison}/sv_gene_model.sh")
-            rule_logger.info(f"Running sv_gene_model for comparison: {wildcards.comparison}")
+            rule_logger.info(f"Start sv_gene_model for comparison {wildcards.comparison} at {current_time}")
+            gene_outdir = os.path.dirname(str(output.gene_model_done))
+            os.makedirs(gene_outdir, exist_ok=True)
+            script = os.path.join(RECEIPT_DIR, f"sv_gene_model_{wildcards.comparison}_{current_time}.sh")
+            plain_script = os.path.join(os.path.dirname(gene_outdir), f"sv_gene_model_{wildcards.comparison}.sh")
             gene_args = []
             for g in params.genes:
                 gene_args += ["-g", g]
@@ -223,34 +260,39 @@ rule sv_gene_model:
             ] + gene_args + [
                 "-m", input.specific_vcf,
                 "-o", gene_outdir,
-                "-j", str(params.threads),
+                "-j", str(threads),
             ] + fmt_args
-            with open(script_path, "w") as f:
+            with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
-                f.write(" ".join(cmd) + "\n")
-                f.write("echo 'sv_gene_model completed successfully.'\n")
-            shutil.copyfile(script_path, plain_script)
+                f.write(f"export OMP_NUM_THREADS={threads}\n")
+                f.write(f"export OPENBLAS_NUM_THREADS={threads}\n")
+                f.write(f"export MKL_NUM_THREADS={threads}\n")
+                f.write(f"export NUMBA_NUM_THREADS={threads}\n")
+                f.write(f"export VECLIB_MAXIMUM_THREADS={threads}\n")
+                f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
+                f.write(f'echo "sv_gene_model for {wildcards.comparison} was completed successfully"\n')
+            rule_logger.info("Executing: " + " ".join(shlex.quote(str(x)) for x in cmd))
+            shutil.copyfile(script, plain_script)
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
+                with open(str(output.gene_model_done), "w") as f:
+                    f.write("ok\n")
         except Exception as e:
-            rule_logger.error(f"sv_gene_model failed for {wildcards.comparison}: {e}")
-            raise RuntimeError(f"sv_gene_model failed for {wildcards.comparison}: {e}")
-
-        # ========================
-        # Aggregation rules (cross-comparison)
-        # ========================
+            rule_logger.error(f"Error occurred during sv_gene_model for comparison {wildcards.comparison}: {e}\n")
+            raise RuntimeError(f"Error occurred during sv_gene_model for comparison {wildcards.comparison}: {e}, you can check the log file {log_path} for more details.\n")
 
 rule sv_diff_analysis:
     """Run SV differential analysis across all comparison groups."""
     input:
         specific_vcfs = expand(outdir + "/{comparison}/{comparison}_only.vcf", comparison=comparison_names),
     output:
-        diff_dir = directory(outdir + "/sv_diff_analysis"),
+        diff_done = outdir + "/sv_diff_analysis/sv_diff_analysis.done",
     log:
-        logdir + "/sv/sv_diff_analysis.log"
-    benchmark: logdir + "/sv/sv_diff_analysis.benchmark.tsv",
+        logdir_combine + "/sv/sv_diff_analysis.log"
+    threads: rule_res("sv_diff_analysis").get("threads", 1)
+    benchmark: logdir_combine + "/sv/sv_diff_analysis.benchmark.tsv",
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(
             "sv_diff_analysis", input_size=input_size_mb(input),
@@ -258,6 +300,7 @@ rule sv_diff_analysis:
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/pbsv_sv_diff_analysis.py"),
         large_sv_threshold = config.get("Params", {}).get("sv", {}).get("diff_analysis", {}).get("large_sv_threshold", 10000),
+        comparison_names = comparison_names,
         formats = _formats_sv_diff_analysis,   # ③ 转发
     conda:
         "sv.yaml"
@@ -265,37 +308,45 @@ rule sv_diff_analysis:
         sif("sv.yaml", "sv_diff_analysis")
     run:
         log_path = str(log)
-        open(log_path, "a").close()
+        open(log_path, "w").close()
         rule_logger = setup_logger("sv_diff_analysis", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            script_path = os.path.join(RECEIPT_DIR, f"sv_diff_analysis_{current_time}.sh")
-            plain_script = os.path.join(outdir, f"sv_diff_analysis.sh")
-            rule_logger.info(f"Running sv_diff_analysis for all comparisons")
-            group_args = []
-            for name in comparison_names:
-                vcf_path = f"{outdir}/{name}/{name}_only.vcf"
-                group_args += ["-g", f"{name}:{vcf_path}"]
+            rule_logger.info(f"Start sv_diff_analysis at {current_time}")
+            diff_outdir = os.path.dirname(str(output.diff_done))
+            os.makedirs(diff_outdir, exist_ok=True)
+            script = os.path.join(RECEIPT_DIR, f"sv_diff_analysis_{current_time}.sh")
+            plain_script = os.path.join(diff_outdir, "sv_diff_analysis.sh")
             fmt_args = []
             for fmt in params.formats:
                 fmt_args += ["-f", fmt]
+            groups = {name: str(vcf) for name, vcf in zip(params.comparison_names, input.specific_vcfs)}
             cmd = [
                 "python", params.script,
-                "-o", str(output.diff_dir),
+                "-o", diff_outdir,
                 "-s", str(params.large_sv_threshold),
-            ] + group_args + fmt_args
-            with open(script_path, "w") as f:
+                "--groups-json", json.dumps(groups, ensure_ascii=False),
+            ] + fmt_args
+            with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
-                f.write(" ".join(cmd) + "\n")
-                f.write("echo 'sv_diff_analysis completed successfully.'\n")
-            shutil.copyfile(script_path, plain_script)
+                f.write(f"export OMP_NUM_THREADS={threads}\n")
+                f.write(f"export OPENBLAS_NUM_THREADS={threads}\n")
+                f.write(f"export MKL_NUM_THREADS={threads}\n")
+                f.write(f"export NUMBA_NUM_THREADS={threads}\n")
+                f.write(f"export VECLIB_MAXIMUM_THREADS={threads}\n")
+                f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
+                f.write('echo "sv_diff_analysis was completed successfully"\n')
+            rule_logger.info("Executing: " + " ".join(shlex.quote(str(x)) for x in cmd))
+            shutil.copyfile(script, plain_script)
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
+                with open(str(output.diff_done), "w") as f:
+                    f.write("ok\n")
         except Exception as e:
-            rule_logger.error(f"sv_diff_analysis failed: {e}")
-            raise RuntimeError(f"sv_diff_analysis failed: {e}")
+            rule_logger.error(f"Error occurred during sv_diff_analysis: {e}\n")
+            raise RuntimeError(f"Error occurred during sv_diff_analysis: {e}, you can check the log file {log_path} for more details.\n")
 
 rule sv_oncoprint:
     """Generate OncoPrint plot from annotated SVs, COSMIC genes, and DESeq2 results."""
@@ -304,10 +355,11 @@ rule sv_oncoprint:
         cosmic_file = lambda wildcards: _require(config.get("Params", {}).get("sv", {}).get("oncoprint", {}).get("cosmic_file"), "Params.sv.oncoprint.cosmic_file", "sv"),
     output:
         oncoprint_matrix = outdir + "/sv_oncoprint/oncoprint_matrix.csv",
-        oncoprint_dir = directory(outdir + "/sv_oncoprint"),
+        oncoprint_done = outdir + "/sv_oncoprint/oncoprint.done",
     log:
-        logdir + "/sv/oncoprint.log"
-    benchmark: logdir + "/sv/oncoprint.benchmark.tsv",
+        logdir_combine + "/sv/sv_oncoprint.log"
+    threads: rule_res("sv_oncoprint").get("threads", 1)
+    benchmark: logdir_combine + "/sv/sv_oncoprint.benchmark.tsv",
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(
             "sv_oncoprint", input_size=input_size_mb(input),
@@ -315,6 +367,7 @@ rule sv_oncoprint:
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/run_OncoPrint.py"),
         deseq2_files = config.get("Params", {}).get("sv", {}).get("oncoprint", {}).get("deseq2_files", {}),
+        comparison_names = comparison_names,
         formats = _formats_sv_oncoprint,   # ③ 转发
     conda:
         "sv.yaml"
@@ -322,41 +375,46 @@ rule sv_oncoprint:
         sif("sv.yaml", "sv_oncoprint")
     run:
         log_path = str(log)
-        open(log_path, "a").close()
+        open(log_path, "w").close()
         rule_logger = setup_logger("sv_oncoprint", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            oncoprint_outdir = f"{outdir}/sv_oncoprint"
-            script_path = os.path.join(RECEIPT_DIR, f"sv_oncoprint_{current_time}.sh")
-            plain_script = os.path.join(outdir, f"sv_oncoprint.sh")
-            rule_logger.info(f"Running sv_oncoprint for all comparisons")
-            group_args = []
-            for name in comparison_names:
-                tab_path = f"{outdir}/{name}/{name}_annotated.tab"
-                group_args += ["-g", f"{name}:{tab_path}"]
-            deseq2_args = []
-            for cond, path in params.deseq2_files.items():
-                deseq2_args += ["-d", f"{cond}:{path}"]
+            rule_logger.info(f"Start sv_oncoprint at {current_time}")
+            oncoprint_outdir = os.path.dirname(str(output.oncoprint_matrix))
+            os.makedirs(oncoprint_outdir, exist_ok=True)
+            script = os.path.join(RECEIPT_DIR, f"sv_oncoprint_{current_time}.sh")
+            plain_script = os.path.join(oncoprint_outdir, "sv_oncoprint.sh")
             fmt_args = []
             for fmt in params.formats:
                 fmt_args += ["-f", fmt]
+            groups = {name: str(tab) for name, tab in zip(params.comparison_names, input.annotated_tabs)}
             cmd = [
                 "python", params.script,
                 "--cosmic_file", input.cosmic_file,
                 "-o", oncoprint_outdir,
-            ] + group_args + deseq2_args + fmt_args
-            with open(script_path, "w") as f:
+                "--groups-json", json.dumps(groups, ensure_ascii=False),
+                "--deseq2-json", json.dumps(params.deseq2_files, ensure_ascii=False),
+            ] + fmt_args
+            with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
-                f.write(" ".join(cmd) + "\n")
-                f.write("echo 'sv_oncoprint completed successfully.'\n")
-            shutil.copyfile(script_path, plain_script)
+                f.write(f"export OMP_NUM_THREADS={threads}\n")
+                f.write(f"export OPENBLAS_NUM_THREADS={threads}\n")
+                f.write(f"export MKL_NUM_THREADS={threads}\n")
+                f.write(f"export NUMBA_NUM_THREADS={threads}\n")
+                f.write(f"export VECLIB_MAXIMUM_THREADS={threads}\n")
+                f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
+                f.write('echo "sv_oncoprint was completed successfully"\n')
+            rule_logger.info("Executing: " + " ".join(shlex.quote(str(x)) for x in cmd))
+            shutil.copyfile(script, plain_script)
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
+                with open(str(output.oncoprint_done), "w") as f:
+                    f.write("ok\n")
         except Exception as e:
-            rule_logger.error(f"sv_oncoprint failed: {e}")
-            raise RuntimeError(f"sv_oncoprint failed: {e}")
+            rule_logger.error(f"Error occurred during sv_oncoprint: {e}\n")
+            raise RuntimeError(f"Error occurred during sv_oncoprint: {e}, you can check the log file {log_path} for more details.\n")
 
 
 def sv_mei_inputs(wildcards):
@@ -400,8 +458,9 @@ rule sv_mei:
     output:
         mei_done = outdir + "/{comparison}/mei/mei.done",
     log:
-        logdir + "/sv/{comparison}/sv_mei.log"
-    benchmark: logdir + "/sv/{comparison}/sv_mei.benchmark.tsv",
+        logdir + "/{comparison}/sv_mei.log"
+    threads: rule_res("sv_mei").get("threads", 4)
+    benchmark: logdir + "/{comparison}/sv_mei.benchmark.tsv",
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(
             "sv_mei", input_size=input_size_mb(input),
@@ -410,7 +469,6 @@ rule sv_mei:
         analysis = os.path.join(ROOT_DIR, "modules/sv/bin/mei_analysis.py"),
         mei = config.get("Params", {}).get("sv", {}).get("mei", {}) or {},
         te_lib = config.get("genome", {}).get("te_lib") or "",
-        threads = lambda wildcards: rule_res("sv_mei").get("threads", 4),
         formats = _formats_sv_mei,   # ③ 转发
         ctrl_name = lambda wildcards: (comparisons.get(wildcards.comparison, {}) or {}).get("control_group_name") or "",
         exp_name = lambda wildcards: (comparisons.get(wildcards.comparison, {}) or {}).get("experimental_group_name") or "",
@@ -420,14 +478,15 @@ rule sv_mei:
         sif("sv.yaml", "sv_mei")
     run:
         log_path = str(log)
-        open(log_path, "a").close()
+        open(log_path, "w").close()
         rule_logger = setup_logger("sv_mei", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            mei_out = os.path.join(str(outdir), wildcards.comparison, "mei")
+            rule_logger.info(f"Start sv_mei for comparison {wildcards.comparison} at {current_time}")
+            mei_out = os.path.dirname(str(output.mei_done))
             os.makedirs(mei_out, exist_ok=True)
-            script_path = os.path.join(RECEIPT_DIR, f"sv_mei_{wildcards.comparison}_{current_time}.sh")
-            plain_script = os.path.join(str(outdir), wildcards.comparison, "sv_mei.sh")
+            script = os.path.join(RECEIPT_DIR, f"sv_mei_{wildcards.comparison}_{current_time}.sh")
+            plain_script = os.path.join(os.path.dirname(mei_out), f"sv_mei_{wildcards.comparison}.sh")
             mei = dict(params.mei)
             dfam_h5 = mei.get("dfam_h5") or []
             mei["dfam_h5"] = [dfam_h5] if isinstance(dfam_h5, str) else list(dfam_h5)
@@ -438,13 +497,13 @@ rule sv_mei:
                 "--min-len", str(mei.get("min_len", 100)),
                 "--full-length-l1", str(mei.get("full_length", 6000)),
                 "--full-length-family", mei.get("full_length_family", "L1"),
-                "--threads", str(params.threads),
+                "--threads", str(threads),
                 "--title", wildcards.comparison,
             ]
             if mei["dfam_h5"]:
                 for h5 in mei["dfam_h5"]:
                     cmd += ["--dfam-h5", h5]
-                cmd += ["--rm-species", shlex.quote(mei.get("rm_species") or ""),
+                cmd += ["--rm-species", mei.get("rm_species") or "",
                         "--dfam-mode", mei.get("dfam_mode", "export")]
             elif params.te_lib:
                 cmd += ["--te-lib", params.te_lib]
@@ -452,35 +511,40 @@ rule sv_mei:
                 cmd += ["--force-rerun"]
             # TE bucket list (Params.sv.mei.te_buckets), JSON transport
             cmd += ["--te-buckets",
-                    shlex.quote(json.dumps(mei.get("te_buckets"), ensure_ascii=False))]
+                    json.dumps(mei.get("te_buckets"), ensure_ascii=False)]
             for flag, val in (("--ctrl-name", params.ctrl_name),
                               ("--exp-name", params.exp_name),
                               ("--fasta", getattr(input, "fasta", "")),
                               ("--gtf", getattr(input, "gtf", "")),
                               ("--te-bed", getattr(input, "te_bed", ""))):
                 if val:
-                    cmd += [flag, shlex.quote(str(val))]
-            # image formats: one -f per requested format (mei figures +
-            # report are written per format by mei_analysis -> mei_plot)
+                    cmd += [flag, str(val)]
+            # image formats: one -f per requested format (mei figures + report
+            # are written per format by mei_analysis -> mei_plot)
             for fmt in params.formats:
                 cmd += ["-f", str(fmt)]
-            # figures run INSIDE the entry (utils/mei_plot.py chained)
-            with open(script_path, "w") as f:
+            with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
-                f.write(" ".join(cmd) + "\n")
-                f.write(f'echo "sv_mei completed successfully for {wildcards.comparison}"\n')
-            shutil.copyfile(script_path, plain_script)
+                f.write(f"export OMP_NUM_THREADS={threads}\n")
+                f.write(f"export OPENBLAS_NUM_THREADS={threads}\n")
+                f.write(f"export MKL_NUM_THREADS={threads}\n")
+                f.write(f"export NUMBA_NUM_THREADS={threads}\n")
+                f.write(f"export VECLIB_MAXIMUM_THREADS={threads}\n")
+                f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
+                f.write(f'echo "sv_mei for {wildcards.comparison} was completed successfully"\n')
+            rule_logger.info("Executing: " + " ".join(shlex.quote(str(x)) for x in cmd))
+            shutil.copyfile(script, plain_script)
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
-            # completion marker: mei/ is NOT a directory() output, so the
-            # script-level caches and artifacts inside survive reruns
-            with open(str(output.mei_done), "w") as f:
-                f.write("ok\n")
+                # completion marker: mei/ is NOT a directory() output, so the
+                # script-level caches and artifacts inside survive reruns
+                with open(str(output.mei_done), "w") as f:
+                    f.write("ok\n")
         except Exception as e:
-            rule_logger.error(f"sv_mei failed for {wildcards.comparison}: {e}")
-            raise RuntimeError(f"sv_mei failed for {wildcards.comparison}: {e}")
+            rule_logger.error(f"Error occurred during sv_mei for comparison {wildcards.comparison}: {e}\n")
+            raise RuntimeError(f"Error occurred during sv_mei for comparison {wildcards.comparison}: {e}, you can check the log file {log_path} for more details.\n")
 
 
 def sv_tra_te_inputs(wildcards):
@@ -524,8 +588,9 @@ rule sv_tra_te:
     output:
         tra_te_done = outdir + "/{comparison}/tra_te/tra_te.done",
     log:
-        logdir + "/sv/{comparison}/sv_tra_te.log"
-    benchmark: logdir + "/sv/{comparison}/sv_tra_te.benchmark.tsv",
+        logdir + "/{comparison}/sv_tra_te.log"
+    threads: rule_res("sv_tra_te").get("threads", 4)
+    benchmark: logdir + "/{comparison}/sv_tra_te.benchmark.tsv",
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(
             "sv_tra_te", input_size=input_size_mb(input),
@@ -533,7 +598,6 @@ rule sv_tra_te:
     params:
         analysis = os.path.join(ROOT_DIR, "modules/sv/bin/utils/tra_te_analysis.py"),
         tra_te = config.get("Params", {}).get("sv", {}).get("tra_te", {}) or {},
-        threads = lambda wildcards: rule_res("sv_tra_te").get("threads", 4),
         samtools_sif = sif("../samtools/samtools.yaml"),
         blast_sif = sif("sv.yaml"),
     conda:
@@ -541,16 +605,16 @@ rule sv_tra_te:
     container:
         sif("sv.yaml", "sv_tra_te")
     run:
-        import shlex
         log_path = str(log)
-        open(log_path, "a").close()
+        open(log_path, "w").close()
         rule_logger = setup_logger("sv_tra_te", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            tra_out = os.path.join(str(outdir), wildcards.comparison, "tra_te")
+            rule_logger.info(f"Start sv_tra_te for comparison {wildcards.comparison} at {current_time}")
+            tra_out = os.path.dirname(str(output.tra_te_done))
             os.makedirs(tra_out, exist_ok=True)
-            script_path = os.path.join(RECEIPT_DIR, f"sv_tra_te_{wildcards.comparison}_{current_time}.sh")
-            plain_script = os.path.join(str(outdir), wildcards.comparison, "sv_tra_te.sh")
+            script = os.path.join(RECEIPT_DIR, f"sv_tra_te_{wildcards.comparison}_{current_time}.sh")
+            plain_script = os.path.join(os.path.dirname(tra_out), f"sv_tra_te_{wildcards.comparison}.sh")
             tt = dict(params.tra_te)
             cmd = [
                 "python", params.analysis,
@@ -558,7 +622,7 @@ rule sv_tra_te:
                 "--te-bed", str(input.te_bed),
                 "--fasta", str(input.fasta),
                 "-o", tra_out,
-                "--threads", str(params.threads),
+                "--threads", str(threads),
                 "--samtools-sif", params.samtools_sif,
                 "--blast-sif", params.blast_sif,
                 "--n-perm", str(tt.get("n_perm", 1000)),
@@ -568,32 +632,37 @@ rule sv_tra_te:
                 cmd += ["--fai", str(fai)]
             if tt.get("seed") is not None:
                 cmd += ["--seed", str(tt.get("seed", 42))]
-            with open(script_path, "w") as f:
+            with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
-                f.write(" ".join(shlex.quote(c) for c in cmd) + "\n")
-                f.write(f'echo "sv_tra_te completed successfully for {wildcards.comparison}"\n')
-            shutil.copyfile(script_path, plain_script)
+                f.write(f"export OMP_NUM_THREADS={threads}\n")
+                f.write(f"export OPENBLAS_NUM_THREADS={threads}\n")
+                f.write(f"export MKL_NUM_THREADS={threads}\n")
+                f.write(f"export NUMBA_NUM_THREADS={threads}\n")
+                f.write(f"export VECLIB_MAXIMUM_THREADS={threads}\n")
+                f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
+                f.write(f'echo "sv_tra_te for {wildcards.comparison} was completed successfully"\n')
+            rule_logger.info("Executing: " + " ".join(shlex.quote(str(x)) for x in cmd))
+            shutil.copyfile(script, plain_script)
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
-            # completion marker (tra_te/ is not a directory() output)
-            with open(str(output.tra_te_done), "w") as f:
-                f.write("ok\n")
+                # completion marker (tra_te/ is not a directory() output)
+                with open(str(output.tra_te_done), "w") as f:
+                    f.write("ok\n")
         except Exception as e:
-            rule_logger.error(f"sv_tra_te failed for {wildcards.comparison}: {e}")
-            raise RuntimeError(f"sv_tra_te failed for {wildcards.comparison}: {e}")
+            rule_logger.error(f"Error occurred during sv_tra_te for comparison {wildcards.comparison}: {e}\n")
+            raise RuntimeError(f"Error occurred during sv_tra_te for comparison {wildcards.comparison}: {e}, you can check the log file {log_path} for more details.\n")
 
 rule sv_result:
     """Aggregate all SV analysis outputs as dependency endpoint."""
     input:
         annotated_tabs = expand(outdir + "/{comp}/{comp}_annotated.tab", comp=comparison_names),
-        repeatmasker_dirs = expand(outdir + "/{comp}/repeatmasker", comp=comparison_names),
-        statistics_dirs = expand(outdir + "/{comp}/statistics", comp=comparison_names),
-        enrichment_dirs = expand(outdir + "/{comp}/enrichment", comp=comparison_names),
-        circos_dirs = expand(outdir + "/{comp}/circos", comp=comparison_names),
-        gene_model_dirs = expand(outdir + "/{comp}/gene_model", comp=comparison_names),
+        repeatmasker_done = expand(outdir + "/{comp}/repeatmasker/repeatmasker.done", comp=comparison_names),
+        statistics_done = expand(outdir + "/{comp}/statistics/statistics.done", comp=comparison_names),
+        circos_done = expand(outdir + "/{comp}/circos/circos.done", comp=comparison_names),
+        gene_model_done = expand(outdir + "/{comp}/gene_model/gene_model.done", comp=comparison_names),
         mei_done = expand(outdir + "/{comp}/mei/mei.done", comp=comparison_names),
         tra_te_done = expand(outdir + "/{comp}/tra_te/tra_te.done", comp=comparison_names),
-        diff_dir = outdir + "/sv_diff_analysis",
-        oncoprint_dir = outdir + "/sv_oncoprint",
+        diff_done = outdir + "/sv_diff_analysis/sv_diff_analysis.done",
+        oncoprint_done = outdir + "/sv_oncoprint/oncoprint.done",

@@ -183,6 +183,24 @@
     "path": "file"
   },
   "Procedure": {},
+  "sample_params": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+      "raw_files": {
+        "type": "list",
+        "required": false
+      },
+      "samples": {
+        "type": "list",
+        "required": true
+      },
+      "sample_data": {
+        "type": "str",
+        "required": false
+      }
+    }
+  },
   "Params": {
     "mimseq": {
       "keep_intermediates": {
@@ -478,18 +496,6 @@
           "type": "str",
           "required": true,
           "path": "file"
-        },
-        "raw_files": {
-          "type": "list",
-          "required": false
-        },
-        "samples": {
-          "type": "list",
-          "required": true
-        },
-        "sample_data": {
-          "type": "str",
-          "required": false
         }
       }
     }

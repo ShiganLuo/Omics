@@ -4,7 +4,7 @@ indir = config.get("indir", "data")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
 ROOT_DIR = config.get("ROOT_DIR", ".")
-group_pairs = config.get("group_pairs", [])
+comparisons = config.get("comparisons", [])
 geneIDAnno = config.get('genome',{}).get('geneIDAnno')
 gtf = config.get('genome',{}).get('gtf')
 gene_map = config.get('genome',{}).get('gene_map')
@@ -71,12 +71,12 @@ rule DESeq2_TEcount:
             script = os.path.join(RECEIPT_DIR, f"DESeq2_TEcount_{wildcards.contrast}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"DESeq2_TEcount.sh")
-            control_group_name = group_pairs[wildcards.contrast]["control_group_name"]
-            experimental_group_name = group_pairs[wildcards.contrast]["experimental_group_name"]
-            if wildcards.contrast not in group_pairs:
-                raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
-            control_samples = group_pairs[wildcards.contrast]["control_samples"]
-            experimental_samples = group_pairs[wildcards.contrast]["experimental_samples"]
+            control_group_name = comparisons[wildcards.contrast]["control_group_name"]
+            experimental_group_name = comparisons[wildcards.contrast]["experimental_group_name"]
+            if wildcards.contrast not in comparisons:
+                raise ValueError(f"Group pair {wildcards.contrast} not found in comparisons configuration.")
+            control_samples = comparisons[wildcards.contrast]["control_samples"]
+            experimental_samples = comparisons[wildcards.contrast]["experimental_samples"]
             rule_logger.info(f"Control samples: {control_samples}")
             rule_logger.info(f"Experimental samples: {experimental_samples}")
             cmd1 = [

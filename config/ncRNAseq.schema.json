@@ -457,6 +457,40 @@
       "required": false
     }
   },
+  "sample_params": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+      "samples": {
+        "type": "list",
+        "required": false
+      },
+      "paired_samples": {
+        "type": "list",
+        "required": false
+      },
+      "single_samples": {
+        "type": "list",
+        "required": false
+      },
+      "raw_files": {
+        "type": "list",
+        "required": false
+      },
+      "ip_samples": {
+        "type": "list",
+        "required": false
+      },
+      "input_samples": {
+        "type": "list",
+        "required": false
+      },
+      "sample_ip_input_map": {
+        "type": "dict",
+        "required": false
+      }
+    }
+  },
   "Params": {
     "subsample": {
       "type": "dict",

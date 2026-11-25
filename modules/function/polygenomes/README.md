@@ -17,7 +17,7 @@ gsva.py)。
 | `genome.references.<g>.gtf` | 注释 GTF(GSVA 基因 ID→名转换) |
 | `Params.function.<genome>.gsea.gmt` | GSEA 基因集 GMT,必需 |
 | `Params.function.<genome>.gsva.gmt` | GSVA 基因集 GMT,必需 |
-| `group_pairs` | 对比组定义(顶层读取,规则目标由 subworkflow 按 `{contrast}` 注册) |
+| `comparisons` | 对比组定义(顶层读取,规则目标由 subworkflow 按 `{contrast}` 注册) |
 
 ### 1.2 输出
 

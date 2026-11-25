@@ -149,7 +149,8 @@ design 列是"每样本一个值"的角色模型，**多对比 + 角色翻转**�
 
 ### 文件格式
 
-dict 形式（键 = 对比名，与 `Params.sv.comparisons` 同构，可直接复制手填块）：
+dict 形式（键 = 对比名；进入 config 的 `sample_params.comparisons` 时按样本
+organism 归组为嵌套结构）：
 
 ```json
 {
@@ -270,12 +271,19 @@ merged/only 语义会反过来）。实际只能产出两个处理对比，时�
 **已知缺陷的绕行方案**：不要在 design 列上凑，改用 comparison JSON 显式声明对比
 （`run.py --comparison comparison.json`，见上文「comparison JSON：显式样本对照关系」
 一节；此时 design 列整体跳过不读）。等价的旧绕行是工作流 config JSON 里手填对比
-（手填优先于 meta design 推导）：
+（手填优先于 meta 推导，所有流程统一字段 `sample_params.comparisons`，organism
+嵌套形状，见 `docs/sample-params-split.md`）：
 
-- PacVar：`Params.sv.comparisons`，形状
-  `"{对比名}": {control_group_name, experimental_group_name,
-  control_samples, experimental_samples}`（样本名列表）
-- RNA 链（RNAseq / DR）：`Params.DESeq2.group_pairs`
+```json
+"sample_params": {
+  "comparisons": {
+    "<organism>": {
+      "对比名": {"control_group_name": "...", "experimental_group_name": "...",
+                "control_samples": ["..."], "experimental_samples": ["..."]}
+    }
+  }
+}
+```
 
 样本名列表是显式声明，任意对比、任意方向、一个样本出现在任意多个对比
 里均可。此时 design 列可留空（不会触发 ctr_/exp_ 推导）。

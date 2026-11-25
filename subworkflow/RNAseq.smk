@@ -5,8 +5,8 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("Params", {}).get("workflow", {}).get("indir","data/fastq")
 outdir = config.get("Params", {}).get("workflow", {}).get("outdir","output")
 logdir = config.get("Params", {}).get("workflow", {}).get("logdir","logs")
-genome_paired_samples = config.get("Params", {}).get("workflow", {}).get("genome_paired_samples", {})
-genome_single_samples = config.get("Params", {}).get("workflow", {}).get("genome_single_samples", {})
+genome_paired_samples = config.get("sample_params", {}).get("genome_paired_samples", {})
+genome_single_samples = config.get("sample_params", {}).get("genome_single_samples", {})
 aligner_TEtranscripts = config.get('Params',{}).get('workflow', {}).get('aligner_TEtranscripts') or "star"
 trimmer = config.get('Params',{}).get('workflow', {}).get('trimmer') or "trim_galore"
 
@@ -295,7 +295,7 @@ DESeq2_config = {
         "ROOT_DIR": ROOT_DIR,
         "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
-        "group_pairs": config.get("Params", {}).get("DESeq2", {}).get("group_pairs"),
+        "comparisons": config.get("sample_params", {}).get("comparisons"),
         "Params": {
             "DESeq2": config.get("Params", {}).get("DESeq2", {})
         },
@@ -324,7 +324,7 @@ function_config = {
     "counts_dir": featureCounts_config["outdir"],
     "outdir": f"{outdir}/function",
     "logdir": os.path.join(logdir,"group"),
-    "group_pairs": config.get("Params", {}).get("DESeq2", {}).get("group_pairs"),
+    "comparisons": config.get("sample_params", {}).get("comparisons"),
     "genome": config.get('genome',{}),
     "Params": {
         "function": config.get("Params", {}).get("function", {})
@@ -669,6 +669,7 @@ RNAseq_report_config = {
     "genome_samples": genome_samples,
     "genome_paired_samples": genome_paired_samples,
     "genome_single_samples": genome_single_samples,
+    "comparisons": config.get("sample_params", {}).get("comparisons"),
     "Params": {
         "report": config.get("Params", {}).get("report", {}),
         "DESeq2": config.get("Params", {}).get("DESeq2", {}),

@@ -1,12 +1,14 @@
 {
+  "sample_params": {
+    "raw_files": [],
+    "paired_samples": [],
+    "single_samples": []
+  },
   "Params": {
     "workflow": {
       "indir": "input",
       "outdir": "output",
-      "logdir": "log",
-      "raw_files": [],
-      "paired_samples": [],
-      "single_samples": []
+      "logdir": "log"
     },
     "star": {
       "keep_intermediates": false,

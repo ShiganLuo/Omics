@@ -490,6 +490,37 @@
       "required": false
     }
   },
+  "sample_params": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+      "raw_files": {
+        "type": "list",
+        "required": false
+      },
+      "samples": {
+        "type": "list",
+        "required": true
+      },
+      "paired_samples": {
+        "type": "list",
+        "required": true
+      },
+      "single_samples": {
+        "type": "list",
+        "required": false
+      },
+      "ip_samples": {
+        "type": "list",
+        "required": true
+      },
+      "input_samples": {
+        "type": "list",
+        "required": true
+      },
+      "sample_ip_input_map": {}
+    }
+  },
   "Params": {
     "regionplot": {
       "enabled": {
@@ -1105,32 +1136,7 @@
         "logdir": {
           "type": "str",
           "required": false
-        },
-        "raw_files": {
-          "type": "list",
-          "required": false
-        },
-        "samples": {
-          "type": "list",
-          "required": true
-        },
-        "paired_samples": {
-          "type": "list",
-          "required": true
-        },
-        "single_samples": {
-          "type": "list",
-          "required": false
-        },
-        "ip_samples": {
-          "type": "list",
-          "required": true
-        },
-        "input_samples": {
-          "type": "list",
-          "required": true
-        },
-        "sample_ip_input_map": {}
+        }
       }
     }
   },

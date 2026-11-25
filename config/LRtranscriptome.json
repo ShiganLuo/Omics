@@ -1,11 +1,13 @@
 {
+  "sample_params": {
+    "raw_files": [],
+    "samples": []
+  },
   "Params": {
     "workflow": {
       "indir": "input",
       "outdir": "output",
-      "logdir": "logs",
-      "raw_files": [],
-      "samples": []
+      "logdir": "logs"
     },
     "skip_quant": false,
     "minimap2": {

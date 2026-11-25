@@ -320,6 +320,24 @@
       "required": false
     }
   },
+  "sample_params": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+      "raw_files": {
+        "type": "list",
+        "required": false
+      },
+      "paired_samples": {
+        "type": "list",
+        "required": true
+      },
+      "single_samples": {
+        "type": "list",
+        "required": false
+      }
+    }
+  },
   "Params": {
     "workflow": {
       "type": "dict",
@@ -338,18 +356,6 @@
         "logdir": {
           "type": "null",
           "nullable": true,
-          "required": false
-        },
-        "raw_files": {
-          "type": "list",
-          "required": false
-        },
-        "paired_samples": {
-          "type": "list",
-          "required": true
-        },
-        "single_samples": {
-          "type": "list",
           "required": false
         },
         "genome_pairs": {

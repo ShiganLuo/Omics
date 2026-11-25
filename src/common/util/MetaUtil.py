@@ -292,7 +292,7 @@ class MetadataUtils:
         meta design column is NOT read at all.
 
         Accepted JSON shapes (both carry the same fields):
-          - dict form (same shape as Params.sv.comparisons):
+          - dict form (dict form mirrors sample_params.comparisons per comparison):
                 {"<comparison_id>": {"control_samples": [...],
                                      "experiment_samples": [...],
                                      "control_group_name": "...",      # optional

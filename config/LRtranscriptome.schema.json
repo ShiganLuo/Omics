@@ -132,6 +132,22 @@
       "required": true
     }
   },
+  "sample_params": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+      "raw_files": {
+        "type": "list",
+        "nullable": true,
+        "required": false
+      },
+      "samples": {
+        "type": "list",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
   "Params": {
     "workflow": {
       "type": "dict",
@@ -154,16 +170,6 @@
           "path": "dir",
           "required": true,
           "nullable": false
-        },
-        "raw_files": {
-          "type": "list",
-          "nullable": true,
-          "required": false
-        },
-        "samples": {
-          "type": "list",
-          "nullable": true,
-          "required": false
         }
       }
     }

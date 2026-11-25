@@ -4,12 +4,13 @@ from itertools import combinations
 
 ROOT_DIR = config.get("ROOT_DIR", ".")
 _wf = config.get("Params", {}).get("workflow", {})
+_sp = config.get("sample_params", {})
 indir = _wf.get("indir") or "input"
 outdir = _wf.get("outdir") or "output"
 logdir = _wf.get("logdir") or "logs"
-samples = _wf.get("samples") or []
-sample_bams = _wf.get("sample_bams") or {}
-populations = _wf.get("populations") or {}
+samples = _sp.get("samples") or []
+sample_bams = _sp.get("sample_bams") or {}
+populations = _sp.get("populations") or {}
 analysis = config.get("Params", {}).get("analysis", {})
 pop_names = sorted(populations)
 

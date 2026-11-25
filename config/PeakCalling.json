@@ -1,16 +1,18 @@
 {
+  "sample_params": {
+    "raw_files": [],
+    "samples": [],
+    "paired_samples": [],
+    "single_samples": [],
+    "ip_samples": [],
+    "input_samples": [],
+    "sample_ip_input_map": {}
+  },
   "Params": {
     "workflow": {
       "indir": "",
       "outdir": "",
-      "logdir": "",
-      "raw_files": [],
-      "samples": [],
-      "paired_samples": [],
-      "single_samples": [],
-      "ip_samples": [],
-      "input_samples": [],
-      "sample_ip_input_map": {}
+      "logdir": ""
     },
     "trim_galore": {
       "trimming_Paired": {

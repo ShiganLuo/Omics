@@ -764,6 +764,28 @@
       }
     }
   },
+  "sample_params": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+      "raw_files": {
+        "type": "list",
+        "required": false
+      },
+      "genome_paired_samples": {
+        "type": "dict",
+        "required": false
+      },
+      "genome_single_samples": {
+        "type": "dict",
+        "required": false
+      },
+      "comparisons": {
+        "type": "dict",
+        "required": false
+      }
+    }
+  },
   "Params": {
     "type": "dict",
     "required": true,
@@ -954,40 +976,6 @@
         "type": "dict",
         "required": true,
         "properties": {
-          "group_pairs": {
-            "type": "dict",
-            "required": true,
-            "additionalProperties": {
-              "type": "dict",
-              "additionalProperties": {
-                "type": "dict",
-                "properties": {
-                  "control_group_name": {
-                    "type": "str",
-                    "required": true
-                  },
-                  "experimental_group_name": {
-                    "type": "str",
-                    "required": true
-                  },
-                  "control_samples": {
-                    "type": "list",
-                    "required": true,
-                    "items": {
-                      "type": "str"
-                    }
-                  },
-                  "experimental_samples": {
-                    "type": "list",
-                    "required": true,
-                    "items": {
-                      "type": "str"
-                    }
-                  }
-                }
-              }
-            }
-          },
           "DESeq2_TElocal_manhattan": {
             "type": "dict",
             "required": false,

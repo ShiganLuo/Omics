@@ -5,10 +5,10 @@ indir = config.get("Params", {}).get("workflow", {}).get("indir", "data/fastq")
 outdir = config.get("Params", {}).get("workflow", {}).get("outdir", "output")
 logdir = config.get("Params", {}).get("workflow", {}).get("logdir", "log")
 outfiles = config.get("outfiles", [])
-samples = config.get("Params", {}).get("workflow", {}).get("samples", [])
+samples = config.get("sample_params", {}).get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 
-sample_data = config.get("Params", {}).get("workflow", {}).get("sample_data", "")
+sample_data = config.get("sample_params", {}).get("sample_data", "")
 trimmer = config.get('Params', {}).get('workflow', {}).get('trimmer') or "trim_galore"
 
 # Genome reference resolution — nested default + references pattern
@@ -24,7 +24,7 @@ fumitools_config = {
     "indir": indir,
     "outdir": f"{outdir}/fastq/umi_fastq",
     "logdir": logdir,
-    "paired_samples": config.get("Params", {}).get("workflow", {}).get("paired_samples", []),
+    "paired_samples": config.get("sample_params", {}).get("paired_samples", []),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),

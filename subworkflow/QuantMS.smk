@@ -6,7 +6,7 @@ outfiles = config.get("outfiles", [])
 indir = config.get("Params", {}).get("workflow", {}).get("indir")
 outdir = config.get("Params", {}).get("workflow", {}).get("outdir", "output")
 logdir = config.get("Params", {}).get("workflow", {}).get("logdir", "logs")
-samples = config.get("Params", {}).get("workflow", {}).get("samples", [])
+samples = config.get("sample_params", {}).get("samples", [])
 genome = config.get("genome", {}).get("default", None)
 logger.info(f"indir: {indir}, outdir: {outdir}, logdir: {logdir}, samples: {samples}, genome: {genome}")
 rule all:
@@ -22,7 +22,7 @@ raw2mzml_config = {
     "outdir": f"{outdir}/common/2_raw2mzml",
     "logdir": os.path.join(logdir,"sample"),
     "samples": samples,
-    "raw_files": config.get("Params", {}).get("workflow", {}).get("raw_files", []),
+    "raw_files": config.get("sample_params", {}).get("raw_files", []),
     "Procedure": {
         "msconvert": config.get("Procedure", {}).get("msconvert")
     },
@@ -219,7 +219,7 @@ quantification_config = {
     "samples": samples,
     "mzml_dir": raw2mzml_config["outdir"],
     "psm_fdr_indir": psm_fdr_config["outdir"],
-    "expdesign": config.get("Params", {}).get("workflow", {}).get("expdesign", ""),
+    "expdesign": config.get("sample_params", {}).get("expdesign", ""),
     "quantification_method": config.get("Params", {}).get("workflow", {}).get("quantification_method"),
     "genome": {
         "search_fasta": (
@@ -265,7 +265,7 @@ msstats_config = {
     "outdir": f"{outdir}/common/8_msstats",
     "logdir": os.path.join(logdir,"group"),
     "samples": samples,
-    "expdesign": config.get("Params", {}).get("workflow", {}).get("expdesign", ""),
+    "expdesign": config.get("sample_params", {}).get("expdesign", ""),
     "quantification_method": config.get("Params", {}).get("workflow", {}).get("quantification_method"),
     "Procedure": {
         "msstats": config.get("Procedure", {}).get("msstats")

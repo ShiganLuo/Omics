@@ -44,7 +44,7 @@ input —— 报告排在其全部生产者之后,任一节产物刷新即重跑
 |---|---|
 | `samples` / `dna_samples` / `rna_samples` / `paired_samples` / `single_samples` (config) | 样本列表(进报告文本) |
 | `paired_design` (config) | `{experimental, control}` 肿瘤:正常设计对(体细胞计数) |
-| `contrasts` (config) | DE 对比键(`Params.DESeq2.group_pairs[<genome>]` 的键) |
+| `contrasts` (config) | DE 对比键(`sample_params.comparisons[<genome>]` 的键) |
 | `genome_label` (config) | RNA 树 genome 目录标签(如 `GRCm39`);缺省取 `Params.report.generate_report.genome` |
 | `outfiles` (config) | node.py 注册输出(锚点来源) |
 | `outdir` / `logdir` / `ROOT_DIR` (config) | 交付物根/日志/项目根 |

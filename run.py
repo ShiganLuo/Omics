@@ -1018,9 +1018,9 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
     abs_ref_outdir = os.path.abspath(ref_outdir)
     first_meta = _get_meta(workflow_names[0])
     if first_meta and os.path.isfile(first_meta):
-        metadataUtil = MetadataUtils(outdir=abs_ref_outdir, meta=first_meta)
+        metadataUtil = MetadataUtils(outdir=abs_ref_outdir, meta=first_meta, workflow=workflow_names[0])
     else:
-        metadataUtil = MetadataUtils(outdir=abs_ref_outdir, fastq_dir=first_meta)
+        metadataUtil = MetadataUtils(outdir=abs_ref_outdir, fastq_dir=first_meta, workflow=workflow_names[0])
     samples_info_dict, sample_pairs, group_pairs, raw_fastq_dir, raw_files, cellranger_input_dict = metadataUtil.run()
 
     # Thread allocation: user-specified total threads split across workflows
@@ -1044,9 +1044,9 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
                 if wf_meta and os.path.isfile(wf_meta):
                     test_data = os.path.join(root_dir, "assests", "test", "data")
                     wf_meta = _resolve_test_meta(wf_meta, test_data)
-                    metadataUtil = MetadataUtils(outdir=abs_outdir, meta=wf_meta)
+                    metadataUtil = MetadataUtils(outdir=abs_outdir, meta=wf_meta, workflow=wf_name)
                 else:
-                    metadataUtil = MetadataUtils(outdir=abs_outdir, fastq_dir=wf_meta)
+                    metadataUtil = MetadataUtils(outdir=abs_outdir, fastq_dir=wf_meta, workflow=wf_name)
                 samples_info_dict, sample_pairs, group_pairs, raw_fastq_dir, raw_files, cellranger_input_dict = metadataUtil.run()
 
             model_json = os.path.join(root_dir, f"config/{wf_name}.json")

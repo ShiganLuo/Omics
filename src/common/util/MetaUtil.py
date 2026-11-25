@@ -48,6 +48,7 @@ class MetadataUtils:
         data_id_col: str = "data_id",
         design_col: str = "design",
         group_col: str = "group",
+        workflow: Optional[str] = None,
     ):
         """
         Function: Initialize MetadataUtils.
@@ -76,6 +77,7 @@ class MetadataUtils:
         self.data_id_col = data_id_col
         self.design_col = design_col
         self.group_col = group_col
+        self.workflow = workflow
         self.samples_dict = defaultdict(SampleInfo)
         self.cellranger_input_dict: Dict[str, CellrangerInput] = {}
         self.raw_fq_dir = os.path.join(self.outdir, "common", "1_raw_data")
@@ -245,6 +247,16 @@ class MetadataUtils:
         return sample_pairs, group_pairs
 
 
+
+    def _row_workflow(self, df_sample: pd.DataFrame, col: str = "workflow") -> Optional[str]:
+        """Workflow name for resolve_genome's workflow-aware species mapping:
+        the row's workflow cell wins; the instance-level default (the run's
+        workflow, passed by the caller) is the fallback."""
+        if col in df_sample.columns:
+            w = df_sample[col].values[0]
+            if w is not None and not (isinstance(w, float) and math.isnan(w)) and str(w).strip():
+                return str(w).strip()
+        return self.workflow
 
     @staticmethod
     def _parse_assay(assay_raw: Any) -> Optional[str]:
@@ -462,9 +474,11 @@ class MetadataUtils:
             try:
                 host_organism_value = str(df_sample[organism_col].values[0]) if organism_col in df_sample.columns else "UNKNOWN"
                 contaminated_organism_raw = df_sample[contaminated_organism_col].values[0] if contaminated_organism_col in df_sample.columns else None
-                self.samples_dict[sample_key].organism = resolve_genome(host_organism_value)
+                self.samples_dict[sample_key].organism = resolve_genome(
+                    host_organism_value, workflow=self._row_workflow(df_sample, workflow_col))
                 if contaminated_organism_raw is not None and not pd.isna(contaminated_organism_raw) and str(contaminated_organism_raw).strip():
-                    self.samples_dict[sample_key].contaminated_organism = resolve_genome(str(contaminated_organism_raw))
+                    self.samples_dict[sample_key].contaminated_organism = resolve_genome(
+                        str(contaminated_organism_raw), workflow=self._row_workflow(df_sample, workflow_col))
                 else:
                     self.samples_dict[sample_key].contaminated_organism = None 
             except ValueError as e:
@@ -573,7 +587,7 @@ class MetadataUtils:
                     df_sample[assay_col].values[0] if assay_col in df_sample.columns else None)
                 self.samples_dict[sample_id].strain = self._parse_strain(df_sample["strain"].values[0] if "strain" in df_sample.columns else None)
                 try:
-                    self.samples_dict[sample_id].organism = resolve_genome(organism)
+                    self.samples_dict[sample_id].organism = resolve_genome(organism, workflow=self._row_workflow(df_sample))
                 except ValueError as e:
                     logger.error(f"Failed to resolve genome for organism '{organism}' in sample '{sample_id}': {e}")
                     # some pipeline may not rely on organism, so we can set it to UNKNOWN and continue
@@ -616,7 +630,7 @@ class MetadataUtils:
                     df_sample[assay_col].values[0] if assay_col in df_sample.columns else None)
                 self.samples_dict[sample_id].strain = self._parse_strain(df_sample["strain"].values[0] if "strain" in df_sample.columns else None)
                 try:
-                    self.samples_dict[sample_id].organism = resolve_genome(organism)
+                    self.samples_dict[sample_id].organism = resolve_genome(organism, workflow=self._row_workflow(df_sample))
                 except ValueError as e:
                     logger.error(f"Failed to resolve genome for organism '{organism}' in sample '{sample_id}': {e}")
                     # some pipeline may not rely on organism, so we can set it to UNKNOWN and continue
@@ -675,7 +689,7 @@ class MetadataUtils:
                 raise ValueError(f"sample_id '{sample_id}' contains whitespace, please remove it from meta file")
             host_organism_value = str(df_sample.get('organism', pd.Series(["UNKNOWN"])).values[0])
             try:
-                organism = resolve_genome(host_organism_value)
+                organism = resolve_genome(host_organism_value, workflow=self._row_workflow(df_sample))
             except ValueError as e:
                 logger.error(f"Failed to resolve genome for organism '{host_organism_value}' in sample '{sample_id}': {e}")
                 # some pipeline may not rely on organism, so we can set it to UNKNOWN and continue
@@ -739,7 +753,9 @@ class MetadataUtils:
             fastq_dir = Path(row[fastq_dir_col])
             sample_prefix = str(row[sample_prefix_col])
             try:
-                organism = resolve_genome(str(row.get("organism", "UNKNOWN")))
+                _wf = row.get("workflow")
+                _wf = str(_wf).strip() if _wf is not None and not pd.isna(_wf) and str(_wf).strip() else self.workflow
+                organism = resolve_genome(str(row.get("organism", "UNKNOWN")), workflow=_wf)
             except ValueError as e:
                 logger.error(f"Failed to resolve genome for organism '{str(row.get('organism', 'UNKNOWN'))}' in sample '{sample_id}': {e}")
                 organism = "UNKNOWN"
@@ -1051,13 +1067,17 @@ def main():
     parser.add_argument("--outdir", required=True, help="Output directory for processed FASTQ and logs")
     parser.add_argument("--fastq_dir", help="Directory containing FASTQ files (if not specified in meta)")
     parser.add_argument("--log", help="Path to log file (default: stdout)")
+    parser.add_argument("--workflow", default=None,
+                        help="workflow context for species-alias resolution "
+                             "(e.g. PacVar/Fiberseq resolve mouse -> T2T_mhaESC_v1.5)")
 
     args = parser.parse_args()
 
     metadataUtils = MetadataUtils(
         meta=args.meta,
         outdir=args.outdir,
-        fastq_dir=args.fastq_dir
+        fastq_dir=args.fastq_dir,
+        workflow=args.workflow
     )
     res = metadataUtils.run()
     return res    

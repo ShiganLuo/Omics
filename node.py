@@ -660,8 +660,10 @@ def _resolve_genome_ref(
 
     ``genome.default`` (which may be null) is user input and may be any
     species alias; it is normalized through ``resolve_genome()`` exactly like
-    ``sample_info.organism`` is during meta parsing (e.g. ``"mouse"`` /
-    ``"mm39"`` -> ``"GRCm39"``) so it matches the ``genome.references`` keys,
+    ``sample_info.organism`` is during meta parsing (e.g. ``"mm39"`` ->
+    ``"GRCm39"``; species names resolve per workflow — ``"mouse"`` ->
+    ``"T2T_mhaESC_v1.5"`` under PacVar/Fiberseq) so it matches the
+    ``genome.references`` keys,
     and unrecognised names fall back to the raw string so custom reference
     keys (e.g. ``"T2T_mhaESC_v1.5"``) keep working. When ``genome.default``
     is null, the normalized sample organism recorded in the meta is used as
@@ -687,7 +689,7 @@ def _resolve_genome_ref(
     normalized: Optional[str] = None
     if raw_default:
         try:
-            normalized = resolve_genome(str(raw_default))
+            normalized = resolve_genome(str(raw_default), workflow=workflow)
         except ValueError:
             # Custom reference key (e.g. T2T_mhaESC_v1.5): use verbatim.
             normalized = str(raw_default)

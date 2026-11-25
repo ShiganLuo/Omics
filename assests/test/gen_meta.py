@@ -11,6 +11,9 @@ src/common/util/MetaUtil.py (fastq / bam+pbi / ms_file):
   - ms      : sample_id/data_id/design/ms_file (QuantMS, .raw/.mzML/.mgf)
   - data_type column (DR): DNA/RNA, filled via --data-type / --data-type-map
     and routing raw staging into {outdir}/{DNA|RNA}/common/1_raw_data
+  - organism column: genome version / species alias (e.g. GRCm39, mouse);
+    PacVar/Fiberseq default to the mouse T2T assembly T2T_mhaESC_v1.5 when
+    --organism is empty (WORKFLOW_DEFAULT_ORGANISM)
   - assay column (Mutation, DR): WGS / Exome / Panel — node.py derives CNVkit
     --seq-method and the exome capture targets BED from it; DR fills it on DNA
     rows only (RNA rows empty) via --assay / --assay-map
@@ -61,13 +64,22 @@ WORKFLOWS = {
     "PeakCalling":     {"kind": "fastq", "columns": FASTQ_COLS},
     "tRNAseq":         {"kind": "fastq", "columns": FASTQ_COLS},
     "CLIP":            {"kind": "fastq", "columns": FASTQ_COLS},
-    "PacVar":          {"kind": "bam_pbi", "columns": ["sample_id", "data_id", "design", "group", "bam", "pbi"]},
+    "PacVar":          {"kind": "bam_pbi", "columns": ["sample_id", "organism", "data_id", "design", "group", "bam", "pbi"]},
     "scRNAseq":        {"kind": "fastq", "columns": FASTQ_COLS},
     "LRtranscriptome": {"kind": "fastq", "columns": FASTQ_COLS + ["organism"]},
     "RNAseq":          {"kind": "fastq", "columns": ["sample_id", "organism", "group", "data_id",
                                                      "design", "fastq_1", "fastq_2", "contaminated_organism"]},
-    "Fiberseq":        {"kind": "bam_pbi", "columns": ["sample_id", "data_id", "design", "bam", "pbi"]},
+    "Fiberseq":        {"kind": "bam_pbi", "columns": ["sample_id", "organism", "data_id", "design", "group", "bam", "pbi"]},
     "QuantMS":         {"kind": "ms", "columns": ["sample_id", "data_id", "design", "ms_file"]},
+}
+
+# Long-read assembly workflows resolve repeats/centromeres/structure far
+# better against a T2T assembly, so their organism column defaults to the
+# mouse T2T genome when --organism is empty (override with --organism, e.g.
+# Mmul_T2T for macaque or GRCm39 for the standard mouse assembly).
+WORKFLOW_DEFAULT_ORGANISM = {
+    "PacVar": "T2T_mhaESC_v1.5",
+    "Fiberseq": "T2T_mhaESC_v1.5",
 }
 
 # The read tag must sit at the END of the stem (only a lane suffix or ".raw"
@@ -171,7 +183,8 @@ def main():
                     help="override default input kind (e.g. --kind fastq for QuantMS test data)")
     ap.add_argument("--layout", choices=["any", "pe", "se"], default="any",
                     help="fastq layout filter (any = auto-detect)")
-    ap.add_argument("--organism", default="", help="fill organism column (workflows that have it)")
+    ap.add_argument("--organism", default="", help="fill organism column (workflows that have it); "
+                    "when empty, defaults per workflow (PacVar/Fiberseq -> T2T_mhaESC_v1.5)")
     ap.add_argument("--contaminated-organism", default="", help="fill contaminated_organism (RNAseq)")
     ap.add_argument("--group", default="", help="fill group column (RNAseq, Mutation)")
     ap.add_argument("--assay", default="", help="fill assay column, e.g. WGS / Exome / Panel "
@@ -333,7 +346,7 @@ def main():
                 row["bam"], row["pbi"] = os.path.abspath(f1), os.path.abspath(f2)
             else:
                 row["ms_file"] = os.path.abspath(f1)
-            row["organism"] = args.organism
+            row["organism"] = args.organism or WORKFLOW_DEFAULT_ORGANISM.get(args.workflow, "")
             row["assay"] = "" if dt == "RNA" else (assay_map.get(did) or assay_map.get(sid) or args.assay)
             row["strain"] = args.strain
             row["data_type"] = dt

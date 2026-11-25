@@ -1061,7 +1061,7 @@ def runCLIP(
     _star_align["outFilterMismatchNoverReadLmax"] = 0.04
     _star_align["outFilterMismatchNmax"] = 999
     _star_align["outFilterMultimapNmax"] = 999
-    datajson["Params"]["igv"]["js"] = "/data/pub/zhousha/Reference/igv.min.js"
+    datajson["Params"]["igv"]["js"] = "/data/16T/Database/SoftWare/igv.min.js"
     datajson["Params"]["igv"]["publicPathMap"] = {
         "/data/pub/zhousha/": "/data/",
         "/data/pub/zhousha/Reference/": "/ref/"
@@ -2198,16 +2198,13 @@ def runQuantMS(
         outfiles.append(f"{outdir}/common/3_diann/diann_qc.tsv")
         outfiles.append(f"{outdir}/common/3_diann/diann_protein_matrix.tsv")
     elif quantification_method == "tmt":
-        # Per-plex protein tables + long abundance table. The merged
-        # consensusXML/mzTab triplet is only produced when an experimental
-        # design is configured (FileMerger would collapse per-plex sample
-        # identity otherwise).
+        # Per-plex protein tables + long abundance table. The merged mzTab
+        # is only produced when an experimental design is configured
+        # (FileMerger would collapse per-plex sample identity otherwise);
+        # the long abundance table is always produced (quantification.smk).
         if datajson.get("Params", {}).get("workflow", {}).get("expdesign", ""):
             outfiles.append(f"{outdir}/common/7_quantification/tmt_quantification.mzTab")
-            outfiles.append(f"{outdir}/common/7_quantification/tmt_quantification.consensusXML")
-            outfiles.append(f"{outdir}/common/7_quantification/tmt_quantification.proteins.csv")
-        else:
-            outfiles.append(f"{outdir}/common/7_quantification/tmt_protein_abundances.csv")
+        outfiles.append(f"{outdir}/common/7_quantification/tmt_protein_abundances.csv")
     elif quantification_method == "lfq":
         outfiles.append(f"{outdir}/common/7_quantification/lfq_quantification.mzTab")
         outfiles.append(f"{outdir}/common/7_quantification/lfq_msstats.csv")

@@ -231,7 +231,7 @@
     "macs3": "/data/16T/Database/env/macs3/macs3.sif",
     "track": "/data/16T/Database/env/track/track.sif",
     "trim-galore": "/data/16T/Database/env/trim-galore/trim-galore.sif",
-    "deeptool": "/data/pub/zhousha/Database/env/deeptools/deeptools.sif",
+    "deeptool": "/data/16T/Database/env/deeptools/deeptools.sif",
     "peak_te_overlap": "/data/16T/Database/env/peak_te_overlap/peak_te_overlap.sif",
     "regionplot": "/data/16T/Database/env/regionplot/regionplot.sif",
     "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif",

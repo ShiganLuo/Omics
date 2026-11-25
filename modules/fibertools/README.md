@@ -48,6 +48,7 @@ analysis(`{outdir}/{sample_id}/`,`{hap}` ∈ hap1/hap2):
 {sample_id}.m6a.bed.gz / .nuc.bed.gz / .msp.bed.gz / .cpg.bed.gz   # ft extract
 {sample_id}.fire.bed.gz                                           # ft fire --extract(BED9)
 {sample_id}.fire_peaks.bed / {sample_id}.fire_fdr_table.tsv        # call_peaks.py
+{sample_id}.fibers.bed / {sample_id}.fibers.shuffled.bed           # call_peaks.py(fdr 零分布;非 fdr 模式为占位)
 {sample_id}.qc.tsv                                                 # ft qc
 {sample_id}.{hap}.bam(.bam.bai)                                    # ft_split_hap
 {sample_id}.{hap}.m6a/nuc/msp/cpg.bed.gz                           # ft_extract_hap
@@ -68,7 +69,7 @@ analysis(`{outdir}/{sample_id}/`,`{hap}` ∈ hap1/hap2):
 | `Params.fibertools.acf` | `ft qc --acf` | false | QC 追加 ACF 指标 |
 | `bam_suffix` | — | `.fiberseq.fire.aligned.bam` | analysis 输入 BAM 后缀 |
 | `genome.fai` | `--fai` | — | fdr 模式必填 |
-| `tmp_dir` | `--tmp-dir` | `{outdir}/tmp` | scratch 目录 |
+| `tmp_dir` | — | `{outdir}/tmp` | 回执 `export TMPDIR`(引擎中间产物已直写声明输出,不再占 scratch) |
 
 `call_peaks.py` 引擎另有 `--samtools`(`samtools`)、`--seed`(42)、
 `--log`、`--sample-id`;`shuffle_bed.py` 有 `-g`(chrom sizes)、
@@ -83,9 +84,10 @@ predict_m6a/add_nucleosomes threads=16,其余多为 8(均经 `rule_res()` 可
 python bin/call_peaks.py \
   --bam s1.fiberseq.fire.aligned.bam \
   --out-peaks s1.fire_peaks.bed --fdr-table s1.fire_fdr_table.tsv \
+  --fibers-bed s1.fibers.bed --shuffled-bed s1.fibers.shuffled.bed \
   --mode fdr --fai genome.fa.fai --shuffle-script bin/shuffle_bed.py \
   --sd-cov 5.0 --max-fdr 0.05 --threads 8 --ft ft \
-  --tmp-dir tmp --sample-id s1
+  --sample-id s1
 
 # 打乱零分布
 python bin/shuffle_bed.py -i fibers.bed -g genome.fa.fai -o null.bed -s 42

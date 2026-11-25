@@ -118,14 +118,19 @@ rule ft_call_peaks:
     Output: BED file with called FIRE peaks and the FDR threshold table.
 
     All support logic (aligned-read guard, fiber-span extraction, shuffled
-    null, scratch cleanup) lives in bin/call_peaks.py — the rule only
-    validates and invokes it (modules.md 核心原则).
+    null) lives in bin/call_peaks.py — the rule only validates and invokes
+    it (modules.md 核心原则).
     """
     input:
         unpack(_ft_call_peaks_inputs),
     output:
         peaks = outdir + "/{sample_id}/{sample_id}.fire_peaks.bed",
         fdr_table = outdir + "/{sample_id}/{sample_id}.fire_fdr_table.tsv",
+        # fdr-mode null artifacts — node.py-registered deliverables; outside
+        # fdr mode the engine writes header-only placeholders (placeholder
+        # pattern keeps the registered contract unconditional)
+        fibers = outdir + "/{sample_id}/{sample_id}.fibers.bed",
+        shuffled = outdir + "/{sample_id}/{sample_id}.fibers.shuffled.bed",
     log:
         logdir + "/{sample_id}/ft_call_peaks.log"
     threads: rule_res("ft_call_peaks").get("threads", 8)
@@ -166,7 +171,8 @@ rule ft_call_peaks:
                 "--mode", params.call_peaks_mode,
                 "--threads", str(threads),
                 "--ft", params.ft,
-                "--tmp-dir", params.tmp_dir,
+                "--fibers-bed", str(output.fibers),
+                "--shuffled-bed", str(output.shuffled),
                 "--sample-id", wildcards.sample_id,
             ]
             if params.call_peaks_mode == "fdr":

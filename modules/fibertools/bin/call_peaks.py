@@ -5,25 +5,26 @@ Single entry point for the ft_call_peaks rule so its receipt stays ONE
 `python call_peaks.py ...` command (modules.md: 支撑逻辑收敛到 bin/ 脚本 —
 规则只负责校验和调用). Phases, in order:
 
-1. Guard: count aligned reads; a BAM with none gets header-only outputs for
-   BOTH declared files (the rule registers them unconditionally).
-2. fdr mode: stream fiber spans to a scratch BED (`samtools view -F 0x904`,
-   SAM fields -> BED4), then shuffle them with shuffle_bed.py to build the
-   null that `ft call-peaks --shuffled` scores against.
+1. Guard: count aligned reads; a BAM with none gets header-only outputs
+   for ALL declared files (the rule registers them unconditionally).
+2. fdr mode: stream fiber spans to the declared fibers BED (`samtools view
+   -F 0x904`, SAM fields -> BED4), then shuffle them with shuffle_bed.py
+   to build the declared shuffled null that `ft call-peaks --shuffled`
+   scores against.
 3. Run `ft call-peaks` (fdr or fire_frac flag set).
-4. fire_frac mode: write a placeholder FDR table (the output is declared).
-5. Remove the scratch dir on success (kept on failure for debugging).
+4. fire_frac mode: write placeholder FDR table / fibers / shuffled files
+   (all three are declared outputs and node.py-registered; fdr-only
+   artifacts keep the contract unconditional via placeholders).
 
 Usage:
     python call_peaks.py --bam in.bam --out-peaks peaks.bed \
         --fdr-table fdr.tsv --mode fdr --fai genome.fa.fai --threads 8 \
-        --tmp-dir /path/tmp --sample-id s1
+        --fibers-bed fibers.bed --shuffled-bed shuffled.bed --sample-id s1
 """
 from __future__ import annotations
 
 import argparse
 import logging
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -83,6 +84,8 @@ logger = setup_logger("CallPeaks", stream=sys.stdout)
 PEAKS_HEADER = "#chrom\tstart\tend\tname\tscore\tstrand\n"
 FDR_TABLE_HEADER = "#sample\tsd_cov\tthreshold\tmax_fdr\tn_peaks\n"
 FDR_PLACEHOLDER = "#FDR table not computed (fire_frac mode)\n"
+FIBERS_PLACEHOLDER = "#fiber spans not computed (fdr-mode-only artifact)\n"
+SHUFFLED_PLACEHOLDER = "#shuffled null not computed (fdr-mode-only artifact)\n"
 
 
 def count_aligned_reads(bam: str, samtools: str) -> int:
@@ -245,15 +248,17 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     p.add_argument("--min-fire-frac", type=float, default=0.1)
     p.add_argument("--haps", action="store_true", help="call peaks per haplotype")
     p.add_argument("--seed", type=int, default=42, help="shuffle seed")
-    p.add_argument("--tmp-dir", type=Path, default=Path("/tmp"),
-                   help="workflow tmp dir for scratch (null intermediates)")
-    p.add_argument("--sample-id", default="", help="sample tag for scratch naming/logs")
+    p.add_argument("--fibers-bed", required=True,
+                   help="output fiber-span BED4 (fdr mode; placeholder otherwise)")
+    p.add_argument("--shuffled-bed", required=True,
+                   help="output shuffled-null BED (fdr mode; placeholder otherwise)")
+    p.add_argument("--sample-id", default="", help="sample tag for logs")
     p.add_argument("--log", type=Path, default=None, help="log file (default stdout only)")
     return p.parse_args(argv)
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
-    """Orchestrate the phases; every exit path leaves both outputs present."""
+    """Orchestrate the phases; every exit path leaves all outputs present."""
     global logger
     args = parse_args(argv)
     if args.log:
@@ -263,6 +268,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if not Path(args.bam).exists():
             logger.error(f"input BAM not found: {args.bam}")
             return 1
+        for out in (args.out_peaks, args.fdr_table,
+                    args.fibers_bed, args.shuffled_bed):
+            Path(out).parent.mkdir(parents=True, exist_ok=True)
         if args.mode == "fdr":
             for f, key in ((args.fai, "genome.fai"), (args.shuffle_script, "shuffle_script")):
                 if not f or not Path(f).exists():
@@ -272,31 +280,25 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     )
                     return 1
 
-        # scratch dir: pre-clean stale runs, recreate fresh (modules.md
-        # 输出目录卫生 — never inside the results dir)
-        scratch = Path(args.tmp_dir) / "call_peaks" / (args.sample_id or "sample")
-        shutil.rmtree(scratch, ignore_errors=True)
-        scratch.mkdir(parents=True, exist_ok=True)
-
-        # Phase 1: aligned-read guard — both outputs as header-only files
+        # Phase 1: aligned-read guard — all outputs as header-only files
         n_aligned = count_aligned_reads(args.bam, args.samtools)
         logger.info(f"Aligned reads: {n_aligned}")
         if n_aligned == 0:
             logger.info("BAM has no aligned reads — writing empty outputs")
             write_placeholder(args.out_peaks, PEAKS_HEADER)
             write_placeholder(args.fdr_table, FDR_TABLE_HEADER)
-            shutil.rmtree(scratch, ignore_errors=True)
+            write_placeholder(args.fibers_bed, FIBERS_PLACEHOLDER)
+            write_placeholder(args.shuffled_bed, SHUFFLED_PLACEHOLDER)
             return 0
 
         # Phase 2: shuffled null (fdr mode only)
         shuffled_bed: Optional[str] = None
         if args.mode == "fdr":
-            fibers_bed = str(scratch / f"{args.sample_id or 'sample'}.fibers.bed")
-            shuffled_bed = str(scratch / f"{args.sample_id or 'sample'}.fibers.shuffled.bed")
-            n_spans = extract_fiber_spans(args.bam, fibers_bed, args.samtools)
-            logger.info(f"Extracted {n_spans} fiber spans -> {fibers_bed}")
-            build_shuffled_null(fibers_bed, args.fai, shuffled_bed,
+            n_spans = extract_fiber_spans(args.bam, args.fibers_bed, args.samtools)
+            logger.info(f"Extracted {n_spans} fiber spans -> {args.fibers_bed}")
+            build_shuffled_null(args.fibers_bed, args.fai, args.shuffled_bed,
                                 str(args.shuffle_script), args.seed)
+            shuffled_bed = args.shuffled_bed
 
         # Phase 3: the tool itself
         call_ft_peaks(
@@ -305,11 +307,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             args.min_fire_frac, args.haps, shuffled_bed,
         )
 
-        # Phase 4: fire_frac has no FDR table — keep the declared output
+        # Phase 4: non-fdr artifacts — keep the declared outputs present
         if args.mode != "fdr":
             write_placeholder(args.fdr_table, FDR_PLACEHOLDER)
+            write_placeholder(args.fibers_bed, FIBERS_PLACEHOLDER)
+            write_placeholder(args.shuffled_bed, SHUFFLED_PLACEHOLDER)
 
-        shutil.rmtree(scratch, ignore_errors=True)
         logger.info(f"FIRE peak calling completed for sample {args.sample_id}")
         return 0
     except Exception as e:

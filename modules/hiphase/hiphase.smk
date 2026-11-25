@@ -34,6 +34,9 @@ rule hiphase_phase:
         unpack(get_input_for_hiphase_phase)
     output:
         vcf = outdir + "/{sample_id}/{sample_id}.phased.vcf.gz" if output_substring == "" else outdir + "/{sample_id}/{sample_id}." + output_substring + ".phased.vcf.gz",
+        # hiphase writes the tabix index next to the VCF; declared so the
+        # node.py-registered pair is buildable
+        vcf_tbi = outdir + "/{sample_id}/{sample_id}.phased.vcf.gz.tbi" if output_substring == "" else outdir + "/{sample_id}/{sample_id}." + output_substring + ".phased.vcf.gz.tbi",
         bam = outdir + "/{sample_id}/{sample_id}.phased.bam" if output_substring == "" else outdir + "/{sample_id}/{sample_id}." + output_substring + ".phased.bam",
     log:
         logdir + "/{sample_id}/hiphase.log"
@@ -76,4 +79,5 @@ rule hiphase_phase:
 rule hiphase_result:
     input:
         vcf = outdir + "/{sample_id}/{sample_id}.phased.vcf.gz" if output_substring == "" else outdir + "/{sample_id}/{sample_id}." + output_substring + ".phased.vcf.gz",
+        vcf_tbi = outdir + "/{sample_id}/{sample_id}.phased.vcf.gz.tbi" if output_substring == "" else outdir + "/{sample_id}/{sample_id}." + output_substring + ".phased.vcf.gz.tbi",
         bam = outdir + "/{sample_id}/{sample_id}.phased.bam" if output_substring == "" else outdir + "/{sample_id}/{sample_id}." + output_substring + ".phased.bam"

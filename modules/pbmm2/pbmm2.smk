@@ -61,7 +61,8 @@ rule pbmm2_align:
                 "-o", output.bai
             ]
             cmd4 = [
-                "rm", raw_align_bam
+                # pbmm2 --sort also writes the .bai companion — remove both
+                "rm", "-f", raw_align_bam, raw_align_bam + ".bai",
             ]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")

@@ -19,12 +19,13 @@ BAM(HP/PS 标签)与 phased VCF。目录下另有 `polygenomes/` 子模块(多�
 ### 1.2 输出
 
 ```
-{outdir}/{sample_id}/{sample_id}[.{output_substring}].phased.vcf.gz   # 定相 VCF
-{outdir}/{sample_id}/{sample_id}[.{output_substring}].phased.bam      # 定相 BAM(HP/PS 标签)
+{outdir}/{sample_id}/{sample_id}[.{output_substring}].phased.vcf.gz     # 定相 VCF
+{outdir}/{sample_id}/{sample_id}[.{output_substring}].phased.vcf.gz.tbi # 定相 VCF 索引(hiphase 自动写出,规则声明并注册)
+{outdir}/{sample_id}/{sample_id}[.{output_substring}].phased.bam        # 定相 BAM(HP/PS 标签)
 {logdir}/{sample_id}/hiphase.log
 ```
 
-收尾规则 `hiphase_result` 聚合两者。
+收尾规则 `hiphase_result` 聚合全部输出。
 
 ### 1.3 参数
 

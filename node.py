@@ -2812,6 +2812,12 @@ def runFiberseq(
         outfiles.append(f"{outdir}/common/4_elements/{sample_id}/{sample_id}.fire_fdr_table.tsv")
         outfiles.append(f"{outdir}/common/4_elements/{sample_id}/{sample_id}.fire.bed.gz")
         outfiles.append(f"{outdir}/common/4_elements/{sample_id}/{sample_id}.qc.tsv")
+        # FIRE null artifacts (ft_call_peaks; header-only placeholders
+        # outside fdr mode)
+        outfiles.append(f"{outdir}/common/4_elements/{sample_id}/{sample_id}.fibers.bed")
+        outfiles.append(f"{outdir}/common/4_elements/{sample_id}/{sample_id}.fibers.shuffled.bed")
+        # coverage bigwig (deeptools bamCoverage; feeds trackDb/regionplot)
+        outfiles.append(f"{outdir}/common/6_coverage_bw/{sample_id}/{sample_id}.coverage.bw")
 
         # Step 4: downstream (gated by Params.*.enabled)
         if enable_annotate:
@@ -2932,6 +2938,8 @@ def runFiberseq(
             # hiphase module writes to {outdir}/common/5_phased_bam (see
             # subworkflow/Fiberseq.smk hiphase_config), NOT {var}/phased.
             outfiles.append(f"{outdir}/common/5_phased_bam/{sample_id}/{sample_id}.phased.bam")
+            outfiles.append(f"{outdir}/common/5_phased_bam/{sample_id}/{sample_id}.phased.vcf.gz")
+            outfiles.append(f"{outdir}/common/5_phased_bam/{sample_id}/{sample_id}.phased.vcf.gz.tbi")
             phased_dir = f"{outdir}/common/5_phased_bam"
             for hap in ("hap1", "hap2"):
                 # {hap}.bam/.bam.bai are intermediates (ft_split_hap output,

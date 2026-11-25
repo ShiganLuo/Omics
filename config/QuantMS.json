@@ -30,6 +30,7 @@
       }
     },
     "raw_to_mzml": {
+      "keep_intermediates": false,
       "raw2mzml": {
         "mode": "thermorawfileparser",
         "converter": "ThermoRawFileParser",
@@ -38,6 +39,7 @@
       }
     },
     "decoy_database": {
+      "keep_intermediates": false,
       "decoy_database": {
         "decoy_string": "DECOY_",
         "decoy_string_position": "prefix",
@@ -172,6 +174,9 @@
     "quantification_dia": {
       "add_triqler_output": false,
       "quantify_decoys": false
+    },
+    "quantification": {
+      "keep_intermediates": false
     },
     "skip_post_msstats": false,
     "add_triqler_output": false,

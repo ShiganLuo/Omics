@@ -78,6 +78,7 @@
       }
     },
     "mimseq": {
+      "keep_intermediates": false,
       "mimseq_tRNAtools": {
         "data_dir": "/data/16T/Database/Reference/tRNA/mimseq",
         "species": "Hsap",
@@ -132,6 +133,9 @@
         "control_cond": "",
         "p_adj": 0.05
       }
+    },
+    "fumitools": {
+      "keep_intermediates": false
     },
     "cutadapt": {
       "trimming_Paired": {

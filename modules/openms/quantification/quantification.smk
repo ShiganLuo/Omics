@@ -190,8 +190,10 @@ rule quantification_tmt_reporter:
         mzml = mzml_dir + "/{sample_id}/{sample_id}.mzML",
         idxml = indir + "/{sample_id}/{sample_id}_protein.idXML",
     output:
-        reporter = outdir + "/{sample_id}/{sample_id}.reporter.consensusXML",
-        mapped = outdir + "/{sample_id}/{sample_id}.mapped.consensusXML",
+        # intermediate: consumed by quantification_tmt only (registered outputs
+        # are the per-plex/long protein tables), Params.quantification.keep_intermediates
+        reporter = maybe_temp(outdir + "/{sample_id}/{sample_id}.reporter.consensusXML", "quantification"),
+        mapped = maybe_temp(outdir + "/{sample_id}/{sample_id}.mapped.consensusXML", "quantification"),
     log:
         logdir + "/{sample_id}/quantification_tmt_reporter.log"
     threads: rule_res("quantification_tmt_reporter").get("threads", 2)
@@ -272,8 +274,9 @@ rule quantification_tmt:
         # mapped consensusXML + its own protein inference; the per-plex CSVs
         # are then stacked into one long table (sample x channel x protein).
         proteins_long = outdir + "/tmt_protein_abundances.csv",
-        consensus_tables = expand(outdir + "/{sample_id}/{sample_id}_proteins.csv",
-                                  sample_id=samples),
+        # intermediate per-plex tables: stacked into proteins_long within the
+        # same job (registered output), Params.quantification.keep_intermediates
+        consensus_tables = [maybe_temp(p, "quantification") for p in expand(outdir + "/{sample_id}/{sample_id}_proteins.csv", sample_id=samples)],
         **({"mztab": outdir + "/tmt_quantification.mzTab"}
            if config.get("expdesign", "") else {}),
     log:

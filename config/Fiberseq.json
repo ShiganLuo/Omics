@@ -8,6 +8,7 @@
       "raw_files": []
     },
     "fibertools": {
+      "keep_intermediates": false,
       "ft_fire": {
         "add_nucleosomes_manual": null,
         "ont": false
@@ -103,6 +104,7 @@
       }
     },
     "fiberseq_mods": {
+      "keep_intermediates": false,
       "enabled": true,
       "mod_type": "cpg",
       "region_axis": {
@@ -210,18 +212,23 @@
       }
     },
     "pbsv": {
+      "keep_intermediates": false,
       "enabled": true,
       "min_sv_len": 50,
       "max_sv_len": 1000000,
       "min_fibers": 10
     },
     "sawfish": {
+      "keep_intermediates": false,
       "enabled": false,
       "call_sv": false,
       "fast_cnv_mode": null,
       "expected_cn": null,
       "cnv_excluded_regions": null,
       "treat_single_copy_as_haploid": false
+    },
+    "hiphase": {
+      "keep_intermediates": false
     },
     "haplotype": {
       "enabled": true,
@@ -704,8 +711,11 @@
       "w_ld_chr": null,
       "munge_args": ""
     },
-    "deepvariant": {},
+    "deepvariant": {
+      "keep_intermediates": false
+    },
     "bamCoverage": {
+      "keep_intermediates": false,
       "bin_size": 50,
       "normalizeUsing": "CPM"
     },
@@ -801,6 +811,7 @@
       "y_min_frac": null
     },
     "telomere": {
+      "keep_intermediates": false,
       "enabled": true,
       "method": [
         "telogator2",

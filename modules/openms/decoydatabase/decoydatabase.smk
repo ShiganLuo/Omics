@@ -17,7 +17,9 @@ rule decoy_database:
     input:
         protein_fasta = lambda wildcards: _require(protein_fasta, "genome.protein_fasta", "decoy_database")
     output:
-        decoy_fasta = outdir + "/genome_decoy.fasta"
+        # intermediate: consumed by search_engine/quantification/msfragger
+        # (node.py registers no decoy fasta), Params.decoy_database.keep_intermediates
+        decoy_fasta = maybe_temp(outdir + "/genome_decoy.fasta", "decoy_database")
     log:
         logdir + "/decoy_database/decoy_database.log"
     benchmark: logdir + "/decoy_database/decoy_database.benchmark.tsv",

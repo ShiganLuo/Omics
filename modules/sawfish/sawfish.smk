@@ -110,7 +110,8 @@ rule sawfish_joint_call:
         fasta = _require(fasta, "genome.fasta", "sawfish"),
         fai = [fai] if fai else []
     output:
-        vcf = outdir + "/joint_call/genotyped.sv.vcf.gz"
+        # intermediate controlled by Params.sawfish.keep_intermediates (modules.md temp spec)
+        vcf = maybe_temp(outdir + "/joint_call/genotyped.sv.vcf.gz", "sawfish")
     log:
         logdir + "/sawfish/sawfish_joint_call.log"
     benchmark: logdir + "/sawfish/sawfish_joint_call.benchmark.tsv",

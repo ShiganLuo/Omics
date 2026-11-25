@@ -191,6 +191,26 @@
     "filtering": {
       "type": "dict",
       "required": false
+    },
+    "gatk_population": {
+      "type": "dict",
+      "required": false,
+      "properties": {
+        "keep_intermediates": {
+          "type": "bool",
+          "required": false
+        }
+      }
+    },
+    "plink2_population": {
+      "type": "dict",
+      "required": false,
+      "properties": {
+        "keep_intermediates": {
+          "type": "bool",
+          "required": false
+        }
+      }
     }
   }
 }

@@ -24,7 +24,9 @@ def run_plink(rule_name, log_path, output_path, commands):
 rule plink2_population_pgen:
     input: vcf=vcf, tbi=vcf+".tbi"
     output:
-        pgen=prefix+".pgen", pvar=prefix+".pvar", psam=prefix+".psam"
+        # intermediate: consumed by plink2_population_bed/plink2_population_pca
+        # (registered outputs are .eigenvec/.eigenval), Params.plink2_population.keep_intermediates
+        pgen=maybe_temp(prefix+".pgen", "plink2_population"), pvar=maybe_temp(prefix+".pvar", "plink2_population"), psam=maybe_temp(prefix+".psam", "plink2_population")
     log: logdir+"/analysis/plink2_population_pgen.log"
     benchmark: logdir+"/analysis/plink2_population_pgen.benchmark.tsv",
     resources:
@@ -40,7 +42,7 @@ rule plink2_population_pgen:
 
 rule plink2_population_bed:
     input: pgen=prefix+".pgen", pvar=prefix+".pvar", psam=prefix+".psam"
-    output: bed=prefix+".bed", bim=prefix+".bim", fam=prefix+".fam"
+    output: bed=maybe_temp(prefix+".bed", "plink2_population"), bim=maybe_temp(prefix+".bim", "plink2_population"), fam=maybe_temp(prefix+".fam", "plink2_population")
     log: logdir+"/analysis/plink2_population_bed.log"
     benchmark: logdir+"/analysis/plink2_population_bed.benchmark.tsv",
     resources:

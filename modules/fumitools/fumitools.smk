@@ -20,8 +20,10 @@ rule fumitools_copy_umi_paired:
         r1 = indir + "/{sample_id}_1.fq.gz",
         r2 = indir + "/{sample_id}_2.fq.gz",
     output:
-        r1 = outdir + "/{sample_id}/{sample_id}_1.umi.fq.gz",
-        r2 = outdir + "/{sample_id}/{sample_id}_2.umi.fq.gz",
+        # intermediate fastq: consumed only by the trimmer; kept by default,
+        # temp when Params.fumitools.keep_intermediates is false
+        r1 = maybe_temp(outdir + "/{sample_id}/{sample_id}_1.umi.fq.gz", "fumitools"),
+        r2 = maybe_temp(outdir + "/{sample_id}/{sample_id}_2.umi.fq.gz", "fumitools"),
     log:
         logdir + "/{sample_id}/fumitools_copy_umi.log"
     params:
@@ -89,7 +91,8 @@ rule fumitools_copy_umi_single:
     input:
         r1 = indir + "/{sample_id}.single.fq.gz",
     output:
-        r1 = outdir + "/{sample_id}/{sample_id}.umi.single.fq.gz",
+        # intermediate fastq: same as fumitools_copy_umi_paired
+        r1 = maybe_temp(outdir + "/{sample_id}/{sample_id}.umi.single.fq.gz", "fumitools"),
     log:
         logdir + "/{sample_id}/fumitools_copy_umi.log"
     params:
@@ -157,7 +160,9 @@ rule fumitools_dedup:
     input:
         bam = outdir + "/{sample_id}/{sample_id}.sorted.bam",
     output:
-        bam = outdir + "/{sample_id}/{sample_id}.dedup.bam",
+        # intermediate bam: consumed by downstream rules only; kept by default,
+        # temp when Params.fumitools.keep_intermediates is false
+        bam = maybe_temp(outdir + "/{sample_id}/{sample_id}.dedup.bam", "fumitools"),
     log:
         logdir + "/{sample_id}/fumitools_dedup.log"
     params:

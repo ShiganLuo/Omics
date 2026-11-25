@@ -31,7 +31,8 @@ rule deepvariant_run:
     output:
         vcf = outdir + "/{sample_id}/{sample_id}.vcf.gz",
         csi = outdir + "/{sample_id}/{sample_id}.vcf.gz.csi",
-        gvcf = outdir + "/{sample_id}/{sample_id}.g.vcf.gz"
+        # intermediate controlled by Params.deepvariant.keep_intermediates (modules.md temp spec)
+        gvcf = maybe_temp(outdir + "/{sample_id}/{sample_id}.g.vcf.gz", "deepvariant")
     log:
         logdir + "/{sample_id}/deepvariant.log"
     threads: rule_res("deepvariant_run").get("threads", 8)

@@ -19,7 +19,9 @@ rule mimseq_prepare_sample_data:
     input:
         meta = meta,
     output:
-        sample_data = outdir + "/sample_data.tsv",
+        # intermediate: consumed only by mimseq_align; kept by default, temp
+        # when Params.mimseq.keep_intermediates is false
+        sample_data = maybe_temp(outdir + "/sample_data.tsv", "mimseq"),
     log:
         logdir + "/mimseq_prepare_sample_data.log"
     benchmark: logdir + "/mimseq_prepare_sample_data.benchmark.tsv",

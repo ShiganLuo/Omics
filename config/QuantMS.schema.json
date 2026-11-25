@@ -415,6 +415,10 @@
       }
     },
     "raw_to_mzml": {
+      "keep_intermediates": {
+        "type": "bool",
+        "required": false
+      },
       "raw2mzml": {
         "mode": {
           "type": "str",
@@ -435,6 +439,10 @@
       }
     },
     "decoy_database": {
+      "keep_intermediates": {
+        "type": "bool",
+        "required": false
+      },
       "decoy_database": {
         "decoy_string": {
           "type": "str",
@@ -764,6 +772,12 @@
         "required": false
       },
       "quantify_decoys": {
+        "type": "bool",
+        "required": false
+      }
+    },
+    "quantification": {
+      "keep_intermediates": {
         "type": "bool",
         "required": false
       }

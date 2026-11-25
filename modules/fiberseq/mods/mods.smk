@@ -102,7 +102,7 @@ rule fiberseq_mods_longtable:
     output:
         longtable = (outdir + f"/te_{mod_type_longtable}_long.tsv" if te_axis_longtable
                      else outdir + f"/{metric_longtable}_long.tsv"),
-        loci = ([outdir + f"/te_{mod_type_longtable}_loci.tsv"] if te_axis_longtable else []),
+        loci = ([maybe_temp(outdir + f"/te_{mod_type_longtable}_loci.tsv", "fiberseq_mods")] if te_axis_longtable else []),
     log:
         logdir + (f"/mods/fiberseq_mods_longtable_te_{mod_type_longtable}_long.tsv.log" if te_axis_longtable
                  else f"/mods/fiberseq_mods_longtable_{metric_longtable}_long.tsv.log")

@@ -31,7 +31,9 @@ rule raw2mzml:
     input:
         infile = get_raw_input
     output:
-        mzml = outdir + "/{sample_id}/{sample_id}.mzML"
+        # intermediate: consumed by search_engine/quantification/msfragger/diann
+        # (node.py registers no mzML), Params.raw_to_mzml.keep_intermediates
+        mzml = maybe_temp(outdir + "/{sample_id}/{sample_id}.mzML", "raw_to_mzml")
     log:
         logdir + "/{sample_id}/raw2mzml.log"
     threads: rule_res("raw2mzml").get("threads", 2)

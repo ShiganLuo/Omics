@@ -9,6 +9,7 @@
       "single_samples": []
     },
     "star": {
+      "keep_intermediates": false,
       "KARRseq_star_align": {
         "outFilterMultimapNmax": 100,
         "outSAMattributes": "All",
@@ -22,6 +23,7 @@
       }
     },
     "karrseq": {
+      "keep_intermediates": false,
       "karrseq_chimeric_to_pairs": {
         "mapq": 1,
         "span": 0

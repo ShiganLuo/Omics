@@ -21,7 +21,8 @@ rule pbsv_discover:
     input:
         unpack(get_input_for_pbsv_discover)
     output:
-        svsig = outdir + "/{sample_id}/{sample_id}.svsig.gz"
+        # registered deliverable (node.py outfiles) - never wrapped per modules.md temp spec
+        svsig = outdir + "/{sample_id}/{sample_id}.svsig.gz",
     log:
         logdir + "/{sample_id}/pbsv_discover.log"
     threads: rule_res("pbsv_discover").get("threads", 4)

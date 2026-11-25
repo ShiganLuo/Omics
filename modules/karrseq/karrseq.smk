@@ -16,7 +16,9 @@ rule karrseq_chimeric_to_pairs:
         aligned = indir + "/{sample_id}/{sample_id}_Aligned.sortedByCoord.out.bam",
         chimeric = indir + "/{sample_id}/{sample_id}_Chimeric.out.sam"
     output:
-        pairs = outdir + "/{sample_id}/{sample_id}.txt.gz"
+        # intermediate: consumed only by karrseq_remove_duplicates; kept by
+        # default, temp when Params.karrseq.keep_intermediates is false
+        pairs = maybe_temp(outdir + "/{sample_id}/{sample_id}.txt.gz", "karrseq")
     log:
         logdir + "/{sample_id}/karrseq_chimeric_to_pairs.log"
     params:
@@ -72,9 +74,11 @@ rule karrseq_remove_duplicates:
     input:
         pairs = outdir + "/{sample_id}/{sample_id}.txt.gz"
     output:
-        dedup = outdir + "/{sample_id}/{sample_id}.dedup.txt.gz",
-        bed = outdir + "/{sample_id}/{sample_id}.dedup.bed",
-        pairs_gz = outdir + "/{sample_id}/{sample_id}.dedup.pairs.gz"
+        # intermediates: dedup.txt.gz feeds karrseq_ligation only; bed/pairs.gz
+        # are unregistered byproducts superseded by the ligation deliverable
+        dedup = maybe_temp(outdir + "/{sample_id}/{sample_id}.dedup.txt.gz", "karrseq"),
+        bed = maybe_temp(outdir + "/{sample_id}/{sample_id}.dedup.bed", "karrseq"),
+        pairs_gz = maybe_temp(outdir + "/{sample_id}/{sample_id}.dedup.pairs.gz", "karrseq")
     log:
         logdir + "/{sample_id}/karrseq_remove_duplicates.log"
     benchmark: logdir + "/{sample_id}/karrseq_remove_duplicates.benchmark.tsv",

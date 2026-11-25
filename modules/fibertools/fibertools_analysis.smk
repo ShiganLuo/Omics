@@ -327,7 +327,8 @@ rule ft_split_hap:
     input:
         bam = indir + "/{sample_id}/{sample_id}" + _bam_suffix
     output:
-        bam = outdir + "/{sample_id}/{sample_id}.{hap}.bam",
+        # intermediate controlled by Params.fibertools.keep_intermediates (modules.md temp spec)
+        bam = maybe_temp(outdir + "/{sample_id}/{sample_id}.{hap}.bam", "fibertools"),
         bai = outdir + "/{sample_id}/{sample_id}.{hap}.bam.bai",
     log:
         logdir + "/{sample_id}/ft_split_hap_{hap}.log"
@@ -375,10 +376,11 @@ rule ft_extract_hap:
         bam = outdir + "/{sample_id}/{sample_id}.{hap}.bam",
         bai = outdir + "/{sample_id}/{sample_id}.{hap}.bam.bai",
     output:
-        m6a = outdir + "/{sample_id}/{sample_id}.{hap}.m6a.bed.gz",
-        nuc = outdir + "/{sample_id}/{sample_id}.{hap}.nuc.bed.gz",
-        msp = outdir + "/{sample_id}/{sample_id}.{hap}.msp.bed.gz",
-        cpg = outdir + "/{sample_id}/{sample_id}.{hap}.cpg.bed.gz",
+        # intermediates controlled by Params.fibertools.keep_intermediates (modules.md temp spec)
+        m6a = maybe_temp(outdir + "/{sample_id}/{sample_id}.{hap}.m6a.bed.gz", "fibertools"),
+        nuc = maybe_temp(outdir + "/{sample_id}/{sample_id}.{hap}.nuc.bed.gz", "fibertools"),
+        msp = maybe_temp(outdir + "/{sample_id}/{sample_id}.{hap}.msp.bed.gz", "fibertools"),
+        cpg = maybe_temp(outdir + "/{sample_id}/{sample_id}.{hap}.cpg.bed.gz", "fibertools"),
         m6a_tbi = outdir + "/{sample_id}/{sample_id}.{hap}.m6a.bed.gz.tbi",
         nuc_tbi = outdir + "/{sample_id}/{sample_id}.{hap}.nuc.bed.gz.tbi",
         msp_tbi = outdir + "/{sample_id}/{sample_id}.{hap}.msp.bed.gz.tbi",

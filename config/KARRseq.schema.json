@@ -153,6 +153,10 @@
   },
   "Params": {
     "star": {
+      "keep_intermediates": {
+        "type": "bool",
+        "required": false
+      },
       "KARRseq_star_align": {
         "outFilterMultimapNmax": {
           "type": "int",
@@ -193,6 +197,10 @@
       }
     },
     "karrseq": {
+      "keep_intermediates": {
+        "type": "bool",
+        "required": false
+      },
       "karrseq_chimeric_to_pairs": {
         "mapq": {
           "type": "int",

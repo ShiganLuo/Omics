@@ -64,7 +64,8 @@ rule ft_predict_m6a:
     input:
         bam = indir + "/{sample_id}/{sample_id}.bam"
     output:
-        bam = outdir + "/{sample_id}/{sample_id}.fiberseq.bam"
+        # intermediate controlled by Params.fibertools.keep_intermediates (modules.md temp spec)
+        bam = maybe_temp(outdir + "/{sample_id}/{sample_id}.fiberseq.bam", "fibertools")
     log:
         logdir + "/{sample_id}/ft_predict_m6a.log"
     threads: rule_res("ft_predict_m6a").get("threads", 16)
@@ -138,7 +139,8 @@ rule ft_add_nucleosomes:
     input:
         bam = outdir + "/{sample_id}/{sample_id}.fiberseq.bam"
     output:
-        bam = outdir + "/{sample_id}/{sample_id}.fiberseq.nuc.bam"
+        # intermediate controlled by Params.fibertools.keep_intermediates (modules.md temp spec)
+        bam = maybe_temp(outdir + "/{sample_id}/{sample_id}.fiberseq.nuc.bam", "fibertools")
     log:
         logdir + "/{sample_id}/ft_add_nucleosomes.log"
     threads: rule_res("ft_add_nucleosomes").get("threads", 16)
@@ -192,6 +194,7 @@ rule ft_fire:
     input:
         bam = get_input_for_ft_fire
     output:
+        # registered deliverable (node.py outfiles) - never wrapped per modules.md temp spec
         bam = outdir + "/{sample_id}/{sample_id}.fiberseq.fire.bam"
     log:
         logdir + "/{sample_id}/ft_fire.log"

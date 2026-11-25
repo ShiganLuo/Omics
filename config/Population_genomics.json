@@ -35,7 +35,13 @@
         "tmp-dir": null
       }
     },
-    "filtering": {}
+    "filtering": {},
+    "gatk_population": {
+      "keep_intermediates": false
+    },
+    "plink2_population": {
+      "keep_intermediates": false
+    }
   },
   "genome": {
     "default": "GRCm39",

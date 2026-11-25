@@ -243,6 +243,10 @@ quantification_config = {
         "protein_fdr": config.get("Params", {}).get("protein_fdr", {}),
         "quantification_lfq": config.get("Params", {}).get("quantification_lfq", {}),
         "quantification_dia": config.get("Params", {}).get("quantification_dia", {}),
+        # temp spec (modules.md): TMT chain intermediates under Params.quantification.keep_intermediates
+        "quantification": {
+            "keep_intermediates": config.get("Params", {}).get("quantification", {}).get("keep_intermediates", True)
+        },
     }
 }
 

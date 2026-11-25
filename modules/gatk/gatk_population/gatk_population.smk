@@ -25,8 +25,10 @@ rule gatk_population_haplotype_caller:
         fai=fai,
         dict=dict_index
     output:
-        vcf=outdir + "/variants/gvcf/{sample}.g.vcf.gz",
-        tbi=outdir + "/variants/gvcf/{sample}.g.vcf.gz.tbi"
+        # intermediate: consumed only by joint_genotyping (registered output
+        # is variants/filtered/population_snps.vcf.gz), Params.gatk_population.keep_intermediates
+        vcf=maybe_temp(outdir + "/variants/gvcf/{sample}.g.vcf.gz", "gatk_population"),
+        tbi=maybe_temp(outdir + "/variants/gvcf/{sample}.g.vcf.gz.tbi", "gatk_population")
     log:
         logdir + "/variants/{sample}/gatk_population_haplotype_caller.log"
     threads: rule_res("gatk_population_haplotype_caller").get("threads", 8)
@@ -82,8 +84,10 @@ rule gatk_population_joint_genotyping:
         fai=fai,
         dict=dict_index
     output:
-        vcf=outdir + "/variants/joint/joint.vcf.gz",
-        tbi=outdir + "/variants/joint/joint.vcf.gz.tbi"
+        # intermediate: consumed only by bcftools_population_filter (registered
+        # output is variants/filtered/population_snps.vcf.gz)
+        vcf=maybe_temp(outdir + "/variants/joint/joint.vcf.gz", "gatk_population"),
+        tbi=maybe_temp(outdir + "/variants/joint/joint.vcf.gz.tbi", "gatk_population")
     log:
         logdir + "/variants/gatk_population_joint_genotyping.log"
     threads: rule_res("gatk_population_joint_genotyping").get("threads", 8)

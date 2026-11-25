@@ -158,8 +158,9 @@ rule KARRseq_star_align:
     input:
         fastq = get_alignment_input
     output:
-        aligned = outdir + "/bam/{sample_id}/{sample_id}_Aligned.sortedByCoord.out.bam",
-        chimeric = outdir + "/bam/{sample_id}/{sample_id}_Chimeric.out.sam"
+        # unregistered stage files consumed only by sexcheck QC and karrseq; kept by default, temp when Params.star.keep_intermediates is false
+        aligned = maybe_temp(outdir + "/bam/{sample_id}/{sample_id}_Aligned.sortedByCoord.out.bam", "star"),
+        chimeric = maybe_temp(outdir + "/bam/{sample_id}/{sample_id}_Chimeric.out.sam", "star")
     log:
         logdir + "/{sample_id}/STAR.log"
     threads: rule_res("KARRseq_star_align").get("threads", 15)

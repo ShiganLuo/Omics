@@ -34,7 +34,8 @@ rule composition_run:
     input:
         bams = get_composition_bams
     output:
-        per_read = os.path.join(outdir, "telomere_per_read.tsv"),
+        # intermediate controlled by Params.telomere.keep_intermediates (modules.md temp spec)
+        per_read = maybe_temp(os.path.join(outdir, "telomere_per_read.tsv"), "telomere"),
         summary = os.path.join(outdir, "telomere_summary.tsv"),
         composition = os.path.join(outdir, "telomere_composition.tsv"),
         violin = [os.path.join(outdir, "telomere_length_violin." + fmt)

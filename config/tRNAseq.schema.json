@@ -185,6 +185,10 @@
   "Procedure": {},
   "Params": {
     "mimseq": {
+      "keep_intermediates": {
+        "type": "bool",
+        "required": false
+      },
       "mimseq_tRNAtools": {
         "type": "dict",
         "required": false,
@@ -373,6 +377,12 @@
             "required": true
           }
         }
+      }
+    },
+    "fumitools": {
+      "keep_intermediates": {
+        "type": "bool",
+        "required": false
       }
     },
     "cutadapt": {

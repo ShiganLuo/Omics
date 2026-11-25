@@ -98,7 +98,7 @@ python src/common/util/calibrate_resources.py --root output/RNAseq \
 
 ### 内置测试模式
 
-`--test [MODE]` 用自带测试数据验证工作流（meta 与 schema 驱动的输入/产物占位自动创建、运行后清理、不进 git），流程用 `-w` 选单个、多个或 `all`。MODE 只有两个值：
+`--test [MODE]` 用自带测试数据验证工作流（meta 与 schema 驱动的输入/产物占位自动创建、运行后清理；测试输出写到仓库外的系统临时目录或 `-o` 指定目录，绝不落在仓库内），流程用 `-w` 选单个、多个或 `all`。MODE 只有两个值：
   - `dag`（默认）：快速模式——只构建 DAG，验证流程接线与输入输出引用完整；
   - `shell`：严格模式，包含 dag 的全部验证——完整构建 DAG 并真实执行 run 块，但只落盘每条规则最终要执行的 shell 脚本（回执双写：输出目录 `<rule>_<sample>.sh` + `log/cmd/` 带时间戳备份），不执行任何工具，产出可跨版本 diff 的全量回执集；
 

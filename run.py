@@ -7,6 +7,7 @@ import re
 import signal
 import socket
 import sys
+import tempfile
 import time
 from src.common.util.MetaUtil import MetadataUtils
 from src.common.util.LogUtil import setup_logger
@@ -861,9 +862,13 @@ def setup_test_args(args: argparse.Namespace, root_dir: str) -> argparse.Namespa
     else:  # dag
         args.dry_run = True
 
-    # Output to {cwd or --output-dir}/test
-    base_out = args.output_dir if args.output_dir else os.getcwd()
-    args.output_dir = os.path.join(base_out, "test")
+    # Output OUTSIDE the repo (user requirement): explicit --output-dir/test
+    # when given, otherwise a fresh system temp dir. Never {cwd}/test — the
+    # repo tree must stay untouched by test runs.
+    if args.output_dir:
+        args.output_dir = os.path.join(args.output_dir, "test")
+    else:
+        args.output_dir = tempfile.mkdtemp(prefix="omics_test_")
     if os.path.exists(args.output_dir):
         shutil.rmtree(args.output_dir)
     os.makedirs(args.output_dir, exist_ok=True)

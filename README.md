@@ -81,9 +81,20 @@ python workflow/Omics/run.py -m data/meta.tsv -w scRNAseq -o output \
 各流程用到的软件不需要手动装：conda 模式由 Snakemake 按 `modules/*/*.yaml` 自动创建环境，容器模式直接用预构建 SIF 镜像，bind 路径由 `run.py` 自动推导。
 环境精确到rule,后续可以合并不同环境，减少空间占用
 
-### 资源分配可控
+### 中间文件去留，精确到 module 级别
 
-`resources` 字段按规则控制线程数和内存（`resources.default` 兜底、按规则名覆盖），避免耗尽主机内存或打满 CPU，精确到rule。
+`Params.<模块>.keep_intermediates` 按模块决定中间文件命运：缺省 `true` 全部保留，永远不会误删；显式 `false` 时该模块的中间文件（如比对中间 BAM、g.VCF）用完即删，磁盘占用收放自如。交付物、QC 证据、报告、index 等非中间文件永不包裹，同一工具被多个流程复用时各实例段独立控制、互不影响。
+
+### 资源分配可控，多次运行越调越准
+
+`resources` 字段按规则控制线程数和内存（`resources.default` 兜底、按规则名覆盖，支持 `scale` 两段式缩放：固定开销 + 随数据量线性放大的数据项，`min_mem_mb`/`max_mem_mb` 钳制），避免耗尽主机内存或打满 CPU，精确到 rule。
+
+资源声明不用一步到位，运行表现随多次运行自动改进：每次运行的 Snakemake benchmark 记录各规则真实内存占用，`calibrate_resources.py` 将其累积进跨运行的 `resource_history.tsv`，按 p90 × 安全系数生成建议（≥3 个数据点才动、单次 ±30% 限幅防震荡、OOM 规则按下界抬升），`--apply` 一键写回 config。虚高的内存声明逐轮回落、OOM 过的规则逐轮抬升，跑得越多预留越贴近实测——同数据量的后续运行调度密度更高、OOM 重试更少：
+
+```bash
+python src/common/util/calibrate_resources.py --root output/RNAseq \
+  --config config/RNAseq.json --apply
+```
 
 ### 内置测试模式
 

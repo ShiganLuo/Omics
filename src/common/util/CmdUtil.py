@@ -153,6 +153,12 @@ def _run_cmd(cmd:List, cwd: Optional[str] = None) -> str:
         return result.stdout
 
     except subprocess.CalledProcessError as e:
+        if e.returncode in (-2, 130):
+            # 子进程死于 SIGINT(rc=-2)或按约定以 130 退出 = 人为中断,
+            # 走 KeyboardInterrupt 统一路径,不要伪装成"命令执行失败"。
+            raise KeyboardInterrupt(
+                f"child process interrupted by SIGINT (rc={e.returncode}): {cmd_str}"
+            ) from None
         logger.error(f"Command failed with return code {e.returncode}")
         logger.error(f"STDOUT:\n{e.stdout or '[empty]'}")
         logger.error(f"STDERR:\n{e.stderr or '[empty]'}")
@@ -198,7 +204,14 @@ def _run_cmds_parallel(cmds: List) -> List[str]:
     results: List[str] = []
     failed: List[tuple[int, str, str]] = []
     for i, p in enumerate(processes):
-        stdout, stderr = p.communicate()
+        try:
+            stdout, stderr = p.communicate()
+        except KeyboardInterrupt:
+            # 人为中断:收掉还没结束的子进程再上抛,避免遗留孤儿 snakemake。
+            for q in processes:
+                if q.poll() is None:
+                    q.terminate()
+            raise
         if p.returncode != 0:
             failed.append((i, stdout or "", stderr or ""))
         else:
@@ -207,6 +220,12 @@ def _run_cmds_parallel(cmds: List) -> List[str]:
             results.append(stdout)
 
     if failed:
+        if any(processes[idx].returncode in (-2, 130) for idx, _, _ in failed):
+            # 有子进程死于 SIGINT = 人为中断,走 KeyboardInterrupt 统一路径。
+            raise KeyboardInterrupt(
+                f"parallel child interrupted by SIGINT "
+                f"(rc={[processes[idx].returncode for idx, _, _ in failed]})"
+            )
         for idx, stdout, stderr in failed:
             logger.error(f"Process {idx} failed (rc={processes[idx].returncode})")
             logger.error(f"STDOUT:\n{stdout or '[empty]'}")

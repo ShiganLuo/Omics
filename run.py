@@ -1340,10 +1340,16 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
                 logger.info("All workflows completed.")
             for wf in exec_status:
                 exec_status[wf] = "ok"
-        except BaseException:
+        except BaseException as exc:
+            # 人为中断(SIGINT)与真实失败分开标记:run_summary 里记
+            # "interrupted",不要伪装成 workflow 失败。
+            interrupted = isinstance(exc, KeyboardInterrupt)
             for wf in exec_status:
                 if exec_status[wf] == "not-run":
-                    exec_status[wf] = "failed"
+                    exec_status[wf] = "interrupted" if interrupted else "failed"
+            if interrupted:
+                logger.error("run interrupted (SIGINT): writing run summary "
+                             "with status 'interrupted' — NOT a normal completion")
             _write_run_summary(args.output_dir, _summary_payload(exec_status))
             raise
         finally:
@@ -1403,12 +1409,23 @@ if __name__ == "__main__":
     callback = _build_execution_callback(args, logger)
 
     def _on_terminate(signum, frame):
+        msg = (f"run.py TERMINATED by signal {signum} — this is NOT a normal "
+               f"completion; exit code {128 + signum}")
+        logger.error(msg)
         if callback is not None:
             callback.send("CANCELLED", message=f"terminated by signal {signum}",
                           exit_code=128 + signum)
         os._exit(128 + signum)
 
+    def _on_sigint(signum, frame):
+        # 显式接管 SIGINT:非交互 shell 以 & 后台启动时 SIGINT 会被继承为
+        # SIG_IGN(Python 不装默认处理器),kill -INT/Ctrl+C 静默无效,程序照常
+        # 跑完——看起来像"终止了却正常退出"。装上自己的处理器后,无论何种启动
+        # 方式,中断都统一走 KeyboardInterrupt 路径。
+        raise KeyboardInterrupt(f"interrupted by signal {signum}")
+
     signal.signal(signal.SIGTERM, _on_terminate)
+    signal.signal(signal.SIGINT, _on_sigint)
 
     try:
         host_profile = detect_host_profile()
@@ -1447,6 +1464,12 @@ if __name__ == "__main__":
                           exit_code=code)
         raise
     except KeyboardInterrupt:
+        # 人为中断必须留下醒目、无歧义的痕迹:此前这里静默 sys.exit,
+        # 日志最后一行恰好是 "run summary written",看起来像正常收尾。
+        logger.error("=" * 70)
+        logger.error("run.py INTERRUPTED (Ctrl+C / SIGINT) — this is NOT a "
+                     "normal completion; exit code 130")
+        logger.error("=" * 70)
         if callback is not None:
             callback.send("CANCELLED", message="interrupted (SIGINT)", exit_code=130)
         sys.exit(130)

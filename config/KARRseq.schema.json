@@ -244,7 +244,7 @@
         },
         "single_samples": {
           "type": "list",
-          "required": true
+          "required": false
         }
       }
     }

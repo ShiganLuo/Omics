@@ -1,3 +1,5 @@
 sample_id	data_id	design	fastq_1	fastq_2
-TestIP1	TestIP1	exp_Test	fastq/TestIP1/TestIP1_1.fq.gz	fastq/TestIP1/TestIP1_2.fq.gz
-TestInput1	TestInput1	ctr_Test	fastq/TestInput1/TestInput1_1.fq.gz	fastq/TestInput1/TestInput1_2.fq.gz
+TestIP1	TestIP1	ip	fastq/TestIP1/TestIP1_1.fq.gz	fastq/TestIP1/TestIP1_2.fq.gz
+TestInput1	TestInput1	input	fastq/TestInput1/TestInput1_1.fq.gz	fastq/TestInput1/TestInput1_2.fq.gz
+TestIP2	TestIP2	treated_ip	fastq/TestIP2/TestIP2_1.fq.gz	fastq/TestIP2/TestIP2_2.fq.gz
+TestInput2	TestInput2	treated_input	fastq/TestInput2/TestInput2_1.fq.gz	fastq/TestInput2/TestInput2_2.fq.gz

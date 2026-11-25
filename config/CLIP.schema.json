@@ -621,23 +621,23 @@
         },
         "single_samples": {
           "type": "list",
-          "required": true
+          "required": false
         },
         "ip_samples": {
           "type": "list",
-          "required": true
+          "required": false
         },
         "input_samples": {
           "type": "list",
-          "required": true
+          "required": false
         },
         "treated_input_samples": {
           "type": "list",
-          "required": true
+          "required": false
         },
         "treated_ip_samples": {
           "type": "list",
-          "required": true
+          "required": false
         },
         "aligner": {
           "type": "str",

@@ -33,9 +33,7 @@ rule hiphase_phase:
     input:
         unpack(get_input_for_hiphase_phase)
     output:
-        # phased.vcf.gz intermediate controlled by Params.hiphase.keep_intermediates;
-        # phased.bam is a registered deliverable (node.py outfiles), never wrapped
-        vcf = maybe_temp(outdir + "/{sample_id}/{sample_id}.phased.vcf.gz" if output_substring == "" else outdir + "/{sample_id}/{sample_id}." + output_substring + ".phased.vcf.gz", "hiphase"),
+        vcf = outdir + "/{sample_id}/{sample_id}.phased.vcf.gz" if output_substring == "" else outdir + "/{sample_id}/{sample_id}." + output_substring + ".phased.vcf.gz",
         bam = outdir + "/{sample_id}/{sample_id}.phased.bam" if output_substring == "" else outdir + "/{sample_id}/{sample_id}." + output_substring + ".phased.bam",
     log:
         logdir + "/{sample_id}/hiphase.log"

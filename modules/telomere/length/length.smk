@@ -198,8 +198,7 @@ rule assembly_telomere_scan:
     input:
         fasta = get_assembly_fasta
     output:
-        # intermediate controlled by Params.telomere.keep_intermediates (modules.md temp spec)
-        tsv = maybe_temp(os.path.join(outdir, "assembly_scan/{sample_id}/{sample_id}_assembly_telomere.tsv"), "telomere"),
+        tsv = os.path.join(outdir, "assembly_scan/{sample_id}/{sample_id}_assembly_telomere.tsv"),
         stats = os.path.join(outdir, "assembly_scan/{sample_id}/{sample_id}_assembly_telomere_stats.txt"),
         plots = [os.path.join(outdir, "assembly_scan/{sample_id}/{sample_id}_assembly_telomere_length." + fmt)
                  for fmt in formats],
@@ -271,8 +270,7 @@ rule read_density_telomere:
     input:
         unpack(get_input_for_read_density)
     output:
-        # intermediate controlled by Params.telomere.keep_intermediates (modules.md temp spec)
-        tsv = maybe_temp(os.path.join(outdir, "read_density/{sample_id}/{sample_id}_read_telomere.tsv"), "telomere"),
+        tsv = os.path.join(outdir, "read_density/{sample_id}/{sample_id}_read_telomere.tsv"),
         stats = os.path.join(outdir, "read_density/{sample_id}/{sample_id}_read_telomere_stats.txt"),
         plots = [os.path.join(outdir, "read_density/{sample_id}/{sample_id}_read_telomere_content." + fmt)
                  for fmt in formats],

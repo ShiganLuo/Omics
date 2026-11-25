@@ -756,12 +756,6 @@ hiphase_config = {
     },
     "genome": {
         "fasta": fasta
-    },
-    # keep_intermediates: user Params.hiphase translated to module Params.hiphase (modules.md temp spec)
-    "Params": {
-        "hiphase": {
-            "keep_intermediates": config.get("Params", {}).get("hiphase", {}).get("keep_intermediates", True)
-        }
     }
 }
 module hiphase:

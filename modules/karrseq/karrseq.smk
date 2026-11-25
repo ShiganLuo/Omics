@@ -75,10 +75,10 @@ rule karrseq_remove_duplicates:
         pairs = outdir + "/{sample_id}/{sample_id}.txt.gz"
     output:
         # intermediates: dedup.txt.gz feeds karrseq_ligation only; bed/pairs.gz
-        # are unregistered byproducts superseded by the ligation deliverable
+        # are kept for now per user decision (no temp on them)
         dedup = maybe_temp(outdir + "/{sample_id}/{sample_id}.dedup.txt.gz", "karrseq"),
-        bed = maybe_temp(outdir + "/{sample_id}/{sample_id}.dedup.bed", "karrseq"),
-        pairs_gz = maybe_temp(outdir + "/{sample_id}/{sample_id}.dedup.pairs.gz", "karrseq")
+        bed = outdir + "/{sample_id}/{sample_id}.dedup.bed",
+        pairs_gz = outdir + "/{sample_id}/{sample_id}.dedup.pairs.gz"
     log:
         logdir + "/{sample_id}/karrseq_remove_duplicates.log"
     benchmark: logdir + "/{sample_id}/karrseq_remove_duplicates.benchmark.tsv",

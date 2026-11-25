@@ -636,10 +636,6 @@
    }
   },
   "fiberseq_mods": {
-   "keep_intermediates": {
-    "type": "bool",
-    "required": false
-   },
    "enabled": {
     "type": "bool",
     "nullable": true,
@@ -1951,19 +1947,7 @@
     "required": false
    }
   },
-  "pbsv": {
-   "keep_intermediates": {
-    "type": "bool",
-    "required": false
-   }
-  },
   "sawfish": {
-   "keep_intermediates": {
-    "type": "bool",
-    "required": false
-   }
-  },
-  "hiphase": {
    "keep_intermediates": {
     "type": "bool",
     "required": false
@@ -1975,17 +1959,7 @@
     "required": false
    }
   },
-  "bamCoverage": {
-   "keep_intermediates": {
-    "type": "bool",
-    "required": false
-   }
-  },
   "telomere": {
-   "keep_intermediates": {
-    "type": "bool",
-    "required": false
-   },
    "enabled": {
     "type": "bool",
     "required": false

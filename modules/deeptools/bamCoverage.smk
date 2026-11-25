@@ -24,8 +24,7 @@ rule bamCoverage:
     input:
         unpack(get_bam_input),
     output:
-        # intermediate controlled by Params.bamCoverage.keep_intermediates (modules.md temp spec)
-        bw = maybe_temp(outdir + "/{sample_id}/{sample_id}" + bw_suffix, "bamCoverage"),
+        bw = outdir + "/{sample_id}/{sample_id}" + bw_suffix,
     log:
         logdir + "/{sample_id}/bamCoverage.log"
     threads: rule_res("bamCoverage").get("threads", 8)

@@ -569,6 +569,7 @@ telomere_config = {
     "indir": aligned_dir,
     "outdir": f"{outdir}/telomere/length",
     "logdir": f"{logdir}/sample",
+    "logdir_combine": f"{logdir}/group",
     "samples": samples,
     "bam_substring": "fiberseq.fire.sorted",
     "assembly_dir": config.get("assembly_dir") or assembly_outdir,

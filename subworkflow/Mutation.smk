@@ -16,10 +16,9 @@ rule all:
         outfiles
 
 fastqc_raw_config = {
-
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": indir,
         "outdir":  f"{outdir}/quality/fastqc/raw",
@@ -112,10 +111,9 @@ else:
     use rule trimming_Single from trim_galore as Mutation_trim_galore_Single
 
 fastqc_trimmed_config = {
-
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": trimmed_dir,
         "outdir":  f"{outdir}/quality/fastqc/trimmed",
@@ -134,7 +132,6 @@ logger.info(f"fastqc_trimmed_config: {fastqc_trimmed_config}")
 use rule fastqc from fastqc_trimmed as Mutation_fastqc_trimmed
 
 bwa_mem2_confg = {
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -169,7 +166,6 @@ use rule bwaMem2_index from bwa_mem2 as Mutation_bwaMem2_index
 use rule bwaMem2_alignment from bwa_mem2 as Mutation_bwaMem2_alignment
 
 samtools_config = {
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -192,7 +188,6 @@ module samtools:
     config: samtools_config
 logger.info(f"samtools parameters: {samtools_config}")
 use rule bam_flagstat from samtools as Mutation_bam_flagstat
-
 
 # Exome capture region resolved BEFORE any module config consumes it (an
 # explicit genome.references.<g>.targets BED wins; exome/hybrid assays get
@@ -266,7 +261,6 @@ logger.info(f"targets parameters: {targets_config}")
 use rule derive_targets from targets as Mutation_derive_targets
 
 gatk_somatic_config = {
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -342,7 +336,6 @@ use rule msi_plot from msi as Mutation_msi_plot
 use rule msi_result from msi as Mutation_msi_result
 
 gatk_germline_config = {
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,

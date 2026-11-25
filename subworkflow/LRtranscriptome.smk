@@ -84,7 +84,6 @@ logger.info(f"sexcheck_config: {sexcheck_config}")
 use rule sexcheck_idxstats from sexcheck as LRtranscriptome_sexcheck_idxstats
 use rule sexcheck from sexcheck as LRtranscriptome_sexcheck
 
-
 # ============================================
 # QC Summary (cross-sample metric aggregation)
 # ============================================
@@ -111,8 +110,6 @@ module qc_summary:
     config: qc_summary_config
 logger.info(f"qc_summary_config: {qc_summary_config}")
 use rule qc_summary from qc_summary as LRtranscriptome_qc_summary
-
-
 
 # ============================================================
 # Step 2-4: StringTie long-read pipeline (assemble + merge + quant)
@@ -152,7 +149,7 @@ if not skip_quant:
         "logdir": logdir,
         "samples": samples,
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "merged_gtf": f"{outdir}/stringtie/stringtie_merged.gtf",
         "Procedure": {

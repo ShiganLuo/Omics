@@ -20,7 +20,6 @@ rule all:
         outfiles
 
 fumitools_config = {
-
     "resources": config.get("resources", {}),
     "indir": indir,
     "outdir": f"{outdir}/fastq/umi_fastq",

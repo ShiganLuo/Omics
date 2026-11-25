@@ -18,9 +18,9 @@ rule all:
     input:
         outfiles
 fastqc_raw_config = {
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": indir,
         "outdir":  f"{outdir}/fastqc/raw",
@@ -38,9 +38,9 @@ module fastqc_raw:
 logger.info(f"fastqc_raw_config: {fastqc_raw_config}")
 use rule fastqc from fastqc_raw as CLIP_fastqc
 UmiTools_extract_config = {
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": indir,
         "outdir": f"{outdir}/umi_tools_extract",
@@ -121,10 +121,9 @@ else:
     use rule trimming_Single from trim_galore as CLIP_trim_galore_Single
 
 fastqc_trimmed_config = {
-
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": trimmed_dir,
         "outdir":  f"{outdir}/fastqc/trimmed",
@@ -142,12 +141,11 @@ module fastqc_trimmed:
 logger.info(f"fastqc_trimmed_config: {fastqc_trimmed_config}")
 use rule fastqc from fastqc_trimmed as CLIP_fastqc_trimmed
 
-
 if aligner == 'hisat2':
     hisat2_config = {
-        "resources": config.get("resources", {}),
+            "resources": config.get("resources", {}),
             "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+            "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
             "indir": trimmed_dir,
             "outdir":  f"{outdir}/hisat2",
@@ -170,9 +168,9 @@ if aligner == 'hisat2':
     use rule hisat2_index from hisat2 as CLIP_hisat2_index
 elif aligner == 'star':
     star_config = {
-        "resources": config.get("resources", {}),
+            "resources": config.get("resources", {}),
             "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+            "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
             "indir": trimmed_dir,
             "outdir":  f"{outdir}/star",
@@ -197,9 +195,9 @@ elif aligner == 'star':
 else:
     raise ValueError(f"Unsupported aligner: {aligner}")
 umi_tools_dedup_config = {
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": star_config["outdir"] if aligner == 'star' else hisat2_config["outdir"],
         "outdir":  f"{outdir}/umi_tools_dedup",
@@ -268,7 +266,6 @@ logger.info(f"sexcheck_config: {sexcheck_config}")
 use rule sexcheck_idxstats from sexcheck as CLIP_sexcheck_idxstats
 use rule sexcheck from sexcheck as CLIP_sexcheck
 
-
 # ============================================
 # QC Summary (cross-sample metric aggregation)
 # ============================================
@@ -320,11 +317,9 @@ module qc_summary:
 logger.info(f"qc_summary_config: {qc_summary_config}")
 use rule qc_summary from qc_summary as CLIP_qc_summary
 
-
-
 genome_config = {
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "genome": {
             "fasta": genome_ref.get("fasta"),
@@ -344,7 +339,7 @@ use rule chromosome_sizes from genome as CLIP_chromosome_sizes
 
 bedtools_config = {
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": umi_tools_dedup_config["outdir"],
         "outdir":  f"{outdir}/bedtools",
@@ -361,7 +356,6 @@ module bedtools:
     config: bedtools_config
 logger.info(f"bedtools_config: {bedtools_config}")
 use rule iCLIP_bedtools from bedtools as CLIP_bedtools
-
 
 # ============================================================
 # Region-focused multi-sample track stacking plots (modules/regionplot)
@@ -394,10 +388,9 @@ use rule regionplot from regionplot as CLIP_regionplot
 use rule regionplot_result from regionplot as CLIP_regionplot_result
 
 PureCLIP_config = {
-
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": umi_tools_dedup_config["outdir"],
         "outdir":  f"{outdir}/PureCLIP",
@@ -416,10 +409,9 @@ logger.info(f"PureCLIP_config: {PureCLIP_config}")
 use rule pureclip from PureCLIP as CLIP_pureclip
 
 track_config = {
-
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": bedtools_config["outdir"],
         "outdir":  f"{outdir}/track",
@@ -435,6 +427,4 @@ use rule igv_track_iclip from track as CLIP_igv_track_iclip
 use rule ucsc_track_iclip from track as CLIP_ucsc_track_iclip
 use rule ucsc_track_bedtools from track as CLIP_ucsc_track_bedtools
 use rule igv_track_bedtools from track as CLIP_igv_track_bed
-
-
 

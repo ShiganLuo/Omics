@@ -21,7 +21,7 @@ if aligner == "star":
     logger.info("Using STAR aligner for scRNA-seq workflow. only scTE counter is supported for STAR aligner.")
     star_config = {
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "resources": config.get("resources", {}),
         "indir": indir,
@@ -68,7 +68,7 @@ if aligner == "star":
         logger.info("Input mode is set to 'bam'. Skipping STAR aligner and using provided BAM files.")
         scTE_config = {
             "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+            "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
             "resources": config.get("resources", {}),
             "indir": star_config["outdir"],
@@ -100,7 +100,7 @@ elif aligner == "cellranger":
         logger.info("Input mode is set to 'fastq'. Running Cell Ranger aligner to generate BAM files.")
         cellranger_config = {
             "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+            "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
             "resources": config.get("resources", {}),
             "indir": indir,
@@ -159,7 +159,7 @@ elif aligner == "cellranger":
         logger.info("Input mode is set to 'cellranger_dir'. Skipping Cell Ranger aligner and using provided Cell Ranger directories.")
         cellranger_config = {
             "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+            "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
             "resources": config.get("resources", {}),
             "indir": indir,
@@ -190,7 +190,7 @@ elif aligner == "cellranger":
             logger.info("Using scTE counter for scRNA-seq workflow")
             scTE_config = {
                 "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+                "OUTDIR_ROOT": outdir,
                 "env": config.get("env", {}),
                 "resources": config.get("resources", {}),
                 "input_mode": "cellranger_dir",
@@ -223,7 +223,6 @@ elif aligner == "cellranger":
 
 else:
     raise ValueError(f"Unsupported aligner or counter: {aligner}, {counters}. Please choose either 'star' or 'cellranger' for aligner and 'scTE' or 'cellranger' for counter.")
-
 
 scanpy_config = {
     "ROOT_DIR": ROOT_DIR,
@@ -262,7 +261,6 @@ use rule * from scanpy as scRNAseq_*
 # ---------------------------------------------------------------------------
 scanpy_params_all = config.get("Params", {}).get("scanpy", {}) or {}
 
-
 def _scanpy_cluster_annotations(counter):
     """scanpy's per-counter cluster_annotations map ({tissue: override_json}).
 
@@ -271,7 +269,6 @@ def _scanpy_cluster_annotations(counter):
     ca = ((scanpy_params_all.get(counter, {}) or {}).get("scanpy_reannotate", {})
           or {}).get("cluster_annotations", {}) or {}
     return ca if isinstance(ca, dict) else {}
-
 
 sccoda_config = {
     "ROOT_DIR": ROOT_DIR,
@@ -321,7 +318,6 @@ def _pbgo_prerequisites():
                 reqs.append(
                     f"{outdir}/diff/pseudobulk/{tissue}/{counter}/pseudobulk_report.html")
     return reqs
-
 
 pseudobulk_go_config = {
     "ROOT_DIR": ROOT_DIR,

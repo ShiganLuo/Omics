@@ -46,7 +46,7 @@ star_config_for_index = {
             "star": config.get('Procedure',{}).get('star')
         },
         "genome": config.get('genome',{}),
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
     }
 module star_for_index:
     snakefile: "../modules/star/polygenomes/star.smk"
@@ -70,7 +70,7 @@ if trimmer == "cutadapt":
                 # 参数精确到 rule:Params.cutadapt.<rule>.<key>(模块读点)
                 "cutadapt": config.get('Params',{}).get("cutadapt", {}),
             },
-        "resources": config.get("resources", {}),
+            "resources": config.get("resources", {}),
         }
     module cutadapt:
         snakefile: "../modules/cutadapt/cutadapt.smk"
@@ -95,7 +95,7 @@ elif trimmer == "trimmomatic":
                 # adapter_se 挂 trimmomatic_Single 各自 rule 子键)
                 "trimmomatic": config.get('Params',{}).get("trimmomatic", {}),
             },
-        "resources": config.get("resources", {}),
+            "resources": config.get("resources", {}),
         }
     module trimmomatic:
         snakefile: "../modules/trimmomatic/trimmomatic.smk"
@@ -120,7 +120,7 @@ else:
                 # 参数精确到 rule:Params.trim_galore.<rule>.<key>(模块读点)
                 "trim_galore": config.get('Params',{}).get("trim_galore", {}),
             },
-        "resources": config.get("resources", {}),
+            "resources": config.get("resources", {}),
         }
     module trim_galore:
         snakefile: "../modules/trim-galore/trim-galore.smk"
@@ -152,7 +152,7 @@ if aligner_TEtranscripts == 'hisat2':
                 }
             },
             "genome": config.get('genome',{}),
-        "resources": config.get("resources", {}),
+            "resources": config.get("resources", {}),
         }
     module hisat2_for_TEtranscripts:
         snakefile: "../modules/hisat2/polygenomes/hisat2.smk"
@@ -191,7 +191,7 @@ elif aligner_TEtranscripts == 'star':
                 }
             },
             "genome": config.get('genome',{}),
-        "resources": config.get("resources", {}),
+            "resources": config.get("resources", {}),
         }
     module star_for_TEtranscripts:
         snakefile: "../modules/star/polygenomes/star.smk"
@@ -200,7 +200,6 @@ elif aligner_TEtranscripts == 'star':
     use rule star_align from star_for_TEtranscripts as RNAseq_star_align_for_TEtranscripts
 else:
     raise ValueError(f"Unsupported aligner_TEtranscripts: {aligner_TEtranscripts}")
-
 
 ### gene and TE expression quantification using TEtranscripts
 TEtranscripts_config = {
@@ -222,7 +221,7 @@ TEtranscripts_config = {
             "TElocal": config.get('Procedure',{}).get('TElocal') or 'TElocal'
         },
         "genome": config.get('genome',{}),
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
     }
 
 module TEtranscripts:
@@ -250,7 +249,7 @@ star_config_for_featureCounts = {
             "star": config.get("Params",{}).get("STAR_featureCounts", {})
         },
         "genome": config.get('genome',{}),
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
     }
 module star_for_featureCounts:
     snakefile: "../modules/star/polygenomes/star.smk"
@@ -304,7 +303,7 @@ DESeq2_config = {
         "Procedure": {
             "DESeq2": config.get('Procedure',{}).get('DESeq2') or 'DESeq2'
         },
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
     }
 module DESeq2:
     snakefile: "../modules/DESeq2/polygenomes/DESeq2.smk"
@@ -391,14 +390,13 @@ StringTie_config = {
         "Procedure": {
             "stringtie": config.get("Procedure", {}).get("stringtie") or "stringtie"
         },
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
     }
 module StringTie:
     snakefile: "../modules/StringTie/polygenomes/StringTie.smk"
     config: StringTie_config
 use rule * from StringTie as RNAseq_*
 logger.debug(f"StringTie_config: {StringTie_config}")
-
 
 ### fusion analysis using STAR-Fusion and Arriba
 rmrRNA_config = {
@@ -549,14 +547,13 @@ arriba_config = {
         "Procedure": {
             "arriba": config.get('Procedure',{}).get('arriba') or 'arriba'
         },
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
     }
 module arriba:
     snakefile: "../modules/arriba/polygenomes/arriba.smk"
     config: arriba_config
 use rule * from arriba as RNAseq_fusion_*
 logger.debug(f"arriba_config: {arriba_config}")
-
 
 star_config_for_SNP = {
         "ROOT_DIR": ROOT_DIR,
@@ -577,7 +574,7 @@ star_config_for_SNP = {
                    "star": {**((config.get('Params') or {}).get('star') or {}),
                             "keep_intermediates": (config.get('Params') or {}).get('STAR_SNP', {}).get('keep_intermediates', True)}},
         "genome": config.get('genome',{}),
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
     }
 module star_for_SNP:
     snakefile: "../modules/star/polygenomes/star.smk"
@@ -606,7 +603,6 @@ module XenofilteR:
     config: XenofilteR_config
 use rule * from XenofilteR as RNAseq_*
 logger.debug(f"XenofilteR_config: {XenofilteR_config}")
-
 
 gatk_prepare_SNP_config = {
     "Params": {
@@ -746,7 +742,6 @@ module sexcheck:
 logger.info(f"sexcheck_config: {sexcheck_config}")
 use rule sexcheck_idxstats from sexcheck as RNAseq_sexcheck_idxstats
 use rule sexcheck from sexcheck as RNAseq_sexcheck
-
 
 # ============================================
 # QC Summary (cross-sample metric aggregation)

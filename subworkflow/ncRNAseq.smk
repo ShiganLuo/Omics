@@ -21,9 +21,9 @@ rule all:
     input:
         outfiles
 fastqc_raw_config = {
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": indir,
         "outdir":  f"{outdir}/QC/1_raw_fastqc",
@@ -41,13 +41,12 @@ module fastqc_raw:
 logger.info(f"fastqc_raw_config: {fastqc_raw_config}")
 use rule fastqc from fastqc_raw as ncRNAseq_fastqc_raw
 
-
 # ── 0. Demultiplex: 3' adapter removal + PCR duplicate removal ───────────────
 if aligner in ["stat_3pass", "star_3pass_gene"]:
     demultiplexer_config = {
-        "resources": config.get("resources", {}),
+            "resources": config.get("resources", {}),
             "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+            "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
             "indir": indir,
             "outdir": f"{outdir}/common/2_trimmed_dedup_fastq/jla-demultiplexer",
@@ -65,10 +64,9 @@ if aligner in ["stat_3pass", "star_3pass_gene"]:
     use rule demultiplex_trim_dedup from demultiplexer as ncRNAseq_demultiplex_trim_dedup
 
 trim_galore_config = {
-
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": demultiplexer_config["outdir"] if aligner in ["stat_3pass", "star_3pass_gene"] else indir,
         "outdir": f"{outdir}/common/2_trimmed_dedup_fastq/final_trimmed_fastq",
@@ -95,9 +93,9 @@ if not config.get("Params", {}).get("ncRNAseq", {}).get("subsample", False):
 else:
     logger.info("Subsampling is enabled. Proceeding with subsample step.")
     subsample_config = {
-        "resources": config.get("resources", {}),
+            "resources": config.get("resources", {}),
             "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+            "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
             "indir": trim_galore_config["outdir"],
             "outdir": f"{outdir}/common/2_trimmed_dedup_fastq/trimmed_subsampled_fastq",
@@ -122,13 +120,10 @@ else:
     use rule subsample_fastq from subsample as ncRNAseq_subsample_fastq
     final_fastq_outdir = subsample_config["outdir"]
 
-
 fastqc_trimmed_config = {
-
-
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": final_fastq_outdir,
         "outdir":  f"{outdir}/QC/2_trimmed_fastqc",
@@ -152,12 +147,11 @@ SAMTOOLS = config.get("Procedure", {}).get("samtools") or "samtools"
 BEDTOOLS = config.get("Procedure", {}).get("bedtools") or "bedtools"
 star_index_dir = config.get("genome", {}).get("references", {}).get(genome, {}).get("star_index_dir")
 
-
 if aligner == "hisat2":
     hisat2_config = {
         "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": final_fastq_outdir,
         "outdir": f"{outdir}/common/3_raw_bam",
@@ -177,7 +171,6 @@ if aligner == "hisat2":
                 "score_min": config.get("Params", {}).get("hisat2", {}).get("score_min") or "L,0,-0.6",
                 "no-spliced-alignment": config.get("Params", {}).get("hisat2", {}).get("no-spliced-alignment") or True,
                 "k": config.get("Params", {}).get("hisat2", {}).get("k") or 99999,
-                
             }
         }
     }
@@ -189,7 +182,7 @@ if aligner == "hisat2":
     gatk_prepare_config = {
         "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": hisat2_config["outdir"],
         "outdir": f"{outdir}/common/4_markdup_bam",
@@ -221,7 +214,7 @@ elif aligner == "star":
         star_genome_idx_config = {
             "resources": config.get("resources", {}),
             "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+            "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
             "outdir": f"{outdir}/genome/whole_genome",
             "logdir": os.path.join(logdir,"group"),
@@ -245,10 +238,9 @@ elif aligner == "star":
         star_index_dir = f"{outdir}/genome/whole_genome/index"
 
     star_config = {
-
         "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": final_fastq_outdir,
         "outdir": f"{outdir}/common/3_raw_bam",
@@ -290,7 +282,7 @@ elif aligner == "star":
     gatk_prepare_config = {
         "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": star_config["outdir"],
         "outdir": f"{outdir}/common/4_markdup_bam",
@@ -340,7 +332,7 @@ elif aligner == "star_3pass":
         star_genome_idx_config = {
             "resources": config.get("resources", {}),
             "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+            "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
             "outdir": f"{outdir}/genome/whole_genome",
             "logdir": os.path.join(logdir,"sample"),
@@ -367,7 +359,7 @@ elif aligner == "star_3pass":
     genome_sm_config = {
         "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "outdir": outdir,
         "logdir": os.path.join(logdir,"group"),
@@ -399,7 +391,7 @@ elif aligner == "star_3pass":
         star_smallrna_idx_config = {
             "resources": config.get("resources", {}),
             "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+            "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
             "indir": f"{outdir}/genome/smallrna",
             "outdir": f"{outdir}/genome/smallrna",
@@ -427,7 +419,7 @@ elif aligner == "star_3pass":
     star_3pass_config = {
         "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": final_fastq_outdir,
         "outdir": f"{outdir}/common/3_raw_bam/final_bam",
@@ -453,7 +445,7 @@ elif aligner == "star_3pass":
     tailer_config = {
         "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": star_3pass_config["outdir"],
         "outdir": f"{outdir}/results/tailer",
@@ -500,7 +492,7 @@ elif aligner == "star_3pass_gene":
         star_genome_idx_config = {
             "resources": config.get("resources", {}),
             "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+            "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
             "outdir": f"{outdir}/genome/whole_genome",
             "logdir": os.path.join(logdir,"sample"),
@@ -527,7 +519,7 @@ elif aligner == "star_3pass_gene":
     genome_sm_config = {
         "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "outdir": outdir,
         "logdir": os.path.join(logdir,"group"),
@@ -563,7 +555,7 @@ elif aligner == "star_3pass_gene":
         star_smallrna_idx_config = {
             "resources": config.get("resources", {}),
             "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+            "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
             "outdir": f"{outdir}/genome/smallrna",
             "logdir": os.path.join(logdir,"sample"),
@@ -589,7 +581,7 @@ elif aligner == "star_3pass_gene":
     star_3pass_gene_upstream_config = {
         "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": final_fastq_outdir,
         "outdir": f"{outdir}/common/3_raw_bam",
@@ -619,7 +611,7 @@ elif aligner == "star_3pass_gene":
     star_3pass_gene_config = {
         "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "outdir": f"{outdir}/common/4_per_gene_bam",
         "final_bam_dir": star_3pass_gene_upstream_config["outdir"],
@@ -649,7 +641,6 @@ elif aligner == "star_3pass_gene":
 else:
     raise ValueError(f"Unsupported aligner: {aligner}. Please choose 'hisat2', 'star', 'star_3pass', or 'star_3pass_gene'.")
 
-
 # ── 3. Quantify (featureCounts) ──────────────────────────────────────────────
 # Resolve the alignment output directory based on the chosen aligner.
 if aligner in ("star_3pass", "star_3pass_gene"):
@@ -661,7 +652,6 @@ else:
     align_bam_dir = f"{outdir}/common/4_markdup_bam"
 
 igv_config = {
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -686,7 +676,6 @@ module igv:
 logger.info(f"igv_config: {igv_config}")
 use rule samtools_dedup from igv as ncRNAseq_dedup
 use rule wig from igv as ncRNAseq_bigwig
-
 
 # ============================================================
 # Region-focused multi-sample track stacking plots (modules/regionplot)
@@ -718,14 +707,13 @@ use rule regionplot from regionplot as ncRNAseq_regionplot
 use rule regionplot_result from regionplot as ncRNAseq_regionplot_result
 
 track_config = {
-
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
         "indir": igv_config["outdir"],
         "outdir":  igv_config["outdir"],
         "logdir": os.path.join(logdir,"group"),
         "samples": single_samples + paired_samples,
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "igv": config.get('Params', {}).get('track', {}).get('igv', {}).get('configs', {}).get(genome, {}),
     }
@@ -736,12 +724,7 @@ module track:
 logger.info(f"track_config: {track_config}")
 use rule * from track as ncRNAseq_*
 
-
-
 featureCounts_config = {
-
-
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -766,8 +749,6 @@ module featureCounts:
 use rule featureCounts_single_noMultiple from featureCounts as ncRNAseq_featureCounts_single
 use rule featureCounts_paired_noMultiple from featureCounts as ncRNAseq_featureCounts_paired
 use rule featureCounts_result from featureCounts as ncRNAseq_featureCounts_result
-
-
 
 # ── ncRNAseq report (all branches) ───────────────────────────────────────
 ncRNAseq_report_config = {
@@ -834,7 +815,6 @@ logger.info(f"sexcheck_config: {sexcheck_config}")
 use rule sexcheck_idxstats from sexcheck as ncRNAseq_sexcheck_idxstats
 use rule sexcheck from sexcheck as ncRNAseq_sexcheck
 
-
 # ============================================
 # QC Summary (cross-sample metric aggregation)
 # ============================================
@@ -865,7 +845,6 @@ module qc_summary:
     config: qc_summary_config
 logger.info(f"qc_summary_config: {qc_summary_config}")
 use rule qc_summary from qc_summary as ncRNAseq_qc_summary
-
 
 use rule report_result from ncRNAseq_report as ncRNAseq_report_result
 

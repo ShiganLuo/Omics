@@ -26,9 +26,9 @@ rule all:
 # Step 1: Raw FastQC
 # =============================================================================
 fastqc_raw_config = {
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": indir,
         "outdir":  f"{outdir}/QC/1_raw_fastqc",
@@ -50,9 +50,9 @@ use rule fastqc from fastqc_raw as RIPseq_fastqc_raw
 # Step 2: Trim Galore
 # =============================================================================
 trim_galore_config = {
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": indir,
         "outdir": f"{outdir}/common/2_trimmed_fastq",
@@ -76,9 +76,9 @@ use rule trimming_Single from trim_galore as RIPseq_trimming_Single
 # Step 3: Trimmed FastQC
 # =============================================================================
 fastqc_trimmed_config = {
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": trim_galore_config["outdir"],
         "outdir":  f"{outdir}/QC/2_trimmed_fastqc",
@@ -234,14 +234,13 @@ use rule regionplot from regionplot as RIPseq_regionplot
 use rule regionplot_result from regionplot as RIPseq_regionplot_result
 
 track_config = {
-
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
         "indir": igv_config["outdir"],
         "outdir":  igv_config["outdir"],
         "logdir": f"{logdir}/group",
         "samples": single_samples + paired_samples,
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "igv": config.get('Params', {}).get('igv', {}),
     }
@@ -450,7 +449,6 @@ logger.info(f"sexcheck_config: {sexcheck_config}")
 use rule sexcheck_idxstats from sexcheck as RIPseq_sexcheck_idxstats
 use rule sexcheck from sexcheck as RIPseq_sexcheck
 
-
 # ============================================
 # QC Summary (cross-sample metric aggregation)
 # ============================================
@@ -482,7 +480,6 @@ module qc_summary:
     config: qc_summary_config
 logger.info(f"qc_summary_config: {qc_summary_config}")
 use rule qc_summary from qc_summary as RIPseq_qc_summary
-
 
 # =============================================================================
 # Step 12: Generate Report

@@ -1,7 +1,6 @@
 shell.prefix("set -x; set -e;")
 from snakemake.logging import logger
 
-
 ROOT_DIR = config.get("ROOT_DIR")
 outfiles = config.get("outfiles", [])
 indir = config.get("Params", {}).get("workflow", {}).get("indir")
@@ -14,10 +13,7 @@ rule all:
     input:
         outfiles
 
-
 raw2mzml_config = {
-
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -43,7 +39,6 @@ use rule * from raw2mzml as QuantMS_*
 logger.info(f"raw2mzml_config: {raw2mzml_config}")
 
 decoy_database_config = {
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -69,7 +64,6 @@ use rule decoy_database from decoy_database as QuantMS_decoy_database
 logger.info(f"decoy_database_config: {decoy_database_config}")
 
 search_engine_config = {
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -139,7 +133,6 @@ use rule msfragger_idxml from msfragger as QuantMS_msfragger_idxml
 logger.info(f"msfragger_config: {msfragger_config}")
 
 psm_rescoring_config = {
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -170,7 +163,6 @@ use rule * from psm_rescoring as QuantMS_*
 logger.info(f"psm_rescoring_config: {psm_rescoring_config}")
 
 psm_fdr_config = {
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -194,7 +186,6 @@ use rule * from psm_fdr as QuantMS_*
 logger.info(f"psm_fdr_config: {psm_fdr_config}")
 
 protein_inference_config = {
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -218,7 +209,6 @@ use rule * from protein_inference as QuantMS_*
 logger.info(f"protein_inference_config: {protein_inference_config}")
 
 quantification_config = {
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -263,7 +253,6 @@ use rule * from quantification as QuantMS_*
 logger.info(f"quantification_config: {quantification_config}")
 
 msstats_config = {
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,

@@ -143,7 +143,6 @@ else:
     use rule trimming_Single from dna_trim_galore as DR_DNA_trim_galore_Single
 
 fastqc_trimmed_config = {
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,

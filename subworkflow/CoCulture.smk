@@ -18,11 +18,11 @@ rule all:
 
 aligner = config.get('Procedure',{}).get('aligner')
 SOAPnuke_cofig = {
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
         "indir": indir,
         "outdir":  f"{outdir}/common/2_trimmed_fastq",
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "logdir": logdir
 }
@@ -33,16 +33,13 @@ logger.info(f"SOAPnuke config: {SOAPnuke_cofig}")
 use rule soapnuke_filter_paired from SOAPnuke as CoCulture_soapnuke_filter_paired
 use rule soapnuke_filter_single from SOAPnuke as CoCulture_soapnuke_filter_single
 
-    
 hisat2_config = {
-
-    
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
         "indir": SOAPnuke_cofig["outdir"],
         "outdir":  f"{outdir}/common/3_raw_bam",
         "logdir": logdir,
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "paired_samples": paired_samples,
         "single_samples": single_samples,
@@ -64,13 +61,12 @@ use rule hisat2_align from hisat2 as CoCulture_hisat2_align
 use rule hisat2_index from hisat2 as CoCulture_hisat2_index
 
 disambiguate_config = {
-
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
         "indir": hisat2_config["outdir"],
         "outdir": f"{outdir}/disambiguate",
         "logdir": logdir,
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "genome_pairs": genome_pairs,
         "single_samples": single_samples,
@@ -152,7 +148,6 @@ logger.info(f"sexcheck_config: {sexcheck_config}")
 use rule sexcheck_idxstats from sexcheck as CoCulture_sexcheck_idxstats
 use rule sexcheck from sexcheck as CoCulture_sexcheck
 
-
 # ============================================
 # QC Summary (cross-sample metric aggregation)
 # ============================================
@@ -180,18 +175,13 @@ module qc_summary:
 logger.info(f"qc_summary_config: {qc_summary_config}")
 use rule qc_summary from qc_summary as CoCulture_qc_summary
 
-
-
 TEtranscripts_config = {
-
-
-
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
         "indir": disambiguate_config["outdir"],
         "outdir": f"{outdir}/TEtranscripts",
         "logdir": logdir,
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "genome_pairs": disambiguate_config["genome_pairs"],
         "samples": single_samples + paired_samples,

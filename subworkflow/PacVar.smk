@@ -15,7 +15,6 @@ rule all:
     input:
         outfiles
 
-
 genome_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -51,9 +50,6 @@ module pbmm2:
     config: pbmm2_config
 logger.debug(f"pbmm2_config: {pbmm2_config}")
 use rule pbmm2_align from pbmm2 as PacVar_pbmm2_align
-
-
-
 
 gatk_prepare_config = {
     "resources": config.get("resources", {}),
@@ -91,7 +87,6 @@ logger.debug(f"gatk_prepare parameters: {gatk_prepare_config}")
 use rule gatk_index from gatk_prepare as PacVar_gatk_index
 use rule addReadsGroup from gatk_prepare as PacVar_addReadsGroup
 use rule MarkDuplicates from gatk_prepare as PacVar_MarkDuplicates
-
 
 sexcheck_config = {
     "resources": config.get("resources", {}),
@@ -147,12 +142,11 @@ module qc_summary:
 logger.info(f"qc_summary_config: {qc_summary_config}")
 use rule qc_summary from qc_summary as PacVar_qc_summary
 
-
 if snv_caller == "deepvariant":
     deepvariant_config = {
         "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": gatk_prepare_config["outdir"],
         "outdir": f"{outdir}/variation/germline_snv_indel",
@@ -289,7 +283,6 @@ module hiphase_sv:
     config: hiphase_sv_config
 logger.debug(f"hiphase_sv_config: {hiphase_sv_config}")
 use rule hiphase_phase from hiphase_sv as PacVar_hiphase_sv
-
 
 trgt_config = {
     "resources": config.get("resources", {}),
@@ -463,7 +456,6 @@ module bamCoverage:
 logger.debug(f"bamCoverage_config: {bamCoverage_config}")
 use rule bamCoverage from bamCoverage as PacVar_bamCoverage
 
-
 regionplot_params = config.get("Params", {}).get("regionplot", {})
 regionplot_config = {
     "ROOT_DIR": ROOT_DIR,
@@ -525,7 +517,6 @@ use rule decoil_structure from decoil as PacVar_decoil_structure
 use rule decoil_compare from decoil as PacVar_decoil_compare
 use rule decoil_igv from decoil as PacVar_decoil_igv
 use rule decoil_ucsc from decoil as PacVar_decoil_ucsc
-
 
 sv_params = config.get("Params", {}).get("sv", {})
 _mei = sv_params.get("mei", {})

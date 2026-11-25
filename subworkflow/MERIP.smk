@@ -21,9 +21,9 @@ rule all:
     input:
         outfiles
 trim_galore_config = {
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": indir,
         "outdir":  f"{outdir}/cutadapt",
@@ -40,10 +40,9 @@ use rule trimming_Paired from trim_galore as MERIP_trimming_Paired
 use rule trimming_Single from trim_galore as MERIP_trimming_Single
 
 hisat2_config = {
-
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": trim_galore_config["outdir"],
         "outdir":  f"{outdir}/hisat2",
@@ -76,10 +75,9 @@ use rule hisat2_align from hisat2 as MERIP_hisat2_align
 use rule hisat2_index from hisat2 as MERIP_hisat2_index
 
 igv_config = {
-
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": hisat2_config["outdir"],
         "outdir":  f"{outdir}/igv",
@@ -142,7 +140,6 @@ logger.info(f"sexcheck_config: {sexcheck_config}")
 use rule sexcheck_idxstats from sexcheck as MERIP_sexcheck_idxstats
 use rule sexcheck from sexcheck as MERIP_sexcheck
 
-
 # ============================================
 # QC Summary (cross-sample metric aggregation)
 # ============================================
@@ -169,9 +166,6 @@ module qc_summary:
     config: qc_summary_config
 logger.info(f"qc_summary_config: {qc_summary_config}")
 use rule qc_summary from qc_summary as MERIP_qc_summary
-
-
-
 
 # ============================================================
 # Region-focused multi-sample track stacking plots (modules/regionplot)
@@ -203,10 +197,9 @@ use rule regionplot from regionplot as MERIP_regionplot
 use rule regionplot_result from regionplot as MERIP_regionplot_result
 
 exomePeak_config = {
-
-    "resources": config.get("resources", {}),
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": igv_config["outdir"],
         "outdir": f"{outdir}/exomePeak",

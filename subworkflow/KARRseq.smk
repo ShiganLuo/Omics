@@ -36,11 +36,9 @@ ROOT_DIR = config.get("ROOT_DIR", os.path.dirname(os.path.dirname(__file__)))
 genome = config.get("genome", {}).get("default")
 genome_ref = config.get("genome", {}).get("references", {}).get(genome, {}) if genome else {}
 
-
 rule all:
     input:
         outfiles
-
 
 # =================
 # Module 1: SeqPrep (merge paired-end reads)
@@ -49,7 +47,7 @@ rule all:
 if paired_samples:
     seqprep_config = {
         "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
+        "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": indir,
         "outdir": f"{outdir}/merge",
@@ -66,7 +64,6 @@ if paired_samples:
         config: seqprep_config
     logger.info(f"seqprep_config: {seqprep_config}")
     use rule seqprep_merge from seqprep as KARRseq_seqprep_merge
-
 
 # =================
 # Module 2: STAR Alignment
@@ -88,8 +85,6 @@ def get_alignment_input(wildcards):
         return [single]
     else:
         raise ValueError(f"Sample {wildcards.sample_id} not in paired_samples or single_samples")
-
-
 
 # ============================================
 # Sex check (coverage on sex chromosomes)
@@ -132,7 +127,6 @@ logger.info(f"sexcheck_config: {sexcheck_config}")
 use rule sexcheck_idxstats from sexcheck as KARRseq_sexcheck_idxstats
 use rule sexcheck from sexcheck as KARRseq_sexcheck
 
-
 # ============================================
 # QC Summary (cross-sample metric aggregation)
 # ============================================
@@ -159,7 +153,6 @@ module qc_summary:
     config: qc_summary_config
 logger.info(f"qc_summary_config: {qc_summary_config}")
 use rule qc_summary from qc_summary as KARRseq_qc_summary
-
 
 rule KARRseq_star_align:
     input:

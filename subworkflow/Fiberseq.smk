@@ -18,7 +18,6 @@ rule all:
     input:
         outfiles
 
-
 genome_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -66,7 +65,6 @@ logger.debug(f"Fiber-seq prepare config: {fibertools_prepare_config}")
 use rule ft_predict_m6a from fibertools_prepare as Fiberseq_ft_predict_m6a
 use rule ft_add_nucleosomes from fibertools_prepare as Fiberseq_ft_add_nucleosomes
 use rule ft_fire from fibertools_prepare as Fiberseq_ft_fire
-
 
 aligned_dir = f"{outdir}/common/3_align_bam"
 
@@ -127,7 +125,6 @@ logger.debug(f"sexcheck_config: {sexcheck_config}")
 use rule sexcheck_idxstats from sexcheck as Fiberseq_sexcheck_idxstats
 use rule sexcheck from sexcheck as Fiberseq_sexcheck
 
-
 qc_summary_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -149,11 +146,9 @@ module qc_summary:
 logger.debug(f"qc_summary_config: {qc_summary_config}")
 use rule qc_summary from qc_summary as Fiberseq_qc_summary
 
-
 extract_outdir = f"{outdir}/common/4_elements"
 
 fibertools_analysis_config = {
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -184,14 +179,12 @@ use rule ft_call_peaks from fibertools_analysis as Fiberseq_ft_call_peaks
 use rule ft_qc from fibertools_analysis as Fiberseq_ft_qc
 use rule ft_extract_fire from fibertools_analysis as Fiberseq_ft_extract_fire
 
-
 analysis_outdir = f"{outdir}/fiberseq_analysis"
 extract_config = fibertools_analysis_config
 elements_dir = extract_config["outdir"]
 phased_dir = f"{outdir}/common/5_phased_bam"
 
 params = config.get("Params", {})
-
 
 fiberseq_annotate_config = {
     "ROOT_DIR": ROOT_DIR,
@@ -657,7 +650,6 @@ use rule regions_telomere from telomere_regions as Fiberseq_regions_telomere
 variation_outdir = f"{outdir}/variation"
 
 deepvariant_config = {
-
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -799,7 +791,6 @@ logger.debug(f"Fiber-seq hap extract config: {fibertools_hap_config}")
 use rule ft_split_hap from fibertools_hap as Fiberseq_ft_split_hap
 use rule ft_extract_hap from fibertools_hap as Fiberseq_ft_extract_hap
 
-
 function_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -826,7 +817,6 @@ module function:
 logger.debug(f"Fiber-seq function config: {function_config}")
 use rule function_go_kegg from function as Fiberseq_function_go_kegg
 use rule function_gsea from function as Fiberseq_function_gsea
-
 
 ldsc_config = {
     "resources": config.get("resources", {}),
@@ -876,7 +866,6 @@ module bamCoverage:
     config: bamCoverage_config
 logger.debug(f"bamCoverage_config: {bamCoverage_config}")
 use rule bamCoverage from bamCoverage as Fiberseq_bamCoverage
-
 
 regionplot_params = config.get("Params", {}).get("regionplot", {})
 regionplot_config = {
@@ -990,7 +979,6 @@ use rule decoil_compare from decoil as Fiberseq_decoil_compare
 use rule decoil_igv from decoil as Fiberseq_decoil_igv
 use rule decoil_ucsc from decoil as Fiberseq_decoil_ucsc
 
-
 sv_params = config.get("Params", {}).get("sv", {})
 _mei = sv_params.get("mei", {})
 if isinstance(_mei.get("te_buckets"), dict):
@@ -1036,7 +1024,6 @@ use rule sv_gene_model from sv as Fiberseq_sv_gene_model
 use rule sv_diff_analysis from sv as Fiberseq_sv_diff_analysis
 use rule sv_oncoprint from sv as Fiberseq_sv_oncoprint
 use rule sv_result from sv as Fiberseq_sv_result
-
 
 svgokegg_params = config.get("Params", {}).get("function", {}).get("sv_go_kegg", {})
 sv_go_kegg_config = {

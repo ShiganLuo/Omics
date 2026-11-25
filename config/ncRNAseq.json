@@ -14,11 +14,13 @@
       "aligner": "star"
     },
     "hisat2": {
+      "keep_intermediates": false,
       "no-spliced-alignment": true,
       "k": "99999",
       "score-min": "L,0,-0.6"
     },
     "star": {
+      "keep_intermediates": false,
       "star_align": {
         "twopassMode": null,
         "genomeLoad": "LoadAndRemove",

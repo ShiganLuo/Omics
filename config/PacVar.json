@@ -36,7 +36,8 @@
       "fast_cnv_mode": null,
       "expected_cn": null,
       "cnv_excluded_regions": null,
-      "treat_single_copy_as_haploid": false
+      "treat_single_copy_as_haploid": false,
+      "keep_intermediates": false
     },
     "sv": {
       "enabled": true,
@@ -398,7 +399,8 @@
       "tidk": {}
     },
     "deepvariant": {
-      "model_type": "PACBIO"
+      "model_type": "PACBIO",
+      "keep_intermediates": false
     },
     "trgt": {
       "karyotype": "XX",

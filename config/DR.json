@@ -37,6 +37,9 @@
     "gatk_somatic": {
       "keep_intermediates": false
     },
+    "gatk_germline": {
+      "keep_intermediates": false
+    },
     "gatk": {
       "addReadsGroup": {
         "RGLB": "mRNA",

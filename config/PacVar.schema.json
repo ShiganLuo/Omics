@@ -1399,6 +1399,16 @@
           "PACBIO",
           "ONT_R104"
         ]
+      },
+      "keep_intermediates": {
+        "type": "bool",
+        "required": false
+      }
+    },
+    "sawfish": {
+      "keep_intermediates": {
+        "type": "bool",
+        "required": false
       }
     },
     "trgt": {

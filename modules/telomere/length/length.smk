@@ -176,9 +176,6 @@ rule telogator2_run:
             rule_logger.error(f"Error occurred during telogator2_run for sample {wildcards.sample_id}: {e}\n")
             raise RuntimeError(f"Error occurred during telogator2_run for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.\n")
 
-        # ============================================================
-        # Rule 2: Assembly-based telomere scan (Approach A)
-        # ============================================================
 rule assembly_telomere_scan:
     """Scan hifiasm assembly contig ends for telomeric repeats.
 
@@ -324,11 +321,11 @@ rule tidk_init:
     output:
         outdir + "/.tidk_build.done"
     log:
-        logdir + "/all/tidk_init.log"
+        logdir + "/tidk/tidk_init.log"
     params:
         tidk = config.get("Procedure", {}).get("tidk") or "tidk"
     threads: rule_res("tidk_init").get("threads", 1)
-    benchmark: logdir + "/all/tidk_init.benchmark.tsv",
+    benchmark: logdir + "/tidk/tidk_init.benchmark.tsv",
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(
             "tidk_init", input_size=input_size_mb(input),
@@ -539,7 +536,7 @@ rule telomere_method_overview:
     conda: "../telomere.yaml"
     run:
         log_path = str(log); open(log_path, "w").close()
-        rl = setup_logger("telomere_method_overview", log_file=log_path)
+        rule_logger = setup_logger("telomere_method_overview", log_file=log_path)
         try:
             script = os.path.join(RECEIPT_DIR, "telomere_method_overview.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)
@@ -560,7 +557,7 @@ rule telomere_method_overview:
             else:
                 shell(f"bash {plain} >> {log_path} 2>&1")
         except Exception as e:
-            rl.error(f"telomere_method_overview failed: {e}\n")
+            rule_logger.error(f"telomere_method_overview failed: {e}\n")
             raise RuntimeError(f"overview failed: {e}, see {log_path}\n")
 
 

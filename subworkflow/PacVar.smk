@@ -116,7 +116,7 @@ sexcheck_config = {
 module sexcheck:
     snakefile: "../modules/sexcheck/sexcheck.smk"
     config: sexcheck_config
-logger.info(f"sexcheck_config: {sexcheck_config}")
+logger.debug(f"sexcheck_config: {sexcheck_config}")
 use rule sexcheck_idxstats from sexcheck as PacVar_sexcheck_idxstats
 use rule sexcheck from sexcheck as PacVar_sexcheck
 
@@ -139,7 +139,7 @@ qc_summary_config = {
 module qc_summary:
     snakefile: "../modules/qc_summary/qc_summary.smk"
     config: qc_summary_config
-logger.info(f"qc_summary_config: {qc_summary_config}")
+logger.debug(f"qc_summary_config: {qc_summary_config}")
 use rule qc_summary from qc_summary as PacVar_qc_summary
 
 if snv_caller == "deepvariant":

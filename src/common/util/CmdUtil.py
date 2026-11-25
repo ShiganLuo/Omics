@@ -4,6 +4,7 @@ import shutil
 import logging
 import shlex
 import os
+from src.common.util.ProcessUtil import launch_managed, terminate_all_children
 logger = logging.getLogger(__name__)
 def _shell_join(cmd: List[str]) -> str:
     """Render a command list as a shell-like string for logging.
@@ -137,34 +138,34 @@ def _run_cmd(cmd:List, cwd: Optional[str] = None) -> str:
         logger.error("Please make sure it is installed and in $PATH")
         raise RuntimeError(f"Command not found: {cmd_bin}")
 
+    # 受管子进程(自成进程组,见 ProcessUtil 设计约定)。
+    # 不变量:函数返回或抛出时不留活子进程——finally 里统一收口。
+    p = launch_managed(cmd, cwd=cwd, env=_sanitized_env(cmd))
     try:
-        result = subprocess.run(
-            cmd,
-            check=True,
-            capture_output=True,
-            text=True,
-            cwd=cwd,
-            env=_sanitized_env(cmd)
-        )
+        stdout, stderr = p.communicate()
+    finally:
+        terminate_all_children(logger=logger)
 
-        if result.stdout:
-            logger.info(f"Command Output:\n{result.stdout}")
-
-        return result.stdout
-
-    except subprocess.CalledProcessError as e:
-        if e.returncode in (-2, 130):
+    if p.returncode != 0:
+        if p.returncode in (-2, 130):
             # 子进程死于 SIGINT(rc=-2)或按约定以 130 退出 = 人为中断,
             # 走 KeyboardInterrupt 统一路径,不要伪装成"命令执行失败"。
             raise KeyboardInterrupt(
-                f"child process interrupted by SIGINT (rc={e.returncode}): {cmd_str}"
+                f"child process interrupted by SIGINT (rc={p.returncode}): {cmd_str}"
             ) from None
-        logger.error(f"Command failed with return code {e.returncode}")
-        logger.error(f"STDOUT:\n{e.stdout or '[empty]'}")
-        logger.error(f"STDERR:\n{e.stderr or '[empty]'}")
+        logger.error(f"Command failed with return code {p.returncode}")
+        logger.error(f"STDOUT:\n{stdout or '[empty]'}")
+        logger.error(f"STDERR:\n{stderr or '[empty]'}")
+        # cause 携带 stdout/stderr:run.py --test 的 _missing_outputs_only
+        # 依赖 __cause__ 判定 MissingOutputException,勿改其类型。
         raise RuntimeError(
             f"Command execution failed: {cmd_str}"
-        ) from e
+        ) from subprocess.CalledProcessError(
+            p.returncode, cmd, output=stdout, stderr=stderr)
+
+    if stdout:
+        logger.info(f"Command Output:\n{stdout}")
+    return stdout
 
 
 def _run_cmds_parallel(cmds: List) -> List[str]:
@@ -186,38 +187,28 @@ def _run_cmds_parallel(cmds: List) -> List[str]:
         If any command fails (after all have finished).
     """
     processes: List[subprocess.Popen] = []
-    for cmd, cwd in cmds:
-        cmd_bin = cmd[0]
-        if shutil.which(cmd_bin) is None:
-            raise RuntimeError(f"Command not found: {cmd_bin}")
-        logger.info(f"Starting (cwd={cwd}): {' '.join(cmd)}")
-        p = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            cwd=cwd,
-            env=_sanitized_env(cmd),
-        )
-        processes.append(p)
-
     results: List[str] = []
     failed: List[tuple[int, str, str]] = []
-    for i, p in enumerate(processes):
-        try:
+    try:
+        for cmd, cwd in cmds:
+            cmd_bin = cmd[0]
+            if shutil.which(cmd_bin) is None:
+                raise RuntimeError(f"Command not found: {cmd_bin}")
+            logger.info(f"Starting (cwd={cwd}): {' '.join(cmd)}")
+            processes.append(launch_managed(cmd, cwd=cwd, env=_sanitized_env(cmd)))
+
+        for i, p in enumerate(processes):
             stdout, stderr = p.communicate()
-        except KeyboardInterrupt:
-            # 人为中断:收掉还没结束的子进程再上抛,避免遗留孤儿 snakemake。
-            for q in processes:
-                if q.poll() is None:
-                    q.terminate()
-            raise
-        if p.returncode != 0:
-            failed.append((i, stdout or "", stderr or ""))
-        else:
-            if stdout:
-                logger.info(f"Process {i} output:\n{stdout}")
-            results.append(stdout)
+            if p.returncode != 0:
+                failed.append((i, stdout or "", stderr or ""))
+            else:
+                if stdout:
+                    logger.info(f"Process {i} output:\n{stdout}")
+                results.append(stdout)
+    finally:
+        # 不变量:函数返回或抛出时不留活子进程(异常路径=分级终止,
+        # 见 ProcessUtil 设计约定)。
+        terminate_all_children(logger=logger)
 
     if failed:
         if any(processes[idx].returncode in (-2, 130) for idx, _, _ in failed):

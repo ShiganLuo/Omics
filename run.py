@@ -11,6 +11,7 @@ import time
 from src.common.util.MetaUtil import MetadataUtils
 from src.common.util.LogUtil import setup_logger
 from src.common.util.CmdUtil import _run_cmd, _run_cmds_parallel
+from src.common.util.ProcessUtil import SignalExit, terminate_all_children
 from src.common.util.SchemaValidatorUtil import SchemaValidator, smart_cast
 from src.common.util.EnvUtil import is_path_like
 from src.common.util.CallbackUtil import ExecutionCallback, DEFAULT_CALLBACK_URL
@@ -1341,14 +1342,14 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
             for wf in exec_status:
                 exec_status[wf] = "ok"
         except BaseException as exc:
-            # 人为中断(SIGINT)与真实失败分开标记:run_summary 里记
+            # 人为中断(SIGINT/SIGTERM)与真实失败分开标记:run_summary 里记
             # "interrupted",不要伪装成 workflow 失败。
-            interrupted = isinstance(exc, KeyboardInterrupt)
+            interrupted = isinstance(exc, (KeyboardInterrupt, SignalExit))
             for wf in exec_status:
                 if exec_status[wf] == "not-run":
                     exec_status[wf] = "interrupted" if interrupted else "failed"
             if interrupted:
-                logger.error("run interrupted (SIGINT): writing run summary "
+                logger.error("run interrupted (signal): writing run summary "
                              "with status 'interrupted' — NOT a normal completion")
             _write_run_summary(args.output_dir, _summary_payload(exec_status))
             raise
@@ -1408,20 +1409,30 @@ if __name__ == "__main__":
     # failures never change the exit path below.
     callback = _build_execution_callback(args, logger)
 
-    def _on_terminate(signum, frame):
-        msg = (f"run.py TERMINATED by signal {signum} — this is NOT a normal "
-               f"completion; exit code {128 + signum}")
-        logger.error(msg)
-        if callback is not None:
-            callback.send("CANCELLED", message=f"terminated by signal {signum}",
-                          exit_code=128 + signum)
+    # ---- 信号处理(瘦处理器 + 统一退出路径)----------------------------
+    # 处理器只做两件事:第一次信号转成异常,由 __main__ 的 except 统一收尾
+    # (子进程清扫 → summary → 横幅 → callback → 退出码);第二次信号强制
+    # 退出(用户等不及优雅收尾时的逃生口)。kill/打印逻辑只存在于收尾路径。
+    _signal_state = {"received": False}
+
+    def _force_exit(signum):
+        terminate_all_children(force=True)
         os._exit(128 + signum)
+
+    def _on_terminate(signum, frame):
+        if _signal_state["received"]:
+            _force_exit(signum)
+        _signal_state["received"] = True
+        raise SignalExit(signum)
 
     def _on_sigint(signum, frame):
         # 显式接管 SIGINT:非交互 shell 以 & 后台启动时 SIGINT 会被继承为
         # SIG_IGN(Python 不装默认处理器),kill -INT/Ctrl+C 静默无效,程序照常
         # 跑完——看起来像"终止了却正常退出"。装上自己的处理器后,无论何种启动
         # 方式,中断都统一走 KeyboardInterrupt 路径。
+        if _signal_state["received"]:
+            _force_exit(signum)
+        _signal_state["received"] = True
         raise KeyboardInterrupt(f"interrupted by signal {signum}")
 
     signal.signal(signal.SIGTERM, _on_terminate)
@@ -1463,16 +1474,21 @@ if __name__ == "__main__":
                           message="" if code == 0 else f"run.py exited with code {code}",
                           exit_code=code)
         raise
-    except KeyboardInterrupt:
-        # 人为中断必须留下醒目、无歧义的痕迹:此前这里静默 sys.exit,
-        # 日志最后一行恰好是 "run summary written",看起来像正常收尾。
+    except (KeyboardInterrupt, SignalExit) as exc:
+        # 统一中断退出路径(run.py 唯一收尾出口):横幅 → 子进程兜底清扫 →
+        # callback → 退出码(SIGINT=130,其余=128+signum)。
+        signum = getattr(exc, "signum", signal.SIGINT)
+        sig_name = signal.Signals(signum).name
+        exit_code = 128 + signum
         logger.error("=" * 70)
-        logger.error("run.py INTERRUPTED (Ctrl+C / SIGINT) — this is NOT a "
-                     "normal completion; exit code 130")
+        logger.error("run.py INTERRUPTED by %s — this is NOT a normal "
+                     "completion; exit code %d", sig_name, exit_code)
         logger.error("=" * 70)
+        terminate_all_children(force=True)  # 兜底:残留子进程立即 SIGKILL
         if callback is not None:
-            callback.send("CANCELLED", message="interrupted (SIGINT)", exit_code=130)
-        sys.exit(130)
+            callback.send("CANCELLED", message=f"interrupted ({sig_name})",
+                          exit_code=exit_code)
+        sys.exit(exit_code)
     except Exception as e:
         if callback is not None:
             callback.send("FAILED", message=f"{type(e).__name__}: {e}", exit_code=1)

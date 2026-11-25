@@ -6,7 +6,9 @@ workflow.log
 **/.cache
 **/.config
 
-/test/
+# run.py --test 的运行产物;但保留手工编写的单元测试
+/test/*
+!/test/test_*.py
 test.log
 **/*.resolved
 **/module_test

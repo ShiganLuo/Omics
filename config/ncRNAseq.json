@@ -267,6 +267,7 @@
   },
   "env": {
     "env_dir": "/data/16T/Database/env",
+    "qc_summary": "/data/16T/Database/env/report/report.sif",
     "demultiplexer": "/data/16T/Database/env/demultiplexer/demultiplexer.sif",
     "fastqc": "/data/16T/Database/env/fastqc/fastqc.sif",
     "featureCounts": "/data/16T/Database/env/featureCounts/featureCounts.sif",

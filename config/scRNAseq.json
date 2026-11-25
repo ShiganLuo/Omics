@@ -326,6 +326,9 @@
   },
   "env": {
     "env_dir": "/data/16T/Database/env",
+    "function": "/data/16T/Database/env/function/function.sif",
+    "tedominant": "/data/16T/Database/env/scanpy/scanpy.sif",
+    "teprofile": "/data/16T/Database/env/scanpy/scanpy.sif",
     "star": "/data/16T/Database/env/star/star.sif",
     "scTE": "/data/16T/Database/env/scTE/scTE.sif",
     "cellranger": "/data/16T/Database/env/cellranger/cellranger.sif",

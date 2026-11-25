@@ -119,6 +119,7 @@
   },
   "env": {
     "env_dir": "/data/16T/Database/env",
+    "trim-galore": "/data/16T/Database/env/trim-galore/trim-galore.sif",
     "cutadapt": "/data/16T/Database/env/cutadapt/cutadapt.sif",
     "fumitools": "/data/16T/Database/env/fumitools/fumitools.sif",
     "mimseq": "/data/16T/Database/env/mimseq/mimseq.sif"

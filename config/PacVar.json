@@ -552,6 +552,9 @@
   },
   "env": {
     "env_dir": "/data/16T/Database/env",
+    "qc_summary": "/data/16T/Database/env/report/report.sif",
+    "function": "/data/16T/Database/env/function/function.sif",
+    "samtools": "/data/16T/Database/env/samtools/samtools.sif",
     "genome": "/data/16T/Database/env/genome/genome.sif",
     "centromere": "/data/16T/Database/env/centromere/centromere.sif",
     "hifiasm": "/data/16T/Database/env/centromere/centromere.sif",

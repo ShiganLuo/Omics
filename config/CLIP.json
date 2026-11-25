@@ -124,6 +124,8 @@
   },
   "env": {
     "env_dir": "/data/16T/Database/env",
+    "qc_summary": "/data/16T/Database/env/report/report.sif",
+    "trim-galore": "/data/16T/Database/env/trim-galore/trim-galore.sif",
     "PureCLIP": "/data/16T/Database/env/PureCLIP/PureCLIP.sif",
     "UmiTools": "/data/16T/Database/env/UmiTools/UmiTools.sif",
     "bedtools": "/data/16T/Database/env/bedtools/bedtools.sif",

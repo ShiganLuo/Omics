@@ -222,6 +222,8 @@
   },
   "env": {
     "env_dir": "/data/16T/Database/env",
+    "qc_summary": "/data/16T/Database/env/report/report.sif",
+    "deeptools": "/data/16T/Database/env/deeptools/deeptools.sif",
     "RIPseq_report": "/data/16T/Database/env/report/report.sif",
     "fastqc": "/data/16T/Database/env/fastqc/fastqc.sif",
     "frip_score": "/data/16T/Database/env/frip_score/frip_score.sif",

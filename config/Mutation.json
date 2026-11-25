@@ -195,6 +195,8 @@
   },
   "env": {
     "env_dir": "/data/16T/Database/env",
+    "trim-galore": "/data/16T/Database/env/trim-galore/trim-galore.sif",
+    "trimmomatic": "/data/16T/Database/env/trimmomatic/trimmomatic.sif",
     "burden": "/data/16T/Database/env/burden/burden.sif",
     "bwa-mem2": "/data/16T/Database/env/bwa-mem2/bwa-mem2.sif",
     "cnvkit": "/data/16T/Database/env/cnvkit/cnvkit.sif",

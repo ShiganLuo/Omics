@@ -66,6 +66,7 @@
   },
   "env": {
     "env_dir": "/data/16T/Database/env",
+    "qc_summary": "/data/16T/Database/env/report/report.sif",
     "SOAPnuke": "/data/16T/Database/env/SOAPnuke/SOAPnuke.sif",
     "TEtranscripts": "/data/16T/Database/env/TEtranscripts/TEtranscripts.sif",
     "disambiguate": "/data/16T/Database/env/disambiguate/disambiguate.sif",

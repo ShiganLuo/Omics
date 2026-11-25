@@ -56,6 +56,7 @@
   },
   "env": {
     "env_dir": "/data/16T/Database/env",
+    "qc_summary": "/data/16T/Database/env/report/report.sif",
     "karrseq": "/data/16T/Database/env/karrseq/karrseq.sif",
     "seqprep": "/data/16T/Database/env/seqprep/seqprep.sif",
     "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif"

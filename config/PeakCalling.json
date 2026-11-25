@@ -256,6 +256,8 @@
   },
   "env": {
     "env_dir": "/data/16T/Database/env",
+    "qc_summary": "/data/16T/Database/env/report/report.sif",
+    "deeptools": "/data/16T/Database/env/deeptools/deeptools.sif",
     "PeakCalling_report": "/data/16T/Database/env/report/report.sif",
     "bowtie2": "/data/16T/Database/env/bowtie2/bowtie2.sif",
     "fastqc": "/data/16T/Database/env/fastqc/fastqc.sif",

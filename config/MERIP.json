@@ -75,6 +75,7 @@
   },
   "env": {
     "env_dir": "/data/16T/Database/env",
+    "qc_summary": "/data/16T/Database/env/report/report.sif",
     "exomePeak": "/data/16T/Database/env/exomePeak/exomePeak.sif",
     "hisat2": "/data/16T/Database/env/hisat2/hisat2.sif",
     "igv": "/data/16T/Database/env/igv/hisat2.sif",

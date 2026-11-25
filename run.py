@@ -211,6 +211,11 @@ def parse_args() -> argparse.Namespace:
     """
     parser = argparse.ArgumentParser(description="workflow")
     parser.add_argument('-m','--meta', type=str, default=None, help='meta input file or data dir which condatain fastq file')
+    parser.add_argument('--comparison', '--comparison-file', dest='comparison', type=str, default=None,
+        help='JSON file declaring explicit sample-control comparisons (comparison_id, '
+             'control_samples, experiment_samples, optional control_group_name / '
+             'experiment_group_name). When set, the meta design column is skipped '
+             'entirely and group_pairs are built from this file')
     parser.add_argument('-w','--workflow_name', type=str, nargs='+',
         choices=["all", "CoCulture", "MERIP", "RNAseq", "ncRNAseq", "scRNAseq", "tRNAseq", "CLIP", "Mutation", "PacVar", "KARRseq", "PeakCalling", "QuantMS", "Fiberseq", "LRtranscriptome", "DR", "RIPseq", "Population_genomics", "spatial_transcriptomics"],
         default=['CoCulture'], help='workflow name(s), multiple for parallel execution; "all" = every registered workflow')
@@ -936,6 +941,9 @@ def setup_normal_args(args: argparse.Namespace) -> argparse.Namespace:
     if not args.meta:
         logger.info("Error: -m/--meta is required (unless --test is used)")
         exit(1)
+    if args.comparison and not os.path.isfile(args.comparison):
+        logger.info(f"Error: --comparison file not found: {args.comparison}")
+        exit(1)
     if not args.output_dir:
         logger.info("Error: -o/--output_dir is required (unless --test is used)")
         exit(1)
@@ -1018,9 +1026,9 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
     abs_ref_outdir = os.path.abspath(ref_outdir)
     first_meta = _get_meta(workflow_names[0])
     if first_meta and os.path.isfile(first_meta):
-        metadataUtil = MetadataUtils(outdir=abs_ref_outdir, meta=first_meta, workflow=workflow_names[0])
+        metadataUtil = MetadataUtils(outdir=abs_ref_outdir, meta=first_meta, workflow=workflow_names[0], comparison_file=args.comparison)
     else:
-        metadataUtil = MetadataUtils(outdir=abs_ref_outdir, fastq_dir=first_meta, workflow=workflow_names[0])
+        metadataUtil = MetadataUtils(outdir=abs_ref_outdir, fastq_dir=first_meta, workflow=workflow_names[0], comparison_file=args.comparison)
     samples_info_dict, sample_pairs, group_pairs, raw_fastq_dir, raw_files, cellranger_input_dict = metadataUtil.run()
 
     # Thread allocation: user-specified total threads split across workflows
@@ -1044,9 +1052,9 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
                 if wf_meta and os.path.isfile(wf_meta):
                     test_data = os.path.join(root_dir, "assests", "test", "data")
                     wf_meta = _resolve_test_meta(wf_meta, test_data)
-                    metadataUtil = MetadataUtils(outdir=abs_outdir, meta=wf_meta, workflow=wf_name)
+                    metadataUtil = MetadataUtils(outdir=abs_outdir, meta=wf_meta, workflow=wf_name, comparison_file=args.comparison)
                 else:
-                    metadataUtil = MetadataUtils(outdir=abs_outdir, fastq_dir=wf_meta, workflow=wf_name)
+                    metadataUtil = MetadataUtils(outdir=abs_outdir, fastq_dir=wf_meta, workflow=wf_name, comparison_file=args.comparison)
                 samples_info_dict, sample_pairs, group_pairs, raw_fastq_dir, raw_files, cellranger_input_dict = metadataUtil.run()
 
             model_json = os.path.join(root_dir, f"config/{wf_name}.json")

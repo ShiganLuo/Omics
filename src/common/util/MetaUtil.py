@@ -1,11 +1,12 @@
 import os
 import shutil
+import json
 import re
 import logging
 import pandas as pd
 from pathlib import Path
 from collections import defaultdict
-from typing import Any, List, Tuple, Dict, Optional, Union
+from typing import Any, List, Tuple, Dict, Optional, Set, Union
 import argparse
 import math
 try:
@@ -21,6 +22,33 @@ logger = setup_logger(__name__, level=logging.INFO)
 
 DESIGN_PATTERN = re.compile(r"^(ctr|ctrl|exp)_(.+)$")
 REP_PATTERN = re.compile(r"^rep\d+$", re.IGNORECASE)
+
+# --- comparison file (--comparison) field aliases -------------------------
+# Keys are normalised (lowercase, non-alphanumerics stripped) before lookup,
+# so "control_group_name" / "control-group" / "ControlGroup" are equivalent.
+_COMPARISON_FIELD_ALIASES = {
+    # comparison id
+    "comparisonid": "comparison_id", "comparison": "comparison_id",
+    "compareid": "comparison_id", "id": "comparison_id", "name": "comparison_id",
+    # control samples
+    "controlsamples": "control_samples", "controlsample": "control_samples",
+    "controls": "control_samples", "control": "control_samples",
+    "ctrlsamples": "control_samples", "ctrlsample": "control_samples",
+    "ctrl": "control_samples", "ctrsamples": "control_samples", "ctr": "control_samples",
+    # experiment samples
+    "experimentsamples": "experiment_samples", "experimentalsamples": "experiment_samples",
+    "experimentsample": "experiment_samples", "experiments": "experiment_samples",
+    "experiment": "experiment_samples", "expsamples": "experiment_samples",
+    "expsample": "experiment_samples", "exp": "experiment_samples",
+    # control group name
+    "controlgroupname": "control_group_name", "controlgroup": "control_group_name",
+    "ctrlgroupname": "control_group_name", "ctrlgroup": "control_group_name",
+    "ctrgroupname": "control_group_name", "ctrgroup": "control_group_name",
+    # experiment group name
+    "experimentgroupname": "experiment_group_name", "experimentalgroupname": "experiment_group_name",
+    "experimentgroup": "experiment_group_name", "experimentalgroup": "experiment_group_name",
+    "expgroupname": "experiment_group_name", "expgroup": "experiment_group_name",
+}
 class MetadataUtils:
     """
     Utilities for variant-analysis metadata parsing and FASTQ preparation.
@@ -49,6 +77,7 @@ class MetadataUtils:
         design_col: str = "design",
         group_col: str = "group",
         workflow: Optional[str] = None,
+        comparison_file: Optional[str] = None,
     ):
         """
         Function: Initialize MetadataUtils.
@@ -62,6 +91,9 @@ class MetadataUtils:
             - data_id_col: Column name in metadata that represents unique FASTQ identifiers (default: 'data_id').
             - design_col: sample compare mode
             - group_col: Column name in metadata that represents sample groups (default: 'group').
+            - comparison_file: JSON file declaring explicit sample-control
+              comparisons (run.py --comparison). When set, the design column
+              is NOT read at all and pairs are built from the file.
         Note:
             - fq_pattern: Glob pattern to identify FASTQ files in fastq_dir (default: '*fq.gz').
 
@@ -75,7 +107,11 @@ class MetadataUtils:
         self.pacbio_required_cols = pacbio_required_cols
         self.bam_required_cols = bam_required_cols
         self.data_id_col = data_id_col
-        self.design_col = design_col
+        # --comparison replaces the design column entirely: blank the column
+        # name so prepare_* never reads design cells (group names then come
+        # from the `group` column only) and run() skips build_design_pairs.
+        self.comparison_file = comparison_file
+        self.design_col = "" if comparison_file else design_col
         self.group_col = group_col
         self.workflow = workflow
         self.samples_dict = defaultdict(SampleInfo)
@@ -242,6 +278,211 @@ class MetadataUtils:
                     "group_pairs will collapse into a single key."
                 )
 
+        logger.debug(f"group_pairs: {group_pairs}")
+        logger.debug(f"sample_pairs: {sample_pairs}")
+        return sample_pairs, group_pairs
+
+    def build_comparison_pairs(self) -> Tuple[List[DesignPair], List[CompareGroupPair]]:
+        """
+        Build sample/group comparison pairs from the explicit comparison file
+        (run.py --comparison). The file declares sample-control relations per
+        comparison, so one sample can be control in one comparison and
+        experiment in another (role flips across comparisons) — which the
+        design column cannot express. When the comparison file is used, the
+        meta design column is NOT read at all.
+
+        Accepted JSON shapes (both carry the same fields):
+          - dict form (same shape as Params.sv.comparisons):
+                {"<comparison_id>": {"control_samples": [...],
+                                     "experiment_samples": [...],
+                                     "control_group_name": "...",      # optional
+                                     "experiment_group_name": "..."},  # optional
+                 ...}
+          - list form:
+                [{"comparison_id": "...", "control_samples": [...],
+                  "experiment_samples": [...],
+                  "control_group_name": "...", "experiment_group_name": "..."},
+                 ...]
+
+        Field keys match case-/punctuation-insensitively and accept ctrl/ctr
+        for controls and exp/experimental for experiments (e.g.
+        "experimental_samples", "control_group" also work). Sample fields take
+        a list of names, or a single string with comma/semicolon/space
+        separated names.
+
+        Group names fall back to the meta `group` column of the samples on
+        that side, then to "<comparison_id>_ctr" / "<comparison_id>_exp".
+        Organism comes from the first experiment sample.
+
+        Sample pairs (DesignPair) follow build_design_pairs semantics: every
+        experiment sample pairs with the FIRST control sample of its
+        comparison.
+
+        return a list of DesignPair objects and a list of CompareGroupPair objects
+        """
+        if not self.comparison_file:
+            raise ValueError("comparison_file is not set")
+        with open(self.comparison_file, "r", encoding="utf-8") as fh:
+            try:
+                raw = json.load(fh)
+            except json.JSONDecodeError as e:
+                raise ValueError(f"comparison file {self.comparison_file} is not valid JSON: {e}")
+
+        def _norm_key(key: Any) -> str:
+            return re.sub(r"[^a-z0-9]", "", str(key).lower())
+
+        def _canon_fields(obj: Dict[str, Any], where: str) -> Dict[str, Any]:
+            fields: Dict[str, Any] = {}
+            for k, v in obj.items():
+                canon = _COMPARISON_FIELD_ALIASES.get(_norm_key(k))
+                if canon is None:
+                    logger.warning(f"comparison {where}: unknown field '{k}', ignored")
+                    continue
+                if canon in fields:
+                    raise ValueError(
+                        f"comparison {where}: duplicate fields for '{canon}' (key '{k}')")
+                fields[canon] = v
+            return fields
+
+        def _sample_list(value: Any, field: str, cmp_id: str) -> List[str]:
+            if value is None:
+                return []
+            items = value if isinstance(value, list) else [value]
+            names: List[str] = []
+            for item in items:
+                if not isinstance(item, str):
+                    item = str(item)
+                for part in re.split(r"[,;\s|]+", item.strip()):
+                    if part and part not in names:
+                        names.append(part)
+            return names
+
+        # --- normalise entries to (comparison_id, fields) -----------------
+        entries: List[Tuple[str, Dict[str, Any]]] = []
+        if isinstance(raw, dict):
+            for cid, val in raw.items():
+                if not isinstance(val, dict):
+                    raise ValueError(
+                        f"comparison '{cid}': value must be an object with "
+                        "control_samples/experiment_samples")
+                entries.append((str(cid).strip(), _canon_fields(val, f"'{cid}'")))
+        elif isinstance(raw, list):
+            for i, val in enumerate(raw):
+                if not isinstance(val, dict):
+                    raise ValueError(f"comparison #{i + 1}: entry must be an object")
+                fields = _canon_fields(val, f"#{i + 1}")
+                cid = str(fields.pop("comparison_id", "")).strip()
+                if not cid:
+                    raise ValueError(f"comparison #{i + 1}: missing comparison_id")
+                entries.append((cid, fields))
+        else:
+            raise ValueError(
+                f"comparison file {self.comparison_file}: top level must be a "
+                "JSON object (comparison_id -> fields) or array of comparison objects")
+        if not entries:
+            raise ValueError(f"comparison file {self.comparison_file} declares no comparisons")
+        seen_ids = [cid for cid, _ in entries]
+        dup_ids = sorted({cid for cid in seen_ids if seen_ids.count(cid) > 1})
+        if dup_ids:
+            raise ValueError(f"comparison file {self.comparison_file}: duplicate comparison_id {dup_ids}")
+
+        # --- sample name -> samples_dict key resolution -------------------
+        keys_by_name: Dict[str, List[str]] = defaultdict(list)
+        for key, info in self.samples_dict.items():
+            keys_by_name[str(key)].append(key)
+            display = str(info.sample_id or "").strip()
+            if display and display != str(key):
+                keys_by_name[display].append(key)
+
+        def _resolve(names: List[str], field: str, cmp_id: str) -> List[str]:
+            keys: List[str] = []
+            for n in names:
+                matched = keys_by_name.get(n)
+                if not matched:
+                    raise ValueError(
+                        f"comparison '{cmp_id}': {field} sample '{n}' is not a "
+                        f"sample in the meta (known: {sorted(keys_by_name)})")
+                for k in matched:
+                    if k not in keys:
+                        keys.append(k)
+            return keys
+
+        def _group_name(explicit: Any, keys: List[str], fallback: str) -> str:
+            if explicit is not None and str(explicit).strip():
+                return str(explicit).strip()
+            for k in keys:
+                g = self.samples_dict[k].group
+                if g:
+                    return g
+            return fallback
+
+        sample_pairs: List[DesignPair] = []
+        group_pairs: List[CompareGroupPair] = []
+        seen_contrasts: Set[Tuple[str, str]] = set()
+        for cmp_id, fields in entries:
+            if not cmp_id:
+                raise ValueError("comparison_id must be a non-empty string")
+            ctrl_names = _sample_list(fields.get("control_samples"), "control_samples", cmp_id)
+            exp_names = _sample_list(fields.get("experiment_samples"), "experiment_samples", cmp_id)
+            if not ctrl_names or not exp_names:
+                raise ValueError(
+                    f"comparison '{cmp_id}': both control_samples and "
+                    "experiment_samples must be non-empty")
+            ctr_keys = _resolve(ctrl_names, "control", cmp_id)
+            exp_keys = _resolve(exp_names, "experiment", cmp_id)
+            overlap = sorted(set(ctr_keys) & set(exp_keys))
+            if overlap:
+                raise ValueError(
+                    f"comparison '{cmp_id}': {overlap} appear as BOTH control and "
+                    "experiment; role flips need separate comparisons")
+
+            ctr_group_name = _group_name(
+                fields.get("control_group_name"), ctr_keys, f"{cmp_id}_ctr")
+            exp_group_name = _group_name(
+                fields.get("experiment_group_name"), exp_keys, f"{cmp_id}_exp")
+            if ctr_group_name == exp_group_name:
+                logger.warning(
+                    f"comparison '{cmp_id}': control and experimental group have the "
+                    f"same name: '{ctr_group_name}'. group_pairs will collapse into a "
+                    "single key.")
+            contrast = (ctr_group_name, exp_group_name)
+            if contrast in seen_contrasts:
+                logger.warning(
+                    f"comparison '{cmp_id}': duplicate contrast "
+                    f"'{ctr_group_name}_vs_{exp_group_name}'; downstream will merge "
+                    "them into one comparison.")
+            seen_contrasts.add(contrast)
+
+            organisms = {self.samples_dict[k].organism or "UNKNOWN"
+                         for k in (*ctr_keys, *exp_keys)}
+            if len(organisms) > 1:
+                logger.warning(
+                    f"comparison '{cmp_id}': mixed organisms {sorted(organisms)}; "
+                    "using the first experiment sample's organism.")
+            exp_infos = [self.samples_dict[k] for k in exp_keys]
+            group_pairs.append(CompareGroupPair(
+                organism=exp_infos[0].organism or "UNKNOWN",
+                ctr_group_token=cmp_id,
+                exp_group_token=cmp_id,
+                ctr_group_name=ctr_group_name,
+                exp_group_name=exp_group_name,
+                ctr_sample_ids=ctr_keys,
+                exp_sample_ids=exp_keys,
+            ))
+            # build_design_pairs parity: each experiment sample pairs with the
+            # FIRST control sample of the comparison.
+            for k in exp_keys:
+                info = self.samples_dict[k]
+                sample_pairs.append(DesignPair(
+                    organism=info.organism,
+                    ctr_sample_id=ctr_keys[0],
+                    exp_sample_id=k,
+                    exp_group=info.group,
+                ))
+
+        logger.info(
+            f"comparison file {self.comparison_file}: "
+            f"{len(group_pairs)} group_pairs, {len(sample_pairs)} sample_pairs")
         logger.debug(f"group_pairs: {group_pairs}")
         logger.debug(f"sample_pairs: {sample_pairs}")
         return sample_pairs, group_pairs
@@ -1028,29 +1269,43 @@ class MetadataUtils:
             df = self.load_meta(self.meta)
             if "fastq_1" in df.columns or "fastq_2" in df.columns:
                 logger.info("Detected fastq_1/fastq_2 columns in metadata, preparing FASTQ metadata")
-                self.prepare_fastq_meta(df = df, sample_id_col = "sample_id", data_id_col = self.data_id_col)
+                self.prepare_fastq_meta(df = df, sample_id_col = "sample_id", data_id_col = self.data_id_col, design_col=self.design_col)
             elif "fastq_dir" in df.columns and "sample_prefix" in df.columns:
                 logger.info("Detected fastq_dir/sample_prefix columns in metadata, preparing scRNA-seq metadata")
                 self.prepare_scRNAseq_meta(df = df, sample_id_col = "sample_id", fastq_dir_col = "fastq_dir", sample_prefix_col = "sample_prefix")
             elif "bam" in df.columns:
                 logger.info("Detected BAM column in metadata, preparing BAM metadata")
-                self.prepare_bam_meta(df = df, sample_id_col = "sample_id", bam_col = "bam", pbi_col = "pbi")
+                self.prepare_bam_meta(df = df, sample_id_col = "sample_id", bam_col = "bam", pbi_col = "pbi", design_col=self.design_col)
             elif "ms_file" in df.columns:
                 logger.info("Detected ms_file columns in metadata, preparing MS metadata")
-                self.prepare_ms_meta(df = df, sample_id_col = 'sample_id', ms_file_col = 'ms_file')
+                self.prepare_ms_meta(df = df, sample_id_col = 'sample_id', ms_file_col = 'ms_file', design_col=self.design_col)
             else:
                 logger.info("No recognized FASTQ, BAM/PBI, or MS columns found in metadata, preparing FASTQ metadata by default")
                 raise ValueError("Metadata must contain either fastq_1/fastq_2, fastq_dir/sample_prefix, bam/pbi, or ms_file columns.")
 
-            if self.design_col not in df.columns or df[self.design_col].isnull().all():
+            if self.comparison_file:
+                # --comparison detected: the design column is skipped entirely
+                # (already blanked in __init__) and pairs come from the file.
+                logger.info(
+                    f"comparison file {self.comparison_file} detected, skip "
+                    "design column and build pairs from the comparison file")
+                sample_pairs, group_pairs = self.build_comparison_pairs()
+            elif self.design_col in df.columns and not bool(df[self.design_col].isnull().all()):
+                sample_pairs, group_pairs = self.build_design_pairs()
+            else:
                 logger.info(f"meta {self.design_col} is all none, skip build_design_pairs")
                 sample_pairs, group_pairs = [], []
-            else:
-                sample_pairs, group_pairs = self.build_design_pairs()
             return self.samples_dict, sample_pairs, group_pairs, self.raw_fq_dir, self._collect_raw_files(), self.cellranger_input_dict
         elif self.fastq_dir:
             self.prepare_fastq_dir(self.fastq_dir)
-            return self.samples_dict, [], [], self.raw_fq_dir, self._collect_raw_files(), {}
+            if self.comparison_file:
+                logger.info(
+                    f"comparison file {self.comparison_file} detected, skip "
+                    "design column and build pairs from the comparison file")
+                sample_pairs, group_pairs = self.build_comparison_pairs()
+            else:
+                sample_pairs, group_pairs = [], []
+            return self.samples_dict, sample_pairs, group_pairs, self.raw_fq_dir, self._collect_raw_files(), {}
         else:
             raise ValueError("Either meta or fastq_dir must be provided.")
 
@@ -1070,6 +1325,9 @@ def main():
     parser.add_argument("--workflow", default=None,
                         help="workflow context for species-alias resolution "
                              "(e.g. PacVar/Fiberseq resolve mouse -> T2T_mhaESC_v1.5)")
+    parser.add_argument("--comparison", default=None,
+                        help="JSON file declaring explicit sample-control comparisons "
+                             "(skips the design column entirely)")
 
     args = parser.parse_args()
 
@@ -1077,7 +1335,8 @@ def main():
         meta=args.meta,
         outdir=args.outdir,
         fastq_dir=args.fastq_dir,
-        workflow=args.workflow
+        workflow=args.workflow,
+        comparison_file=args.comparison
     )
     res = metadataUtils.run()
     return res    

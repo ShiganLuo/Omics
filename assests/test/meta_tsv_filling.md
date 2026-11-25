@@ -140,6 +140,67 @@ H3K4me3_WT      exp_WT              ← 交集={WT} → 匹配
    awk -F'\t' 'NR>1{print $1}' meta.tsv | sort | uniq -d
    ```
 
+## comparison JSON：显式样本对照关系（--comparison）
+
+design 列是"每样本一个值"的角色模型，**多对比 + 角色翻转**（见 Pitfall 7）无法表达。
+`run.py --comparison comparison.json` 用一个 JSON 文件按对比显式声明对照/实验样本，
+检测到该参数时**完全跳过 design 列的读取与配对**，group_pairs 全部由该文件生成。
+样例见 `assests/test/comparison_example.json`。
+
+### 文件格式
+
+dict 形式（键 = 对比名，与 `Params.sv.comparisons` 同构，可直接复制手填块）：
+
+```json
+{
+  "DMSO_P6_vs_PlaB_P6": {
+    "control_group_name": "DMSO_P6",
+    "experiment_group_name": "PlaB_P6",
+    "control_samples": ["DMSO_P6_1", "DMSO_P6_2"],
+    "experiment_samples": ["PlaB_P6_1", "PlaB_P6_2"]
+  }
+}
+```
+
+或列表形式（对比名放 `comparison_id` 字段）：
+
+```json
+[
+  {"comparison_id": "DMSO_P6_vs_PlaB_P6",
+   "control_samples": ["DMSO_P6_1", "DMSO_P6_2"],
+   "experiment_samples": ["PlaB_P6_1", "PlaB_P6_2"],
+   "control_group_name": "DMSO_P6",
+   "experiment_group_name": "PlaB_P6"}
+]
+```
+
+字段说明（键名大小写/下划线不敏感，`ctrl`/`ctr` = 对照、`exp`/`experimental` = 实验，
+如 `control_group`、`experimental_samples` 也合法）：
+
+| 字段 | 必填 | 说明 |
+|---|---|---|
+| `comparison_id`（dict 形式即外层键） | 是 | 对比唯一标识 |
+| `control_samples` | 是 | 对照样本名列表（与 meta `sample_id` 一致） |
+| `experiment_samples` | 是 | 实验样本名列表 |
+| `control_group_name` | 否 | 对照组名；缺省取样本 `group` 列，再缺省 `<comparison_id>_ctr` |
+| `experiment_group_name` | 否 | 实验组名；缺省取样本 `group` 列，再缺省 `<comparison_id>_exp` |
+
+### 语义与校验
+
+- 一个样本可出现在任意多个对比里，对照/实验角色**按对比独立声明**（角色翻转合法）；
+  同一对比内同一样本不能既是对照又是实验（直接报错）。
+- 样本名必须存在于 meta；写错直接报错并列出已知样本名。
+- 输出对比名 = `{control_group_name}_vs_{experiment_group_name}`；organism 取该对比
+  第一个实验样本的 organism；组名重名会告警（下游合并为一个对比）。
+- 与 design 配对同构的副产物 sample_pairs：每个实验样本与该对比的**第一个**对照
+  样本配对（Mutation / DR 的逐样本 tumor-normal 配对用）。
+
+### 用法
+
+```bash
+python run.py -m meta.tsv -w PacVar -o output -t 30 --comparison comparison.json
+```
+
 ## 常见 Pitfalls
 
 ### 1. fastq_2 列：单端留空，不是填 "NA" 或 "none"
@@ -206,8 +267,10 @@ DMSO_P20 同理。无论怎么换 tag / 利用多 token 交集都绕不开——
 凑出配对，也至少两个对比的 ctr/exp 方向被翻转（SV comparison 的
 merged/only 语义会反过来）。实际只能产出两个处理对比，时间对比丢失。
 
-**已知缺陷的绕行方案**：不要在 design 列上凑，在工作流 config JSON 里
-手填对比（手填优先于 meta design 推导）：
+**已知缺陷的绕行方案**：不要在 design 列上凑，改用 comparison JSON 显式声明对比
+（`run.py --comparison comparison.json`，见上文「comparison JSON：显式样本对照关系」
+一节；此时 design 列整体跳过不读）。等价的旧绕行是工作流 config JSON 里手填对比
+（手填优先于 meta design 推导）：
 
 - PacVar：`Params.sv.comparisons`，形状
   `"{对比名}": {control_group_name, experimental_group_name,

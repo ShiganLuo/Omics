@@ -1,0 +1,26 @@
+{
+  "DMSO_P6_vs_PlaB_P6": {
+    "control_group_name": "DMSO_P6",
+    "experiment_group_name": "PlaB_P6",
+    "control_samples": ["DMSO_P6_1", "DMSO_P6_2"],
+    "experiment_samples": ["PlaB_P6_1", "PlaB_P6_2"]
+  },
+  "DMSO_P20_vs_PlaB_P20": {
+    "control_group_name": "DMSO_P20",
+    "experiment_group_name": "PlaB_P20",
+    "control_samples": ["DMSO_P20_1", "DMSO_P20_2"],
+    "experiment_samples": ["PlaB_P20_1", "PlaB_P20_2"]
+  },
+  "DMSO_P6_vs_DMSO_P20": {
+    "control_group_name": "DMSO_P6",
+    "experiment_group_name": "DMSO_P20",
+    "control_samples": ["DMSO_P6_1", "DMSO_P6_2"],
+    "experiment_samples": ["DMSO_P20_1", "DMSO_P20_2"]
+  },
+  "PlaB_P6_vs_PlaB_P20": {
+    "control_group_name": "PlaB_P6",
+    "experiment_group_name": "PlaB_P20",
+    "control_samples": ["PlaB_P6_1", "PlaB_P6_2"],
+    "experiment_samples": ["PlaB_P20_1", "PlaB_P20_2"]
+  }
+}

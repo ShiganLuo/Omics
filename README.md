@@ -462,6 +462,7 @@ MODE 只有两个值（其它一律非法）：
 ### `run.py` 参数说明
 
 - `-m, --meta`：元信息文件或 fastq 目录。
+- `--comparison`（别名 `--comparison-file`）：样本对照关系 JSON 文件（`comparison_id` / `control_samples` / `experiment_samples` / 可选 `control_group_name`、`experiment_group_name`）。指定后**完全跳过 meta design 列**，group_pairs 由该文件生成；支持一个样本在不同对比里角色翻转（design 单字段做不到），格式与样例见 `assests/test/meta_tsv_filling.md`「comparison JSON」一节和 `assests/test/comparison_example.json`。
 - `-w, --workflow_name`：工作流名称，可选 `CoCulture`、`MERIP`、`RNAseq`、`ncRNAseq`、`scRNAseq`、`tRNAseq`、`CLIP`、`Mutation`、`PacVar`、`KARRseq`、`PeakCalling`、`QuantMS`、`Fiberseq`、`LRtranscriptome`（`Population_genomics`、`spatial_transcriptomics` 见「支持的工作流」脚注），或 `all` 选全部；可多个并行。
 - `-o, --output_dir`：输出目录。
 - `-t, --threads`：Snakemake 线程数。

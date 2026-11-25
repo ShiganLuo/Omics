@@ -7,13 +7,6 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
-
-# comparisons: DESeq2-style group_pairs dict keyed by comparison name
-# ("{control_group_name}_vs_{experimental_group_name}"), each entry:
-#   {control_group_name, experimental_group_name,
-#    control_samples: [...], experimental_samples: [...]}
-# SV VCF paths are resolved per sample from vcf_dir/vcf_suffix (pbsv layout);
-# no file paths live in the config.
 comparisons = config.get("comparisons", {})
 comparison_names = list(comparisons)
 vcf_dir = config.get("vcf_dir", "")
@@ -23,10 +16,6 @@ def _sample_vcfs(sample_ids):
     """Resolve sample IDs to their SV VCF paths under vcf_dir."""
     return [f"{vcf_dir}/{s}/{s}{vcf_suffix}" for s in sample_ids]
 
-# Global parameters
-# 图片格式(modules.md #9):键名 "formats"。参数精确到 rule:formats 按 rule
-# 独立配置(Params.sv.<rule_name>.formats,无 module 级共享回退),每 rule 一个
-# parse 期变量(config 全量路径读取 + str 收成单元素 list)。
 _formats_sv_exp_specific = config.get("Params", {}).get("sv", {}).get("sv_exp_specific", {}).get("formats") or ["png"]
 if isinstance(_formats_sv_exp_specific, str):
     _formats_sv_exp_specific = [_formats_sv_exp_specific]
@@ -369,10 +358,6 @@ rule sv_oncoprint:
             rule_logger.error(f"sv_oncoprint failed: {e}")
             raise RuntimeError(f"sv_oncoprint failed: {e}")
 
-        # ========================
-        # Result aggregation rule
-        # ========================
-
 
 def sv_mei_inputs(wildcards):
     """sv_mei file inputs — declared so the DAG validates them up front.
@@ -413,10 +398,6 @@ rule sv_mei:
     input:
         unpack(sv_mei_inputs),
     output:
-        # marker file, NOT directory(): Snakemake force-removes directory()
-        # outputs before every rerun (IOFile.remove), which would wipe the
-        # script-level caches (mei_run.stamp.json, repeatmasker/) living in
-        # mei/. The marker alone tracks rule completion.
         mei_done = outdir + "/{comparison}/mei/mei.done",
     log:
         logdir + "/sv/{comparison}/sv_mei.log"
@@ -541,8 +522,6 @@ rule sv_tra_te:
     input:
         unpack(sv_tra_te_inputs),
     output:
-        # marker file, NOT directory(): same rationale as sv_mei — keep
-        # script-level artifacts inside tra_te/ alive across reruns
         tra_te_done = outdir + "/{comparison}/tra_te/tra_te.done",
     log:
         logdir + "/sv/{comparison}/sv_tra_te.log"

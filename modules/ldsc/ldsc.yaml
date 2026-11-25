@@ -6,4 +6,11 @@ channels:
 dependencies:
   - python>=3.10
   - pandas
-  - ldsc
+# NOTE: the LDSC toolkit (ldsc.py / munge_sumstats.py) is python-2-only
+# upstream (bulik/ldsc; the bioconda 'ldsc 1.0.1' package pins python<3 +
+# nose==1.3 which no longer resolves). The delivered SIF
+# (/data/16T/Database/env/ldsc/ldsc.sif) therefore carries TWO envs: this
+# py3 analysis env (for bin/ldsc_annot.py) plus a py2.7 'ldsc-tool' env
+# running the toolkit from pinned source (see ldsc.def in that dir).
+# `ldsc.py` / `munge_sumstats.py` wrapper scripts on PATH dispatch to the
+# py2 env; bare `python` stays py3.

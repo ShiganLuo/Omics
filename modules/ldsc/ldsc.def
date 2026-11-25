@@ -1,0 +1,39 @@
+# Auto-generated Apptainer definition file for ldsc conda environment
+# Source YAML: ldsc.yaml
+# Build: apptainer build ldsc.sif ldsc.def
+# Or:   apptainer build <output.sif> <def_file>
+# Backend: micromamba
+# Install mode: in-container solve
+
+Bootstrap: docker
+From: docker.1ms.run/mambaorg/micromamba:latest
+
+%files
+    ldsc.yaml /opt/conda/ldsc.yaml
+
+%post
+    /bin/bash << 'ENDOFSCRIPT'
+    set -euo pipefail
+    export MAMBA_ROOT_PREFIX="/opt/conda"
+    micromamba env create -f /opt/conda/ldsc.yaml --override-channels -c https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge -c https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/bioconda -c https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main < /dev/null
+    micromamba clean -afy
+    rm /opt/conda/ldsc.yaml
+
+    echo 'export PATH="/opt/conda/envs/ldsc/bin:$PATH"' >> /etc/profile.d/conda_ldsc.sh
+    echo 'export CONDA_DEFAULT_ENV=ldsc' >> /etc/profile.d/conda_ldsc.sh
+ENDOFSCRIPT
+
+%environment
+    export PATH="/opt/conda/envs/ldsc/bin:$PATH"
+    export CONDA_DEFAULT_ENV=ldsc
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName ldsc
+
+%help
+    Apptainer image for conda environment 'ldsc'.
+    Generated from ldsc.yaml.

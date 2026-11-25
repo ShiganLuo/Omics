@@ -7,4 +7,9 @@ dependencies:
   - python>=3.10
   - pandas
   - matplotlib
-  - diann>=1.8
+# NOTE: the DIA-NN executable is NOT on conda channels (verified with
+# `mamba repoquery search` for 'diann'/'dia-nn' — the old 'diann>=1.8' entry
+# could never solve). The delivered SIF
+# (/data/16T/Database/env/diann/diann.sif) installs the official GitHub
+# release binary on top of this env (see diann.def in that dir). This env
+# covers the module's bin/diann_summary.py analysis stack.

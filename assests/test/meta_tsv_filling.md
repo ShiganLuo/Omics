@@ -17,6 +17,7 @@ python /data/16T/luosg/workflow/Omics/assests/test/gen_meta.py -d /path/to/your/
 | `data_type` | 数据类型：`DNA` / `RNA`（大小写不敏感，自动规范为大写） | 多链工作流（如 DR）必填：决定原始数据软链落点，DNA 行→`{outdir}/DNA/common/1_raw_data`，RNA 行→`{outdir}/RNA/common/1_raw_data`；单链工作流留空，软链走共享 `{outdir}/common/1_raw_data` |
 | `assay` | 测序类型：`WGS` / `Exome`（同 `WES`）/ `Panel`（同 `amplicon`） | Mutation / DR 工作流（DR 仅 DNA 行填，RNA 行留空）：node.py 由此推导 CNVkit `--seq-method`（wgs→wgs、exome/wes→hybrid、panel/amplicon→amplicon）及外显子捕获区域 targets BED（供 GATK `-L`、CNVkit `--targets`）；同一批 WES 样本须同一 assay，混合或未知值直接报错。留空时回退 config 默认（DR 的 WES 链默认 hybrid） |
 | `strain` | 小鼠品系名（**目前仅支持小鼠**），如 `129P2_OlaHsd`、`C57BL_6NJ` | Mutation / DR 工作流：填品系名启用品系感知的种系资源过滤（FilterMutectCalls 用品系专属 germline 资源替代全品系资源）；**仅当 `genome.references.<基因组>.strain_resource` 指向带分品系基因型的 VCF（如 MGP REL-2021）时生效**。品系名须与该 VCF 的样本列名完全一致（`bcftools query -l <vcf>` 查看）。非小鼠样本（人/猴等）或不确定品系时**留空**——留空自动退回全品系/人群种系资源，无任何副作用 |
+| `organism` | 参考基因组或物种别名：`GRCm39` / `mouse` / `GRCh38` 等；**PacVar / Fiberseq 推荐填 T2T 基因组**（小鼠 `T2T_mhaESC_v1.5`、猕猴 `Mmul_T2T`） | 手填或 gen_meta.py `--organism`（PacVar/Fiberseq 留空时默认 `T2T_mhaESC_v1.5`）。**物种别名按流程解析**（resolve_genome 的 workflow 参数，取 meta workflow 列或运行时流程名）：`mouse` 在 PacVar/Fiberseq 下解析为 `T2T_mhaESC_v1.5`、`macaque` 解析为 `Mmul_T2T`，其他流程仍为 `GRCm39` / `Mmul_10`；显式基因组名（`mm39` / `GRCm39`）永不改道。留空/缺失时 MetaUtil 解析会打一条 "Failed to resolve genome" ERROR 日志且样本 organism 记为 UNKNOWN，config `genome.default` 为空时失去兜底 |
 
 ## 填充流程
 
@@ -184,3 +185,34 @@ H3K4me3_KO	CRR000004	exp_KO	/path/to/CRR000004_1.fq.gz	/path/to/CRR000004_2.fq.g
 - Input_WT（ctrl_WT_KO）→ H3K4me3_KO（exp_KO）共享 token `KO`
 - Input_KO（ctrl_WT_KO）→ H3K4me3_WT（exp_WT）共享 token `WT`
 - Input_KO（ctrl_WT_KO）→ H3K4me3_KO（exp_KO）共享 token `KO`
+
+### 7. design 单字段无法表达多因子设计（已知缺陷）
+
+design 列每个样本只有一个值，即每个样本全局只有一个 ctr/exp 角色。
+**2×2 及更复杂的因子设计（一个样本参与多个对比且角色翻转）无法用
+design 单字段表达**，这是结构性限制，不是 tag 写法问题。
+
+反例（`meta_PacVar_iteration_totipotency.tsv`，处理 × 时间 2×2）：期望 4 个对比——
+
+```
+DMSO_P6 vs PlaB_P6      # 处理效应 @P6
+DMSO_P20 vs PlaB_P20    # 处理效应 @P20
+DMSO_P6 vs DMSO_P20     # 时间效应 @DMSO
+PlaB_P6 vs PlaB_P20     # 时间效应 @PlaB
+```
+
+角色冲突：PlaB_P6 既要是 exp（处理对比）又要是 ctr（时间对比），
+DMSO_P20 同理。无论怎么换 tag / 利用多 token 交集都绕不开——即便强行
+凑出配对，也至少两个对比的 ctr/exp 方向被翻转（SV comparison 的
+merged/only 语义会反过来）。实际只能产出两个处理对比，时间对比丢失。
+
+**已知缺陷的绕行方案**：不要在 design 列上凑，在工作流 config JSON 里
+手填对比（手填优先于 meta design 推导）：
+
+- PacVar：`Params.sv.comparisons`，形状
+  `"{对比名}": {control_group_name, experimental_group_name,
+  control_samples, experimental_samples}`（样本名列表）
+- RNA 链（RNAseq / DR）：`Params.DESeq2.group_pairs`
+
+样本名列表是显式声明，任意对比、任意方向、一个样本出现在任意多个对比
+里均可。此时 design 列可留空（不会触发 ctr_/exp_ 推导）。

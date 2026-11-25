@@ -4,7 +4,7 @@
 用法(在 workflow 输出目录或其父目录下):
     python src/common/util/calibrate_resources.py --root OUTDIR [--config config/X.json] [--apply]
 
-行为(对应 docs/resource-balancing-proposal.md §5.4):
+行为(对应 docs/resource-balancing-proposal.md §3.4):
   D.1 收集:扫描 --root 下所有 benchmark 输出——`**/benchmarks/*.tsv`
      或 Omics 实际布局 `**/*.benchmark.tsv` / `**/*.benchmark.txt`
      (snakemake `benchmark:` 输出,列 s / h:m:s / max_rss / max_vms,
@@ -215,7 +215,7 @@ def main(argv=None):
     ap.add_argument("--config", default=None, help="workflow config json,读当前声明值列")
     ap.add_argument("--apply", action="store_true",
                     help="把建议值写回 --config 的 resources.<rule>.mem_mb"
-                         "(护栏:n<%d 不动、±30%% 限幅、取整、无变化不动)" % MIN_POINTS)
+                         f"(护栏:n<{MIN_POINTS} 不动、±30%% 限幅、取整、无变化不动)")
     ap.add_argument("--no-append", action="store_true", help="只出建议,不追加历史")
     args = ap.parse_args(argv)
 

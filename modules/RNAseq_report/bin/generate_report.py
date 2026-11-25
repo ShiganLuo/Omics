@@ -1163,7 +1163,8 @@ def write_file_inventory(output_path: str, analysis_dir: str, contrasts: List[st
         for _, row in df.iterrows():
             ws_data.append([str(row[col]) if pd.notna(row[col]) else "" for col in df.columns])
         for i, col in enumerate(df.columns, 1):
-            max_len = max(len(str(col)), int(df[col].astype(str).str.len().max()) if len(df) > 0 else 0)
+            col_max = df[col].astype(str).str.len().max()
+            max_len = max(len(str(col)), 0 if pd.isna(col_max) else int(col_max))
             ws_data.column_dimensions[openpyxl.utils.get_column_letter(i)].width = min(max_len + 2, 50)
 
     def _write_csv_sheet(sheet_name: str, csv_path: str, contrast: str = ""):
@@ -1183,7 +1184,8 @@ def write_file_inventory(output_path: str, analysis_dir: str, contrasts: List[st
         for _, row in df.iterrows():
             ws_data.append([str(row[col]) if pd.notna(row[col]) else "" for col in df.columns])
         for i, col in enumerate(df.columns, 1):
-            max_len = max(len(str(col)), int(df[col].astype(str).str.len().max()) if len(df) > 0 else 0)
+            col_max = df[col].astype(str).str.len().max()
+            max_len = max(len(str(col)), 0 if pd.isna(col_max) else int(col_max))
             ws_data.column_dimensions[openpyxl.utils.get_column_letter(i)].width = min(max_len + 2, 50)
 
     def _write_text_sheet(sheet_name: str, txt_path: str, contrast: str = ""):

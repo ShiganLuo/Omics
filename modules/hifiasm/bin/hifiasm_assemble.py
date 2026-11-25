@@ -181,42 +181,46 @@ def fastq_intact(fq_gz: str, bam: str) -> bool:
 
 
 def extract_fastq(bam: str, samtools: str, threads: int, fq_gz: str) -> float:
-    """Extract the BAM to a gzipped FASTQ via ``samtools fastq | gzip -1``.
+    """Extract the BAM to a gzipped FASTQ via ``samtools fastq | bgzip``.
 
+    bgzip (htslib) compresses multi-threaded at several hundred MB/s, so
+    extraction adds only minutes on top of the assembly; its output is a
+    standard gzip stream that hifiasm and ``gzip -t`` read unchanged.
     Writes to a ``.tmp`` file and renames on success so an interrupted
     extraction can never masquerade as a complete FASTQ.
 
     Args:
         bam: input PacBio HiFi BAM.
         samtools: samtools executable.
-        threads: threads for samtools fastq.
+        threads: threads for samtools fastq and bgzip.
         fq_gz: destination ``.fq.gz`` path.
 
     Returns:
         Elapsed seconds for the extraction.
 
     Raises:
-        RuntimeError: samtools or gzip exited non-zero.
+        RuntimeError: samtools or bgzip exited non-zero.
     """
     start = time.monotonic()
     tmp = fq_gz + ".tmp"
-    logger.info("Extracting %s to %s (gzip -1)", bam, fq_gz)
-    logger.info("Executing: %s fastq -@ %d %s | gzip -1 > %s",
-                samtools, threads, bam, tmp)
+    logger.info("Extracting %s to %s (bgzip -@ %d)", bam, fq_gz, threads)
+    logger.info("Executing: %s fastq -@ %d %s | bgzip -@ %d > %s",
+                samtools, threads, bam, threads, tmp)
     with open(tmp, "wb") as fout:
         sam = subprocess.Popen(
             [samtools, "fastq", "-@", str(threads), bam],
             stdout=subprocess.PIPE,
         )
         assert sam.stdout is not None
-        gz = subprocess.Popen(["gzip", "-1"], stdin=sam.stdout, stdout=fout)
+        gz = subprocess.Popen(["bgzip", "-@", str(threads)],
+                              stdin=sam.stdout, stdout=fout)
         sam.stdout.close()
         gz_rc = gz.wait()
         sam_rc = sam.wait()
     if gz_rc != 0:
         os.remove(tmp)
         raise RuntimeError(
-            f"gzip failed (exit {gz_rc}) while extracting {bam}")
+            f"bgzip failed (exit {gz_rc}) while extracting {bam}")
     if sam_rc != 0 and sam_rc not in (-13, 141):
         os.remove(tmp)
         raise RuntimeError(

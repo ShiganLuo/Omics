@@ -1061,11 +1061,6 @@ def runCLIP(
     _star_align["outFilterMismatchNoverReadLmax"] = 0.04
     _star_align["outFilterMismatchNmax"] = 999
     _star_align["outFilterMultimapNmax"] = 999
-    datajson["Params"]["igv"]["js"] = "/data/16T/Database/SoftWare/igv.min.js"
-    datajson["Params"]["igv"]["publicPathMap"] = {
-        "/data/pub/zhousha/": "/data/",
-        "/data/pub/zhousha/Reference/": "/ref/"
-    }
     return _write_raw_json(datajson, outdir)
 
 def runPacVar(

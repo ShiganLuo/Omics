@@ -21,6 +21,9 @@
       "y_min_rpkm": null,
       "xist_min_rpkm": null
     },
+    "hisat2": {
+      "keep_intermediates": false
+    },
     "disambiguate": {
       "keep_intermediates": false
     },

@@ -358,6 +358,12 @@
         }
       }
     },
+    "hisat2": {
+      "keep_intermediates": {
+        "type": "bool",
+        "required": false
+      }
+    },
     "disambiguate": {
       "type": "dict",
       "required": false,

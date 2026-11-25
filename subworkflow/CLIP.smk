@@ -155,6 +155,12 @@ if aligner == 'hisat2':
             "Procedure": {
                 "hisat2": config.get('Procedure',{}).get('hisat2')
             },
+            "Params": {
+                # 参数精确到 rule:整段透传(Params.hisat2.<rule>.<key>);
+                # keep_intermediates 随段直达(maybe_temp 读
+                # Params.hisat2.keep_intermediates,缺省 True=保留)
+                "hisat2": config.get('Params',{}).get('hisat2', {})
+            },
             "genome": {
                 "fasta": genome_ref.get("fasta"),
                 "index_dir": genome_ref.get("hisat2_index_dir")
@@ -179,6 +185,12 @@ elif aligner == 'star':
             "single_samples": single_samples,
             "Procedure": {
                 "STAR": config.get('Procedure',{}).get('STAR')
+            },
+            "Params": {
+                # 参数精确到 rule:整段透传(Params.star.<rule>.<key>),修复
+                # star_align 参数从未传入模块的死配置;keep_intermediates 随段
+                # 直达(maybe_temp 读 Params.star.keep_intermediates,缺省 True=保留)
+                "star": config.get('Params',{}).get('star', {})
             },
             "genome": {
                 "fasta": genome_ref.get("fasta"),

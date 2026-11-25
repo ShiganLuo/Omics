@@ -32,7 +32,11 @@
       "binSize": 50,
       "offset": "0"
     },
+    "hisat2": {
+      "keep_intermediates": false
+    },
     "star": {
+      "keep_intermediates": false,
       "star_align": {
         "alignEndsType": "Extend5pOfRead1"
       }

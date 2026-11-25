@@ -501,7 +501,17 @@
         "required": true
       }
     },
+    "hisat2": {
+      "keep_intermediates": {
+        "type": "bool",
+        "required": false
+      }
+    },
     "star": {
+      "keep_intermediates": {
+        "type": "bool",
+        "required": false
+      },
       "star_align": {
         "type": "dict",
         "required": false,

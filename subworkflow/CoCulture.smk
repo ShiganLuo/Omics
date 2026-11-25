@@ -48,6 +48,12 @@ hisat2_config = {
         "Procedure": {
             "hisat2": config.get('Procedure',{}).get('hisat2')
         },
+        "Params": {
+            # 参数精确到 rule:整段透传(Params.hisat2.<rule>.<key>);
+            # keep_intermediates 随段直达(maybe_temp 读
+            # Params.hisat2.keep_intermediates,缺省 True=保留)
+            "hisat2": config.get('Params',{}).get('hisat2', {})
+        },
         # polygenomes modules resolve refs via genome.references.<genome>.fasta
         "genome": {"references": genome.get("references", {})}
     }

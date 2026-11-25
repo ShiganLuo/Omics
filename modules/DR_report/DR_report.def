@@ -1,0 +1,36 @@
+# Auto-generated Apptainer definition file for DR_report conda environment
+# Source YAML: DR_report.yaml
+# Build: apptainer build DR_report.sif DR_report.def
+# Or:   apptainer build <output.sif> <def_file>
+# NOTE: the DR workflow maps DR_report.yaml to the shared report.sif
+# (config env: "DR_report": "/data/16T/Database/env/report/report.sif"),
+# so building this image is only needed for standalone use.
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    DR_report.yaml /opt/conda/DR_report.yaml
+
+%post
+    conda env create -f /opt/conda/DR_report.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/DR_report.yaml
+
+    echo 'export PATH="/opt/conda/envs/DR_report/bin:$PATH"' >> /etc/profile.d/conda_DR_report.sh
+    echo 'export CONDA_DEFAULT_ENV=DR_report' >> /etc/profile.d/conda_DR_report.sh
+
+%environment
+    export PATH="/opt/conda/envs/DR_report/bin:$PATH"
+    export CONDA_DEFAULT_ENV=DR_report
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName DR_report
+
+%help
+    Apptainer image for conda environment 'DR_report'.
+    Generated from DR_report.yaml.

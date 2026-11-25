@@ -1,0 +1,36 @@
+{
+    "outdir": "output",
+    "logdir": "logs",
+    "samples": [],
+    "dna_samples": [],
+    "rna_samples": [],
+    "paired_samples": [],
+    "single_samples": [],
+    "paired_design": [],
+    "contrasts": [],
+    "outfiles": [],
+    "dna_dir": null,
+    "rna_dir": null,
+    "drclass_dir": null,
+    "teffect_dir": null,
+    "burden_dir": null,
+    "genome_label": "",
+    "Params": {
+        "report": {
+            "generate_report": {
+                "title": "DNA×RNA 联合分析报告 / DR Joint Analysis Report",
+                "subtitle": "",
+                "pipeline": "DNA: fastqc->cutadapt->bwa-mem2->gatk->manta->cnvkit->burden | RNA: trim->STAR->TEcount/DESeq2/function | DRclass/TransEffect",
+                "genome": "",
+                "date": "",
+                "lang": "zh",
+                "formats": [
+                    "png"
+                ]
+            }
+        }
+    },
+    "env": {
+        "DR_report": "/data/16T/Database/env/report/report.sif"
+    }
+}

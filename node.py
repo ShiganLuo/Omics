@@ -3447,7 +3447,7 @@ def runDR(
        -> gatk_prepare markdup -> targets -> Mutect2+Filter -> msi ->
        gatk_germline -> somatic spectrum/signature -> fragment_size ->
        Manta (germline + somatic SV) -> CNVkit -> burden -> sexcheck ->
-       qc_summary -> Mutation_report. Outputs under {outdir}/DNA/.
+       qc_summary. Outputs under {outdir}/DNA/.
        Assay-aware via the meta assay column (WGS / Exome / Panel): it drives
        CNVkit --seq-method and the exome capture targets BED; nothing is
        WES-specific by default.
@@ -3455,8 +3455,12 @@ def runDR(
        full RNAseq.smk analysis set: trimmer -> TE quantification (TEtranscripts)
        -> featureCounts -> DESeq2 -> function (GO/KEGG/GSEA/GSVA) ->
        StringTie -> fusion (RmrRNA/bowtie2/STAR-chimera/arriba) -> RNA SNP
-       (star -> XenofilteR -> markdup -> gatk_RNAseq) -> RNAseq_report ->
+       (star -> XenofilteR -> markdup -> gatk_RNAseq) ->
        sexcheck -> qc_summary. Outputs under {outdir}/RNA/.
+       The final report is the DR-own module (modules/DR_report): one
+       PPTX + XLSX pair under {outdir}/ covering both chains plus the
+       DR-unique analyses (burden / DRclass / TransEffect), gated by
+       Params.report.enabled.
     2. DRclass module: anchors -> bcftools pileup -> state-machine
        classification -> per-sample tables + summary ({outdir}/DRclass/).
 
@@ -3603,7 +3607,7 @@ def runDR(
     enable_deseq2 = _enabled(datajson, "DESeq2")
     enable_TEcount = _enabled(datajson, "TEcount")
     enable_TElocal = _enabled(datajson, "TElocal")
-    enable_report = _enabled(datajson, "RNAseq_report")
+    enable_report = _enabled(datajson, "report")
     enable_StringTie = _enabled(datajson, "StringTie")
 
     _deseq_params = datajson["Params"].setdefault("DESeq2", {})
@@ -3763,16 +3767,9 @@ def runDR(
             outfiles.append(f"{outdir}/RNA/counts/TEtranscripts/{_org}/{_org}_TElocal_name.tsv")
         # gene expression quantification (always delivered)
         outfiles.append(f"{outdir}/RNA/counts/featureCounts/{_org}/{_org}_featureCounts.tsv")
-        if enable_report:
-            outfiles.append(f"{outdir}/RNA/results/{_org}/RNAseq_report.pptx")
-            outfiles.append(f"{outdir}/RNA/results/{_org}/figures/manifest.tsv")
 
-    # RNA report Params (Params.RNAseq_report 段; runRNAseq 同款 genome/date 写回)
-    if enable_report:
-        _rna_report = datajson["Params"].setdefault("RNAseq_report", {}).setdefault("generate_report", {})
-        _rna_report["genome"] = "".join(dict.fromkeys(
-            samples_info_dict[s].organism for s in rna_samples))
-        _rna_report["date"] = time.strftime("%Y-%m-%d", time.localtime())
+    # (RNA 链报告交付物由文件末尾的 DR_report 统一注册 —— 不再单独注册
+    #  RNAseq_report.pptx/manifest,也不再写回 Params.RNAseq_report 段。)
 
     # Sex check + QC summary (modules/sexcheck, modules/qc_summary): mirrored
     # from runRNAseq, registered unconditionally for the delivered output set.
@@ -4158,19 +4155,26 @@ def runDR(
     outfiles.append(f"{outdir}/DNA/QC/qc_summary/qc_summary.tsv")
     outfiles.append(f"{outdir}/DNA/QC/qc_summary/qc_summary.html")
 
-    # Final PPT report + results workbook (modules/Mutation_report), gated
-    # by Params.report.enabled like the other report modules.
-    if _enabled(datajson, "report"):
-        # 写回精确到 rule:Params.report.generate_report.date(与
-        # runMutation/runPeakCalling/runRIPseq/runRNAseq 的写回同一键形)
-        datajson["Params"].setdefault("report", {}).setdefault(
-            "generate_report", {}).setdefault(
-            "date", time.strftime("%Y-%m-%d", time.localtime()))
-        outfiles.append(f"{outdir}/DNA/Mutation_report.pptx")
-        outfiles.append(f"{outdir}/DNA/Mutation_report.xlsx")
+    # Final PPT report + results workbook (modules/DR_report, DR 自有报告:
+    # DNA 链 + RNA 链 + burden/DRclass/TransEffect), gated by
+    # Params.report.enabled like the other report modules.
+    if enable_report:
+        # 写回精确到 rule:Params.report.generate_report.{genome,date}
+        # (与 runMutation/runRNAseq 的写回同一键形;genome 是报告副标题,
+        # 也是 RNA 树标签的兜底 —— DR.smk 以 genome.default 显式传
+        # genome_label,多基因组运行不受拼接串影响)
+        _dr_report_params = datajson["Params"].setdefault("report", {}).setdefault(
+            "generate_report", {})
+        if not _dr_report_params.get("genome"):
+            _dr_report_params["genome"] = "".join(dict.fromkeys(
+                samples_info_dict[s].organism for s in samples_info_dict))
+        if not _dr_report_params.get("date"):
+            _dr_report_params["date"] = time.strftime("%Y-%m-%d", time.localtime())
+        outfiles.append(f"{outdir}/DR_report.pptx")
+        outfiles.append(f"{outdir}/DR_report_files.xlsx")
         # 报告自有图导出清单(报告模块规范:figures/<name>.<fmt> 条件产出,
         # 以 manifest.tsv 锚定 DAG 与磁盘一致)
-        outfiles.append(f"{outdir}/DNA/figures/manifest.tsv")
+        outfiles.append(f"{outdir}/figures/manifest.tsv")
 
     # O3 summary exists only when there are DRclass entries: with an empty
     # samples table nothing may demand it (outputs decide the flow, TransEffect

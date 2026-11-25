@@ -191,9 +191,11 @@
           "png"
         ],
         "title": null,
+        "subtitle": null,
         "pipeline": null,
         "genome": null,
-        "date": null
+        "date": null,
+        "lang": null
       }
     },
     "TEcount": {
@@ -443,20 +445,6 @@
         ]
       }
     },
-    "RNAseq_report": {
-      "enabled": true,
-      "generate_report": {
-        "title": "RNA-seq Analysis Report",
-        "subtitle": "",
-        "pipeline": "FASTQ -> TrimGalore/Cutadapt -> STAR/HISAT2 -> TEcount/StringTie/Arriba -> DESeq2 -> RNAseq_report",
-        "genome": "GRCm39",
-        "date": "2026-07-27",
-        "lang": "zh",
-        "formats": [
-          "png"
-        ]
-      }
-    },
     "sexcheck_RNAseq": {
       "ratio_xy_threshold": null,
       "y_min_frac": null,
@@ -514,10 +502,9 @@
     "msi": "/data/16T/Database/env/msi/msi.sif",
     "spectrum": "/data/16T/Database/env/spectrum/spectrum.sif",
     "qc_summary": "/data/16T/Database/env/report/report.sif",
-    "Mutation_report": "/data/16T/Database/env/report/report.sif",
+    "DR_report": "/data/16T/Database/env/report/report.sif",
     "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif",
     "DESeq2": "/data/16T/Database/env/DESeq2/DESeq2.sif",
-    "RNAseq_report": "/data/16T/Database/env/report/report.sif",
     "RmrRNA": "/data/16T/Database/env/RmrRNA/RmrRNA.sif",
     "StringTie": "/data/16T/Database/env/StringTie/StringTie.sif",
     "TEtranscripts": "/data/16T/Database/env/TEtranscripts/TEtranscripts.sif",

@@ -42,7 +42,7 @@ rule all:
 #       fastqc->cutadapt->bwa-mem2->samtools->gatk_prepare(markdup)->targets
 #       ->gatk_somatic->msi->gatk_germline->somatic_spectrum(+signature)
 #       ->fragment_size->manta(germline+somatic SV)->cnvkit->burden
-#       ->sexcheck->qc_summary->Mutation_report
+#       ->sexcheck->qc_summary
 # 输出全部落在 {outdir}/DNA/ 下, 与链 1 的 {outdir}/RNA/ 互不干扰.
 # 输入 = node.py runDR 写入的 raw 整理根 dna_indir(meta data_type=DNA 行的
 # 软链落点 {outdir}/DNA/common/1_raw_data/, 命名 <ID>_{1,2}.fq.gz).
@@ -680,45 +680,10 @@ module qc_summary:
 logger.info(f"qc_summary_config: {qc_summary_config}")
 use rule qc_summary from qc_summary as DR_DNA_qc_summary
 
-# ============================================
-# Final Report (PPT, Mutation.smk 同款)
-# ============================================
-# Wired unconditionally; node.py registers the pptx only when
-# Params.report.enabled is set (downstream enabled pulls the upstream DAG).
-Mutation_report_config = {
-    "resources": config.get("resources", {}),
-    "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
-    "env": config.get("env", {}),
-    "outdir": f"{outdir}/DNA",
-    "logdir": f"{logdir}/group",
-    "samples": dna_paired_samples + dna_single_samples,
-    "paired_design": config.get("Params", {}).get("workflow", {}).get("paired_design", []),
-    "qc_summary": qc_summary_config["outdir"],
-    "somatic_dir": gatk_somatic_config["outdir"],
-    "spectrum_dir": somatic_spectrum_config["outdir"],
-    "burden_dir": burden_config["outdir"],
-    "msi_dir": msi_config["outdir"],
-    "fragment_dir": f"{fragment_size_config['outdir']}/fragment",
-    # registered outputs -> DAG anchors inside the report module (module
-    # filters them by its consumed dirs; only registered files enter, so
-    # disabled stages stay best-effort 'not run' notes)
-    "outfiles": outfiles,
-    "Params": {
-        "report": config.get("Params", {}).get("report", {}),
-        # 生产者 formats 段直通(modules.md #9):report 脚本运行期对消费的
-        # 上游图做 raster-first 变体解析(spectrum/signature 图归
-        # somatic_spectrum、FragmentSize 归 fragment_size、msi_barplot 归 msi)
-        "somatic_spectrum": config.get("Params", {}).get("somatic_spectrum", {}),
-        "fragment_size": config.get("Params", {}).get("fragment_size", {}),
-        "msi": config.get("Params", {}).get("msi", {}),
-    }
-}
-module Mutation_report:
-    snakefile: "../modules/Mutation_report/Mutation_report.smk"
-    config: Mutation_report_config
-logger.info(f"Mutation_report_config: {Mutation_report_config}")
-use rule generate_report from Mutation_report as DR_DNA_generate_report
+# (DNA 链报告由文件末尾的 DR_report 模块统一覆盖 —— 不再借用
+#  Mutation_report; 规范: modules.md 报告模块, 每个 Workflow 一个
+#  自己的 _report 模块。)
+
 
 # ############################################
 # 链 1: RNA 链 — 复刻 RNAseq.smk 全部分析功能:
@@ -727,7 +692,7 @@ use rule generate_report from Mutation_report as DR_DNA_generate_report
 #       -> 富集(function GO/KEGG/GSEA/GSVA) -> 组装(hisat2 -> StringTie)
 #       -> 融合(RmrRNA -> bowtie2 -> star chimera -> markdup -> arriba)
 #       -> RNA SNP(star -> XenofilteR -> markdup -> gatk_RNAseq)
-#       -> RNAseq_report + sexcheck + qc_summary
+#       -> sexcheck + qc_summary(报告由文件末尾 DR_report 统一覆盖)
 # 输出全部落在 {outdir}/RNA/ 下 (目录编号对齐 RNAseq.smk,带 RNA 前缀),
 # 与链 0 的 {outdir}/DNA/ 互不干扰。
 # 注: MetaUtil 按 meta data_type 列把 RNA 行软链整理到
@@ -1350,36 +1315,8 @@ module rna_gatk_RNAseq:
 use rule * from rna_gatk_RNAseq as DR_RNA_SNP_*
 logger.debug(f"rna_gatk_RNAseq_config: {rna_gatk_RNAseq_config}")
 
-# --- report generation using RNAseq_report module ---
-# Params.report 键名是模块读点; DR 里 DNA 链的 Mutation_report 共用
-# Params.report 段,故 RNA 报告用独立的 Params.RNAseq_report 段映射进去,
-# 两份报告的 title/genome/date 互不干扰。
-rna_RNAseq_report_config = {
-    "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
-    "env": config.get("env", {}),
-    "indir": f"{outdir}/RNA",
-    "outdir": os.path.join(outdir, "RNA", "results"),
-    "logdir": logdir,
-    "genome_samples": genome_samples,
-    "genome_paired_samples": genome_paired_samples,
-    "genome_single_samples": genome_single_samples,
-    "Params": {
-        "report": config.get("Params", {}).get("RNAseq_report", {}),
-        "DESeq2": config.get("Params", {}).get("DESeq2", {}),
-        # 生产者 formats 段直通(modules.md #9):report 模块 input 在 parse 期
-        # 按上游 formats 做 raster-first 变体解析
-        "StringTie": config.get("Params", {}).get("StringTie", {}),
-        "arriba": config.get("Params", {}).get("arriba", {}),
-        "function": config.get("Params", {}).get("function", {}),
-    },
-    "resources": config.get("resources", {}),
-}
-module rna_RNAseq_report:
-    snakefile: "../modules/RNAseq_report/polygenomes/RNAseq_report.smk"
-    config: rna_RNAseq_report_config
-logger.debug(f"rna_RNAseq_report_config: {rna_RNAseq_report_config}")
-use rule generate_report from rna_RNAseq_report as DR_RNA_generate_report
+# --- report generation: 见文件末尾 DR_report 模块(DR 自有报告,统一覆盖
+#     DNA/RNA 两链 + DR 独特分析;不再借用 RNAseq_report) ---
 
 # ============================================
 # Sex check (RNA marker-expression mode, RNAseq.smk 同款)
@@ -1535,3 +1472,54 @@ module TransEffect:
 use rule teffect_analyze from TransEffect as DR_teffect_analyze
 use rule teffect_figures from TransEffect as DR_teffect_figures
 logger.debug(f"teffect_config: {teffect_config}")
+
+# ############################################
+# Final Report: DR 自有报告模块 (modules/DR_report)
+# 覆盖 DNA 链 + RNA 链 + DR 独特分析(burden / DRclass / TransEffect),
+# 不再借用 Mutation_report / RNAseq_report 的 generate_report(规范:
+# modules.md「报告模块(_report)」,每个 Workflow 一个自己的 _report 模块)。
+# Wired unconditionally; node.py 只在 Params.report.enabled 时注册交付物
+# (downstream enabled pulls the upstream DAG)。
+# ############################################
+
+# RNA 链差异对比(DESeq2.group_pairs,node.py runDR 派生/写回,形状
+# {organism: {contrast_key: {...}}});报告覆盖默认基因组的 RNA 树。
+dr_report_contrasts = list(
+    config.get("Params", {}).get("DESeq2", {}).get("group_pairs", {})
+    .get(default_genome, {}).keys()
+)
+_dr_report_rna_samples = sorted(_all_paired | _all_single)
+DR_report_config = {
+    "resources": config.get("resources", {}),
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": outdir,
+    "logdir": f"{logdir}/group",
+    "samples": sorted(set(dna_paired_samples + dna_single_samples) | set(_dr_report_rna_samples)),
+    "dna_samples": dna_paired_samples + dna_single_samples,
+    "rna_samples": _dr_report_rna_samples,
+    "paired_samples": sorted(_all_paired),
+    "single_samples": sorted(_all_single),
+    "paired_design": config.get("Params", {}).get("workflow", {}).get("paired_design", []),
+    "contrasts": dr_report_contrasts,
+    # 上游根目录(subworkflow.md 衔接规则:引用 xxx_config["outdir"])
+    "dna_dir": f"{outdir}/DNA",
+    "rna_dir": f"{outdir}/RNA",
+    "drclass_dir": drclass_config["outdir"],
+    "teffect_dir": teffect_config["outdir"],
+    "burden_dir": burden_config["outdir"],
+    # RNA 树的 genome 目录标签(计数/DE/功能/融合/转录本子路径)
+    "genome_label": default_genome or "",
+    # 注册输出 -> 报告模块内的 DAG 锚(Mutation_report 同款锚定模式)
+    "outfiles": outfiles,
+    "Params": {
+        "report": config.get("Params", {}).get("report", {}),
+    },
+}
+module DR_report:
+    snakefile: "../modules/DR_report/DR_report.smk"
+    config: DR_report_config
+logger.info(f"DR_report_config: {DR_report_config}")
+use rule generate_report from DR_report as DR_generate_report
+use rule report_result from DR_report as DR_report_result

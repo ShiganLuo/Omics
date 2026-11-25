@@ -2932,8 +2932,9 @@ def runFiberseq(
             outfiles.append(f"{outdir}/common/5_phased_bam/{sample_id}/{sample_id}.phased.bam")
             phased_dir = f"{outdir}/common/5_phased_bam"
             for hap in ("hap1", "hap2"):
-                outfiles.append(f"{phased_dir}/{sample_id}/{sample_id}.{hap}.bam")
-                outfiles.append(f"{phased_dir}/{sample_id}/{sample_id}.{hap}.bam.bai")
+                # {hap}.bam/.bam.bai are intermediates (ft_split_hap output,
+                # wrapped by maybe_temp under Params.fibertools.keep_intermediates);
+                # not deliverables — see modules.md temp spec.
                 outfiles.append(f"{phased_dir}/{sample_id}/{sample_id}.{hap}.m6a.bed.gz")
                 outfiles.append(f"{phased_dir}/{sample_id}/{sample_id}.{hap}.nuc.bed.gz")
                 outfiles.append(f"{phased_dir}/{sample_id}/{sample_id}.{hap}.msp.bed.gz")

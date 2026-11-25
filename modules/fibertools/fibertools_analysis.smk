@@ -76,8 +76,6 @@ rule ft_extract:
             with open(command_script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
-                # tabix indexes travel with the element BEDs (declared outputs;
-                # region consumers jump instead of streaming the multi-GB files)
                 for bed in (output.m6a, output.nuc, output.msp, output.cpg):
                     f.write(f"tabix -f -p bed {bed}\n")
                 f.write(f'echo "Fiber-seq extraction completed for sample {wildcards.sample_id}"\n')
@@ -376,11 +374,11 @@ rule ft_extract_hap:
         bam = outdir + "/{sample_id}/{sample_id}.{hap}.bam",
         bai = outdir + "/{sample_id}/{sample_id}.{hap}.bam.bai",
     output:
-        # intermediates controlled by Params.fibertools.keep_intermediates (modules.md temp spec)
-        m6a = maybe_temp(outdir + "/{sample_id}/{sample_id}.{hap}.m6a.bed.gz", "fibertools"),
-        nuc = maybe_temp(outdir + "/{sample_id}/{sample_id}.{hap}.nuc.bed.gz", "fibertools"),
-        msp = maybe_temp(outdir + "/{sample_id}/{sample_id}.{hap}.msp.bed.gz", "fibertools"),
-        cpg = maybe_temp(outdir + "/{sample_id}/{sample_id}.{hap}.cpg.bed.gz", "fibertools"),
+        # registered deliverables (node.py outfiles) - never wrapped per modules.md temp spec
+        m6a = outdir + "/{sample_id}/{sample_id}.{hap}.m6a.bed.gz",
+        nuc = outdir + "/{sample_id}/{sample_id}.{hap}.nuc.bed.gz",
+        msp = outdir + "/{sample_id}/{sample_id}.{hap}.msp.bed.gz",
+        cpg = outdir + "/{sample_id}/{sample_id}.{hap}.cpg.bed.gz",
         m6a_tbi = outdir + "/{sample_id}/{sample_id}.{hap}.m6a.bed.gz.tbi",
         nuc_tbi = outdir + "/{sample_id}/{sample_id}.{hap}.nuc.bed.gz.tbi",
         msp_tbi = outdir + "/{sample_id}/{sample_id}.{hap}.msp.bed.gz.tbi",

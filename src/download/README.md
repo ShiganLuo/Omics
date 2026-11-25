@@ -67,6 +67,73 @@ CNGB_download -> `table` example 2 (`run.tsv`, `DownLoad` columns).
 Note: substring condition matching is literal (no regex); use `--exact-match`
 for whole-cell equality.
 
+## SRS_metadata.py
+
+Fetch sample- and run-level metadata for SRA sample accessions (SRS...)
+from the ENA API into consolidated TSV tables. Starting point when the
+batch is defined by SRS accessions instead of a GSE (the `GSM_metadata.py`
+/ `GEO_soft.py` flows start from GEO).
+
+### Data sources
+
+| source | URL | content |
+|--------|-----|---------|
+| ENA Browser API (sample XML) | `https://www.ebi.ac.uk/ena/browser/api/xml/<SRS>` | BioSample accession, sample alias/title, organism, all SAMPLE_ATTRIBUTEs (sex, tissue, age, ...) |
+| ENA Portal API (filereport) | `.../portal/api/filereport?accession=<SRS>&result=read_run` | one row per run: study/experiment/run accessions, library info, read counts, fastq_ftp + fastq_md5 + fastq_bytes |
+
+### Input sources
+
+1. `-s/--srs ACC1 ACC2 ...` explicit list (repeatable)
+2. `-i/--input` file: one accession per line, or a delimited table with
+   ID column `-c/--id-column` (default `SRS`)
+3. `-g/--group LABEL=ACC1,ACC2,...` — accessions named in group specs are
+   collected too (repeatable)
+4. stdin (pipe)
+
+### Group labels
+
+`-g/--group LABEL=ACC1,ACC2` (repeatable) and/or `-G/--group-file` table
+with `--group-id-col`/`--group-name-col` columns. A `group` column is
+always written into both tables; unassigned samples get an empty cell and
+a warning. Labels are free text (e.g. `experiment`, `control`).
+
+### Options
+
+- `-o/--outdir` (required), `-l/--log` (optional; stdout always)
+- `-j/--jobs` (default 4), `-r/--retries` (default 3), `-t/--timeout` (default 60s)
+- `-w/--overwrite` re-fetch cached responses (default: reuse `cache/`)
+- `-n/--dry-run` log the plan, no network
+- `--insecure` disable TLS verification
+
+### Outputs
+
+- `sample_metadata.tsv` — one row per SRS: `srs, group, biosample,
+  sample_alias, sample_title, organism, tax_id` + one column per sample
+  attribute
+- `run_metadata.tsv` — one row per run: `srs, group, run_accession, ...,
+  library_*, read_count, base_count, fastq_*`
+- `cache/<SRS>.xml`, `cache/<SRS>_runs.tsv` — raw ENA responses
+- `srs_failed.txt` — failed accessions (+error), written only on failure;
+  exit code 1 on any failure, 2 on invalid (non-SRS) input
+
+### Examples
+
+```bash
+# batch with group labels
+python SRS_metadata.py \
+    -g experiment=SRS18518057,SRS18518052,SRS18518053 \
+    -g control=SRS18527637,SRS18527634 \
+    -o /data/16T/Data/RNAseq_Ovary_CD38_PRJNA1002222 \
+    --jobs 4 --log /data/16T/Data/RNAseq_Ovary_CD38_PRJNA1002222/srs_metadata.log
+
+# accessions from a file, groups from a table
+python SRS_metadata.py -i srs_list.txt --group-file groups.tsv -o results/
+```
+
+Note: the ENA filereport endpoint hoists `run_accession` to the first
+column regardless of the requested field order; the run table validates
+columns as a set and keeps the API's returned column order.
+
 ## 开发日志
 
 ascp.sh 加上 sleep 10s;10s对于下载时间的影响忽略不计，确能避免ascp连续下载突然降速或者下载

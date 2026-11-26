@@ -7,7 +7,7 @@ The schema mirrors the config structure (top-level fields + genome section).
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 import logging
 
 logger = logging.getLogger(__name__)
@@ -639,6 +639,28 @@ class SchemaValidator:
                 f"{prefix}.{key}" if prefix else key))
         return errors
 
+    @staticmethod
+    def _iter_path_fields(node: Dict[str, Any],
+                          prefix: str = "") -> Iterator[Tuple[str, Dict[str, Any]]]:
+        """Yield (dotted_key, defn) for every schema field carrying a "path"
+        marker, descending through "properties" nesting. Workflow schemas put
+        path markers on flat fields; module schemas wrap fields in
+        "properties" (genome.properties.fasta, genome.properties.<G>....
+        properties.fasta) — both shapes resolve to the same dotted key."""
+        for key, defn in node.items():
+            if not isinstance(defn, dict):
+                continue
+            if key == "properties" and not defn.get("path"):
+                # "properties" 是 schema 包装层而非字段名,透明下钻(前缀不变)
+                yield from SchemaValidator._iter_path_fields(defn, prefix)
+                continue
+            dotted = f"{prefix}{key}"
+            if defn.get("path"):
+                yield dotted, defn
+            props = defn.get("properties")
+            if isinstance(props, dict):
+                yield from SchemaValidator._iter_path_fields(props, dotted + ".")
+
     def generate_test_paths(self, test_data: str, genome: str) -> Dict[str, str]:
         """Generate test file paths for all path-type fields.
 
@@ -658,11 +680,11 @@ class SchemaValidator:
             with open(schema_file, "r", encoding="utf-8") as f:
                 schema = json.load(f)
 
-            # Top-level path fields
-            for key, defn in schema.items():
-                if key == "genome" or not isinstance(defn, dict):
-                    continue
-                if defn.get("path") and key not in mapping:
+            # Top-level path fields (the flattener descends "properties"
+            # nesting, so wrapped module-schema fields are found too)
+            for key, defn in self._iter_path_fields(
+                    {k: v for k, v in schema.items() if k != "genome"}):
+                if key not in mapping:
                     path_type = defn["path"]
                     if key == "assembly_dir":
                         asm_root = test_data_path / "telomere" / "asm"
@@ -685,16 +707,19 @@ class SchemaValidator:
                         p.touch(exist_ok=True)
                     mapping[key] = str(p)
 
-            # Genome path fields
-            genome_schema = schema.get("genome", {})
-            for field_name, defn in genome_schema.items():
-                if not isinstance(defn, dict) or not defn.get("path"):
-                    continue
-                config_key = f"genome.{field_name}"
+            # Genome path fields: flat `genome.<field>` or nested
+            # `genome.<G>.<field>`; per-genome keys get their own placeholders
+            for gkey, defn in self._iter_path_fields(schema.get("genome") or {}):
+                parts = gkey.split(".")
+                field_name = parts[-1]
+                # genome 上下文取字段名上一段(GRCm39.fasta、genome.reference.GRCm39.fasta)
+                ctx = parts[-2] if len(parts) > 1 else None
+                config_key = f"genome.{gkey}"
                 if config_key in mapping:
                     continue
 
                 path_type = defn["path"]
+                gname = ctx or genome
                 if path_type == "file":
                     # Determine filename
                     if "smallrna" in field_name:
@@ -708,9 +733,9 @@ class SchemaValidator:
                     elif "decoy" in field_name:
                         name = "decoy"
                     elif "TE" in field_name:
-                        name = f"GRCm39.{field_name}"
+                        name = f"{ctx or 'GRCm39'}.{field_name}"
                     else:
-                        name = genome
+                        name = gname
                     p = ref_dir / name
                     p.parent.mkdir(parents=True, exist_ok=True)
                     p.touch(exist_ok=True)
@@ -720,7 +745,7 @@ class SchemaValidator:
                     if "smallrna" in field_name:
                         d = index_dir / "star" / "smallrna"
                     elif "star" in field_name:
-                        d = index_dir / "star" / genome
+                        d = index_dir / "star" / gname
                     else:
                         d = index_dir / field_name.replace("_dir", "")
                     d.mkdir(parents=True, exist_ok=True)
@@ -740,11 +765,11 @@ class SchemaValidator:
                     else:
                         exts = [".1.ht2"]
                         tool = field_name.split("_index_prefix")[0] if "_index_prefix" in field_name else field_name
-                    pfx_dir = index_dir / tool / genome
+                    pfx_dir = index_dir / tool / gname
                     pfx_dir.mkdir(parents=True, exist_ok=True)
-                    pfx = pfx_dir / genome
+                    pfx = pfx_dir / gname
                     for ext in exts:
-                        (pfx_dir / f"{genome}{ext}").touch(exist_ok=True)
+                        (pfx_dir / f"{gname}{ext}").touch(exist_ok=True)
                     mapping[config_key] = str(pfx)
 
         # Write chrom.sizes

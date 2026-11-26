@@ -315,10 +315,91 @@ class _Wildcards:
         return "{" + name + "}"
 
 
-def _eval_output_exprs(body: str, outdir: str) -> List[str]:
+def _expand(pattern: str, **kwargs) -> List[str]:
+    """snakemake expand() 的最小等价(笛卡尔积 + {name} 替换),供输出表达式
+    求值使用;通配符格式符等高级语义不支持,不影响目标展开。"""
+    import itertools
+    keys = list(kwargs)
+    value_lists = [kwargs[k] if isinstance(kwargs[k], (list, tuple))
+                   else [kwargs[k]] for k in keys]
+    out = []
+    for combo in itertools.product(*value_lists):
+        p = pattern
+        for k, v in zip(keys, combo):
+            p = p.replace("{" + k + "}", str(v))
+        out.append(p)
+    return out or [pattern]
+
+
+def _module_source(snakefile: str, _seen: Optional[set] = None) -> str:
+    """模块 .smk 的模块级源码:include: 按文本语义展开(相对被包含文件解析),
+    rule/checkpoint 体剔除,只留全局区(config 读取、指令派生名、input 函数),
+    供 _module_namespace 逐节点执行。"""
+    seen: set = _seen if _seen is not None else set()
+    path = os.path.abspath(snakefile)
+    if path in seen:
+        return ""
+    seen.add(path)
+    out_lines: List[str] = []
+    in_rule = False
+    with open(path, encoding="utf-8") as f:
+        for line in f.read().splitlines(keepends=True):
+            if in_rule:
+                # rule 体 = 空行/注释/缩进行;顶格语句结束 rule 体
+                if line.strip() == "" or line.lstrip().startswith("#") \
+                        or line[:1] in (" ", "\t"):
+                    continue
+                in_rule = False
+            inc = re.match(r"^include\s*:\s*[\"']([^\"']+)[\"']", line)
+            if inc:
+                for base in (os.path.dirname(path), ROOT_DIR):
+                    cand = os.path.normpath(os.path.join(base, inc.group(1)))
+                    if os.path.isfile(cand):
+                        out_lines.append(_module_source(cand, seen))
+                        break
+                continue
+            if re.match(r"^(rule|checkpoint)\s+\w+\s*:", line):
+                in_rule = True
+                continue
+            out_lines.append(line)
+    return "".join(out_lines)
+
+
+def _module_namespace(snakefile: str, config: Dict[str, Any]) -> Dict[str, Any]:
+    """输出表达式求值用的模块全局命名空间:按文本顺序逐节点执行模块级源码
+    (include 链先展开),派生名(_out_suffix、expand 列表)与 common.smk 助手
+    (maybe_temp、_require)和 parse 期同义。单节点失败只跳过该节点。"""
+    ns: Dict[str, Any] = {"config": config, "os": os, "expand": _expand}
+    try:
+        import ast
+        tree = ast.parse(_module_source(snakefile))
+    except Exception as e:  # noqa: BLE001 — 无法解析则退回无全局(旧行为)
+        logger.debug("module globals not evaluable for %s: %s", snakefile, e)
+        return ns
+    for node in tree.body:
+        try:
+            exec(compile(ast.Module(body=[node], type_ignores=[]),
+                         snakefile, "exec"), ns)
+        except Exception:  # noqa: BLE001 — 单节点失败不拖垮其余全局
+            continue
+    return ns
+
+
+def _eval_output_exprs(body: str, outdir: str,
+                       config: Optional[Dict[str, Any]] = None,
+                       module_globals: Optional[Dict[str, Any]] = None) -> List[str]:
     """Evaluate a rule's output: entries with outdir bound; wildcards stay as
-    '{name}' placeholders via a duck-typed wildcards object."""
+    '{name}' placeholders via a duck-typed wildcards object. Module-level
+    derived names resolve through module_globals; config carries the real
+    effective config so config.get() in output exprs matches parse time."""
     exprs: List[str] = []
+    env: Dict[str, Any] = dict(module_globals or {})
+    env.update({"outdir": outdir, "wildcards": _Wildcards(), "os": os,
+                "config": config or {},
+                # output markers in module smks; the path inside is what matters
+                "directory": lambda x: x, "protected": lambda x: x,
+                "ancient": lambda x: x, "temp": lambda x: x,
+                "touch": lambda x: x, "report": lambda x: x})
     # strip the 'output:' prefix; each line like `name = expr,` or bare `expr,`
     payload = re.sub(r"^\s*output:\s*", "", body)
     # join continuation lines into one expression list
@@ -329,18 +410,8 @@ def _eval_output_exprs(body: str, outdir: str) -> List[str]:
         # named output: name = expr -> take RHS
         if re.match(r"^\w+\s*=\s*", stmt):
             stmt = re.sub(r"^\w+\s*=\s*", "", stmt)
-        snakemake_markers = {
-            # output markers in module smks; the path inside is what matters
-            "directory": lambda x: x,
-            "protected": lambda x: x,
-            "ancient": lambda x: x,
-            "temp": lambda x: x,
-            "touch": lambda x: x,
-            "report": lambda x: x,
-        }
         try:
-            value = eval(stmt, {"outdir": outdir, "wildcards": _Wildcards(),
-                                "os": os, "config": {}, **snakemake_markers})
+            value = eval(stmt, env)
             if isinstance(value, (list, tuple)):
                 exprs.extend(str(v) for v in value)
             else:
@@ -404,6 +475,13 @@ def default_targets(snakefile: str, config_path: str, outdir: str,
     """
     text = open(snakefile).read()
     genome_values = _genome_values_from_config(config_path)
+    import json
+    try:
+        with open(config_path) as f:
+            config = json.load(f)
+    except Exception:  # noqa: BLE001 — 配置不可读时按空配置求值
+        config = {}
+    module_globals = _module_namespace(snakefile, config)
     patterns: List[str] = []
     for m in RULE_RE.finditer(text):
         rule, body = m.group(1), m.group(2)
@@ -412,7 +490,8 @@ def default_targets(snakefile: str, config_path: str, outdir: str,
         out_m = re.search(r"\boutput:\s*(.*?)(?=\n\s{4}\w+:|\Z)", body, re.S)
         if not out_m:
             continue
-        for path in _eval_output_exprs(out_m.group(1), outdir):
+        for path in _eval_output_exprs(out_m.group(1), outdir, config,
+                                       module_globals):
             wcs = re.findall(r"\{(\w+)(?:,[^}]*)?\}", path)
             if "sample_id" in wcs:
                 if not samples:
@@ -439,13 +518,28 @@ def default_targets(snakefile: str, config_path: str, outdir: str,
 def _genome_values_from_config(config_path: str) -> List[str]:
     """Genome wildcard values: union of genome_paired/single_samples keys,
     restricted to genomes with a real fasta reference when any is configured
-    (template placeholders like 'path/to/genome.fa' don't count)."""
+    (template placeholders like 'path/to/genome.fa' don't count). Falls back
+    to nested `genome.<G>` dict keys — the module-level polygenomes config
+    shape carries the genome axis there instead of the subworkflow keys."""
     import json
     with open(config_path) as f:
         cfg = json.load(f)
     values = set()
     for key in ("genome_paired_samples", "genome_single_samples"):
         values.update((cfg.get(key) or {}).keys())
+    if not values:
+        # 模块级 config 的 genome 轴:值为「标量参数块」的键即 genome 名
+        # ({GRCh38: {fasta}},或 {reference: {GRCh38: {fasta}}} 递归下钻)
+        def _collect_axis(node: Any) -> None:
+            for k, v in (node or {}).items():
+                if not isinstance(v, dict):
+                    continue
+                if v and all(not isinstance(x, dict) for x in v.values()):
+                    values.add(k)
+                else:
+                    _collect_axis(v)
+
+        _collect_axis(cfg.get("genome") or {})
 
     refs = (cfg.get("genome") or {}).get("references") or {}
     if refs:
@@ -568,10 +662,21 @@ def inject_test_paths(cfg: Dict[str, Any], schema_path: str, test_data: str) -> 
                 if not cfg.get(key) or _is_template_value(cfg.get(key)):
                     cfg[key] = val
                 continue
-            head, tail = key.split(".", 1)
-            node = cfg.setdefault(head, {})
-            if isinstance(node, dict) and (not node.get(tail) or _is_template_value(node.get(tail))):
-                node[tail] = val
+            # 多级键(genome.<G>.fasta 等)逐层下钻建嵌套 dict;既有非空标量不覆盖
+            parts = key.split(".")
+            node = cfg
+            for part in parts[:-1]:
+                child = node.get(part)
+                if not isinstance(child, dict):
+                    if child:
+                        break
+                    child = {}
+                    node[part] = child
+                node = child
+            else:
+                leaf = parts[-1]
+                if not node.get(leaf) or _is_template_value(node.get(leaf)):
+                    node[leaf] = val
     except Exception as e:
         logger.debug(f"test-path injection skipped: {e}")
 

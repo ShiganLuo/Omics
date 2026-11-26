@@ -117,6 +117,15 @@ def resolve_rule(base, path, layout):
     for suf, key in SUFFIX_ALIASES.items():
         if base.endswith(suf):
             return key, ""
+    # 对比名文件名(<contrast>,如 2iL_vs_SL):主干是 comparison_id 不是规则名。
+    # 规则取 log/group/<seg>/ 的模块段(如 DESeq2)——裸对比文件由 DESeq2_TEcount/
+    # DESeq2_TElocal 共写同一 benchmark 路径,无法从文件区分,家族名是诚实标注。
+    # (与 bioplatform OmicsRuleNames.resolve 同构,2026-11-26)
+    if "_vs_" in base:
+        parts = path.split(os.sep)
+        for i in range(len(parts) - 1):
+            if parts[i] == "group" and i + 1 < len(parts) - 1:
+                return parts[i + 1], ""
     return base, ""
 
 

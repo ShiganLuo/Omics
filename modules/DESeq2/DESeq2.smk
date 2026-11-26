@@ -9,11 +9,6 @@ geneIDAnno = config.get('genome',{}).get('geneIDAnno')
 gtf = config.get('genome',{}).get('gtf')
 gene_map = config.get('genome',{}).get('gene_map')
 
-# ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
-# R figure formats forwarded to DESeq2.r --format (repeatable). Valid set is
-# the R ggsave device set (png pdf svg ps eps tif tiff jpg jpeg); DESeq2.r
-# fails fast on anything else (pgf/raw/rgba are matplotlib-only).
-# 参数精确到 rule:config 全量路径读取 Params.DESeq2.DESeq2_TEcount.formats。
 _formats = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TEcount", {}).get("formats") or ["png"]
 if isinstance(_formats, str):
     _formats = [_formats]
@@ -24,7 +19,6 @@ rule DESeq2_TEcount:
     output:
         deseq2_results = outdir + "/{contrast}/DESeq2.done",
         contrast_group = outdir + "/{contrast}/group.tsv",
-        # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
         contrast_pca = [outdir + "/{contrast}/PCA/{contrast}.cpmPCA." + fmt for fmt in _formats],
         contrast_gene_volcano = [outdir + "/{contrast}/volcano/{contrast}.TEcount_Gene_volcano." + fmt for fmt in _formats],
         contrast_gene_heatmap = [outdir + "/{contrast}/heatmap/{contrast}.TEcount_Gene_updown." + fmt for fmt in _formats],
@@ -103,7 +97,7 @@ rule DESeq2_TEcount:
                 cmd2 += ["--format", str(fmt)]
             cmd3 = [
                 "python", params.annotation_script,
-                "-i", 
+                "-i",
                 f"{sample_outdir}/{wildcards.contrast}.TEcount_Gene.tsv",
                 f"{sample_outdir}/{wildcards.contrast}.TEcount_TE.tsv",
                 f"{sample_outdir}/{wildcards.contrast}.TEcount_Gene_TE.tsv",

@@ -6,12 +6,6 @@ logdir = config.get("logdir", "logs")
 ROOT_DIR = config.get("ROOT_DIR", ".")
 comparisons = config.get("comparisons", {})
 
-# ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
-# R figure formats forwarded to DESeq2.r --format (repeatable). Valid set is
-# the R ggsave device set (png pdf svg ps eps tif tiff jpg jpeg); DESeq2.r
-# fails fast on anything else (pgf/raw/rgba are matplotlib-only).
-# 参数精确到 rule:formats 按 rule 独立配置(config 全量路径读取,
-# Params.DESeq2.<rule_name>.formats)。
 _formats_TEcount = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TEcount", {}).get("formats") or ["png"]
 if isinstance(_formats_TEcount, str):
     _formats_TEcount = [_formats_TEcount]
@@ -45,7 +39,6 @@ rule DESeq2_TEcount:
     output:
         deseq2_results = outdir + "/{genome}/{contrast}/TEcount/DESeq2.done",
         contrast_group = outdir + "/{genome}/{contrast}/TEcount/group.tsv",
-        # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
         contrast_pca = [outdir + "/{genome}/{contrast}/TEcount/PCA/{contrast}.cpmPCA." + fmt for fmt in _formats_TEcount],
         contrast_gene_volcano = [outdir + "/{genome}/{contrast}/TEcount/volcano/{contrast}.TEcount_Gene_volcano." + fmt for fmt in _formats_TEcount],
         contrast_gene_heatmap = [outdir + "/{genome}/{contrast}/TEcount/heatmap/{contrast}.TEcount_Gene_updown." + fmt for fmt in _formats_TEcount],
@@ -59,7 +52,7 @@ rule DESeq2_TEcount:
         contrast_te = outdir + "/{genome}/{contrast}/TEcount/{contrast}.TEcount_TE.tsv",
         contrast_gene_te = outdir + "/{genome}/{contrast}/TEcount/{contrast}.TEcount_Gene_TE.tsv",
     threads: rule_res("DESeq2_TEcount").get("threads", 4)
-    benchmark: logdir + "/DESeq2/{genome}/{contrast}.benchmark.tsv",
+    benchmark: logdir + "/DESeq2/{genome}/{contrast}.TEcount.benchmark.tsv",
     resources:
         mem_mb=lambda wildcards, input, attempt: rule_res(
             "DESeq2_TEcount", input_size=sample_count(),
@@ -123,7 +116,7 @@ rule DESeq2_TEcount:
                 cmd2 += ["--format", str(fmt)]
             cmd3 = [
                 "python", params.annotation_script,
-                "-i", 
+                "-i",
                 f"{sample_outdir}/{wildcards.contrast}.TEcount_Gene.tsv",
                 f"{sample_outdir}/{wildcards.contrast}.TEcount_TE.tsv",
                 f"{sample_outdir}/{wildcards.contrast}.TEcount_Gene_TE.tsv",
@@ -173,7 +166,6 @@ rule DESeq2_TElocal:
     output:
         deseq2_results = outdir + "/{genome}/{contrast}/TElocal/DESeq2.done",
         contrast_group = outdir + "/{genome}/{contrast}/TElocal/group.tsv",
-        # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
         contrast_pca = [outdir + "/{genome}/{contrast}/TElocal/PCA/{contrast}.cpmPCA." + fmt for fmt in _formats_TElocal],
         contrast_gene_volcano = [outdir + "/{genome}/{contrast}/TElocal/volcano/{contrast}.TElocal_Gene_volcano." + fmt for fmt in _formats_TElocal],
         contrast_gene_heatmap = [outdir + "/{genome}/{contrast}/TElocal/heatmap/{contrast}.TElocal_Gene_updown." + fmt for fmt in _formats_TElocal],
@@ -187,7 +179,7 @@ rule DESeq2_TElocal:
         contrast_te = outdir + "/{genome}/{contrast}/TElocal/{contrast}.TElocal_TE.tsv",
         contrast_gene_te = outdir + "/{genome}/{contrast}/TElocal/{contrast}.TElocal_Gene_TE.tsv",
     threads: rule_res("DESeq2_TElocal").get("threads", 4)
-    benchmark: logdir + "/DESeq2/{genome}/{contrast}.benchmark.tsv",
+    benchmark: logdir + "/DESeq2/{genome}/{contrast}.TElocal.benchmark.tsv",
     resources:
         mem_mb=lambda wildcards, input, attempt: rule_res(
             "DESeq2_TElocal", input_size=sample_count(),
@@ -251,7 +243,7 @@ rule DESeq2_TElocal:
                 cmd2 += ["--format", str(fmt)]
             cmd3 = [
                 "python", params.annotation_script,
-                "-i", 
+                "-i",
                 f"{sample_outdir}/{wildcards.contrast}.TElocal_Gene.tsv",
                 f"{sample_outdir}/{wildcards.contrast}.TElocal_TE.tsv",
                 f"{sample_outdir}/{wildcards.contrast}.TElocal_Gene_TE.tsv",
@@ -276,17 +268,7 @@ rule DESeq2_TElocal:
             rule_logger.error(f"Error occurred during DESeq2 TElocal: {e}\n")
             raise RuntimeError(f"Error occurred during DESeq2 TElocal: {e}\n")
 
-# ---------------------------------------------------------------------------
-# TE locus figures over TElocal results (Manhattan / locus box / subfamily bar).
-# Figure params resolve from Params.DESeq2.<rule_name>.<key> only, via config
-# 全量路径(参数精确到 rule,无共享回退).
-# Per-contrast family patterns live in Params.DESeq2.<rule_name>.<key>[genome][contrast].
-# ---------------------------------------------------------------------------
 
-# ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
-# Output formats for the TE locus figures (matplotlib full set; the te_*.py
-# scripts fail fast on anything else). Resolution: config 全量路径
-# Params.DESeq2.<rule_name>.formats only (rule-scoped; built-in ["png"]).
 _manhattan_formats = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_manhattan", {}).get("formats") or ["png"]
 if isinstance(_manhattan_formats, str):
     _manhattan_formats = [_manhattan_formats]
@@ -314,7 +296,6 @@ rule DESeq2_TElocal_manhattan:
         group = outdir + "/{genome}/{contrast}/TElocal/group.tsv",
         loci = get_TElocal_TEind,
     output:
-        # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
         manhattan = [outdir + "/{genome}/{contrast}/TElocal/manhattan/{contrast}.manhattan." + fmt for fmt in _manhattan_formats],
     threads: rule_res("DESeq2_TElocal_manhattan").get("threads", 2),
     benchmark: logdir + "/DESeq2/{genome}/{contrast}.manhattan.benchmark.tsv",
@@ -389,7 +370,6 @@ rule DESeq2_TElocal_locus_boxplot:
         annotation = outdir + "/{genome}/{contrast}/TElocal/group.tsv",
         loci = get_TElocal_TEind,
     output:
-        # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
         locus_box = [outdir + "/{genome}/{contrast}/TElocal/locus_box/{contrast}.locus_box." + fmt for fmt in _locus_box_formats],
     threads: rule_res("DESeq2_TElocal_locus_boxplot").get("threads", 2),
     benchmark: logdir + "/DESeq2/{genome}/{contrast}.locus_box.benchmark.tsv",
@@ -468,7 +448,6 @@ rule DESeq2_TElocal_subfamily_bar:
         annotation = outdir + "/{genome}/{contrast}/TElocal/group.tsv",
         loci = get_TElocal_TEind,
     output:
-        # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
         subfamily_bar = [outdir + "/{genome}/{contrast}/TElocal/subfamily_bar/{contrast}.subfamily_bar." + fmt for fmt in _subfamily_bar_formats],
     threads: rule_res("DESeq2_TElocal_subfamily_bar").get("threads", 2),
     benchmark: logdir + "/DESeq2/{genome}/{contrast}.subfamily_bar.benchmark.tsv",

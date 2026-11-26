@@ -63,7 +63,6 @@ rule ft_predict_m6a:
     input:
         bam = indir + "/{sample_id}/{sample_id}.bam"
     output:
-        # intermediate controlled by Params.fibertools.keep_intermediates (modules.md temp spec)
         bam = maybe_temp(outdir + "/{sample_id}/{sample_id}.fiberseq.bam", "fibertools")
     log:
         logdir + "/{sample_id}/ft_predict_m6a.log"

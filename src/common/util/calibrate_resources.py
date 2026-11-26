@@ -21,9 +21,10 @@
   输出 --out(默认 <root>/resources_suggest.tsv):rule、n、observed_p90_mb、
      suggest_mb、prev_declared_mb、delta_pct、censored_n、note;
   --apply:把建议值写回 --config 的 resources.<rule>.mem_mb(默认只出表不写)。
-     护栏:样本不足(n<MIN_POINTS)不动、单次 ±30% 限幅、config 里不存在的
-     规则不动、值取整、无变化不动。每次写回是一次可回滚的 config 变更,
-     依据都在 tsv 里可审计。
+     护栏:样本不足(n<MIN_POINTS)不动、单次 ±30% 限幅(仅已有声明值)、
+     config 里不存在的规则键 n>=MIN_POINTS 时新建(家族聚合名除外,首次
+     写入无 prev 不限幅)、值取整、无变化不动。每次写回是一次可回滚的
+     config 变更,依据都在 tsv 里可审计。
 """
 import argparse
 import csv
@@ -46,6 +47,12 @@ RULE_ALIASES = {
     "gsva": "function_gsva",
     "cutadapt_paired": "trimming_Paired",
     "cutadapt_single": "trimming_Single",
+    # benchmark 文件名与 rule_res 键的历史拼写差异,来源:各模块 benchmark: 声明
+    "bwa_mem2-alignment": "bwaMem2_alignment",          # modules/bwa-mem2/bwa-mem2.smk
+    "flagstat": "bam_flagstat",                          # modules/samtools/samtools.smk
+    "haplotypeCaller": "HaplotypeCaller",                # modules/gatk/gatk_germline/gatk_germline.smk
+    "haplotypeCaller-filtered": "filterHaplotypeCallerVcf",
+    "DR_report": "generate_report",                      # modules/DR_report/DR_report.smk
 }
 # 文件名带 contrast 前缀(<contrast>.<suffix>)的按后缀映射。
 SUFFIX_ALIASES = {
@@ -54,6 +61,9 @@ SUFFIX_ALIASES = {
     ".manhattan": "DESeq2_TElocal_manhattan",
     ".locus_box": "DESeq2_TElocal_locus_boxplot",
     ".subfamily_bar": "DESeq2_TElocal_subfamily_bar",
+    # 2026-11-26 拆开 polygenomes DESeq2 两条规则 benchmark 路径后的新命名
+    ".TEcount": "DESeq2_TEcount",
+    ".TElocal": "DESeq2_TElocal",
 }
 # PE/SE 两条规则共用同一 benchmark 文件名:按 raw.json 样本布局逐行归属。
 LAYOUT_ALIASES = {
@@ -121,11 +131,18 @@ def resolve_rule(base, path, layout):
     # 规则取 log/group/<seg>/ 的模块段(如 DESeq2)——裸对比文件由 DESeq2_TEcount/
     # DESeq2_TElocal 共写同一 benchmark 路径,无法从文件区分,家族名是诚实标注。
     # (与 bioplatform OmicsRuleNames.resolve 同构,2026-11-26)
-    if "_vs_" in base:
-        parts = path.split(os.sep)
-        for i in range(len(parts) - 1):
-            if parts[i] == "group" and i + 1 < len(parts) - 1:
-                return parts[i + 1], ""
+    parts = path.split(os.sep)
+    seg = None
+    for i in range(len(parts) - 1):
+        if parts[i] == "group" and i + 1 < len(parts) - 1:
+            seg = parts[i + 1]
+            break
+    if "_vs_" in base and seg:
+        return seg, "family"
+    # 已按家族名落库的历史行(如 "DESeq2"):与 group/<seg>/ 段同名 → 家族聚合,
+    # 不是可写回 config 的规则键。
+    if seg and base == seg:
+        return base, "family"
     return base, ""
 
 
@@ -269,7 +286,11 @@ def main(argv=None):
         print(f"history: appended {new_history} rows -> {args.history}")
 
     # ---- load history for suggestions ----
+    # 历史行按当前别名表重新归并(append-only 不改写旧行):老的未映射名
+    # (bwa_mem2-alignment 等)在此折叠进正确规则键,别名幂等。
     hist = {}
+    family_rules = set()
+    hist_layout = load_sample_layout(args.root)
     if os.path.exists(args.history):
         with open(args.history, newline="") as fh:
             for rec in csv.DictReader(fh, delimiter="\t"):
@@ -278,7 +299,11 @@ def main(argv=None):
                 except (ValueError, KeyError):
                     continue
                 censored = (rec.get("censored") == "1")
-                rule = rec["rule"]
+                rule, why = resolve_rule(rec["rule"], rec.get("source") or "", hist_layout)
+                if rule is None:
+                    continue
+                if why == "family":
+                    family_rules.add(rule)
                 hist.setdefault(rule, {"all": [], "censored": []})
                 (hist[rule]["censored"] if censored else hist[rule]["all"]).append(rss)
 
@@ -325,7 +350,10 @@ def main(argv=None):
         else:
             delta = None
             if declared:
-                note.append("not in config resources(未映射规则,不合入)")
+                if rule in family_rules:
+                    note.append("family aggregate(家族聚合名,非规则键,不合入)")
+                else:
+                    note.append("not in config resources(--apply 新建条目)")
         out_rows.append({
             "rule": rule, "n_ok": n_ok, "n_censored": n_cen,
             "observed_p90_mb": f"{p90:.0f}",
@@ -335,10 +363,14 @@ def main(argv=None):
             "note": "; ".join(note),
         })
         # ---- --apply 合入候选(护栏在写回前统一判定) ----
-        if (args.apply and isinstance(prev, (int, float))
-                and n_ok + n_cen >= MIN_POINTS):
+        if args.apply and n_ok + n_cen >= MIN_POINTS:
             new_mb = int(round(suggest))
-            if new_mb != int(prev):
+            if isinstance(prev, (int, float)):
+                if new_mb != int(prev):
+                    applies[rule] = new_mb
+            elif rule not in family_rules:
+                # config 里不存在的规则键:n>=MIN_POINTS 时新建(首个真实数据集
+                # 锚定;家族聚合名除外)。首次写入无 prev,不做 ±30% 限幅。
                 applies[rule] = new_mb
 
     if out_rows:
@@ -355,7 +387,7 @@ def main(argv=None):
         apply_to_config(args.config, applies)
         for rule in sorted(applies):
             old = declared.get(rule, {}).get("mem_mb")
-            print(f"apply: {rule} {old} -> {applies[rule]}")
+            print(f"apply: {rule} {old if old else '(new)'} -> {applies[rule]}")
         print(f"apply: {len(applies)} rules written -> {args.config}"
               f"(n<{MIN_POINTS} 未动 {sum(1 for r in out_rows if 'insufficient' in r['note'])} 条)")
     return 0

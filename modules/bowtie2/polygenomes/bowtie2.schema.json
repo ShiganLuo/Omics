@@ -37,12 +37,11 @@
     "required": false,
     "properties": {
       "default": {
-        "type": "str",
-        "path": "file",
-        "nullable": true,
-        "required": false
+       "type": "str",
+       "nullable": true,
+       "required": false
       },
-      "reference": {
+      "references": {
         "type": "dict",
         "nullable": true,
         "required": false,

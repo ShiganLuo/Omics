@@ -12,7 +12,7 @@
 | 输入 | 说明 |
 |---|---|
 | `indir`(config)/ 布局参数 | 上游 FASTQ 目录,形态 A 拼接:双端 `{indir}/{sample_id}/{sample_id}_1.fq.gz`、`_2.fq.gz`;单端 `{indir}/{sample_id}/{sample_id}.single.fq.gz` |
-| `genome.references.<g>.fasta` | 每基因组参考 FASTA(`get_input_for_bowtie2_index` 取用,缺失即报错)。注意 .smk 读 `genome.references`(复数),json 示例键为 `genome.reference`(单数),以 .smk 为准 |
+| `genome.references.<g>.fasta` | 每基因组参考 FASTA(`get_input_for_bowtie2_index` 取用,缺失即报错) |
 | `genome.references.<g>.index_prefix` | 可选:预建 bowtie2 索引前缀;存在 `<prefix>.1.bt2` 时直接消费,否则回退模块自建索引 `{outdir}/index/{g}/{g}` |
 | `genome_paired_samples` / `genome_single_samples` | genome → 样本列表字典;`get_alignment_input` 据此判单/双端(当前该函数定义于模块但未被规则 input 引用;规则直接按静态路径取文件) |
 

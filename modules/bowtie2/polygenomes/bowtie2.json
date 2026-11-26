@@ -8,7 +8,7 @@
     },
     "genome": {
         "default": "GRCh38",
-        "reference": {
+        "references": {
             "GRCh38": {
                 "fasta": "path/to/GRCh38.fa",
                 "index_prefix": "path/to/prebuilt/GRCh38_bowtie2_index_prefix"

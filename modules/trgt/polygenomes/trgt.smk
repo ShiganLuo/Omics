@@ -31,9 +31,9 @@ def get_input_for_trgt_genotype(wildcards):
     else:
         in_dict["bam"] = os.path.join(indir, f"{wildcards.sample_id}/{wildcards.sample_id}.bam")
         in_dict["bai"] = os.path.join(indir, f"{wildcards.sample_id}/{wildcards.sample_id}.bam.bai")
-    in_dict["fasta"] = lambda wildcards: config["genome"][wildcards.genome]["fasta"]
-    in_dict["fai"] = lambda wildcards: config["genome"][wildcards.genome]["fai"]
-    in_dict["bed"] = lambda wildcards: config["genome"][wildcards.genome]["repeat_bed"]
+    in_dict["fasta"] = config["genome"][wildcards.genome]["fasta"]
+    in_dict["fai"] = config["genome"][wildcards.genome]["fai"]
+    in_dict["bed"] = config["genome"][wildcards.genome]["repeat_bed"]
     return in_dict
 rule trgt_genotype:
     input:

@@ -543,7 +543,7 @@
     },
     "HaplotypeCaller": {
       "threads": 10,
-      "mem_mb": 32000,
+      "mem_mb": 22400,
       "scale": {
         "size_metric": "bam_mb",
         "ref_input_size": 3000,
@@ -573,10 +573,10 @@
     },
     "addReadsGroup": {
       "threads": 8,
-      "mem_mb": 11200
+      "mem_mb": 7840
     },
     "bam_flagstat": {
-      "mem_mb": 8000
+      "mem_mb": 5600
     },
     "bam_sort": {
       "threads": 8
@@ -587,7 +587,7 @@
     },
     "burden_cnv": {
       "threads": 1,
-      "mem_mb": 5600
+      "mem_mb": 3920
     },
     "burden_snv_indel": {
       "threads": 1,
@@ -599,7 +599,7 @@
     },
     "bwaMem2_alignment": {
       "threads": 12,
-      "mem_mb": 32000
+      "mem_mb": 34836
     },
     "bwaMem2_index": {
       "threads": 15,
@@ -626,7 +626,7 @@
     },
     "collectHsMetrics": {
       "threads": 4,
-      "mem_mb": 11200
+      "mem_mb": 7840
     },
     "default": {
       "threads": 2,
@@ -656,7 +656,7 @@
     },
     "filterHaplotypeCallerVcf": {
       "threads": 10,
-      "mem_mb": 16000
+      "mem_mb": 11200
     },
     "filterMutectCalls": {
       "threads": 2,
@@ -685,14 +685,14 @@
     },
     "manta_config": {
       "threads": 1,
-      "mem_mb": 5600
+      "mem_mb": 3920
     },
     "manta_config_somatic": {
       "mem_mb": 8000
     },
     "manta_run": {
       "threads": 8,
-      "mem_mb": 22400,
+      "mem_mb": 15680,
       "scale": {
         "size_metric": "bam_mb",
         "ref_input_size": 3500,
@@ -728,7 +728,7 @@
     },
     "samtools_stats": {
       "threads": 1,
-      "mem_mb": 5600
+      "mem_mb": 3920
     },
     "sexcheck": {
       "threads": 1,
@@ -736,7 +736,7 @@
     },
     "sexcheck_idxstats": {
       "threads": 1,
-      "mem_mb": 5600
+      "mem_mb": 3920
     },
     "somaticMutect2": {
       "threads": 8,
@@ -769,7 +769,7 @@
     },
     "star_align": {
       "threads": 12,
-      "mem_mb": 44800,
+      "mem_mb": 36451,
       "scale": {
         "size_metric": "fastq_mb",
         "ref_input_size": 4600,
@@ -784,7 +784,7 @@
     },
     "trimming_Paired": {
       "threads": 6,
-      "mem_mb": 5600
+      "mem_mb": 3920
     },
     "trimming_Single": {
       "threads": 6,
@@ -793,6 +793,36 @@
     "vcf_filter": {
       "threads": 8,
       "mem_mb": 8000
+    },
+    "DESeq2_TElocal_manhattan": {
+      "mem_mb": 2856
+    },
+    "TEChimericTranscripts": {
+      "mem_mb": 3294
+    },
+    "TEcount": {
+      "mem_mb": 6933
+    },
+    "TElocal": {
+      "mem_mb": 10578
+    },
+    "arriba": {
+      "mem_mb": 6018
+    },
+    "bowtie2_align_paired": {
+      "mem_mb": 4258
+    },
+    "function_go_kegg": {
+      "mem_mb": 2814
+    },
+    "function_gsea": {
+      "mem_mb": 931
+    },
+    "hisat2_align": {
+      "mem_mb": 7601
+    },
+    "stringTie": {
+      "mem_mb": 550
     }
   },
   "Procedure": {

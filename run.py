@@ -4,6 +4,7 @@ import glob
 import json
 import os
 import re
+import shutil
 import signal
 import socket
 import sys
@@ -226,6 +227,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--dry-run', action='store_true',
         help='dry run: build the DAG and exit without executing run-block code')
     parser.add_argument('--touch', action='store_true', help='touch output files to update timestamps without re-running (cannot combine with --dry-run)')
+    parser.add_argument('--clean-temp', action='store_true',
+                        help='clean the run outdir(s) temp space (tmp/ plus container/tool cache dirs) and exit')
     parser.add_argument('--test', type=str, nargs='?', const='dag', choices=['dag', 'shell'], metavar='MODE',
         help='test mode with built-in fixtures; workflow(s) via -w. '
              'dag = only build the DAG; shell = execute run-block code and write '
@@ -973,6 +976,100 @@ def print_test_summary(test_results: Dict[str, Tuple[bool, str]]) -> None:
         # 不在此 exit:--test all 还要链模块 sweep,统一在末尾汇总退出
 
 
+_TMP_CACHE_DIRS = (".cache", ".config", ".keras", ".parallel", ".RepeatMaskerCache")
+_TIDK_KEEP = os.path.join(".local", "share", "tidk", "tidk_database.csv")
+
+
+def _run_tmp_dir(abs_outdir: str) -> str:
+    """Resolve the run's tmp dir from its raw.json (default <outdir>/tmp)."""
+    raw_path = os.path.join(abs_outdir, "raw.json")
+    tmp_dir = None
+    if os.path.isfile(raw_path):
+        try:
+            with open(raw_path, encoding="utf-8") as f:
+                tmp_dir = json.load(f).get("tmp_dir")
+        except (OSError, ValueError):
+            tmp_dir = None
+    if not tmp_dir:
+        return os.path.join(abs_outdir, "tmp")
+    return tmp_dir if os.path.isabs(tmp_dir) else os.path.join(abs_outdir, tmp_dir)
+
+
+def _tree_bytes(path: str) -> int:
+    total = 0
+    if os.path.isfile(path):
+        return 0 if os.path.islink(path) else os.path.getsize(path)
+    for dp, _dns, fns in os.walk(path):
+        for fn in fns:
+            fp = os.path.join(dp, fn)
+            if not os.path.islink(fp):
+                try:
+                    total += os.path.getsize(fp)
+                except OSError:
+                    pass
+    return total
+
+
+def report_temp_residue(abs_outdir: str, logger: logging.Logger) -> None:
+    tmp_dir = _run_tmp_dir(abs_outdir)
+    n = _tree_bytes(tmp_dir) if os.path.isdir(tmp_dir) else 0
+    if n:
+        logger.info("tmp residue in %s: %.1f MB (auto-cleaned after success; "
+                    "use --clean-temp to clean now)", tmp_dir, n / 2 ** 20)
+
+
+def clean_run_temp(abs_outdir: str, logger: logging.Logger,
+                   include_caches: bool = False) -> None:
+    """Clear a finished run's temp space.
+
+    Always empties tmp_dir (the dir itself stays). With include_caches, also
+    removes container/tool cache dirs at the output root, keeping the
+    downloaded tidk database under .local.
+
+    Args:
+        abs_outdir: absolute workflow output dir (holds raw.json).
+        logger: run logger.
+        include_caches: also remove cache dirs (.cache/.config/.keras/...).
+    """
+    freed = 0
+    tmp_dir = _run_tmp_dir(abs_outdir)
+    if os.path.isdir(tmp_dir):
+        freed = _tree_bytes(tmp_dir)
+        for entry in os.listdir(tmp_dir):
+            p = os.path.join(tmp_dir, entry)
+            if os.path.islink(p) or os.path.isfile(p):
+                os.remove(p)
+            else:
+                shutil.rmtree(p, ignore_errors=True)
+        logger.info("cleaned tmp dir %s (%.1f MB)", tmp_dir, freed / 2 ** 20)
+    if include_caches:
+        cfreed = 0
+        for name in _TMP_CACHE_DIRS:
+            p = os.path.join(abs_outdir, name)
+            if os.path.isdir(p):
+                cfreed += _tree_bytes(p)
+                shutil.rmtree(p, ignore_errors=True)
+        local = os.path.join(abs_outdir, ".local")
+        keep = os.path.realpath(os.path.join(abs_outdir, _TIDK_KEEP))
+        if os.path.isdir(local):
+            for dp, _dns, fns in os.walk(local, topdown=False):
+                for fn in fns:
+                    fp = os.path.join(dp, fn)
+                    if os.path.realpath(fp) != keep:
+                        try:
+                            cfreed += os.path.getsize(fp)
+                            os.remove(fp)
+                        except OSError:
+                            pass
+                for dn in _dns:
+                    try:
+                        os.rmdir(os.path.join(dp, dn))
+                    except OSError:
+                        pass
+        logger.info("cleaned cache dirs under %s (%.1f MB)",
+                    abs_outdir, cfreed / 2 ** 20)
+
+
 def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.Logger) -> None:
     """Execute all configured workflows.
 
@@ -1044,6 +1141,7 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
     for wf_name in workflow_names:
         abs_outdir = os.path.abspath(os.path.join(args.output_dir, wf_name))
         os.makedirs(abs_outdir, exist_ok=True)
+        report_temp_residue(abs_outdir, logger)
 
         try:
             # In test mode, reload metadata per workflow (different meta files)
@@ -1370,6 +1468,9 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
             for _, cwd in smk_cmds:
                 _cleanup_script_only_placeholders(cwd)
         _write_run_summary(args.output_dir, _summary_payload(exec_status))
+        if all(s == "ok" for s in exec_status.values()):
+            for _, cwd in smk_cmds:
+                clean_run_temp(cwd, logger)
 
 
 def _build_execution_callback(args: argparse.Namespace,
@@ -1476,6 +1577,11 @@ if __name__ == "__main__":
             setup_normal_args(args)
 
         logger = setup_logger("root", level=logging.DEBUG, log_file=args.log)
+        if args.clean_temp:
+            for wf in args.workflow_name:
+                clean_run_temp(os.path.abspath(os.path.join(args.output_dir, wf)),
+                               logger, include_caches=True)
+            raise SystemExit(0)
         execute_workflows(args, ROOT_DIR, logger)
     except SystemExit as e:
         code = e.code

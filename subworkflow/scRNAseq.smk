@@ -238,6 +238,7 @@ scanpy_config = {
     "te_bed": config.get("genome", {}).get("references", {}).get(genome, {}).get("te_bed", ""),
     "gene_tsv": config.get("genome", {}).get("references", {}).get(genome, {}).get("geneIDAnno", ""),
     "species": genome,  # Pass species/genome for tissue-specific annotation
+    "tissue_samples": config.get("sample_params", {}).get("tissue_samples", {}),
     "Params": {
         "scanpy": config.get("Params", {}).get("scanpy", {}),
     },
@@ -282,6 +283,7 @@ sccoda_config = {
         c: _scanpy_cluster_annotations(c)
         for c in counters
     },
+    "tissue_samples": config.get("sample_params", {}).get("tissue_samples", {}),
     "Params": {
         "sccoda": config.get("Params", {}).get("sccoda", {}),
     },
@@ -308,7 +310,7 @@ use rule * from sccoda as scRNAseq_*
 def _pbgo_prerequisites():
     """Pseudobulk report htmls of every (tissue, counter) whose pseudobulk runs."""
     reqs = []
-    for tissue in (config.get("Params", {}).get("scanpy", {}).get("tissue_samples", {}) or {}):
+    for tissue in (config.get("sample_params", {}).get("tissue_samples", {}) or {}):
         for counter in counters:
             pb = ((config.get("Params", {}).get("scanpy", {}).get(counter, {}) or {})
                   .get("scanpy_pseudobulk", {}) or {})
@@ -350,7 +352,7 @@ use rule * from pseudobulk_go as scRNAseq_*
 # per modules.md). tissues derive from scanpy's tissue_samples map.
 # ------------------------------------------------------------
 def _tedom_tissues():
-    ts = config.get("Params", {}).get("scanpy", {}).get("tissue_samples", {}) or {}
+    ts = config.get("sample_params", {}).get("tissue_samples", {}) or {}
     return list(ts.keys()) if isinstance(ts, dict) else []
 
 tedominant_config = {

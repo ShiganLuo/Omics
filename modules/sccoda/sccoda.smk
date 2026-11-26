@@ -12,8 +12,9 @@ logdir = config.get("logdir", "logs")
 # not a Params read point — sccoda's own params are rule-scoped below.)
 reannotate = config.get("reannotate", {}) or {}
 
-# tissue_samples: {tissue: [sample_id, ...]} — from node.py
-tissue_samples = config.get("Params", {}).get("sccoda", {}).get("tissue_samples", {})
+# tissue_samples: {tissue: [sample_id, ...]} — sample_params.tissue_samples
+# (subworkflow wiring passes it bare, purity 规范见 subworkflow/subworkflow.md)
+tissue_samples = config.get("tissue_samples", {})
 tissues = sorted(tissue_samples.keys())
 counters = sorted(k for k, v in (config.get("Params", {}).get("sccoda", {}) or {}).items()
                   if isinstance(v, dict) and k != "tissue_samples")

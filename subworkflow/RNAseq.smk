@@ -380,7 +380,7 @@ StringTie_config = {
         "genome_samples": genome_samples,
         "ROOT_DIR": ROOT_DIR,
         "OUTDIR_ROOT": outdir,
-        "sample_groups": config.get("Params",{}).get("StringTie",{}).get('sample_groups'),
+        "sample_groups": config.get("sample_params", {}).get("sample_groups"),
         "Params": {
             # wholesale section so formats (and future keys) reach the module;
             # StringTie.smk reads Params.StringTie.formats

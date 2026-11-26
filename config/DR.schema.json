@@ -1029,6 +1029,10 @@
       "comparisons": {
         "type": "dict",
         "required": false
+      },
+      "sample_groups": {
+        "type": "dict",
+        "required": false
       }
     }
   },
@@ -2062,10 +2066,6 @@
         "type": "dict",
         "required": false,
         "properties": {
-          "sample_groups": {
-            "type": "dict",
-            "required": false
-          },
           "generate_report": {
             "type": "dict",
             "required": false,

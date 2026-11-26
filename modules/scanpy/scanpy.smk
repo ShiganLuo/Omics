@@ -13,8 +13,9 @@ logdir_combine = config.get("logdir_combine", logdir)
 procedure = config.get("Procedure", {})
 python = procedure.get("python") or "python"
 
-# tissue_samples: {tissue: [sample_id, ...]} — from node.py
-tissue_samples = config.get("Params", {}).get("scanpy", {}).get("tissue_samples", {})
+# tissue_samples: {tissue: [sample_id, ...]} — sample_params.tissue_samples
+# (subworkflow wiring passes it bare, purity 规范见 subworkflow/subworkflow.md)
+tissue_samples = config.get("tissue_samples", {})
 script = os.path.join(ROOT_DIR, "modules", "scanpy", "bin", "scRNAseq.py")
 
 # 参数精确到 rule:Params.scanpy.<counter>.<rule_name>.<key>(无 counter 级共享回退)。原 qc/auto/advanced/cluster/pseudobulk

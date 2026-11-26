@@ -9,7 +9,8 @@
     "control_samples": [],
     "dna_paired_samples": [],
     "dna_single_samples": [],
-    "comparisons": {}
+    "comparisons": {},
+    "sample_groups": {}
   },
   "Params": {
     "workflow": {
@@ -265,7 +266,6 @@
     "StringTie": {
       "keep_intermediates": false,
       "enabled": true,
-      "sample_groups": {},
       "formats": [
         "png"
       ],

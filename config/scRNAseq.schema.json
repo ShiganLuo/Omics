@@ -410,6 +410,11 @@
           "type": "str"
         },
         "required": false
+      },
+      "tissue_samples": {
+        "type": "dict",
+        "nullable": true,
+        "required": false
       }
     }
   },
@@ -561,11 +566,6 @@
       }
     },
     "scanpy": {
-      "tissue_samples": {
-        "type": "dict",
-        "nullable": true,
-        "required": false
-      },
       "scTE": {
         "scanpy_qc": {
           "type": "dict",

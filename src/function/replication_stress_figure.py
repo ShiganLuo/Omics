@@ -147,7 +147,7 @@ def sample_groups() -> dict[str, str]:
     """Resolve sample -> group from raw.json, fibroblasts via name prefix."""
     raw = json.loads((ROOT / "raw.json").read_text())
     groups: dict[str, str] = {}
-    for grp, samples in raw["Params"]["StringTie"]["sample_groups"].items():
+    for grp, samples in raw["sample_params"]["sample_groups"].items():
         for s in samples:
             groups[s] = grp
     return groups

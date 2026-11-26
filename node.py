@@ -2312,7 +2312,7 @@ def runRNAseq(
             outfiles.append(f"{pair_dir}/up_genes.txt")
             outfiles.append(f"{pair_dir}/down_genes.txt")
             outfiles.append(f"{pair_dir}/GSEA/TEcount_Gene_GSEA.csv")
-    datajson["Params"]["StringTie"]["sample_groups"] = sample_groups
+    datajson["sample_params"]["sample_groups"] = sample_groups
     Organisms = set()
     for sample_id, sample_info in samples_info_dict.items():
         Organisms.add(sample_info.organism)
@@ -2690,8 +2690,9 @@ def runscRNAseq(
                   .get("scanpy_reannotate", {}) or {}).get("cluster_annotations", {}) or {}
             if tissue in ca:
                 outfiles.append(f"{outdir}/common/5_combine_h5ad/{tissue}/{tissue}_{counter}_auto.h5ad.reannotated")
-    datajson["Params"]["scanpy"]["tissue_samples"] = tissue_samples
-    datajson["Params"]["sccoda"]["tissue_samples"] = tissue_samples
+    # tissue→样本映射是样本注册表,存 sample_params(purity 规范,见
+    # subworkflow/subworkflow.md);scanpy/sccoda 模块经接线取用。
+    datajson["sample_params"]["tissue_samples"] = tissue_samples
     # GO/KEGG enrichment over the pseudobulk tree (modules/function/
     # pseudobulk_go): one sentinel target pulls the per-unit enrichment jobs
     # behind the runtime discovery checkpoint. Gated by
@@ -3658,7 +3659,7 @@ def runDR(
         _g = (samples_info_dict[sid].group or "").strip()
         if _g:
             _sample_groups.setdefault(_g, []).append(_disp(sid))
-    datajson["Params"].setdefault("StringTie", {})["sample_groups"] = _sample_groups
+    datajson["sample_params"]["sample_groups"] = _sample_groups
 
     # XenofilteR host/contaminant map (runRNAseq parity; contaminant defaults
     # to the host genome when the meta leaves contaminated_organism empty)

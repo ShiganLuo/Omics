@@ -681,7 +681,7 @@ def _expand_wildcard_rule_targets(
             logger.warning("Could not read %s for --forcerun expansion (%s); "
                            "falling back to the config template.", input_json, exc)
     scanpy_params = (cfg.get("Params") or {}).get("scanpy") or {}
-    tissue_samples = scanpy_params.get("tissue_samples")
+    tissue_samples = (cfg.get("sample_params") or {}).get("tissue_samples")
     if isinstance(tissue_samples, dict) and tissue_samples:
         tissues = sorted(tissue_samples.keys())
     wf_counters = (cfg.get("Params") or {}).get("workflow", {}).get("counters")

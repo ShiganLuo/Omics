@@ -9,7 +9,8 @@
       "GRCh38": []
     },
     "raw_files": [],
-    "comparisons": {}
+    "comparisons": {},
+    "sample_groups": {}
   },
   "Params": {
     "workflow": {
@@ -107,7 +108,6 @@
     "StringTie": {
       "keep_intermediates": false,
       "enabled": true,
-      "sample_groups": {},
       "formats": [
         "png"
       ],

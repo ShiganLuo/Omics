@@ -4,7 +4,8 @@
     "raw_files": [],
     "cellranger_dirs": [],
     "paired_samples": [],
-    "single_samples": []
+    "single_samples": [],
+    "tissue_samples": {}
   },
   "Params": {
     "workflow": {
@@ -221,8 +222,7 @@
             "png"
           ]
         }
-      },
-      "tissue_samples": {}
+      }
     },
     "sccoda": {
       "scTE": {
@@ -252,8 +252,7 @@
             "png"
           ]
         }
-      },
-      "tissue_samples": {}
+      }
     },
     "function": {
       "pseudobulk_go": {

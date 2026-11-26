@@ -783,6 +783,10 @@
       "comparisons": {
         "type": "dict",
         "required": false
+      },
+      "sample_groups": {
+        "type": "dict",
+        "required": false
       }
     }
   },
@@ -1320,10 +1324,6 @@
         "properties": {
           "keep_intermediates": {
             "type": "bool",
-            "required": false
-          },
-          "sample_groups": {
-            "type": "dict",
             "required": false
           },
           "generate_report": {

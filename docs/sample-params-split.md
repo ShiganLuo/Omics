@@ -40,6 +40,7 @@ comparisons 命名归一与迁移影响面。
     "dr_pairs": {...}, "drclass_samples": {...}, "drclass_strain_vcfs": {...},
     "sample_bams": {...}, "populations": {...}, "sample_data": "...",
     "expdesign": "...", "cellranger_dirs": [...], "cellranger_input_dict": {...},
+    "sample_groups": {...}, "tissue_samples": {...},
     "comparisons": {
       "<organism>": {
         "<contrast_name>": {
@@ -61,8 +62,11 @@ comparisons 命名归一与迁移影响面。
   (indir/outdir/logdir/meta/dna_indir、spatial 的 input_h5ad/visium_h5/spatial_dir)。
   `genome_pairs`(CoCulture 的双基因组设置)是静态流程设置,不随样本变,
   留在 Params.workflow。
-- 模块内部参数(如 `Params.StringTie.sample_groups`、`Params.scanpy.*`)是
-  工具适配层的派生值,不算样本注册表,保持原位。
+- **纯洁性判据**(强制规范,见 `subworkflow/subworkflow.md`「配置字段归属规范」):
+  值跟着样本变就不准住 Params。原留在模块段的样本派生值
+  (`Params.StringTie.sample_groups`、`Params.scanpy/sccoda.tissue_samples`)
+  已按此迁入 `sample_params.sample_groups` / `sample_params.tissue_samples`;
+  `Params.<tool>.<rule>` 只留工具参数。
 
 ### comparisons 归一(命名 + 形状)
 

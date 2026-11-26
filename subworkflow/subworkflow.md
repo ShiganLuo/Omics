@@ -114,6 +114,43 @@ opts = region_axis.get("options", {}).get("te", {})   # 按需取活动路线的
 schema 校验器按嵌套路径取值;判别式对象在 schema 里同样给 `default`/`options`
 两层,保证 run.py 校验 config 时结构与语义一致。
 
+# 配置字段归属规范(sample_params 纯洁性,强制)
+
+**原则:`Params` 是与输入数据无关的方法配方**——换一批样本、换一个项目,
+`Params` 段应当可以原样复用;任何随样本集/实验设计变化的值(样本名列表、
+样本角色、配对关系、对比定义、逐样本文件映射、tissue/分组映射)一律住
+一级字段 `sample_params`,随数据走。判据一句话:**值跟着样本变,就不准住
+Params**。
+
+归属对照:
+
+| 归属 | 内容 | 例 |
+|---|---|---|
+| `Params.<tool>.<rule>` | 工具/流程控制参数(怎么跑) | `aligner`、`trimmer`、`counters`、`input_mode`、`quantification_method`、`sv.enabled`、`plot.formats` |
+| `Params.workflow` | 流程级控制与 IO 位置 | `indir`、`outdir`、`logdir`、`meta`、`dna_indir`、`snv_caller`、`genome_pairs` |
+| `sample_params` | 样本注册表(跑什么) | `samples`、`paired_samples`、`raw_files`、`ip_samples`、`sample_ip_input_map`、`paired_design`、`pair_strains`、`control_samples`、`sample_groups`、`tissue_samples`、`comparisons` |
+
+对比定义只有一个字段:`sample_params.comparisons`
+(`{organism: {对比名: {control_group_name, experimental_group_name,
+control_samples, experimental_samples}}}`);历史同义字段
+`Params.DESeq2.group_pairs` / `Params.sv.comparisons` /
+`Params.function.group_pairs` 已废除,不得回流。模块需要不同形状/角色语义
+(sv 平铺、Fiberseq function 组名排序)时,**在 subworkflow 接线层做适配视图**,
+不另立字段名。
+
+约束(新增/修改模块时逐条过):
+
+1. 新增样本派生字段 → 放 `sample_params`,同步 config 模板与 schema 声明;
+   不确定归属时按"值跟着样本变吗"判断。
+2. `Params.*` 各段禁止出现样本名、样本列表、对比定义、分组映射。
+3. 模块消费样本数据统一走模块配置裸键(接线从 `sample_params` 取值传入),
+   模块内不读 raw.json 路径;直接读 raw.json 的脚本(如报告)一律读
+   `sample_params.*`。
+4. 手填样本数据(正常对照 panel、expdesign、populations 等)写
+   `sample_params.*`,旧位置(如 `Params.workflow.control_samples`)失效。
+
+字段清单与迁移记录见 `docs/sample-params-split.md`。
+
 # 配置字典规范
 
 推荐包含以下字段（按需选用）：

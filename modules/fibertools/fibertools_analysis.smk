@@ -331,9 +331,9 @@ rule ft_split_hap:
     input:
         bam = indir + "/{sample_id}/{sample_id}" + _bam_suffix
     output:
-        # intermediate controlled by Params.fibertools.keep_intermediates (modules.md temp spec)
+        # intermediates controlled by Params.fibertools.keep_intermediates (modules.md temp spec)
         bam = maybe_temp(outdir + "/{sample_id}/{sample_id}.{hap}.bam", "fibertools"),
-        bai = outdir + "/{sample_id}/{sample_id}.{hap}.bam.bai",
+        bai = maybe_temp(outdir + "/{sample_id}/{sample_id}.{hap}.bam.bai", "fibertools"),
     log:
         logdir + "/{sample_id}/ft_split_hap_{hap}.log"
     threads: rule_res("ft_split_hap").get("threads", 4)

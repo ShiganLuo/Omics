@@ -543,7 +543,7 @@
     },
     "HaplotypeCaller": {
       "threads": 10,
-      "mem_mb": 22400,
+      "mem_mb": 15680,
       "scale": {
         "size_metric": "bam_mb",
         "ref_input_size": 3000,
@@ -573,10 +573,10 @@
     },
     "addReadsGroup": {
       "threads": 8,
-      "mem_mb": 7840
+      "mem_mb": 5488
     },
     "bam_flagstat": {
-      "mem_mb": 5600
+      "mem_mb": 3920
     },
     "bam_sort": {
       "threads": 8
@@ -587,7 +587,7 @@
     },
     "burden_cnv": {
       "threads": 1,
-      "mem_mb": 3920
+      "mem_mb": 2744
     },
     "burden_snv_indel": {
       "threads": 1,
@@ -626,7 +626,7 @@
     },
     "collectHsMetrics": {
       "threads": 4,
-      "mem_mb": 7840
+      "mem_mb": 5488
     },
     "default": {
       "threads": 2,
@@ -656,7 +656,7 @@
     },
     "filterHaplotypeCallerVcf": {
       "threads": 10,
-      "mem_mb": 11200
+      "mem_mb": 7840
     },
     "filterMutectCalls": {
       "threads": 2,
@@ -685,14 +685,14 @@
     },
     "manta_config": {
       "threads": 1,
-      "mem_mb": 3920
+      "mem_mb": 2744
     },
     "manta_config_somatic": {
       "mem_mb": 8000
     },
     "manta_run": {
       "threads": 8,
-      "mem_mb": 15680,
+      "mem_mb": 10976,
       "scale": {
         "size_metric": "bam_mb",
         "ref_input_size": 3500,
@@ -728,7 +728,7 @@
     },
     "samtools_stats": {
       "threads": 1,
-      "mem_mb": 3920
+      "mem_mb": 2744
     },
     "sexcheck": {
       "threads": 1,
@@ -736,7 +736,7 @@
     },
     "sexcheck_idxstats": {
       "threads": 1,
-      "mem_mb": 3920
+      "mem_mb": 2744
     },
     "somaticMutect2": {
       "threads": 8,
@@ -784,7 +784,7 @@
     },
     "trimming_Paired": {
       "threads": 6,
-      "mem_mb": 3920
+      "mem_mb": 2744
     },
     "trimming_Single": {
       "threads": 6,
@@ -823,6 +823,36 @@
     },
     "stringTie": {
       "mem_mb": 550
+    },
+    "TEChimericPlot": {
+      "mem_mb": 341
+    },
+    "arriba_report": {
+      "mem_mb": 459
+    },
+    "bowtie2_index": {
+      "mem_mb": 6543
+    },
+    "combine_TEcount": {
+      "mem_mb": 400
+    },
+    "combine_TElocal": {
+      "mem_mb": 5985
+    },
+    "featureCounts_merge": {
+      "mem_mb": 140
+    },
+    "featureCounts_paired_noMultiple": {
+      "mem_mb": 534
+    },
+    "function_gsva": {
+      "mem_mb": 616
+    },
+    "hisat2_index": {
+      "mem_mb": 7797
+    },
+    "stringTieMerge": {
+      "mem_mb": 451
     }
   },
   "Procedure": {

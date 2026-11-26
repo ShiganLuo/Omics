@@ -16,8 +16,7 @@ indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
-# 参数精确到 rule(2026-11 规范):Params.fibertools.<rule_name>.<key>,无
-# module 级共享回退(config 全量路径内联读取)。
+
 
 def _detect_m6a_sh(bam_path: str) -> str:
     """Return shell snippet that sets HAS_M6A=1 or HAS_M6A=0.

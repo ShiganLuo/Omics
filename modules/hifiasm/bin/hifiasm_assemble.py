@@ -236,7 +236,8 @@ def extract_fastq(bam: str, samtools: str, threads: int, fq_gz: str) -> float:
 
 
 def assemble_from_bam(bam: str, samtools: str, hifiasm: str,
-                      out_prefix: str, threads: int) -> float:
+                      out_prefix: str, threads: int,
+                      fq_gz: str | None = None) -> float:
     """Assemble the BAM's reads with hifiasm via a materialized FASTQ.
 
     hifiasm re-reads its input while building its k-mer seed index, so
@@ -259,7 +260,8 @@ def assemble_from_bam(bam: str, samtools: str, hifiasm: str,
         RuntimeError: either tool exited non-zero.
     """
     start = time.monotonic()
-    fq_gz = fastq_path(bam, out_prefix)
+    if fq_gz is None:
+        fq_gz = fastq_path(bam, out_prefix)
     if fastq_intact(fq_gz, bam):
         logger.info("Stage 1/2: reusing existing FASTQ %s", fq_gz)
     else:
@@ -342,6 +344,10 @@ def main() -> None:
     parser.add_argument("--out-fasta", dest="out_fasta", required=True,
                         help="Primary-contig FASTA to write "
                              "(must equal <out-prefix>.bp.p_ctg.fa)")
+    parser.add_argument("--out-fastq", dest="out_fastq", default=None,
+                        help="Materialized FASTQ path beside the assembly "
+                             "outputs (declared rule output; default: "
+                             "<sample>.hifi.fq.gz derived from the BAM name)")
     parser.add_argument("--threads", type=int, required=True)
     parser.add_argument("--samtools", default="samtools",
                         help="samtools executable (default: samtools)")
@@ -375,7 +381,8 @@ def main() -> None:
     if args.force_reassemble or not can_reuse_gfa(gfa, args.out_prefix,
                                                   args.bam):
         assemble_from_bam(args.bam, args.samtools, args.hifiasm,
-                          args.out_prefix, args.threads)
+                          args.out_prefix, args.threads,
+                          fq_gz=args.out_fastq)
         write_stamp(args.out_prefix, args.bam)
     logger.info("Stage 2/2: converting GFA to FASTA")
     stats = gfa_to_fasta(gfa, args.out_fasta)

@@ -10,6 +10,9 @@
       "outdir": "output",
       "logdir": "logs"
     },
+    "hifiasm": {
+      "keep_intermediates": true
+    },
     "fibertools": {
       "keep_intermediates": false,
       "ft_fire": {

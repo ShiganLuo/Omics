@@ -1967,6 +1967,12 @@
         "required": false
       }
     },
+    "hifiasm": {
+      "keep_intermediates": {
+        "type": "bool",
+        "required": false
+      }
+    },
     "deepvariant": {
       "keep_intermediates": {
         "type": "bool",

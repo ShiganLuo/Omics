@@ -533,6 +533,11 @@ hifiasm_config = {
             "pbi": {s: f"{outdir}/common/1_raw_data/{s}/{s}.bam.pbi" for s in samples},
         },
     },
+    "Params": {
+        "hifiasm": {
+            "keep_intermediates": config.get("Params", {}).get("hifiasm", {}).get("keep_intermediates", True)
+        }
+    },
 }
 module hifiasm:
     snakefile: "../modules/hifiasm/hifiasm.smk"

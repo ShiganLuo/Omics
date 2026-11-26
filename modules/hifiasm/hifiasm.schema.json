@@ -40,5 +40,23 @@
         "required": false
       }
     }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "hifiasm": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "keep_intermediates": {
+            "type": "bool",
+            "required": false
+          }
+        }
+      }
+    }
   }
 }

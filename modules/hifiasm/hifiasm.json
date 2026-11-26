@@ -7,5 +7,10 @@
         "hifiasm": "hifiasm",
         "samtools": "samtools",
         "python": "python"
+    },
+    "Params": {
+        "hifiasm": {
+            "keep_intermediates": true
+        }
     }
 }

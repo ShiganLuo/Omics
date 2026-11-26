@@ -43,7 +43,28 @@ rule hifiasm_assemble:
     input:
         unpack(get_input_for_hifiasm)
     output:
-        fasta = outdir + "/{sample_id}/assembly/asm.bp.p_ctg.fa"
+        fasta = outdir + "/{sample_id}/assembly/asm.bp.p_ctg.fa",
+        p_ctg_gfa = outdir + "/{sample_id}/assembly/asm.bp.p_ctg.gfa",
+        hap1_ctg_gfa = outdir + "/{sample_id}/assembly/asm.bp.hap1.p_ctg.gfa",
+        hap2_ctg_gfa = outdir + "/{sample_id}/assembly/asm.bp.hap2.p_ctg.gfa",
+        p_ctg_lowq = outdir + "/{sample_id}/assembly/asm.bp.p_ctg.lowQ.bed",
+        hap1_lowq = outdir + "/{sample_id}/assembly/asm.bp.hap1.p_ctg.lowQ.bed",
+        hap2_lowq = outdir + "/{sample_id}/assembly/asm.bp.hap2.p_ctg.lowQ.bed",
+        p_utg_lowq = outdir + "/{sample_id}/assembly/asm.bp.p_utg.lowQ.bed",
+        r_utg_lowq = outdir + "/{sample_id}/assembly/asm.bp.r_utg.lowQ.bed",
+        p_ctg_noseq = maybe_temp(outdir + "/{sample_id}/assembly/asm.bp.p_ctg.noseq.gfa", "hifiasm"),
+        hap1_noseq = maybe_temp(outdir + "/{sample_id}/assembly/asm.bp.hap1.p_ctg.noseq.gfa", "hifiasm"),
+        hap2_noseq = maybe_temp(outdir + "/{sample_id}/assembly/asm.bp.hap2.p_ctg.noseq.gfa", "hifiasm"),
+        p_utg_gfa = maybe_temp(outdir + "/{sample_id}/assembly/asm.bp.p_utg.gfa", "hifiasm"),
+        p_utg_noseq = maybe_temp(outdir + "/{sample_id}/assembly/asm.bp.p_utg.noseq.gfa", "hifiasm"),
+        r_utg_gfa = maybe_temp(outdir + "/{sample_id}/assembly/asm.bp.r_utg.gfa", "hifiasm"),
+        r_utg_noseq = maybe_temp(outdir + "/{sample_id}/assembly/asm.bp.r_utg.noseq.gfa", "hifiasm"),
+        ec_bin = maybe_temp(outdir + "/{sample_id}/assembly/asm.ec.bin", "hifiasm"),
+        ovlp_source = maybe_temp(outdir + "/{sample_id}/assembly/asm.ovlp.source.bin", "hifiasm"),
+        ovlp_reverse = maybe_temp(outdir + "/{sample_id}/assembly/asm.ovlp.reverse.bin", "hifiasm"),
+        hifi_fq = maybe_temp(outdir + "/{sample_id}/assembly/{sample_id}.hifi.fq.gz", "hifiasm"),
+        hifi_fq_meta = maybe_temp(outdir + "/{sample_id}/assembly/{sample_id}.hifi.fq.gz.meta.json", "hifiasm"),
+        stamp = maybe_temp(outdir + "/{sample_id}/assembly/asm.hifiasm.stamp", "hifiasm"),
     log:
         logdir + "/{sample_id}/hifiasm_assemble.log"
     benchmark:
@@ -78,6 +99,7 @@ rule hifiasm_assemble:
                 "--bam", str(input.bam),
                 "--out-prefix", params.prefix,
                 "--out-fasta", str(output.fasta),
+                "--out-fastq", str(output.hifi_fq),
                 "--threads", str(threads),
                 "--samtools", params.samtools,
                 "--hifiasm", params.hifiasm,

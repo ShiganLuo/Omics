@@ -31,19 +31,22 @@ rule pbmm2_align:
         samtools = config.get("Procedure", {}).get("samtools") or "samtools"
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("pbmm2_align", log_file=log_path)
         try:
-            open(log_path, 'a').close()  # Ensure the log file exists
-            rule_logger = setup_logger("pbmm2_align", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start pbmm2 alignment for sample {wildcards.sample_id} at {current_time}")
+            sample_outdir = os.path.dirname(str(output.bam))
+            os.makedirs(sample_outdir, exist_ok=True)
+            # 带时间戳的备份(log/cmd 历史);outdir 只放无时间戳的当前命令(见"命令回执双写")
             script = receipt_script(f"pbmm2_align_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
-            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/pbmm2_align.sh")
+            plain_script = os.path.join(sample_outdir, f"pbmm2_align_{wildcards.sample_id}.sh")
             raw_align_bam = outdir + f"/{wildcards.sample_id}/{wildcards.sample_id}.raw.bam"
             cmd1 = [
                 params.pbmm2, "align",
                 "--sort",
                 "--num-threads", str(threads),
+                "--log-level", "INFO",
                 input.fasta,
                 input.bam,
                 raw_align_bam
@@ -70,15 +73,16 @@ rule pbmm2_align:
                 f.write(" ".join(cmd2) + "\n")
                 f.write(" ".join(cmd3) + "\n")
                 f.write(" ".join(cmd4) + "\n")
-                f.write(f"echo 'pbmm2 alignment completed for sample {wildcards.sample_id} at {time.strftime('%Y%m%d_%H%M%S', time.localtime())}'\n")
+                f.write(f'echo "pbmm2 alignment for sample {wildcards.sample_id} was completed successfully"\n')
+            rule_logger.info("Executing: " + " && ".join(" ".join(str(x) for x in c) for c in (cmd1, cmd2, cmd3, cmd4)))
             shutil.copyfile(script, plain_script)
             if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            rule_logger.error(f"Error occurred during pbmm2 alignment for sample {wildcards.sample_id}: {e}")
-            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
+            rule_logger.error(f"Error occurred during pbmm2 alignment for sample {wildcards.sample_id}: {e}\n")
+            raise RuntimeError(f"Error occurred during pbmm2 alignment for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.\n")
 
 rule pbmm2_result:
     input:

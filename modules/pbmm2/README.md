@@ -21,6 +21,7 @@
 ```
 {outdir}/{sample_id}/{sample_id}{output_bam_suffix}.bam   # 排序 BAM(默认 S1.sorted.bam)
 {outdir}/{sample_id}/{sample_id}{output_bam_suffix}.bai   # 索引(默认 S1.sorted.bai)
+{logdir}/{sample_id}/pbmm2_align.log                     # 日志(pbmm2 INFO 输出 + samtools 消息 + 起止/Executing 标记)
 ```
 
 (中间 `{sample_id}.raw.bam` 转换成功后删除。)收尾规则 `pbmm2_result`
@@ -33,13 +34,14 @@
 | `Procedure.pbmm2` | — | `pbmm2` | pbmm2 可执行路径 |
 | `Procedure.samtools` | — | `samtools` | samtools 可执行路径 |
 | — | `pbmm2 align --sort --num-threads` | threads | 比对并排序(线程默认 16,`rule_res("pbmm2_align")` 配置) |
+| — | `pbmm2 align --log-level` | `INFO` | 固定 `INFO`;pbmm2 默认 `WARN` 级别正常运行零输出,不开则日志只有 samtools 消息 |
 | — | `samtools sort -@` / `samtools index -@` | threads | 二次排序 + 索引 |
 | mem_mb | — | 32000 | `rule_res("pbmm2_align")` 配置 |
 
 直接调用示例(脱离流程):
 
 ```bash
-pbmm2 align --sort --num-threads 16 genome.fa S1.bam S1.raw.bam
+pbmm2 align --sort --num-threads 16 --log-level INFO genome.fa S1.bam S1.raw.bam
 samtools sort -@ 16 S1.raw.bam -o S1.sorted.bam
 samtools index -@ 16 S1.sorted.bam -o S1.sorted.bai
 rm S1.raw.bam

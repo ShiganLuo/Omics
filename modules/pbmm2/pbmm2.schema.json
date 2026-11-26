@@ -37,7 +37,8 @@
     "required": false,
     "properties": {
       "fasta": {
-        "type": "null",
+        "type": "str",
+        "path": "file",
         "nullable": true,
         "required": false
       }

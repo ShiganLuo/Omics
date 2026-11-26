@@ -23,8 +23,9 @@ pbmm2(PacBio 官方 minimap2 封装)的多参考基因组(polygenomes)变体:
 {logdir}/{sample_id}/{genome}/pbmm2_align.log             # 日志
 ```
 
-中间产物 `{sample_id}.raw.bam`(pbmm2 直排输出)在 samtools 二次排序、
-建索引后被 `rm` 删除。收尾规则 `pbmm2_result` 聚合 BAM + BAI。
+中间产物 `{sample_id}.raw.bam` 及 pbmm2 `--sort` 附带的 `.raw.bam.bai`
+在 samtools 二次排序、建索引后被 `rm -f` 删除。收尾规则 `pbmm2_result`
+聚合 BAM + BAI。
 
 ### 1.3 参数
 
@@ -35,18 +36,19 @@ pbmm2(PacBio 官方 minimap2 封装)的多参考基因组(polygenomes)变体:
 | `bam_suffix` | — | `.bam` | 输入 BAM 文件名后缀(布局参数) |
 | `genome.<G>.fasta` | `pbmm2 align` 的参考 FASTA | — | 每基因组参考 |
 | `indir` / `outdir` / `logdir` | — | `input` / `output` / `log` | 输入/输出/日志根目录 |
+| — | `pbmm2 align --log-level` | `INFO` | 固定 `INFO`;pbmm2 默认 `WARN` 级别正常运行零输出,不开则日志只有 samtools 消息 |
 
 规则默认资源:`threads = 16`、`mem_mb = 32000`(经 `rule_res("pbmm2_align")`
-可覆盖)。pbmm2 固定附加 `--sort --num-threads N`;模块随后再用
+可覆盖)。pbmm2 固定附加 `--sort --num-threads N --log-level INFO`;模块随后再用
 `samtools sort` 归一化排序并 `samtools index -o` 产出 `.sorted.bai`。
 
 直接调用示例(模块无 bin/ 引擎脚本;规则拼出的命令形态):
 
 ```bash
-pbmm2 align --sort --num-threads 16 GRCh38.fa s1.bam s1.raw.bam
+pbmm2 align --sort --num-threads 16 --log-level INFO GRCh38.fa s1.bam s1.raw.bam
 samtools sort -@ 16 s1.raw.bam -o output/GRCh38/s1/s1.sorted.bam
 samtools index -@ 16 output/GRCh38/s1/s1.sorted.bam -o output/GRCh38/s1/s1.sorted.bai
-rm s1.raw.bam
+rm -f s1.raw.bam s1.raw.bam.bai
 ```
 
 ## 2. 算法原理与生物学意义

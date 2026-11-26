@@ -2,7 +2,10 @@
 """方案 D 校准脚本:benchmark tsv → resource_history.tsv → resources_suggest.tsv →(--apply) config.
 
 用法(在 workflow 输出目录或其父目录下):
-    python src/common/util/calibrate_resources.py --root OUTDIR [--config config/X.json] [--apply]
+    python src/common/util/calibrate_resources.py --root OUTDIR [--root OUTDIR2 ...] \
+        [--history PATH] [--config config/X.json] [--apply]
+    多项目时可重复 --root 各项目输出目录,观测合并进同一历史;历史表位置由
+    调用方以 --history 指定(不预设共享路径,多 --root 时必填)。
 
 行为(对应 docs/resource-balancing-proposal.md §3.4):
   D.1 收集:扫描 --root 下所有 benchmark 输出——`**/benchmarks/*.tsv`
@@ -235,10 +238,12 @@ def apply_to_config(config_path, applies):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--root", default=".", help="workflow 输出根目录(递归找 benchmark)")
+    ap.add_argument("--root", action="append", default=None, dest="roots", metavar="ROOT",
+                    help="workflow 输出根目录(递归找 benchmark);可重复传多个项目 "
+                         "(--root A --root B),各项目观测合并进同一历史")
     ap.add_argument("--history", default=None,
-                    help="累计历史表(append-only;默认 <root>/resource_history.tsv;"
-                         "跨运行累积时显式传共享路径)")
+                    help="累计历史表(append-only;单 --root 时默认 <root>/resource_history.tsv;"
+                         "多项目累积时须显式指定,位置由调用方决定,不预设共享路径)")
     ap.add_argument("--out", default=None,
                     help="建议表输出(默认 <root>/resources_suggest.tsv)")
     ap.add_argument("--safety", type=float, default=DEFAULT_SAFETY, help="安全系数(默认 1.3)")
@@ -249,16 +254,24 @@ def main(argv=None):
     ap.add_argument("--no-append", action="store_true", help="只出建议,不追加历史")
     args = ap.parse_args(argv)
 
+    roots = args.roots or ["."]
     if args.history is None:
-        args.history = os.path.join(args.root, "resource_history.tsv")
+        if len(roots) > 1:
+            ap.error("多 --root 须显式 --history(历史表位置由调用方指定,不预设共享路径)")
+        args.history = os.path.join(roots[0], "resource_history.tsv")
     if args.out is None:
-        args.out = os.path.join(args.root, "resources_suggest.tsv")
+        args.out = os.path.join(roots[0], "resources_suggest.tsv")
     if args.apply and not args.config:
         ap.error("--apply 需要 --config")
 
-    rows = read_benchmarks(args.root)
+    rows = []
+    for r in roots:
+        got = read_benchmarks(r)
+        if not got:
+            print(f"warning: no benchmark tsv under {r}", file=sys.stderr)
+        rows += got
     if not rows:
-        print(f"no benchmark tsv under {args.root}(先跑一次带 benchmark 的运行)", file=sys.stderr)
+        print("no benchmark tsv under any --root(先跑一次带 benchmark 的运行)", file=sys.stderr)
         return 1
 
     # ---- D.1 append to history ----
@@ -294,7 +307,15 @@ def main(argv=None):
     # (bwa_mem2-alignment 等)在此折叠进正确规则键,别名幂等。
     hist = {}
     family_rules = set()
-    hist_layout = load_sample_layout(args.root)
+    root_layouts = [(r, load_sample_layout(r)) for r in roots]
+
+    def layout_for(src):
+        """History rows attribute samples via the layout of the root they came from."""
+        for r, lay in root_layouts:
+            if src.startswith(r) or src.startswith(os.path.abspath(r)):
+                return lay
+        return {}
+
     if os.path.exists(args.history):
         with open(args.history, newline="") as fh:
             for rec in csv.DictReader(fh, delimiter="\t"):
@@ -303,7 +324,8 @@ def main(argv=None):
                 except (ValueError, KeyError):
                     continue
                 censored = (rec.get("censored") == "1")
-                rule, why = resolve_rule(rec["rule"], rec.get("source") or "", hist_layout)
+                rule, why = resolve_rule(rec["rule"], rec.get("source") or "",
+                                         layout_for(rec.get("source") or ""))
                 if rule is None:
                     continue
                 if why == "family":

@@ -20,7 +20,7 @@
 
 **自查条款**（一切魔法数须对目标给出理由或显式标注为待校准近似）：
 
-- clamp 的 0.8 余量、cores 的 −2/上限 256、份额下限 8 GB、p90×1.3——均为经验近似，由校准闭环（§3.4）按实测数据重定；
+- clamp 的 0.8 余量、cores 的 90% 份额、份额下限 8 GB、p90×1.3——均为经验近似，由校准闭环（§3.4）按实测数据重定；
 - 多工作流按**输入字节**加权是"工作量大头"的粗代理，不等于关键路径；存在"小数据但串行深的工作流被饿死 → 总时长反升"的理论风险。按待跑 job 数/实测耗时加权（同一 benchmark 数据源）是备选口径，字节加权作为 v1 近似保留并监控。
 
 ---
@@ -44,9 +44,9 @@
 
 ### 3.1 方案 A：主机感知 + 全局预算自动化
 
-1. **探测主机**：run.py `detect_host_profile()` 输出 `{hostname, cpus, mem_mb}`，cpus 取 `sched_getaffinity` → cgroup `cpu.max` 配额 → `cpu_count` 的最小值，内存沿用 `_detect_total_mem_mb()`（cgroup `memory.max` → meminfo，取 94%）；
-2. **cores auto**：`-t` 不传时 `min(cpus − 2, 256)`（经验近似，见 §1 自查条款）；
-3. **多工作流预算切分**：每个 Snakemake 进程的 `--resources mem_mb` 按各工作流输入总量的字节比例分配 `总内存 × 0.94`；字节取不到退回均分；份额下限 `min(总/N, 8 GB)`；
+1. **探测主机**：run.py `detect_host_profile()` 输出 `{hostname, cpus, mem_mb}`，cpus 取 `sched_getaffinity` → cgroup `cpu.max` 配额 → `cpu_count` 的最小值，内存沿用 `_detect_total_mem_mb()`（cgroup `memory.max` → meminfo，取 90%）；
+2. **cores auto**：`-t` 不传时 `min(floor(cpus × 0.9), cpus − 1)`（90% 份额，至少给系统留 1 核，见 §1 自查条款）；
+3. **多工作流预算切分**：每个 Snakemake 进程的 `--resources mem_mb` 按各工作流输入总量的字节比例分配 `总内存 × 0.90`；字节取不到退回均分；份额下限 `min(总/N, 8 GB)`；
 4. **clamp 防死锁**：生成的 raw.json 注入 `resource_caps`，`rule_res` 对 `mem_mb ≤ 预算×0.8`、`threads ≤ cpus` 截断并告警；截断做在返回的 dict 子类上，调用点 fallback（`.get("mem_mb", 32000)`）一并封堵。模块 config（手工拼装，无 caps 键）经 `OMICS_RESOURCE_CAPS` 环境变量获得同一份 caps（CmdUtil 按各进程 `--configfile` 导出）。
 
 实现分布在 run.py、common.smk、CmdUtil.py，不涉及任何 .smk 规则声明。

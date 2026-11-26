@@ -68,7 +68,8 @@ def _detect_total_mem_mb(default_mb: int = 470000) -> int:
     """Total RAM in MB for the snakemake --resources budget.
 
     Reads CGroup V2 limit first (containers/slurm set it), then /proc/meminfo.
-    Reserves ~6% for the OS. Falls back to default_mb when neither is readable.
+    Budget is 90% of total (reserves ~10% for the OS). Falls back to
+    default_mb when neither is readable.
     """
     try:
         with open("/sys/fs/cgroup/memory.max") as fh:
@@ -76,7 +77,7 @@ def _detect_total_mem_mb(default_mb: int = 470000) -> int:
         if v != "max":
             total_mb = int(v) // (1024 * 1024)  # bytes -> MB
             if total_mb > 0:
-                return int(total_mb * 0.94)
+                return int(total_mb * 0.90)
     except (OSError, ValueError):
         pass
     try:
@@ -84,7 +85,7 @@ def _detect_total_mem_mb(default_mb: int = 470000) -> int:
             for line in fh:
                 if line.startswith("MemTotal:"):
                     total_mb = int(line.split()[1]) // 1024  # kB -> MB
-                    return int(total_mb * 0.94)
+                    return int(total_mb * 0.90)
     except (OSError, ValueError, IndexError):
         pass
     return default_mb
@@ -93,7 +94,6 @@ def _detect_total_mem_mb(default_mb: int = 470000) -> int:
 # ---------------------------------------------------------------------------
 # Host awareness / budget splitting (方案 A: resource-balancing-proposal.md)
 # ---------------------------------------------------------------------------
-AUTO_CORES_CAP = 256      # safety ceiling for cores auto (方案 A 第 2 点)
 MIN_MEM_SHARE_MB = 8000   # floor for a per-workflow budget share (方案 A 第 3 点)
 
 
@@ -102,7 +102,7 @@ def detect_host_profile() -> Dict[str, Any]:
 
     cpus: sched affinity first (containers/taskset bind below os.cpu_count),
     then cgroup v2 cpu.max quota, then os.cpu_count(). mem_mb reuses
-    _detect_total_mem_mb() (cgroup memory.max -> /proc/meminfo, 94% of total).
+    _detect_total_mem_mb() (cgroup memory.max -> /proc/meminfo, 90% of total).
     """
     hostname = socket.gethostname()
     try:
@@ -222,7 +222,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('-o','--output_dir','--output-dir', dest='output_dir', type=str, default=None, help='output dir')
     parser.add_argument('-t','--threads', type=int, default=None,
         help='total threads passed to snakemake --cores (split across workflows); '
-             'default: auto = host CPUs - 2 (capped at %d)' % AUTO_CORES_CAP)
+             'default: auto = 90%% of host CPUs, at least 1 core kept free')
     parser.add_argument('--dry-run', action='store_true',
         help='dry run: build the DAG and exit without executing run-block code')
     parser.add_argument('--touch', action='store_true', help='touch output files to update timestamps without re-running (cannot combine with --dry-run)')
@@ -249,7 +249,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--mem-mb', type=int, default=None, dest='mem_mb',
         help='global mem_mb budget passed to snakemake --resources; jobs declaring '
              'resources.mem_mb are scheduled against it. Default: auto-detect '
-             '(~94%% of total RAM)')
+             '(90%% of total RAM)')
     parser.add_argument('--singularity-args', type=str, default=None,
         help='arguments for singularity/apptainer, e.g. --singularity-args \'--bind /path1,/path2\' (use with --sdm)')
     parser.add_argument(
@@ -1455,7 +1455,9 @@ if __name__ == "__main__":
         host_profile = detect_host_profile()
         args.host_profile = host_profile
         if args.threads is None:
-            args.threads = max(1, min(host_profile["cpus"] - 2, AUTO_CORES_CAP))
+            cpus = host_profile["cpus"]
+            # 90% 份额,但至少给系统留 1 核(cpus-1 封顶),且最少 1 线程
+            args.threads = max(1, min(int(cpus * 0.9), cpus - 1))
             logger.info("cores auto: %d (host %s, cpus=%d)",
                         args.threads, host_profile["hostname"], host_profile["cpus"])
         if args.mem_mb is None:

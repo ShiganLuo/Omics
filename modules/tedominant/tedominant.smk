@@ -64,7 +64,7 @@ rule te_dominant:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start te_dominant at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"te_dominant_{current_time}.sh")
+            script = receipt_script(f"te_dominant_{current_time}.sh")
             plain_script = os.path.join(outdir, "te_dominant.sh")
             cmd = [
                 "python", params.script,

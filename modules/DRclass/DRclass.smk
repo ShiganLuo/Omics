@@ -37,7 +37,7 @@ rule drclass_anchors:
             rule_logger.info(f"Start drclass anchors for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.tsv))
             os.makedirs(sample_outdir, exist_ok=True)
-            script_path = os.path.join(RECEIPT_DIR, f"drclass_anchors_{wildcards.sample_id}_{current_time}.sh")
+            script_path = receipt_script(f"drclass_anchors_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"drclass_anchors_{wildcards.sample_id}.sh")
 
             cmd = [
@@ -95,7 +95,7 @@ rule drclass_pileup:
             rule_logger.info(f"Start drclass pileup for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.tsv))
             os.makedirs(sample_outdir, exist_ok=True)
-            script_path = os.path.join(RECEIPT_DIR, f"drclass_pileup_{wildcards.sample_id}_{current_time}.sh")
+            script_path = receipt_script(f"drclass_pileup_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"drclass_pileup_{wildcards.sample_id}.sh")
 
             mpileup_args = [
@@ -181,7 +181,7 @@ rule drclass_classify:
             rule_logger.info(f"Start drclass classify for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.dna))
             os.makedirs(sample_outdir, exist_ok=True)
-            script_path = os.path.join(RECEIPT_DIR, f"drclass_classify_{wildcards.sample_id}_{current_time}.sh")
+            script_path = receipt_script(f"drclass_classify_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"drclass_classify_{wildcards.sample_id}.sh")
 
             cmd = [
@@ -273,7 +273,7 @@ rule drclass_summary:
             rule_logger.info(f"Start drclass summary at {current_time}")
             sample_outdir = os.path.dirname(str(output.tsv))
             os.makedirs(sample_outdir, exist_ok=True)
-            script_path = os.path.join(RECEIPT_DIR, f"drclass_summary_{current_time}.sh")
+            script_path = receipt_script(f"drclass_summary_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, "drclass_summary.sh")
 
             cmd = [

@@ -42,8 +42,7 @@ rule scTE_build_index:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger = setup_logger("scTE_build_index",log_file=log_path)
             out_prefix = os.path.join(params.index_dir, params.genome)
-            command_script = os.path.join(
-                RECEIPT_DIR, f"scTE_build_index_{params.genome}_{current_time}.sh"
+            command_script = receipt_script(f"scTE_build_index_{params.genome}_{current_time}.sh"
             )
             plain_script = os.path.join(params.index_dir, "scTE_build_index.sh")
             rule_logger.info(f"Building scTE index for genome {params.genome} with mode {params.mode}")
@@ -123,7 +122,7 @@ rule scTE_quantify:
             rule_logger.info(f"Quantifying TE expression for sample {wildcards.sample_id}")
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.dirname(output.h5ad)
-            command_script = os.path.join(RECEIPT_DIR, f"scTE_quantify_{wildcards.sample_id}_{current_time}.sh")
+            command_script = receipt_script(f"scTE_quantify_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"scTE_quantify.sh")
             cmd = [
                 "python", params.script,

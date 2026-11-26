@@ -32,7 +32,7 @@ rule bam_flagstat:
             rule_logger.info(f"Start samtools flagstat for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.flagstat))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"bam_flagstat_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"bam_flagstat_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"bam_flagstat.sh")
             with open(script, "w") as f:

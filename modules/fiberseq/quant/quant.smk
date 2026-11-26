@@ -50,7 +50,7 @@ rule fiberseq_quant_run:
             rule_logger.info(f"Start quantification for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.quant))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"fiberseq_quant_run_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"fiberseq_quant_run_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             # timestamped copy stays in log/cmd as history; the outdir copy
             # (no timestamp, overwritten each run) documents the current command
@@ -113,7 +113,7 @@ rule fiberseq_quant_hap:
             rule_logger.info(f"Start hap quantification for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.quant))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"fiberseq_quant_hap_{wildcards.hap}_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"fiberseq_quant_hap_{wildcards.hap}_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             # timestamped copy stays in log/cmd as history; the outdir copy
             # (no timestamp, overwritten each run) documents the current command
@@ -176,7 +176,7 @@ rule fiberseq_quant_merge:
             rule_logger.info(f"Start quant merge at {current_time}")
             group_outdir = outdir + "/matrix"
             os.makedirs(group_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"fiberseq_quant_merge_{current_time}.sh")
+            script = receipt_script(f"fiberseq_quant_merge_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(group_outdir, "fiberseq_quant_merge.sh")
             cmd = [

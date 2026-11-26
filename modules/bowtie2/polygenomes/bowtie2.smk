@@ -52,7 +52,7 @@ rule bowtie2_index:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             rule_logger.info(f"Start bowtie2 index for genome {wildcards.genome} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"bowtie2_index.{wildcards.genome}_{current_time}.sh")
+            script = receipt_script(f"bowtie2_index.{wildcards.genome}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = f"{outdir}/index/{wildcards.genome}/bowtie2_index.sh"
             cmd = [params.bowtie2_build, 
@@ -151,7 +151,7 @@ rule bowtie2_align_paired:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             rule_logger.info(f"Start bowtie2_align_paired for sample {wildcards.sample_id} on genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bam))
-            script = os.path.join(RECEIPT_DIR, f"bowtie2_align_{wildcards.genome}_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"bowtie2_align_{wildcards.genome}_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = f"{sample_outdir}/bowtie2_align.sh"
             cmd1 = [params.bowtie2, 
@@ -212,7 +212,7 @@ rule bowtie2_align_single:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             rule_logger.info(f"Start bowtie2_align_single for sample {wildcards.sample_id} on genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bam))
-            script = os.path.join(RECEIPT_DIR, f"bowtie2_align_{wildcards.genome}_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"bowtie2_align_{wildcards.genome}_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = f"{sample_outdir}/bowtie2_align.sh"
             cmd1 = [params.bowtie2, 

@@ -60,7 +60,7 @@ rule minimap2_align:
             rule_logger.info(f"Start minimap2 alignment for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bam))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"minimap2_align_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"minimap2_align_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"minimap2_align_{wildcards.sample_id}.sh")
             raw_bam = outdir + f"/{wildcards.sample_id}/{wildcards.sample_id}.raw.bam"

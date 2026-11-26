@@ -41,7 +41,7 @@ rule stringTie:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start stringTie run for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"stringTie_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"stringTie_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = f"...{wildcards.sample_id}/stringTie.sh"
             cmd = [params.stringtie, "-o", output.gtf, input.bam, "-G", params.gtf, "-p", str(threads)]
@@ -85,7 +85,7 @@ rule TEChimericTranscripts:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             rule_logger.info(f"Start TEChimericTranscripts run for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"TEChimericTranscripts_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"TEChimericTranscripts_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = f"...{wildcards.sample_id}/TEChimericTranscripts.sh"
             cmd = f"python {params.TEChimericTranscripts} -s {input.gtf} -t {params.te_gtf} -o {output.txt} >> {log} 2>&1"
@@ -134,7 +134,7 @@ rule TEChimericPlot:
         rule_logger = setup_logger(logger_name="TEChimericPlot_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-            script = os.path.join(RECEIPT_DIR, f"TEChimericPlot_{current_time}.sh")
+            script = receipt_script(f"TEChimericPlot_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             rule_logger.info(f"Start TEChimericPlot run at {current_time}")
             group_tsv = outdir + "/TE_chimeric/sample_groups.tsv"
@@ -191,7 +191,7 @@ rule stringTieMerge:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start stringTieMerge run at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"stringTieMerge_{current_time}.sh")
+            script = receipt_script(f"stringTieMerge_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"stringTieMerge.sh")
             cmd = [params.stringtie, "--merge"] + list(input.gtfs) + ["-o", output.gtf, "-G", params.gtf]

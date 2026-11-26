@@ -49,7 +49,7 @@ rule cnvkit_reference:
             rule_logger.info(f"Start cnvkit reference build for genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.ref))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"cnvkit_reference_{wildcards.genome}_{current_time}.sh")
+            script = receipt_script(f"cnvkit_reference_{wildcards.genome}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"cnvkit_reference.sh")
             with open(script, "w") as f:
@@ -106,7 +106,7 @@ rule cnvkit_batch:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start cnvkit batch for genome {wildcards.genome} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"cnvkit_batch_{wildcards.genome}_{current_time}.sh")
+            script = receipt_script(f"cnvkit_batch_{wildcards.genome}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(params.batch_outdir, f"cnvkit_batch.sh")
             os.makedirs(params.batch_outdir, exist_ok=True)

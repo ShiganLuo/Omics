@@ -86,7 +86,7 @@ rule generate_report:
             report_dir = os.path.dirname(str(output.report))
             os.makedirs(report_dir, exist_ok=True)
             os.makedirs(params.img_dir, exist_ok=True)
-            script_path = os.path.join(RECEIPT_DIR, f"ncRNAseq_report_{current_time}.sh")
+            script_path = receipt_script(f"ncRNAseq_report_{current_time}.sh")
             plain_script = os.path.join(report_dir, f"ncRNAseq_report.sh")
             cmd = [
                 "python3", params.script,

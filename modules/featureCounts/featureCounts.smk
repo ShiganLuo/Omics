@@ -46,7 +46,7 @@ rule featureCounts_single_noMultiple:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start featureCounts_single_noMultiple at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"featureCounts_single_noMultiple_{current_time}.sh")
+            script = receipt_script(f"featureCounts_single_noMultiple_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(os.path.dirname(output.outfile), f"featureCounts_single_noMultiple.sh")
             os.makedirs(os.path.dirname(output.outfile), exist_ok=True)
@@ -103,7 +103,7 @@ rule featureCounts_paired_noMultiple:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start featureCounts_paired_noMultiple at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"featureCounts_paired_noMultiple_{current_time}.sh")
+            script = receipt_script(f"featureCounts_paired_noMultiple_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(os.path.dirname(output.outfile), f"featureCounts_paired_noMultiple.sh")
             os.makedirs(os.path.dirname(output.outfile), exist_ok=True)

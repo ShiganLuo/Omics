@@ -45,7 +45,7 @@ rule regions_telomere:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Build telomere regions for {wildcards.sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"regions_telomere_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"regions_telomere_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/regions_telomere_{wildcards.sample_id}.sh")
             cmd = ["python", params.script, "telomere",

@@ -42,7 +42,7 @@ rule extract_rRNA:
             open(log_path,'a').close()
             rule_logger = setup_logger("extract_rRNA", log_file=log_path)
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-            script = os.path.join(RECEIPT_DIR, f"extract_rRNA.{wildcards.genome}_{current_time}.sh")
+            script = receipt_script(f"extract_rRNA.{wildcards.genome}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = f"{outdir}/{wildcards.genome}/extract_rRNA.sh"
             cmd = ["python", params.extract_rRNA_script, 

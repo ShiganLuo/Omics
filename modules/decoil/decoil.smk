@@ -180,9 +180,7 @@ rule decoil_reconstruct:
             )
             sample_outdir = os.path.dirname(str(output.reconstruct_all))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(
-                RECEIPT_DIR,
-                f"decoil_reconstruct_{wildcards.sample_id}_{current_time}.sh",
+            script = receipt_script(f"decoil_reconstruct_{wildcards.sample_id}_{current_time}.sh",
             )
             plain_script = os.path.join(sample_outdir, "decoil_reconstruct.sh")
 
@@ -287,7 +285,7 @@ rule decoil_plot:
             rule_logger.info(f"Start decoil_plot for sample {wildcards.sample_id} at {current_time}")
             sample_vis_dir = os.path.dirname(str(output.regions_tsv))
             os.makedirs(sample_vis_dir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"decoil_plot_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"decoil_plot_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_vis_dir, f"decoil_plot_{wildcards.sample_id}.sh")
             cmd = [
@@ -351,7 +349,7 @@ rule decoil_compare:
             rule_logger.info(f"Start decoil_compare for samples {samples} at {current_time}")
             compare_dir = os.path.dirname(str(output.plots[0]))
             os.makedirs(compare_dir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"decoil_compare_{current_time}.sh")
+            script = receipt_script(f"decoil_compare_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(compare_dir, f"decoil_compare.sh")
             cmd = [
@@ -429,7 +427,7 @@ rule decoil_structure:
             rule_logger.info(f"Start decoil_structure for sample {wildcards.sample_id} at {current_time}")
             sample_vis_dir = os.path.dirname(str(output.genes_tsv))
             os.makedirs(sample_vis_dir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"decoil_structure_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"decoil_structure_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_vis_dir, f"decoil_structure_{wildcards.sample_id}.sh")
             cmd = [
@@ -515,7 +513,7 @@ rule decoil_igv:
             with open(tmp_base_json, "w") as f:
                 json.dump(base_cfg, f, indent=2)
 
-            script = os.path.join(RECEIPT_DIR, f"decoil_igv_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"decoil_igv_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_vis_dir, f"decoil_igv_{wildcards.sample_id}.sh")
             cmd1 = [
@@ -585,7 +583,7 @@ rule decoil_ucsc:
             rule_logger.info(f"Start decoil_ucsc for sample {wildcards.sample_id} at {current_time}")
             sample_vis_dir = os.path.dirname(str(output.track))
             os.makedirs(sample_vis_dir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"decoil_ucsc_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"decoil_ucsc_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_vis_dir, f"decoil_ucsc_{wildcards.sample_id}.sh")
             cmd = [

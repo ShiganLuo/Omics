@@ -73,7 +73,7 @@ rule diann_run:
             rule_logger.info(f"Start DIA-NN over {len(samples)} runs at {current_time}")
             group_outdir = outdir
             os.makedirs(group_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"diann_run_{current_time}.sh")
+            script = receipt_script(f"diann_run_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(group_outdir, f"diann_run.sh")
             cmd = [
@@ -147,7 +147,7 @@ rule diann_summary:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start DIA-NN summary at {current_time}")
             os.makedirs(outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"diann_summary_{current_time}.sh")
+            script = receipt_script(f"diann_summary_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"diann_summary.sh")
             cmd = [

@@ -75,7 +75,7 @@ rule sv_exp_specific:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             outprefix = f"{outdir}/{wildcards.genome}/{wildcards.comparison}/{wildcards.comparison}"
-            script_path = os.path.join(RECEIPT_DIR, f"sv_exp_specific_{wildcards.genome}_{current_time}.sh")
+            script_path = receipt_script(f"sv_exp_specific_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.comparison}/sv_exp_specific.sh")
             fmt_args = []
             for fmt in params.formats:
@@ -131,7 +131,7 @@ rule sv_exp_enrichment:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             enrichment_outdir = f"{outdir}/{wildcards.genome}/{wildcards.comparison}/enrichment"
-            script_path = os.path.join(RECEIPT_DIR, f"sv_exp_enrichment_{wildcards.genome}_{current_time}.sh")
+            script_path = receipt_script(f"sv_exp_enrichment_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.comparison}/sv_exp_enrichment.sh")
             fmt_args = []
             for fmt in params.formats:
@@ -185,7 +185,7 @@ rule sv_exp_circos:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             circos_outdir = f"{outdir}/{wildcards.genome}/{wildcards.comparison}/circos"
-            script_path = os.path.join(RECEIPT_DIR, f"sv_exp_circos_{wildcards.genome}_{current_time}.sh")
+            script_path = receipt_script(f"sv_exp_circos_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.comparison}/sv_exp_circos.sh")
             fmt_args = []
             for fmt in params.formats:
@@ -242,7 +242,7 @@ rule sv_gene_model:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             gene_outdir = f"{outdir}/{wildcards.genome}/{wildcards.comparison}/gene_model"
-            script_path = os.path.join(RECEIPT_DIR, f"sv_gene_model_{wildcards.genome}_{current_time}.sh")
+            script_path = receipt_script(f"sv_gene_model_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.comparison}/sv_gene_model.sh")
             gene_args = []
             for g in params.genes:
@@ -301,7 +301,7 @@ rule sv_diff_analysis:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             diff_outdir = f"{outdir}/{wildcards.genome}/sv_diff_analysis"
-            script_path = os.path.join(RECEIPT_DIR, f"sv_diff_analysis_{wildcards.genome}_{current_time}.sh")
+            script_path = receipt_script(f"sv_diff_analysis_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.genome}/sv_diff_analysis.sh")
             group_args = []
             for c in comparisons:
@@ -356,7 +356,7 @@ rule sv_oncoprint:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             oncoprint_outdir = f"{outdir}/{wildcards.genome}/sv_oncoprint"
-            script_path = os.path.join(RECEIPT_DIR, f"sv_oncoprint_{wildcards.genome}_{current_time}.sh")
+            script_path = receipt_script(f"sv_oncoprint_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.genome}/sv_oncoprint.sh")
             group_args = []
             for c in comparisons:

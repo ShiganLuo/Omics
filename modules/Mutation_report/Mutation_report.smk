@@ -128,7 +128,7 @@ rule generate_report:
             for fmt in params.formats:
                 cmd += ["--format", str(fmt)]
 
-            script = os.path.join(RECEIPT_DIR, f"generate_report_{current_time}.sh")
+            script = receipt_script(f"generate_report_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(report_dir or ".", "generate_report.sh")
             with open(script, "w") as f:

@@ -31,7 +31,7 @@ rule bcftools_sort:
             rule_logger.info(f"Start bcftools sort for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.vcf))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"bcftools_sort_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"bcftools_sort_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"bcftools_sort.sh")
             cmd = [
@@ -80,7 +80,7 @@ rule bcftools_index_csi:
             rule_logger.info(f"Start bcftools index for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.csi))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"bcftools_index_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"bcftools_index_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"bcftools_index.sh")
             cmd = [

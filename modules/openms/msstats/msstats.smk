@@ -55,8 +55,6 @@ rule msstats:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start MSstats input preparation at {current_time}")
             os.makedirs(outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"msstats_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"msstats.sh")
             if params.method == "tmt":
                 # Isobaric consensusXML -> MSstats (MSstatsTMT) input CSV.
@@ -82,6 +80,9 @@ rule msstats:
                         "-method", "ISO",
                         "-out", output.csv,
                     ]
+                    # receipt_script 预占文件名:必须与写入同分支,跳过执行的
+                    # 分支不占名,否则备份池留下空壳回执
+                    script = receipt_script(f"msstats_{current_time}.sh")
                     with open(script, "w") as f:
                         f.write("#!/bin/bash\nset -euo pipefail\n")
                         f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")

@@ -37,7 +37,7 @@ rule iCLIP_bedtools:
             rule_logger.info(f"Start iCLIP bedtools for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bed))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"iCLIP_bedtools_{wildcards.genome}_{current_time}.sh")
+            script = receipt_script(f"iCLIP_bedtools_{wildcards.genome}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"iCLIP_bedtools.sh")
             with open(script, "w") as f:

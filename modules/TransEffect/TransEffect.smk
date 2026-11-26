@@ -94,7 +94,7 @@ rule teffect_analyze:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start teffect analyze at {current_time}")
             os.makedirs(outdir, exist_ok=True)
-            script_path = os.path.join(RECEIPT_DIR, f"teffect_analyze_{current_time}.sh")
+            script_path = receipt_script(f"teffect_analyze_{current_time}.sh")
             plain_script = os.path.join(outdir, "teffect_analyze.sh")
 
             cmd = [
@@ -165,7 +165,7 @@ rule teffect_figures:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start teffect figures at {current_time}")
-            script_path = os.path.join(RECEIPT_DIR, f"teffect_figures_{current_time}.sh")
+            script_path = receipt_script(f"teffect_figures_{current_time}.sh")
             plain_script = os.path.join(outdir, "teffect_figures.sh")
 
             cmd = [

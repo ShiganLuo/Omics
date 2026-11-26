@@ -36,7 +36,7 @@ rule TEcoutCPM:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start TEcoutCPM run at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"TEcoutCPM_{current_time}.sh")
+            script = receipt_script(f"TEcoutCPM_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"TEcoutCPM.sh")
             cmd = [params.Rscript, params.script, "-i", input.infile, "-o", output.outfile]
@@ -80,7 +80,7 @@ rule commonExpression:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start commonExpression at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"commonExpression_{current_time}.sh")
+            script = receipt_script(f"commonExpression_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"commonExpression.sh")
             cmd = [
@@ -129,7 +129,7 @@ rule getBed:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start getBed at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"getBed_{current_time}.sh")
+            script = receipt_script(f"getBed_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"getBed.sh")
             cmd = [
@@ -177,7 +177,7 @@ rule vcfIntersectBed:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start vcfIntersectBed for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"vcfIntersectBed_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"vcfIntersectBed_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/vcfIntersectBed.sh")
             cmd = [
@@ -228,7 +228,7 @@ rule annovar_convert:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start annovar_convert run for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"annovar_convert_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"annovar_convert_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/annovar_convert.sh")
             cmd = [params.perl, params.convert, "-format", "vcf4", "-withfreq", input.vcf, ">", output.avinput, "2>", log_path]
@@ -279,7 +279,7 @@ rule annovar_table:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start annovar_table run for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"annovar_table_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"annovar_table_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/annovar_table.sh")
             cmd = [params.perl, params.table, input.avinput, params.db, "-buildver", params.buildver, "-out", params.out, "-remove", "-protocol", "refGene", "-operation", "g", "-nastring", ".", "-csvout"]

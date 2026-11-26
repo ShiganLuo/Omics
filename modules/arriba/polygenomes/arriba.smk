@@ -73,7 +73,7 @@ rule arriba:
         rule_logger = setup_logger("arriba", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-            script = os.path.join(RECEIPT_DIR, f"{wildcards.sample_id}_arriba_{current_time}.sh")
+            script = receipt_script(f"{wildcards.sample_id}_arriba_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = f"{outdir}/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}_arriba.sh"
             cmd = [
@@ -155,7 +155,7 @@ rule arriba_report:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             sample_outdir = os.path.dirname(output.report)
-            script = os.path.join(RECEIPT_DIR, f"arriba_report_{wildcards.genome}_{current_time}.sh")
+            script = receipt_script(f"arriba_report_{wildcards.genome}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = f"{sample_outdir}/arriba_report.sh"
             cmd = [

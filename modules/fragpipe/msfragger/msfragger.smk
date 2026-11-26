@@ -81,7 +81,7 @@ rule msfragger_run:
                  "--label", str(params.label)],
                 check=True,
             )
-            script = os.path.join(RECEIPT_DIR, f"msfragger_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"msfragger_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"msfragger.sh")
             if params.jar:
@@ -147,7 +147,7 @@ rule msfragger_idxml:
             rule_logger.info(f"Start pepXML -> idXML conversion for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"msfragger_idxml_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"msfragger_idxml_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"msfragger_idxml.sh")
             # Staged copy must keep a .pepXML suffix: IDFileConverter has no

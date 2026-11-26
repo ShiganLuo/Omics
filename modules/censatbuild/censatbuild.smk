@@ -111,7 +111,7 @@ rule censatbuild_arrays:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start satellite clustering for {genome_name} at {current_time}")
             os.makedirs(outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"censatbuild_arrays_{genome_name}_{current_time}.sh")
+            script = receipt_script(f"censatbuild_arrays_{genome_name}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"censatbuild_arrays_{genome_name}.sh")
             cmd = [
@@ -168,7 +168,7 @@ rule censatbuild_flank:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start flank/merge for {genome_name} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"censatbuild_flank_{genome_name}_{current_time}.sh")
+            script = receipt_script(f"censatbuild_flank_{genome_name}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"censatbuild_flank_{genome_name}.sh")
             flank_bed = outdir + f"/{genome_name}.sat_flank.bed"
@@ -222,7 +222,7 @@ rule censatbuild_mcg_pileup:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start modkit CpG pileup at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"censatbuild_mcg_pileup_{genome_name}_{current_time}.sh")
+            script = receipt_script(f"censatbuild_mcg_pileup_{genome_name}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"censatbuild_mcg_pileup_{genome_name}.sh")
             tmp_bed = outdir + f"/{genome_name}.mcpg_pileup.bedMethyl"

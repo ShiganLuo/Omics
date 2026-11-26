@@ -53,7 +53,7 @@ rule hisat2_index:
 
             sample_outdir = os.path.dirname(params.prefix)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"hisat2_index_{wildcards.genome}_{current_time}.sh")
+            script = receipt_script(f"hisat2_index_{wildcards.genome}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"hisat2_index.sh")
 
@@ -140,7 +140,7 @@ rule hisat2_align:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             sample_outdir = os.path.dirname(output.outfile)
-            script = os.path.join(RECEIPT_DIR, f"hisat2_align_{wildcards.genome}_{current_time}.sh")
+            script = receipt_script(f"hisat2_align_{wildcards.genome}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = f"{sample_outdir}/hisat2_align.sh"
             cmd1 = [

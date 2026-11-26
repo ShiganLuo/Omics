@@ -90,8 +90,7 @@ rule fiberseq_epi_drift_run:
                     raise ValueError(
                         f"group {label!r} references samples without a BAM "
                         f"entry in inputs.epi_drift.bam: {missing}")
-            script = os.path.join(RECEIPT_DIR,
-                                  f"fiberseq_epi_drift_run_{current_time}.sh")
+            script = receipt_script(f"fiberseq_epi_drift_run_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, "fiberseq_epi_drift_run.sh")
             cmd = [
@@ -157,8 +156,7 @@ rule fiberseq_epi_drift_fig:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start epi_drift fig at {current_time}")
             os.makedirs(outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR,
-                                  f"fiberseq_epi_drift_fig_{current_time}.sh")
+            script = receipt_script(f"fiberseq_epi_drift_fig_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, "fiberseq_epi_drift_fig.sh")
             cmd = [

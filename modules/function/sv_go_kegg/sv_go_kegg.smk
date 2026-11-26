@@ -94,9 +94,7 @@ rule sv_go_kegg:
             ]
             for fmt in params.formats:
                 cmd += ["--format", str(fmt)]
-            script = os.path.join(
-                RECEIPT_DIR,
-                f"sv_go_kegg_{wildcards.comparison}_{current_time}.sh")
+            script = receipt_script(f"sv_go_kegg_{wildcards.comparison}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, "sv_go_kegg.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")

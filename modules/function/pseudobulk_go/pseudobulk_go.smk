@@ -181,9 +181,7 @@ rule function_pseudobulk_go:
                 cmd += ["--format", str(fmt)]
             # dual-write receipts: timestamped copy in RECEIPT_DIR (flat pool),
             # plain copy beside the results
-            script = os.path.join(
-                RECEIPT_DIR,
-                f"function_pseudobulk_go_{wildcards.counter}_{wildcards.mode}_"
+            script = receipt_script(f"function_pseudobulk_go_{wildcards.counter}_{wildcards.mode}_"
                 f"{wildcards.tissue}_{wildcards.contrast}_"
                 f"{wildcards.cell_type}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, "function_pseudobulk_go.sh")

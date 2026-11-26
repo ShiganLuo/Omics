@@ -88,7 +88,7 @@ rule ft_predict_m6a:
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            command_script = os.path.join(RECEIPT_DIR, f"ft_predict_m6a_{wildcards.sample_id}_{current_time}.sh")
+            command_script = receipt_script(f"ft_predict_m6a_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"ft_predict_m6a.sh")
 
             detect_sh = _detect_m6a_sh(input.bam)
@@ -164,7 +164,7 @@ rule ft_add_nucleosomes:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            command_script = os.path.join(RECEIPT_DIR, f"ft_add_nucleosomes_{wildcards.sample_id}_{current_time}.sh")
+            command_script = receipt_script(f"ft_add_nucleosomes_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"ft_add_nucleosomes.sh")
             cmd = [
                 params.ft, "add-nucleosomes",
@@ -220,7 +220,7 @@ rule ft_fire:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            command_script = os.path.join(RECEIPT_DIR, f"ft_fire_{wildcards.sample_id}_{current_time}.sh")
+            command_script = receipt_script(f"ft_fire_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"ft_fire.sh")
             cmd = [
                 params.ft, "fire",

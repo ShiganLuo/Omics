@@ -34,7 +34,7 @@ rule pbmm2_align:
             logger = setup_logger(log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start pbmm2 alignment for sample {wildcards.sample_id} on genome {wildcards.genome} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"pbmm2_align_{wildcards.genome}_{current_time}.sh")
+            script = receipt_script(f"pbmm2_align_{wildcards.genome}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, wildcards.genome, f"{wildcards.sample_id}/pbmm2_align.sh")
             raw_align_bam = outdir + f"/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}.raw.bam"

@@ -63,7 +63,7 @@ rule decoy_database:
                     f"FASTA (e.g. GENCODE pep.all / UniProt proteome). Set "
                     f"'genome.protein_fasta' to the protein database."
                 )
-            script = os.path.join(RECEIPT_DIR, f"decoy_database_{current_time}.sh")
+            script = receipt_script(f"decoy_database_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"decoy_database.sh")
             cmd = [

@@ -43,7 +43,7 @@ rule mimseq_coverage:
         open(log_path, "a").close()
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            script_path = os.path.join(RECEIPT_DIR, f"mimseq_coverage_{wildcards.genome}_{current_time}.sh")
+            script_path = receipt_script(f"mimseq_coverage_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(outdir, wildcards.genome, f"mimseq_coverage.sh")
 
             cmd = [

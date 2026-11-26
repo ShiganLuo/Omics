@@ -90,7 +90,7 @@ rule somaticMutect2:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start somaticMutect2 for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"somaticMutect2_{wildcards.normal_sample_id}_{current_time}.sh")
+            script = receipt_script(f"somaticMutect2_{wildcards.normal_sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             sample_outdir = os.path.dirname(output.vcf)
             plain_script = os.path.join(sample_outdir, "somaticMutect2.sh")
@@ -174,7 +174,7 @@ rule germline_resource_strain:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start germline resource build for strain {wildcards.strain} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"germline_resource_strain_{wildcards.strain}_{current_time}.sh")
+            script = receipt_script(f"germline_resource_strain_{wildcards.strain}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             sample_outdir = os.path.dirname(str(output.vcf))
             os.makedirs(sample_outdir, exist_ok=True)
@@ -251,7 +251,7 @@ rule filterMutectCalls:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start FilterMutectCalls for {wildcards.normal_sample_id} vs {wildcards.experimental_sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"filterMutectCalls_{wildcards.experimental_sample_id}_{current_time}.sh")
+            script = receipt_script(f"filterMutectCalls_{wildcards.experimental_sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             sample_outdir = os.path.dirname(str(output.vcf))
             plain_script = os.path.join(sample_outdir, f"filterMutectCalls_{wildcards.experimental_sample_id}.sh")

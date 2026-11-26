@@ -63,7 +63,7 @@ rule trimming_Paired:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start cutadapt paired trimming for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"cutadapt_paired_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"cutadapt_paired_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/cutadapt_paired.sh")
             cmd = [
@@ -139,7 +139,7 @@ rule trimming_Single:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start cutadapt single trimming for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"cutadapt_single_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"cutadapt_single_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/cutadapt_single.sh")
             cmd = [

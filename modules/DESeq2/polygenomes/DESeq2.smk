@@ -84,7 +84,7 @@ rule DESeq2_TEcount:
             rule_logger.info(f"Start DESeq2 TEcount at {current_time}")
             sample_outdir = os.path.dirname(str(output.deseq2_results))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"DESeq2_TEcount_{wildcards.genome}_{current_time}.sh")
+            script = receipt_script(f"DESeq2_TEcount_{wildcards.genome}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"DESeq2_TEcount.sh")
             control_group_name = comparisons.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name")
@@ -212,7 +212,7 @@ rule DESeq2_TElocal:
             rule_logger.info(f"Start DESeq2 TElocal at {current_time}")
             sample_outdir = os.path.dirname(str(output.deseq2_results))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"DESeq2_TElocal_{wildcards.genome}_{current_time}.sh")
+            script = receipt_script(f"DESeq2_TElocal_{wildcards.genome}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"DESeq2_TElocal.sh")
             control_group_name = comparisons.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name")
@@ -343,7 +343,7 @@ rule DESeq2_TElocal_manhattan:
             rule_logger.info(f"Start DESeq2 TElocal manhattan at {current_time}")
             fig_outdir = os.path.dirname(str(output.manhattan[0]))
             os.makedirs(fig_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"DESeq2_TElocal_manhattan_{wildcards.genome}_{wildcards.contrast}_{current_time}.sh")
+            script = receipt_script(f"DESeq2_TElocal_manhattan_{wildcards.genome}_{wildcards.contrast}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(fig_outdir, "DESeq2_TElocal_manhattan.sh")
             if not params.control_group_name or not params.experimental_group_name:
@@ -420,7 +420,7 @@ rule DESeq2_TElocal_locus_boxplot:
             rule_logger.info(f"Start DESeq2 TElocal locus boxplot at {current_time}")
             fig_outdir = os.path.dirname(str(output.locus_box[0]))
             os.makedirs(fig_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"DESeq2_TElocal_locus_boxplot_{wildcards.genome}_{wildcards.contrast}_{current_time}.sh")
+            script = receipt_script(f"DESeq2_TElocal_locus_boxplot_{wildcards.genome}_{wildcards.contrast}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(fig_outdir, "DESeq2_TElocal_locus_boxplot.sh")
             if not params.control_group_name or not params.experimental_group_name:
@@ -501,7 +501,7 @@ rule DESeq2_TElocal_subfamily_bar:
             rule_logger.info(f"Start DESeq2 TElocal subfamily bar at {current_time}")
             fig_outdir = os.path.dirname(str(output.subfamily_bar[0]))
             os.makedirs(fig_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"DESeq2_TElocal_subfamily_bar_{wildcards.genome}_{wildcards.contrast}_{current_time}.sh")
+            script = receipt_script(f"DESeq2_TElocal_subfamily_bar_{wildcards.genome}_{wildcards.contrast}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(fig_outdir, "DESeq2_TElocal_subfamily_bar.sh")
             if not params.control_group_name or not params.experimental_group_name:

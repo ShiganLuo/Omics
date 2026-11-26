@@ -105,7 +105,7 @@ rule fiber_cluster:
             # (如 regions_failed.txt 残留会把 rc=1 误判为「部分区域失败」)
             shutil.rmtree(setting_outdir, ignore_errors=True)
             os.makedirs(setting_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"fiber_cluster_{wildcards.setting}_{current_time}.sh")
+            script = receipt_script(f"fiber_cluster_{wildcards.setting}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # 设置名可能含路径分隔符
             plain_script = os.path.join(setting_outdir, f"fiber_cluster_{wildcards.setting}.sh")
             s_label = str(wildcards.setting)
@@ -228,7 +228,7 @@ rule fiber_report:
             rule_logger.info(f"Start fiber_report at {current_time}")
             report_outdir = os.path.dirname(str(output.loci_summary))
             os.makedirs(report_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"fiber_report_{current_time}.sh")
+            script = receipt_script(f"fiber_report_{current_time}.sh")
             plain_script = os.path.join(report_outdir, "fiber_report.sh")
             canonical = params.p.get("canonical")
             if not canonical:

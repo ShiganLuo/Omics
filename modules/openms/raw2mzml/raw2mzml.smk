@@ -60,7 +60,7 @@ rule raw2mzml:
             rule_logger.info(f"Start raw2mzml for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"raw2mzml_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"raw2mzml_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"raw2mzml.sh")
             output_dir = os.path.dirname(output.mzml)

@@ -95,7 +95,7 @@ rule sv_exp_specific:
             sample_outdir = os.path.dirname(str(output.merged_vcf))
             os.makedirs(sample_outdir, exist_ok=True)
             outprefix = os.path.join(sample_outdir, wildcards.comparison)
-            script = os.path.join(RECEIPT_DIR, f"sv_exp_specific_{wildcards.comparison}_{current_time}.sh")
+            script = receipt_script(f"sv_exp_specific_{wildcards.comparison}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"sv_exp_specific_{wildcards.comparison}.sh")
             fmt_args = []
             for fmt in params.formats:
@@ -177,7 +177,7 @@ rule sv_exp_circos:
             rule_logger.info(f"Start sv_exp_circos for comparison {wildcards.comparison} at {current_time}")
             circos_outdir = os.path.dirname(str(output.circos_done))
             os.makedirs(circos_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"sv_exp_circos_{wildcards.comparison}_{current_time}.sh")
+            script = receipt_script(f"sv_exp_circos_{wildcards.comparison}_{current_time}.sh")
             plain_script = os.path.join(os.path.dirname(circos_outdir), f"sv_exp_circos_{wildcards.comparison}.sh")
             fmt_args = []
             for fmt in params.formats:
@@ -246,7 +246,7 @@ rule sv_gene_model:
             rule_logger.info(f"Start sv_gene_model for comparison {wildcards.comparison} at {current_time}")
             gene_outdir = os.path.dirname(str(output.gene_model_done))
             os.makedirs(gene_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"sv_gene_model_{wildcards.comparison}_{current_time}.sh")
+            script = receipt_script(f"sv_gene_model_{wildcards.comparison}_{current_time}.sh")
             plain_script = os.path.join(os.path.dirname(gene_outdir), f"sv_gene_model_{wildcards.comparison}.sh")
             gene_args = []
             for g in params.genes:
@@ -315,7 +315,7 @@ rule sv_diff_analysis:
             rule_logger.info(f"Start sv_diff_analysis at {current_time}")
             diff_outdir = os.path.dirname(str(output.diff_done))
             os.makedirs(diff_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"sv_diff_analysis_{current_time}.sh")
+            script = receipt_script(f"sv_diff_analysis_{current_time}.sh")
             plain_script = os.path.join(diff_outdir, "sv_diff_analysis.sh")
             fmt_args = []
             for fmt in params.formats:
@@ -382,7 +382,7 @@ rule sv_oncoprint:
             rule_logger.info(f"Start sv_oncoprint at {current_time}")
             oncoprint_outdir = os.path.dirname(str(output.oncoprint_matrix))
             os.makedirs(oncoprint_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"sv_oncoprint_{current_time}.sh")
+            script = receipt_script(f"sv_oncoprint_{current_time}.sh")
             plain_script = os.path.join(oncoprint_outdir, "sv_oncoprint.sh")
             fmt_args = []
             for fmt in params.formats:
@@ -485,7 +485,7 @@ rule sv_mei:
             rule_logger.info(f"Start sv_mei for comparison {wildcards.comparison} at {current_time}")
             mei_out = os.path.dirname(str(output.mei_done))
             os.makedirs(mei_out, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"sv_mei_{wildcards.comparison}_{current_time}.sh")
+            script = receipt_script(f"sv_mei_{wildcards.comparison}_{current_time}.sh")
             plain_script = os.path.join(os.path.dirname(mei_out), f"sv_mei_{wildcards.comparison}.sh")
             mei = dict(params.mei)
             dfam_h5 = mei.get("dfam_h5") or []
@@ -613,7 +613,7 @@ rule sv_tra_te:
             rule_logger.info(f"Start sv_tra_te for comparison {wildcards.comparison} at {current_time}")
             tra_out = os.path.dirname(str(output.tra_te_done))
             os.makedirs(tra_out, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"sv_tra_te_{wildcards.comparison}_{current_time}.sh")
+            script = receipt_script(f"sv_tra_te_{wildcards.comparison}_{current_time}.sh")
             plain_script = os.path.join(os.path.dirname(tra_out), f"sv_tra_te_{wildcards.comparison}.sh")
             tt = dict(params.tra_te)
             cmd = [

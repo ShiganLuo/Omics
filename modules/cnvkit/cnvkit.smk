@@ -77,7 +77,7 @@ rule cnvkit_reference:
             rule_logger.info(f"Start cnvkit reference build at {current_time}")
             sample_outdir = os.path.dirname(str(output.ref))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"cnvkit_reference_{current_time}.sh")
+            script = receipt_script(f"cnvkit_reference_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"cnvkit_reference.sh")
             cmd = [params.cnvkit, "batch"]
@@ -135,7 +135,7 @@ rule cnvkit_batch:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start cnvkit batch at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"cnvkit_batch_{current_time}.sh")
+            script = receipt_script(f"cnvkit_batch_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(str(outdir), f"cnvkit_batch.sh")
             os.makedirs(str(outdir), exist_ok=True)
@@ -241,7 +241,7 @@ rule cnvkit_paired:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start cnvkit batch (paired) for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"cnvkit_paired_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"cnvkit_paired_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(str(outdir), wildcards.sample_id, f"cnvkit_paired.sh")
             os.makedirs(os.path.join(str(outdir), wildcards.sample_id), exist_ok=True)

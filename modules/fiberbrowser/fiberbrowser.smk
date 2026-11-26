@@ -65,9 +65,7 @@ rule fiberbrowser:
                 f"Start fiberbrowser for locus {wildcards.locus} at {current_time}")
             locus_outdir = os.path.dirname(str(output.plots[0]))
             os.makedirs(locus_outdir, exist_ok=True)
-            script = os.path.join(
-                RECEIPT_DIR,
-                f"fiberbrowser_{wildcards.locus}_{current_time}.sh")
+            script = receipt_script(f"fiberbrowser_{wildcards.locus}_{current_time}.sh")
             plain_script = os.path.join(locus_outdir, "fiberbrowser.sh")
             cmd = [
                 "python", params.script,

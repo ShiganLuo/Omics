@@ -103,7 +103,7 @@ rule bigwig_ratio:
                 "-o", output.ratio_bigwig,
                 "-p", str(threads),
             ]
-            script = os.path.join(RECEIPT_DIR, f"bigwig_ratio_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"bigwig_ratio_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"bigwig_ratio_{wildcards.sample_id}.sh")
             with open(script, "w") as f:
@@ -244,7 +244,7 @@ rule heatmap:
             cmd = _build_heatmap_cmd(wildcards, input, params.out_base, threads, title)
             for fmt in params.formats:
                 cmd += ["--format", str(fmt)]
-            script = os.path.join(RECEIPT_DIR, f"heatmap_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"heatmap_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"heatmap_{wildcards.sample_id}.sh")
             with open(script, "w") as f:
@@ -295,7 +295,7 @@ rule heatmap_gene:
             cmd = _build_heatmap_cmd(wildcards, input, params.out_base, threads, title, gene_names=[wildcards.gene_name])
             for fmt in params.formats:
                 cmd += ["--format", str(fmt)]
-            script = os.path.join(RECEIPT_DIR, f"heatmap_gene_{wildcards.sample_id}_{wildcards.gene_name}_{current_time}.sh")
+            script = receipt_script(f"heatmap_gene_{wildcards.sample_id}_{wildcards.gene_name}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"heatmap_gene_{wildcards.sample_id}_{wildcards.gene_name}.sh")
             with open(script, "w") as f:

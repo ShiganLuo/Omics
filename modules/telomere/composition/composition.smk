@@ -59,7 +59,7 @@ rule composition_run:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start telomere composition at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"composition_run_{current_time}.sh")
+            script = receipt_script(f"composition_run_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, "composition_run.sh")
             per = (_inputs.get("composition", {}) or {}).get("bam", {}) or {}

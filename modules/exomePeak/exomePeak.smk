@@ -65,7 +65,7 @@ rule diff_exomePeak:
             rule_logger.info(f"Start exomePeak diff at {current_time}")
             sample_outdir = os.path.dirname(str(output.diff_peak_bed))
             os.makedirs(sample_outdir, exist_ok=True)
-            script_path = os.path.join(RECEIPT_DIR, f"diff_exomePeak_{current_time}.sh")
+            script_path = receipt_script(f"diff_exomePeak_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, "diff_exomePeak.sh")
 
             cmd = [
@@ -130,7 +130,7 @@ rule call_exomePeak:
             rule_logger.info(f"Start exomePeak call at {current_time}")
             sample_outdir = os.path.dirname(str(output.all_peak_bed))
             os.makedirs(sample_outdir, exist_ok=True)
-            script_path = os.path.join(RECEIPT_DIR, f"call_exomePeak_{current_time}.sh")
+            script_path = receipt_script(f"call_exomePeak_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, "call_exomePeak.sh")
 
             cmd = [

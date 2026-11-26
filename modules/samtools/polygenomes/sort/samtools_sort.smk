@@ -46,7 +46,7 @@ rule bam_sort:
             output.bam,
             output.bai
         ]
-        script = os.path.join(RECEIPT_DIR, f"samtools_sort_{wildcards.genome}_{current_time}.sh")
+        script = receipt_script(f"samtools_sort_{wildcards.genome}_{current_time}.sh")
         os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
         plain_script = os.path.join(outdir, f"samtools_sort.sh")
         with open(script, "w") as f:

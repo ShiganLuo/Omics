@@ -79,7 +79,7 @@ rule fastqc:
                 "-t", str(threads),
             ] + list(input)
 
-            script = os.path.join(RECEIPT_DIR, f"fastqc_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"fastqc_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"fastqc.sh")
             with open(script, "w") as f:

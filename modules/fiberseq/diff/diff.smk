@@ -60,7 +60,7 @@ rule fiberseq_diff_run:
             rule_logger.info(f"Start diff analysis for {wildcards.contrast} at {current_time}")
             contrast_outdir = os.path.dirname(str(output.diff))
             os.makedirs(contrast_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"fiberseq_diff_run_{wildcards.contrast}_{current_time}.sh")
+            script = receipt_script(f"fiberseq_diff_run_{wildcards.contrast}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(contrast_outdir, f"fiberseq_diff_run_{wildcards.contrast}.sh")
             cmd = [

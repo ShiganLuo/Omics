@@ -44,7 +44,7 @@ rule gatk_index:
             rule_logger.info(f"Start gatk_index at {current_time}")
             index_outdir = os.path.join(outdir, "index")
             os.makedirs(index_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"gatk_index_{current_time}.sh")
+            script = receipt_script(f"gatk_index_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(index_outdir, f"gatk_index.sh")
             cmd1 = ["ln", "-s", input.fasta, output.fasta_link]
@@ -120,7 +120,7 @@ rule addReadsGroup:
             rule_logger.info(f"Start addReadsGroup for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"addReadsGroup_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"addReadsGroup_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"addReadsGroup.sh")
             cmd1 = [
@@ -187,7 +187,7 @@ rule MarkDuplicates:
             rule_logger.info(f"Start MarkDuplicates for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"MarkDuplicates_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"MarkDuplicates_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"MarkDuplicates.sh")
             cmd = [
@@ -289,7 +289,7 @@ rule collectHsMetrics:
             rule_logger.info(f"Start collectHsMetrics for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"collectHsMetrics_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"collectHsMetrics_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, "collectHsMetrics.sh")
             cmds = []

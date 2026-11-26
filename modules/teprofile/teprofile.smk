@@ -66,7 +66,7 @@ rule te_profile:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start te_profile at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"te_profile_{current_time}.sh")
+            script = receipt_script(f"te_profile_{current_time}.sh")
             plain_script = os.path.join(outdir, "te_profile.sh")
             cmd = [
                 "python", params.script,

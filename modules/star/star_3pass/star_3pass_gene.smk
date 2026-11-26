@@ -70,7 +70,7 @@ rule star_3pg_gene_specific:
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(os.path.dirname(log_path), exist_ok=True)
             input_dir = os.path.join(outdir, wildcards.sample_id)
-            script = os.path.join(RECEIPT_DIR, f"gene_specific_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"gene_specific_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"gene_specific.sh")
             p1, p2, p3 = params.pass1, params.pass2, params.pass3

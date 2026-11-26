@@ -140,7 +140,7 @@ rule regionplot:
             rule_logger.info(f"Start regionplot for panel {wildcards.panel} at {current_time}")
             panel_outdir = os.path.dirname(str(output.plots[0]))
             os.makedirs(panel_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"regionplot_{wildcards.panel}_{current_time}.sh")
+            script = receipt_script(f"regionplot_{wildcards.panel}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(panel_outdir, "regionplot.sh")
 

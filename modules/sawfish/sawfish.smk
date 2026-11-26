@@ -58,7 +58,7 @@ rule sawfish_discover:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start sawfish discover for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"sawfish_discover_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"sawfish_discover_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"discover/{wildcards.sample_id}/sawfish_discover.sh")
             sa = params.sa
@@ -135,7 +135,7 @@ rule sawfish_joint_call:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start sawfish joint-call at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"sawfish_joint_call_{current_time}.sh")
+            script = receipt_script(f"sawfish_joint_call_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, "sawfish_joint_call.sh")
             cmd = [
@@ -212,7 +212,7 @@ rule sawfish_cnv_filter:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start sawfish CNV/SV VCF split at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"sawfish_cnv_filter_{current_time}.sh")
+            script = receipt_script(f"sawfish_cnv_filter_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, "sawfish_cnv_filter.sh")
             cmd = [

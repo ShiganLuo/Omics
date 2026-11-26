@@ -17,7 +17,7 @@ rule admixture_population:
    attempt=attempt).get("mem_mb", 8000),
  run:
   os.makedirs(os.path.dirname(str(log)),exist_ok=True);os.makedirs(os.path.dirname(str(output.q)),exist_ok=True)
-  script = os.path.join(RECEIPT_DIR, f"admixture_population_{wildcards.k}_{time.strftime('%Y%m%d_%H%M%S')}.sh")
+  script = receipt_script(f"admixture_population_{wildcards.k}_{time.strftime('%Y%m%d_%H%M%S')}.sh")
   os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
   plain_script=os.path.join(os.path.dirname(str(output.q)), f"admixture_population_{wildcards.k}.sh")
   cmd=[params.admixture,"--seed",str(params.seed),f"-j{threads}",params.bed,str(wildcards.k)]

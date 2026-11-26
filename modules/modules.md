@@ -423,9 +423,8 @@ rule <tool>_<action>:
             rule_logger.info(f"Start <tool> <action> for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.xxx))
             os.makedirs(sample_outdir, exist_ok=True)
-            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
             # 带时间戳的备份(log/cmd 历史);outdir 只放无时间戳的当前命令(见"命令回执双写")
-            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"<tool>_<action>_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"<tool>_<action>_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"<tool>_<action>_{wildcards.sample_id}.sh")
             cmd = [
                 params.<tool>, "<action>",
@@ -457,26 +456,36 @@ rule <module>_result:
 | 位置 | 文件名 | 行为 |
 |---|---|---|
 | 输出目录（`sample_outdir`） | `<rule>_<sample>.sh`（**无时间戳**） | 每次运行覆盖，始终对应当前命令，与结果同在，可直接复制重跑 |
-| `<OUTDIR_ROOT>/log/cmd/`（**扁平，无子目录**） | `<rule>_<sample>_<时间戳>.sh` | 备份池：按运行累积，文件名自带规则+样本+时间戳，天然唯一 |
+| `<OUTDIR_ROOT>/log/cmd/`（**扁平，无子目录**） | `<rule>_<sample>_<时间戳>.sh` | 备份池：按运行累积，`receipt_script()` 原子占位保证唯一（撞名自动加 `_1` 后缀） |
 
 `OUTDIR_ROOT`（大写常量，common.smk 提供）= 流程总输出目录，由 subworkflow
 统一传入（`"OUTDIR_ROOT": outdir`），缺省回退 `ROOT_DIR`。配套常量
-`RECEIPT_DIR = <OUTDIR_ROOT>/log/cmd`，common.smk 已 `makedirs`，规则只拼
-文件路径：
+`RECEIPT_DIR = <OUTDIR_ROOT>/log/cmd`，common.smk 已 `makedirs`，规则经
+`receipt_script()` 拼文件路径（内部 `os.path.join(RECEIPT_DIR, name)` +
+O_EXCL 原子占位）：
 
 ```python
 # ✅ 正确
-script = os.path.join(RECEIPT_DIR, f"<rule>_{wildcards.sample_id}_{current_time}.sh")
+script = receipt_script(f"<rule>_{wildcards.sample_id}_{current_time}.sh")
 plain_script = os.path.join(sample_outdir, f"<rule>_{wildcards.sample_id}.sh")
 ...
 shutil.copyfile(script, plain_script)
 shell(f"bash {plain_script} >> {log_path} 2>&1")
 
 # ❌ 错误
-script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"...")  # 挂在模块 logdir 下,不收敛
-script = os.path.join(RECEIPT_DIR, f"{wildcards.sample_id}/xxx.sh")    # 备份池是扁平的,禁子目录
-os.makedirs(os.path.join(logdir, "cmd", ...))                          # 目录已由 common 保证
+script = os.path.join(RECEIPT_DIR, f"...")                          # 禁直拼:同秒并行 job 同名互撞,截断后 copyfile 会拷出空回执
+script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"…")  # 挂在模块 logdir 下,不收敛
+script = receipt_script(f"{wildcards.sample_id}/xxx.sh")             # 备份池是扁平的,禁子目录
+os.makedirs(os.path.join(logdir, "cmd", ...))                        # 目录已由 common 保证
 ```
+
+`receipt_script()` 防撞语义：备份基名只带 规则+样本+秒级时间戳，不同 counter /
+上游路径的并行 job 会共用同一基名，直接 `open("w")` 会截断同名文件，且
+`shutil.copyfile(script, plain_script)` 可能把截断中的空内容拷成树内正式回执。
+`receipt_script()` 以 `O_CREAT|O_EXCL` 原子创建空文件占位，撞名时基名追加
+`_1`/`_2` 后缀，每个 job 独占唯一备份；无碰撞时文件名不变。注意：它**预占**
+文件名，调用后必须紧跟无条件写入；若某分支跳过命令执行，把 `receipt_script()`
+调用移进实际写入的分支，否则备份池会留下空壳回执。
 
 写文件顺序：先写时间戳备份版（`script`），`shutil.copyfile` 复制为无时间戳
 版（`plain_script`），然后 `shell()` 执行 `plain_script`。注意 plain 文件名若

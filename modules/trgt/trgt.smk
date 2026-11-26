@@ -63,7 +63,7 @@ rule trgt_genotype:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start trgt genotype for sample {wildcards.sample_id} at {current_time}")
-        script = os.path.join(RECEIPT_DIR, f"trgt_genotype_{wildcards.sample_id}_{current_time}.sh")
+        script = receipt_script(f"trgt_genotype_{wildcards.sample_id}_{current_time}.sh")
         os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
         plain_script = os.path.join(outdir, f"{wildcards.sample_id}/trgt_genotype.sh")
         cmd = [params.trgt, "genotype",
@@ -124,7 +124,7 @@ rule trgt_plot:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start trgt plot for sample {wildcards.sample_id} at {current_time}")
-        script = os.path.join(RECEIPT_DIR, f"trgt_plot_{wildcards.sample_id}_{current_time}.sh")
+        script = receipt_script(f"trgt_plot_{wildcards.sample_id}_{current_time}.sh")
         os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
         plain_script = os.path.join(outdir, f"{wildcards.sample_id}/trgt_plot.sh")
         cmd = [

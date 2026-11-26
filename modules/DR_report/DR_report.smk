@@ -117,7 +117,7 @@ rule generate_report:
             report_dir = os.path.dirname(str(output.report))
             os.makedirs(report_dir, exist_ok=True)
             os.makedirs(params.img_dir, exist_ok=True)
-            script_path = os.path.join(RECEIPT_DIR, f"DR_report_{current_time}.sh")
+            script_path = receipt_script(f"DR_report_{current_time}.sh")
             os.makedirs(os.path.dirname(script_path), exist_ok=True)
             plain_script = os.path.join(report_dir, f"DR_report.sh")
             cmd = [

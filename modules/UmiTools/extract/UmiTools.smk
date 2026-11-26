@@ -39,7 +39,7 @@ rule UmiTools_extract_single:
             rule_logger.info(f"Start UmiTools_extract_single for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"UmiTools_extract_single_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"UmiTools_extract_single_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"UmiTools_extract_single.sh")
             with open(script, "w") as f:
@@ -93,7 +93,7 @@ rule UmiTools_extract_paired:
             rule_logger.info(f"Start UmiTools_extract_paired for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"UmiTools_extract_paired_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"UmiTools_extract_paired_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"UmiTools_extract_paired.sh")
             with open(script, "w") as f:

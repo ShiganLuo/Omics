@@ -105,7 +105,7 @@ rule qc_summary:
                 cmd += ["--format", str(fmt)]
             cmd += ["--log", log_path]
 
-            script = os.path.join(RECEIPT_DIR, f"qc_summary_{current_time}.sh")
+            script = receipt_script(f"qc_summary_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(summary_dir, "qc_summary.sh")
             with open(script, "w") as f:

@@ -37,7 +37,7 @@ rule samtools_dedup:
             rule_logger.info(f"Start rule dedup for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script_path = os.path.join(RECEIPT_DIR, f"samtools_dedup_{wildcards.sample_id}_{current_time}.sh")
+            script_path = receipt_script(f"samtools_dedup_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"samtools_dedup.sh")
             cmd = [
                 params.samtools, "sort",
@@ -105,7 +105,7 @@ rule wig:
             rule_logger.info(f"Start rule wig for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script_path = os.path.join(RECEIPT_DIR, f"bamCoverage_wig_{wildcards.sample_id}_{current_time}.sh")
+            script_path = receipt_script(f"bamCoverage_wig_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"bamCoverage_wig.sh")
             cmd = [
                 params.bamCoverage,

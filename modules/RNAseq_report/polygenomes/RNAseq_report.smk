@@ -165,7 +165,7 @@ rule generate_report:
             report_dir = os.path.dirname(str(output.report))
             os.makedirs(report_dir, exist_ok=True)
             os.makedirs(params.img_dir, exist_ok=True)
-            script_path = os.path.join(RECEIPT_DIR, f"RNAseq_report_{wildcards.genome}_{current_time}.sh")
+            script_path = receipt_script(f"RNAseq_report_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(report_dir, f"RNAseq_report.sh")
             # Create symlink structure for generate_report.py compatibility
             # Script expects: analysis_dir/transcripts/..., analysis_dir/fusion/...

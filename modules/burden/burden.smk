@@ -67,7 +67,7 @@ rule burden_snv_indel:
             rule_logger.info(f"Start burden snv-indel for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.tsv))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"burden_snv_indel_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"burden_snv_indel_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"burden_snv_indel_{wildcards.sample_id}.sh")
             cmd = [
@@ -142,7 +142,7 @@ rule burden_sv:
             rule_logger.info(f"Start burden sv for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.tsv))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"burden_sv_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"burden_sv_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"burden_sv_{wildcards.sample_id}.sh")
             cmd = [
@@ -204,7 +204,7 @@ rule burden_cnv:
             rule_logger.info(f"Start burden cnv for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.tsv))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"burden_cnv_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"burden_cnv_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"burden_cnv_{wildcards.sample_id}.sh")
             cmd = [
@@ -265,7 +265,7 @@ rule burden_aggregate:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start burden aggregate at {current_time}")
             os.makedirs(os.path.dirname(str(output.summary)), exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"burden_aggregate_{current_time}.sh")
+            script = receipt_script(f"burden_aggregate_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(os.path.dirname(str(output.summary)), "burden_aggregate.sh")
             # One flag carries every value per table type (nargs-style option).

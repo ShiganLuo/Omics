@@ -165,7 +165,7 @@ rule search_engine_comet:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start Comet search (engine={params.engine}) for sample {wildcards.sample_id} at {current_time}")
             _assert_label_matches_data(input.mzml, _fixed_comet, _variable_comet, _expect_comet)
-            script = os.path.join(RECEIPT_DIR, f"comet_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"comet_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/comet.sh")
             cmd = [
@@ -233,7 +233,7 @@ rule search_engine_msgf:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start MSGF+ search (engine={params.engine}) for sample {wildcards.sample_id} at {current_time}")
             _assert_label_matches_data(input.mzml, _fixed_msgf, _variable_msgf, _expect_msgf)
-            script = os.path.join(RECEIPT_DIR, f"msgf_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"msgf_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/msgf.sh")
             cmd = [
@@ -289,7 +289,7 @@ rule search_engine_sage:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start Sage search (engine={params.engine}) for sample {wildcards.sample_id} at {current_time}")
             _assert_label_matches_data(input.mzml, _fixed_sage, _variable_sage, _expect_sage)
-            script = os.path.join(RECEIPT_DIR, f"sage_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"sage_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/sage.sh")
             cmd = [

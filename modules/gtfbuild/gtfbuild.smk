@@ -64,7 +64,7 @@ rule gtfbuild_liftoff:
             rule_logger.info(f"Start LiftOff projection for {genome_name} at {current_time}")
             sample_outdir = os.path.dirname(str(output.gff3))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"gtfbuild_liftoff_{genome_name}_{current_time}.sh")
+            script = receipt_script(f"gtfbuild_liftoff_{genome_name}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"gtfbuild_liftoff_{genome_name}.sh")
             lift_cmd = [
@@ -131,7 +131,7 @@ rule gtfbuild_qc:
             rule_logger.info(f"Start gtfbuild QC for {genome_name} at {current_time}")
             sample_outdir = os.path.dirname(str(output.qc))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"gtfbuild_qc_{genome_name}_{current_time}.sh")
+            script = receipt_script(f"gtfbuild_qc_{genome_name}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"gtfbuild_qc_{genome_name}.sh")
             cmd = [
@@ -208,7 +208,7 @@ rule gtfbuild_wga:
             rule_logger.info(f"Start whole-genome alignment for {genome_name} at {current_time}")
             sample_outdir = os.path.dirname(str(output.paf))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"gtfbuild_wga_{genome_name}_{current_time}.sh")
+            script = receipt_script(f"gtfbuild_wga_{genome_name}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"gtfbuild_wga_{genome_name}.sh")
             cmd = [
@@ -267,7 +267,7 @@ rule gtfbuild_liftover_bed:
             rule_logger.info(f"Start BED liftover for {genome_name} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bed))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"gtfbuild_liftover_bed_{BED_STEM}_{current_time}.sh")
+            script = receipt_script(f"gtfbuild_liftover_bed_{BED_STEM}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"gtfbuild_liftover_bed_{BED_STEM}.sh")
             cmd = [

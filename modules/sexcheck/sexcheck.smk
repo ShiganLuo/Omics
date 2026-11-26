@@ -62,7 +62,7 @@ rule sexcheck_idxstats:
                 "'{print s\"\\t\"$1\"\\t\"$2\"\\t\"$3\"\\t\"$4}'",
                 ">", str(output.tsv),
             ]
-            script = os.path.join(RECEIPT_DIR, f"sexcheck_idxstats_{current_time}.sh")
+            script = receipt_script(f"sexcheck_idxstats_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             # plain_script must carry sample_id: all samples share the
             # idxstats/ outdir, a fixed name races under parallel jobs.
@@ -186,7 +186,7 @@ rule sexcheck:
                 cmd += ["--y-min-rpkm", str(params.y_min_rpkm)]
             if params.xist_min_rpkm is not None:
                 cmd += ["--xist-min-rpkm", str(params.xist_min_rpkm)]
-            script = os.path.join(RECEIPT_DIR, f"sexcheck_{current_time}.sh")
+            script = receipt_script(f"sexcheck_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(summary_dir, "sexcheck.sh")
             with open(script, "w") as f:

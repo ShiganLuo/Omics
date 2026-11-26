@@ -102,7 +102,7 @@ rule somatic_spectrum:
             rule_logger.info(f"Start somatic spectrum for {len(params.cfg['vcf_map'])} samples at {current_time}")
             sample_outdir = os.path.dirname(str(output.stacked_bar[0]))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"somatic_spectrum_{current_time}.sh")
+            script = receipt_script(f"somatic_spectrum_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, "somatic_spectrum.sh")
             experiment_vcf_map_file = os.path.join(sample_outdir, "experiment_vcf_map.tsv")
@@ -182,7 +182,7 @@ rule somatic_signature_refit:
             rule_logger.info(f"Start signature refit at {current_time}")
             sample_outdir = os.path.dirname(str(output.exposures))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"somatic_signature_refit_{current_time}.sh")
+            script = receipt_script(f"somatic_signature_refit_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, "somatic_signature_refit.sh")
             sig = params.cfg["signature"]
@@ -257,7 +257,7 @@ rule somatic_signature_nmf:
             rule_logger.info(f"Start signature NMF at {current_time}")
             sample_outdir = os.path.dirname(str(output.signatures))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"somatic_signature_nmf_{current_time}.sh")
+            script = receipt_script(f"somatic_signature_nmf_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, "somatic_signature_nmf.sh")
             sig = params.cfg["signature"]

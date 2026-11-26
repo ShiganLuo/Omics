@@ -43,7 +43,7 @@ rule neodisambiguate:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start neodisambiguate for sample {wildcards.sample_id} ({wildcards.genomeA} vs {wildcards.genomeB}) at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"neodisambiguate_{wildcards.sample_id}_{wildcards.genomeA}_{wildcards.genomeB}_{current_time}.sh")
+            script = receipt_script(f"neodisambiguate_{wildcards.sample_id}_{wildcards.genomeA}_{wildcards.genomeB}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             pair_dir = str(params.pair_dir)
             staged_dir = os.path.join(pair_dir, "inputs")

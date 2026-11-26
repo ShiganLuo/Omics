@@ -53,7 +53,7 @@ rule cellranger_ref:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start cellranger_ref for genome {wildcards.genome} at {current_time}")
             os.makedirs(str(output.ref_dir), exist_ok=True)
-            command_script = os.path.join(RECEIPT_DIR, f"cellranger_ref_{wildcards.genome}_{current_time}.sh")
+            command_script = receipt_script(f"cellranger_ref_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(str(output.ref_dir), f"cellranger_ref.sh")
             cmd = [
                 "python", params.script,
@@ -140,7 +140,7 @@ rule cellranger_count:
                 rule_logger.warning(f"Removing stale sample directory: {sample_outdir}")
                 shutil.rmtree(sample_outdir)
             # Don't create sample_outdir - cellranger will create it
-            command_script = os.path.join(RECEIPT_DIR, f"cellranger_count_{sample_id}_{wildcards.sample_id}_{current_time}.sh")
+            command_script = receipt_script(f"cellranger_count_{sample_id}_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir, wildcards.genome, f"cellranger_count_{sample_id}.sh")
             cmd = [
                 params.cellranger, "count",
@@ -201,7 +201,7 @@ rule cellranger_to_h5ad:
             os.makedirs(os.path.dirname(output.h5ad), exist_ok=True)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.dirname(output.h5ad)
-            command_script = os.path.join(RECEIPT_DIR, f"cellranger_to_h5ad_{wildcards.sample_id}_{current_time}.sh")
+            command_script = receipt_script(f"cellranger_to_h5ad_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"cellranger_to_h5ad.sh")
             cmd = [
                 "python", params.script,

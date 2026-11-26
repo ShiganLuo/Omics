@@ -51,7 +51,7 @@ rule ldsc_annot:
             rule_logger.info(f"Start ldsc_annot at {current_time}")
             group_outdir = outdir + "/annot"
             os.makedirs(group_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"ldsc_annot_{current_time}.sh")
+            script = receipt_script(f"ldsc_annot_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(group_outdir, f"ldsc_annot.sh")
             cmd = [
@@ -109,7 +109,7 @@ rule ldsc_munge:
             rule_logger.info(f"Start ldsc_munge for {wildcards.trait} at {current_time}")
             trait_outdir = outdir + f"/{wildcards.trait}"
             os.makedirs(trait_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"ldsc_munge_{wildcards.trait}_{current_time}.sh")
+            script = receipt_script(f"ldsc_munge_{wildcards.trait}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(trait_outdir, f"ldsc_munge.sh")
             cmd = [
@@ -167,7 +167,7 @@ rule ldsc_h2_cts:
             rule_logger.info(f"Start ldsc_h2_cts for {wildcards.trait} at {current_time}")
             trait_outdir = outdir + f"/{wildcards.trait}"
             os.makedirs(trait_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"ldsc_h2_cts_{wildcards.trait}_{current_time}.sh")
+            script = receipt_script(f"ldsc_h2_cts_{wildcards.trait}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(trait_outdir, f"ldsc_h2_cts.sh")
             cmd = [

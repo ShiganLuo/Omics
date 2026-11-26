@@ -39,7 +39,7 @@ rule ucsc_track_single:
 
             sample_outdir = os.path.dirname(str(output.track))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"ucsc_track_bedtools_{current_time}.sh")
+            script = receipt_script(f"ucsc_track_bedtools_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"ucsc_track_bedtools.sh")
 
@@ -91,7 +91,7 @@ rule ucsc_track_iclip:
 
             sample_outdir = os.path.dirname(str(output.track))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"ucsc_track_iclip_{current_time}.sh")
+            script = receipt_script(f"ucsc_track_iclip_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"ucsc_track_iclip.sh")
 
@@ -152,7 +152,7 @@ rule igv_track_single:
             sample_outdir = os.path.dirname(str(output.html))
             os.makedirs(sample_outdir, exist_ok=True)
             config_json_path = str(params.config_json)
-            script = os.path.join(RECEIPT_DIR, f"igv_track_bedtools_{current_time}.sh")
+            script = receipt_script(f"igv_track_bedtools_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"igv_track_bedtools.sh")
 
@@ -218,7 +218,7 @@ rule igv_track_iclip:
             sample_outdir = os.path.dirname(str(output.html))
             os.makedirs(sample_outdir, exist_ok=True)
             config_json_path = str(params.config_json)
-            script = os.path.join(RECEIPT_DIR, f"igv_track_iclip_{current_time}.sh")
+            script = receipt_script(f"igv_track_iclip_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"igv_track_iclip.sh")
 

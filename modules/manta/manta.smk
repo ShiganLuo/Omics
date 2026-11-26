@@ -37,7 +37,7 @@ rule manta_config_germline:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start manta config for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"manta_config_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"manta_config_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/manta_config.sh")
             cmd = [
@@ -87,7 +87,7 @@ rule manta_run_germline:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start manta run for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"manta_run_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"manta_run_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/manta_run.sh")
             cmd = [
@@ -136,7 +136,7 @@ rule manta_config_somatic:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start manta somatic config for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"manta_config_somatic_{wildcards.experimental_sample_id}_{current_time}.sh")
+            script = receipt_script(f"manta_config_somatic_{wildcards.experimental_sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.normal_sample_id}_vs_{wildcards.experimental_sample_id}/manta_config_somatic.sh")
             cmd = [
@@ -188,7 +188,7 @@ rule manta_run_somatic:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start manta somatic run for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"manta_run_somatic_{wildcards.experimental_sample_id}_{current_time}.sh")
+            script = receipt_script(f"manta_run_somatic_{wildcards.experimental_sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.normal_sample_id}_vs_{wildcards.experimental_sample_id}/manta_run_somatic.sh")
             cmd = [

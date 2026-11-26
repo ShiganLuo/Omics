@@ -42,7 +42,7 @@ rule BaseRecalibrator:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start BaseRecalibrator for sample {wildcards.sample_id} at {current_time}")
             os.makedirs(os.path.dirname(str(output.table)), exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"BaseRecalibrator_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"BaseRecalibrator_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/BaseRecalibrator.sh")
             os.makedirs(os.path.dirname(plain_script), exist_ok=True)
@@ -106,7 +106,7 @@ rule ApplyBQSR:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start ApplyBQSR for sample {wildcards.sample_id} at {current_time}")
             os.makedirs(os.path.dirname(str(output.bam)), exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"ApplyBQSR_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"ApplyBQSR_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/ApplyBQSR.sh")
             os.makedirs(os.path.dirname(plain_script), exist_ok=True)

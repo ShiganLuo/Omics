@@ -158,7 +158,7 @@ rule telogator2_run:
             rule_logger.info(f"Start telogator2 run for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.allele_tsv))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"telogator2_run_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"telogator2_run_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"telogator2_run_{wildcards.sample_id}.sh")
             cmd = [
@@ -229,7 +229,7 @@ rule assembly_telomere_scan:
             rule_logger.info(f"Start assembly_telomere_scan for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.tsv))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"assembly_telomere_scan_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"assembly_telomere_scan_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"assembly_telomere_scan_{wildcards.sample_id}.sh")
             cmd = [
@@ -301,7 +301,7 @@ rule read_density_telomere:
             rule_logger.info(f"Start read_density_telomere for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.tsv))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"read_density_telomere_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"read_density_telomere_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"read_density_telomere_{wildcards.sample_id}.sh")
             cmd = [
@@ -359,7 +359,7 @@ rule tidk_init:
             rule_logger.info(f"Start tidk_init at {current_time}")
             sample_outdir = os.path.dirname(str(output[0]))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"tidk_init_{current_time}.sh")
+            script = receipt_script(f"tidk_init_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, "tidk_init.sh")
             cmd = [params.tidk, "build"]
@@ -424,7 +424,7 @@ rule tidk_scan:
             rule_logger.info(f"Start tidk_scan for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.tsv))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"tidk_scan_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"tidk_scan_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"tidk_scan_{wildcards.sample_id}.sh")
             cmd = [
@@ -503,7 +503,7 @@ rule read_density_combined:
             rule_logger.info(f"Start read_density_combined at {current_time}")
             sample_outdir = os.path.dirname(str(output.plots[0]))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"read_density_combined_{current_time}.sh")
+            script = receipt_script(f"read_density_combined_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, "read_density_combined.sh")
             cmd = [params.python, params.script, "-m", "read_density",
@@ -560,7 +560,7 @@ rule telomere_method_overview:
             rule_logger.info(f"Start telomere_method_overview at {current_time}")
             sample_outdir = os.path.dirname(str(output.plots[0]))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"telomere_method_overview_{current_time}.sh")
+            script = receipt_script(f"telomere_method_overview_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, "telomere_method_overview.sh")
             cmd = [params.python, params.script, "-m", "overview", "-o", params.output_dir,
@@ -618,7 +618,7 @@ rule telomere_depth_qc:
             rule_logger.info(f"Start telomere_depth_qc for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.tsv))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"telomere_depth_qc_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"telomere_depth_qc_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"telomere_depth_qc_{wildcards.sample_id}.sh")
             cmd = [params.python, params.script, "-b", input.bam, "-d", input.bed,

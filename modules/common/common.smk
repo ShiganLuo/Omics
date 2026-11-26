@@ -39,6 +39,32 @@ os.makedirs(RECEIPT_DIR, exist_ok=True)
 SCRIPT_ONLY = os.environ.get("OMICS_SCRIPT_ONLY", "") == "1"
 
 
+def receipt_script(name: str) -> str:
+    """log/cmd 时间戳备份回执的落盘路径,原子占位防同名互撞。
+
+    备份文件名只带 规则+样本+时间戳(秒),同一秒内并行的不同 job(不同
+    counter / 上游路径共用同一基名,如 4 条 star_align_<sample>_<ts>.sh)
+    会撞到同一路径:后写者 open("w") 截断先写者,还会经
+    shutil.copyfile(script, plain_script) 把截断中的空内容拷成树内正式
+    回执(实测过 0 字节交付回执 + 备份副本丢失)。这里用
+    O_CREAT|O_EXCL 原子创建空文件占位,撞名时基名追加 _1/_2 后缀,保证
+    每个 job 独占唯一备份文件,截断/拷贝竞争彻底消失。撞名后缀只在真
+    碰撞时出现,正常运行文件名不变。
+    """
+    path = os.path.join(RECEIPT_DIR, name)
+    os.makedirs(os.path.dirname(path), exist_ok=True)  # sample_id 可能含路径分隔符
+    stem, ext = os.path.splitext(path)
+    candidate, i = path, 0
+    while True:
+        try:
+            fd = os.open(candidate, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.close(fd)
+            return candidate
+        except FileExistsError:
+            i += 1
+            candidate = f"{stem}_{i}{ext}"
+
+
 def script_only_touch(out):
     """测试模式:为产物写占位文件,保证 snakemake job 能"成功"走完整个 DAG。
 

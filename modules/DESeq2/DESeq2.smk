@@ -68,7 +68,7 @@ rule DESeq2_TEcount:
             rule_logger.info(f"Start DESeq2 TEcount at {current_time}")
             sample_outdir = os.path.dirname(str(output.deseq2_results))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"DESeq2_TEcount_{wildcards.contrast}_{current_time}.sh")
+            script = receipt_script(f"DESeq2_TEcount_{wildcards.contrast}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"DESeq2_TEcount.sh")
             control_group_name = comparisons[wildcards.contrast]["control_group_name"]

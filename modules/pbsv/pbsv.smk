@@ -44,7 +44,7 @@ rule pbsv_discover:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start pbsv discover for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"pbsv_discover_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"pbsv_discover_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/pbsv_discover.sh")
             cmd = [
@@ -96,7 +96,7 @@ rule pbsv_call:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start pbsv call for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"pbsv_call_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"pbsv_call_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/pbsv_call.sh")
             cmd1 = [

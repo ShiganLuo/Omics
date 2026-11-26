@@ -55,7 +55,7 @@ rule HRT:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start HRT run at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"HRT_{current_time}.sh")
+            script = receipt_script(f"HRT_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"HRT.sh")
             cmd = ["python", params.HTR_script,

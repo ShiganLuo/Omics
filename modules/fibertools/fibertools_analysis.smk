@@ -61,7 +61,7 @@ rule ft_extract:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            command_script = os.path.join(RECEIPT_DIR, f"ft_extract_{wildcards.sample_id}_{current_time}.sh")
+            command_script = receipt_script(f"ft_extract_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, "ft_extract.sh")
             cmd = [
                 params.ft, "extract",
@@ -160,7 +160,7 @@ rule ft_call_peaks:
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            command_script = os.path.join(RECEIPT_DIR, f"ft_call_peaks_{wildcards.sample_id}_{current_time}.sh")
+            command_script = receipt_script(f"ft_call_peaks_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"ft_call_peaks_{wildcards.sample_id}.sh")
             rule_logger.info(f"Calling FIRE peaks for sample {wildcards.sample_id}")
             cmd = [
@@ -234,7 +234,7 @@ rule ft_qc:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            command_script = os.path.join(RECEIPT_DIR, f"ft_qc_{wildcards.sample_id}_{current_time}.sh")
+            command_script = receipt_script(f"ft_qc_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, "ft_qc.sh")
             cmd = [
                 params.ft, "qc",
@@ -295,7 +295,7 @@ rule ft_extract_fire:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            command_script = os.path.join(RECEIPT_DIR, f"ft_extract_fire_{wildcards.sample_id}_{current_time}.sh")
+            command_script = receipt_script(f"ft_extract_fire_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, "ft_extract_fire.sh")
             tmp_fire = str(output.fire) + ".unsorted.tmp.bed"
             cmd = [
@@ -357,7 +357,7 @@ rule ft_split_hap:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            command_script = os.path.join(RECEIPT_DIR, f"ft_split_hap_{wildcards.hap}_{current_time}.sh")
+            command_script = receipt_script(f"ft_split_hap_{wildcards.hap}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"ft_split_hap_{wildcards.hap}.sh")
             with open(command_script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -412,7 +412,7 @@ rule ft_extract_hap:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            command_script = os.path.join(RECEIPT_DIR, f"ft_extract_{wildcards.hap}_{current_time}.sh")
+            command_script = receipt_script(f"ft_extract_{wildcards.hap}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"ft_extract_{wildcards.hap}.sh")
             cmd = [
                 params.ft, "extract",

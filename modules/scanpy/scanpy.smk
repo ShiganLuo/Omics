@@ -72,7 +72,7 @@ rule scanpy_qc:
             sample_outdir = os.path.dirname(str(output.h5ad))
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(str(output.plot_dir), exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"scanpy_qc_{wildcards.counter}_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"scanpy_qc_{wildcards.counter}_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"scanpy_qc_{wildcards.counter}_{wildcards.sample_id}.sh")
             cmd = [params.python, params.script, "qc",
@@ -155,7 +155,7 @@ rule scanpy_merge:
             sample_outdir = os.path.dirname(str(output.h5ad))
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(str(output.plot_dir), exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"scanpy_merge_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
+            script = receipt_script(f"scanpy_merge_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"scanpy_merge_{wildcards.counter}_{wildcards.tissue}.sh")
             cmd = [params.python, params.script, "merge",
@@ -247,7 +247,7 @@ rule scanpy_auto:
             rule_logger.info(f"Start scanpy auto for tissue {wildcards.tissue} at {current_time}")
             sample_outdir = os.path.dirname(str(output.h5ad))
             os.makedirs(sample_outdir, exist_ok=True)
-            script_path = os.path.join(RECEIPT_DIR, f"scanpy_auto_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
+            script_path = receipt_script(f"scanpy_auto_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"scanpy_auto_{wildcards.counter}_{wildcards.tissue}.sh")
             cmd = [params.python, params.script, "auto",
                    "-i", input.h5ad,
@@ -396,7 +396,7 @@ rule scanpy_reannotate:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start scanpy reannotate (in-place) for tissue {wildcards.tissue}")
             sample_outdir = os.path.dirname(str(input.h5ad))
-            script = os.path.join(RECEIPT_DIR, f"scanpy_reannotate_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
+            script = receipt_script(f"scanpy_reannotate_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"scanpy_reannotate_{wildcards.counter}_{wildcards.tissue}.sh")
             cmd = [params.python, params.script, "reannotate",
@@ -470,7 +470,7 @@ rule scanpy_advanced:
             sample_outdir = os.path.dirname(str(output.h5ad))
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(str(output.plot_dir), exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"scanpy_advanced_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
+            script = receipt_script(f"scanpy_advanced_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"scanpy_advanced_{wildcards.counter}_{wildcards.tissue}.sh")
             cmd = [params.python, params.script, "advanced",
@@ -573,7 +573,7 @@ rule scanpy_pseudobulk:
             out_root = os.path.dirname(str(output.report))
             os.makedirs(out_root, exist_ok=True)
             # dual-write receipts: timestamped copy in log/cmd, plain copy in outdir
-            script = os.path.join(RECEIPT_DIR, f"scanpy_pseudobulk_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
+            script = receipt_script(f"scanpy_pseudobulk_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(out_root, f"scanpy_pseudobulk_{wildcards.counter}_{wildcards.tissue}.sh")
             cmd = [params.python, params.script,

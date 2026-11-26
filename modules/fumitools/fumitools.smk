@@ -57,7 +57,7 @@ rule fumitools_copy_umi_paired:
                 logger.info(f"Symlinked {input.r1} -> {output.r1}")
                 logger.info(f"Symlinked {input.r2} -> {output.r2}")
             else:
-                script_path = os.path.join(RECEIPT_DIR, f"fumitools_copy_umi_{wildcards.sample_id}_{current_time}.sh")
+                script_path = receipt_script(f"fumitools_copy_umi_{wildcards.sample_id}_{current_time}.sh")
                 plain_script = os.path.join(outdir, f"{wildcards.sample_id}/fumitools_copy_umi.sh")
                 cmd = [
                     params.fumi_tools, "copy_umi",
@@ -125,7 +125,7 @@ rule fumitools_copy_umi_single:
                 os.symlink(os.path.abspath(input.r1), output.r1)
                 logger.info(f"Symlinked {input.r1} -> {output.r1}")
             else:
-                script_path = os.path.join(RECEIPT_DIR, f"fumitools_copy_umi_{wildcards.sample_id}_{current_time}.sh")
+                script_path = receipt_script(f"fumitools_copy_umi_{wildcards.sample_id}_{current_time}.sh")
                 plain_script = os.path.join(outdir, f"{wildcards.sample_id}/fumitools_copy_umi.sh")
                 cmd = [
                     params.fumi_tools, "copy_umi",
@@ -184,7 +184,7 @@ rule fumitools_dedup:
         open(log_path, "a").close()
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            script_path = os.path.join(RECEIPT_DIR, f"fumitools_dedup_{wildcards.sample_id}_{current_time}.sh")
+            script_path = receipt_script(f"fumitools_dedup_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/fumitools_dedup.sh")
 
             cmd = [

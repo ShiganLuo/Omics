@@ -87,7 +87,7 @@ rule function_go_kegg:
             for fmt in params.formats:
                 cmd += ["--format", str(fmt)]
 
-            script = os.path.join(RECEIPT_DIR, f"go_kegg_{wildcards.contrast}_{current_time}.sh")
+            script = receipt_script(f"go_kegg_{wildcards.contrast}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"go_kegg.sh")
             with open(script, 'w') as f:
@@ -187,7 +187,7 @@ rule function_gsea:
             for fmt in params.formats:
                 cmd += ["--format", str(fmt)]
 
-            script = os.path.join(RECEIPT_DIR, f"gsea_{wildcards.contrast}_{current_time}.sh")
+            script = receipt_script(f"gsea_{wildcards.contrast}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"gsea.sh")
             with open(script, 'w') as f:
@@ -320,7 +320,7 @@ rule function_gsva:
             ]
             for fmt in params.formats:
                 gsva_cmd += ["--format", str(fmt)]
-            script = os.path.join(RECEIPT_DIR, f"gsva_{current_time}.sh")
+            script = receipt_script(f"gsva_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(gsva_outdir, f"gsva.sh")
             with open(script, 'w') as f:

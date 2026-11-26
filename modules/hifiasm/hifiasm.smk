@@ -71,7 +71,7 @@ rule hifiasm_assemble:
             rule_logger.info(f"Start hifiasm assembly for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.fasta))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"hifiasm_assemble_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"hifiasm_assemble_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"hifiasm_assemble_{wildcards.sample_id}.sh")
             cmd = [
                 params.python, params.script,

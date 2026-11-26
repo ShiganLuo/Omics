@@ -52,7 +52,7 @@ rule SplitNCigarReads:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start SplitNCigarReads for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bam))
-            script = os.path.join(RECEIPT_DIR, f"SplitNCigarReads_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"SplitNCigarReads_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"SplitNCigarReads.sh")
             if not input.dict_index or not os.path.exists(input.dict_index) or not input.fai_index or not os.path.exists(input.fai_index):
@@ -113,7 +113,7 @@ rule VarientCalling:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start VarientCalling for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.vcf))
-            script = os.path.join(RECEIPT_DIR, f"VarientCalling_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"VarientCalling_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"VarientCalling.sh")
             if not params.fai_index or not os.path.exists(params.fai_index):
@@ -175,7 +175,7 @@ rule vcf_filter:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start vcf_filter for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.vcf))
-            script = os.path.join(RECEIPT_DIR, f"vcf_filter_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"vcf_filter_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"vcf_filter.sh")
             if not params.fai_index or not os.path.exists(params.fai_index):

@@ -76,7 +76,7 @@ rule sigtest_run:
             rule_logger.info(f"Start sigtest for contrast {wildcards.contrast} at {current_time}")
             sample_outdir = os.path.dirname(str(output.tsv))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"sigtest_run_{wildcards.contrast}_{current_time}.sh")
+            script = receipt_script(f"sigtest_run_{wildcards.contrast}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, "sigtest_run.sh")
             cmd = [

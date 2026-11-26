@@ -78,7 +78,7 @@ rule repeatmasker_init:
             rule_logger.info(f"Start RepeatMasker library cache init at {current_time}")
             sample_outdir = os.path.dirname(str(output.done))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"repeatmasker_init_{current_time}.sh")
+            script = receipt_script(f"repeatmasker_init_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, "repeatmasker_init.sh")
             cmd = [
                 params.python, params.script,
@@ -144,7 +144,7 @@ rule repeatmasker_run:
             rule_logger.info(f"Start RepeatMasker for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.out))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"repeatmasker_run_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"repeatmasker_run_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"repeatmasker_run_{wildcards.sample_id}.sh")
             cmd = [
                 params.RepeatMasker,
@@ -205,7 +205,7 @@ rule centromere_extract:
             rule_logger.info(f"Start centromere stats extraction for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.stats))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"centromere_extract_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"centromere_extract_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"centromere_extract_{wildcards.sample_id}.sh")
             cmd = [
                 params.python, params.script,

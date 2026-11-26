@@ -36,7 +36,7 @@ rule manta_config:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start manta config for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"manta_config_{wildcards.genome}_{current_time}.sh")
+            script = receipt_script(f"manta_config_{wildcards.genome}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/manta_config.sh")
             cmd = [
@@ -90,7 +90,7 @@ rule manta_run:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start manta run for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"manta_run_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"manta_run_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/manta_run.sh")
             cmd = [

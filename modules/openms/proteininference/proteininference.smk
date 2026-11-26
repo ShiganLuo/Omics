@@ -53,7 +53,7 @@ rule protein_inference:
                         f"for sample {wildcards.sample_id}; check the psm_fdr step "
                         "(search/identification quality) before protein inference"
                     )
-            script = os.path.join(RECEIPT_DIR, f"protein_inference_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"protein_inference_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/protein_inference.sh")
             os.makedirs(os.path.dirname(plain_script), exist_ok=True)  # 目录靠 snakemake 建,回执复制前先建

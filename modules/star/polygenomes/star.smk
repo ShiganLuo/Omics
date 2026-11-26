@@ -58,7 +58,7 @@ rule star_index:
 
             sample_outdir = str(output.index_file)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"star_index_{wildcards.genome}_{current_time}.sh")
+            script = receipt_script(f"star_index_{wildcards.genome}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"star_index_{wildcards.genome}.sh")
 
@@ -242,7 +242,7 @@ rule star_align:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             sample_outdir = os.path.dirname(str(output.bam))
-            script = os.path.join(RECEIPT_DIR, f"star_align_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"star_align_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = f"{sample_outdir}/star_align.sh"
             rule_logger.info(f"Start STAR alignment for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")

@@ -40,7 +40,7 @@ rule karrseq_chimeric_to_pairs:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start KARRseq chimeric to pairs for sample {wildcards.sample_id} at {current_time}")
-        script_file = os.path.join(RECEIPT_DIR, f"karrseq_chimeric_to_pairs_{wildcards.sample_id}_{current_time}.sh")
+        script_file = receipt_script(f"karrseq_chimeric_to_pairs_{wildcards.sample_id}_{current_time}.sh")
         plain_script = os.path.join(outdir, f"{wildcards.sample_id}/karrseq_chimeric_to_pairs.sh")
         cmd_view = [
             "samtools", "view", input.aligned,
@@ -66,6 +66,7 @@ rule karrseq_chimeric_to_pairs:
             f.write(" ".join(cmd_merge) + "\n")
             f.write(" ".join(cmd_cleanup) + "\n")
             f.write(f'echo "script completed successfully"\n')
+        shutil.copyfile(script_file, plain_script)
         if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
             script_only_touch(output)
         else:
@@ -98,7 +99,7 @@ rule karrseq_remove_duplicates:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start KARRseq dedup for sample {wildcards.sample_id} at {current_time}")
-        script_file = os.path.join(RECEIPT_DIR, f"karrseq_dedup_{wildcards.sample_id}_{current_time}.sh")
+        script_file = receipt_script(f"karrseq_dedup_{wildcards.sample_id}_{current_time}.sh")
         plain_script = os.path.join(outdir, f"{wildcards.sample_id}/karrseq_dedup.sh")
         cmd_dedup = [
             "zcat", input.pairs,
@@ -124,6 +125,7 @@ rule karrseq_remove_duplicates:
             f.write("sleep 120\n")
             f.write(" ".join(cmd_index) + "\n")
             f.write(f'echo "script completed successfully"\n')
+        shutil.copyfile(script_file, plain_script)
         if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
             script_only_touch(output)
         else:
@@ -148,7 +150,7 @@ rule karrseq_ligation:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start KARRseq ligation for sample {wildcards.sample_id} at {current_time}")
-        script_file = os.path.join(RECEIPT_DIR, f"karrseq_ligation_{wildcards.sample_id}_{current_time}.sh")
+        script_file = receipt_script(f"karrseq_ligation_{wildcards.sample_id}_{current_time}.sh")
         plain_script = os.path.join(outdir, f"{wildcards.sample_id}/karrseq_ligation.sh")
         cmd_awk1 = [
             "zcat", input.dedup,
@@ -168,6 +170,7 @@ rule karrseq_ligation:
             f.write("sleep 60\n")
             f.write(" ".join(cmd_index) + "\n")
             f.write(f'echo "script completed successfully"\n')
+        shutil.copyfile(script_file, plain_script)
         if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
             script_only_touch(output)
         else:

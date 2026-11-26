@@ -9,7 +9,7 @@ prefix=outdir+"/analysis/plink/population_snps"
 
 def run_plink(rule_name, log_path, output_path, commands):
     os.makedirs(os.path.dirname(log_path),exist_ok=True); os.makedirs(os.path.dirname(output_path),exist_ok=True)
-    script = os.path.join(RECEIPT_DIR, f"{rule_name}_{time.strftime('%Y%m%d_%H%M%S')}.sh")
+    script = receipt_script(f"{rule_name}_{time.strftime('%Y%m%d_%H%M%S')}.sh")
     os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
     plain_script=os.path.join(os.path.dirname(output_path), f"{rule_name}.sh")
     with open(log_path, "a") as log_handle: log_handle.write("")
@@ -88,7 +88,7 @@ if config.get("Params", {}).get("analysis", {}).get("gwas",False):
             if input.covariates: cmd += ["--covar",input.covariates[0]]
             if params.covar_names: cmd += ["--covar-name",params.covar_names]
             cmd += ["--glm","hide-covar","allow-no-covars","--out",params.gwas_prefix]
-            script = os.path.join(RECEIPT_DIR, f"plink2_population_gwas_{time.strftime('%Y%m%d_%H%M%S')}.sh")
+            script = receipt_script(f"plink2_population_gwas_{time.strftime('%Y%m%d_%H%M%S')}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script=os.path.join(os.path.dirname(str(output.done)), "plink2_population_gwas.sh")
             with open(str(log),"w") as h: h.write("")

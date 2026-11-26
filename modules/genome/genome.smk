@@ -38,7 +38,7 @@ rule chromosome_sizes:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start chromosome_sizes at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"chromosome_sizes_{current_time}.sh")
+            script = receipt_script(f"chromosome_sizes_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(os.path.dirname(output.chrom_sizes), f"chromosome_sizes.sh")
             with open(script, "w") as f:
@@ -101,7 +101,7 @@ rule extract_smallrna:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start extract_smallrna at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"extract_smallrna_{current_time}.sh")
+            script = receipt_script(f"extract_smallrna_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(params.outdir, f"extract_smallrna.sh")
             os.makedirs(params.outdir, exist_ok=True)
@@ -159,7 +159,7 @@ rule genome_index:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start genome_index at {current_time}")
             os.makedirs(params.outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"genome_index_{current_time}.sh")
+            script = receipt_script(f"genome_index_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(params.outdir, "genome_index.sh")
             cmd = [

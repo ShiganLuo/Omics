@@ -53,9 +53,7 @@ rule bamCoverage:
                 f"at {current_time}"
             )
             os.makedirs(str(params.outdir_sample), exist_ok=True)
-            script = os.path.join(
-                RECEIPT_DIR,
-                f"bamCoverage_{wildcards.sample_id}_{current_time}.sh",
+            script = receipt_script(f"bamCoverage_{wildcards.sample_id}_{current_time}.sh",
             )
             plain_script = os.path.join(
                 str(params.outdir_sample),

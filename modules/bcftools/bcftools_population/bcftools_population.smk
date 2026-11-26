@@ -40,7 +40,7 @@ rule bcftools_population_filter:
             os.makedirs(os.path.dirname(log_path), exist_ok=True)
             os.makedirs(os.path.dirname(output.vcf), exist_ok=True)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            script = os.path.join(RECEIPT_DIR, f"bcftools_population_filter_{current_time}.sh")
+            script = receipt_script(f"bcftools_population_filter_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(os.path.dirname(output.vcf), f"bcftools_population_filter.sh")
             cmd1 = [params.bcftools, "view", "-m2", "-M2", "-v", "snps", input.vcf]

@@ -44,7 +44,7 @@ rule philosopher_database:
             rule_logger.info(f"Start Philosopher database build at {current_time}")
             db_dir = os.path.join(outdir, "database")
             os.makedirs(db_dir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"philosopher_database_{current_time}.sh")
+            script = receipt_script(f"philosopher_database_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(db_dir, f"philosopher_database.sh")
             # Philosopher writes a dated '<date>-decoys-contam-<name>.fas';
@@ -108,7 +108,7 @@ rule philosopher_filter:
                     os.link(str(input.pepxml), local_pepxml)
                 except OSError:
                     shutil.copy(str(input.pepxml), local_pepxml)
-            script = os.path.join(RECEIPT_DIR, f"philosopher_filter_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"philosopher_filter_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"philosopher_filter.sh")
             with open(script, "w") as f:

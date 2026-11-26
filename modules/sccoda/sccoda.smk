@@ -90,7 +90,7 @@ rule sccoda_run:
             out_root = os.path.dirname(str(output.report))
             os.makedirs(out_root, exist_ok=True)
             # dual-write receipts: timestamped copy in log/cmd, plain copy in outdir
-            script = os.path.join(RECEIPT_DIR, f"sccoda_run_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
+            script = receipt_script(f"sccoda_run_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(out_root, f"sccoda_run_{wildcards.counter}_{wildcards.tissue}.sh")
             cmd = [params.python, params.script,

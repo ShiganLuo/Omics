@@ -84,7 +84,7 @@ rule macs3_callpeak:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start macs3 call peak for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.narrow_peak))
-            script = os.path.join(RECEIPT_DIR, f"macs3_callpeak_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"macs3_callpeak_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"macs3_callpeak.sh")
             cmd = [
@@ -173,7 +173,7 @@ rule macs3_cutoff_plot:
 
             plot_dir = os.path.dirname(str(output.plots[0]))
             os.makedirs(plot_dir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"plot_cutoff_{current_time}.sh")
+            script = receipt_script(f"plot_cutoff_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(plot_dir, f"plot_cutoff.sh")
             with open(script, "w") as f:

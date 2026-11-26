@@ -41,7 +41,7 @@ rule bwaMem2_index:
             rule_logger.info(f"Start bwa-mem2 index for genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.index[0]))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"bwaMem2_index_{wildcards.genome}_{current_time}.sh")
+            script = receipt_script(f"bwaMem2_index_{wildcards.genome}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"bwaMem2_index.sh")
             cmd = [
@@ -142,7 +142,7 @@ rule bwaMem2_alignment:
             rule_logger.info(f"Start bwa-mem2 alignment for sample {wildcards.sample_id} on genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bam))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"bwaMem2_alignment_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"bwaMem2_alignment_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(sample_outdir, f"bwaMem2_alignment.sh")
             cmd1 = [

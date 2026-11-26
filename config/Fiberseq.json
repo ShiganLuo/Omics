@@ -1299,6 +1299,12 @@
     "tidk_scan": {
       "threads": 1,
       "mem_mb": 16000
+    },
+    "fiber_cluster": {
+      "mem_mb": 697
+    },
+    "fiber_report": {
+      "mem_mb": 949
     }
   },
   "Procedure": {

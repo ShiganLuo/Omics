@@ -53,6 +53,10 @@ RULE_ALIASES = {
     "haplotypeCaller": "HaplotypeCaller",                # modules/gatk/gatk_germline/gatk_germline.smk
     "haplotypeCaller-filtered": "filterHaplotypeCallerVcf",
     "DR_report": "generate_report",                      # modules/DR_report/DR_report.smk
+    "telogator2": "telogator2_run",                      # length.smk 现名;存量观测为旧名
+    # fibercluster fiber_cluster 的 {setting} 通配值档位,非规则名
+    "fire_auto": "fiber_cluster",
+    "msp_auto": "fiber_cluster",
 }
 # 文件名带 contrast 前缀(<contrast>.<suffix>)的按后缀映射。
 SUFFIX_ALIASES = {

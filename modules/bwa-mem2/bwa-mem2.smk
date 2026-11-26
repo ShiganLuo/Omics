@@ -83,20 +83,20 @@ def get_alignment_input(wildcards):
     function: Dynamically determines the input file type: paired-end or single-end sequencing.
     Based on the paired_samples and single_samples lists.This function is called in the star_align rule.
 
-    param: 
+    param:
         wildcards: Snakemake wildcards object containing the sample_id.
         paired_samples = ['sample1', 'sample2', ...]
         single_samples = ['sample3', 'sample4', ...]
     These lists must be defined in the Snakefile or config file.
 
-    return: A list of input file paths for the STAR alignment step. 
+    return: A list of input file paths for the STAR alignment step.
     """
     logger.debug(f"[get_alignment_input] called with wildcards: {wildcards}")
     # 构造可能的输入路径
     paired_r1 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_1.fq.gz"
     paired_r2 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_2.fq.gz"
     single = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}single.fq.gz"
-    
+
     # 检查文件实际存在情况
     if wildcards.sample_id in paired_samples:
         logger.debug(f"双端测序：{[paired_r1, paired_r2]}")
@@ -117,8 +117,6 @@ rule bwaMem2_alignment:
         fastq = get_alignment_input,
         index = get_bwaMem2_index
     output:
-        # 中间产物:仅被 addReadsGroup/bam_flagstat 消费,node.py 未注册(3_sorted_bam
-        # 注册的是 flagstat.txt),受 Params.bwa-mem2.keep_intermediates 控制
         bam = maybe_temp(outdir + "/{sample_id}/{sample_id}.bam", "bwa-mem2"),
     log:
         logdir + "/{sample_id}/bwa_mem2-alignment.txt"

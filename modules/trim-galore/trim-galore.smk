@@ -34,7 +34,7 @@ rule trimming_Paired:
         trim_galore = config.get('Procedure',{}).get('trim_galore') or 'trim_galore',
         adapters = config.get("Params", {}).get("trim_galore", {}).get("trimming_Paired", {}).get("adapters", None)
     threads: rule_res("trimming_Paired").get("threads", 6)
-    benchmark: logdir + "/{sample_id}/trimming.benchmark.txt",
+    benchmark: logdir + "/{sample_id}/trimming.benchmark.tsv",
     resources:
         mem_mb=rule_res("trimming_Paired").get("mem_mb", 8000),
     log:
@@ -113,7 +113,7 @@ rule trimming_Single:
         trim_galore = config.get('Procedure',{}).get('trim_galore') or 'trim_galore',
         adapters = config.get("Params", {}).get("trim_galore", {}).get("trimming_Single", {}).get("adapters", None)
     threads: rule_res("trimming_Single").get("threads", 6)
-    benchmark: logdir + "/{sample_id}/trimming.benchmark.txt",
+    benchmark: logdir + "/{sample_id}/trimming.benchmark.tsv",
     resources:
         mem_mb=rule_res("trimming_Single").get("mem_mb", 4000),
     log:

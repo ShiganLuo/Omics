@@ -25,7 +25,7 @@ rule UmiTools_extract_single:
     container:
         sif("../UmiTools.yaml", "UmiTools_extract_single")
     threads: rule_res("UmiTools_extract_single").get("threads", 2)
-    benchmark: logdir + "/{sample_id}/umi_tools_extract_single_run.benchmark.txt",
+    benchmark: logdir + "/{sample_id}/umi_tools_extract_single_run.benchmark.tsv",
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(
             "UmiTools_extract_single", input_size=input_size_named(input, 'fastq'),
@@ -75,7 +75,7 @@ rule UmiTools_extract_paired:
     log:
         logdir + "/{sample_id}/umi_tools_extract_paired_run.txt"
     threads: rule_res("UmiTools_extract_paired").get("threads", 2)
-    benchmark: logdir + "/{sample_id}/umi_tools_extract_paired_run.benchmark.txt",
+    benchmark: logdir + "/{sample_id}/umi_tools_extract_paired_run.benchmark.tsv",
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(
             "UmiTools_extract_paired", input_size=input_size_mb(input),

@@ -118,7 +118,7 @@ rule bwaMem2_alignment:
     log:
         logdir + "/{sample_id}/{genome}/bwa_mem2-alignment.txt"
     threads: rule_res("bwaMem2_alignment").get("threads", 15)
-    benchmark: logdir + "/{sample_id}/{genome}/bwa_mem2-alignment.benchmark.txt",
+    benchmark: logdir + "/{sample_id}/{genome}/bwa_mem2-alignment.benchmark.tsv",
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(
             "bwaMem2_alignment", input_size=input_size_named(input, 'bam'),

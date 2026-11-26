@@ -51,7 +51,7 @@ rule fastqc:
     params:
         fastqc = config.get("Procedure", {}).get("fastqc") or "fastqc"
     threads: rule_res("fastqc").get("threads", 2)
-    benchmark: logdir + "/{sample_id}/fastqc.benchmark." + log_suffix,
+    benchmark: logdir + "/{sample_id}/fastqc.benchmark.tsv",  # raw/trimmed 实例共写,rule_res 同键 fastqc,合并归桶正确
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(
             "fastqc", input_size=input_size_mb(input),

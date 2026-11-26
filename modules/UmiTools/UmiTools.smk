@@ -21,7 +21,7 @@ rule umi_tools_dedup_for_hisat2:
         method = config.get("Params", {}).get("umi_tools", {}).get("umi_tools_dedup_for_hisat2", {}).get("method") or "unique",
         samtools = config.get('Procedure',{}).get('samtools') or 'samtools'
     threads: rule_res("umi_tools_dedup_for_hisat2").get("threads", 2)
-    benchmark: logdir + "/{sample_id}/umi_tools_dedup_run.benchmark.txt",
+    benchmark: logdir + "/{sample_id}/umi_tools_dedup_run.benchmark.tsv",
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(
             "umi_tools_dedup_for_hisat2", input_size=input_size_named(input, 'bam'),
@@ -74,7 +74,7 @@ rule umi_tools_dedup_for_star:
         method = config.get("Params", {}).get("umi_tools", {}).get("umi_tools_dedup_for_star", {}).get("method") or "unique",
         samtools = config.get('Procedure',{}).get('samtools') or 'samtools'
     threads: rule_res("umi_tools_dedup_for_star").get("threads", 2)
-    benchmark: logdir + "/{sample_id}/umi_tools_dedup_run.benchmark.txt",
+    benchmark: logdir + "/{sample_id}/umi_tools_dedup_run.benchmark.tsv",
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(
             "umi_tools_dedup_for_star", input_size=input_size_named(input, 'bam'),

@@ -26,7 +26,7 @@ rule trimmomatic_Paired:
             else config.get('Procedure',{}).get('trimmomatic') or "trimmomatic"
         )
     threads: rule_res("trimmomatic_Paired").get("threads", 6)
-    benchmark: logdir + "/{sample_id}/trimmomatic.benchmark.txt",
+    benchmark: logdir + "/{sample_id}/trimmomatic.benchmark.tsv",
     resources:
         mem_mb=rule_res("trimmomatic_Paired").get("mem_mb", 8000),
     conda:
@@ -85,7 +85,7 @@ rule trimmomatic_Single:
             else config.get('Procedure',{}).get('trimmomatic') or "trimmomatic"
         )
     threads: rule_res("trimmomatic_Single").get("threads", 6)
-    benchmark: logdir + "/{sample_id}/trimmomatic.benchmark.txt",
+    benchmark: logdir + "/{sample_id}/trimmomatic.benchmark.tsv",
     resources:
         mem_mb=rule_res("trimmomatic_Single").get("mem_mb", 4000),
     conda:

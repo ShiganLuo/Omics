@@ -18,7 +18,7 @@ rule flexbar_demultiplex:
         allow_mismatch = config.get('Params',{}).get('flexbar',{}).get('barcode_allow_mismatch', 0),
         outdir = outdir
     threads: rule_res("flexbar_demultiplex").get("threads", 4)
-    benchmark: logdir + "/{sample_id}/flexbar_demux_run.benchmark.txt",
+    benchmark: logdir + "/{sample_id}/flexbar_demux_run.benchmark.tsv",
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(
             "flexbar_demultiplex", input_size=input_size_named(input, 'fastq'),

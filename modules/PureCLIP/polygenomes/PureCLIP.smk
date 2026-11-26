@@ -16,7 +16,7 @@ rule pureclip:
         ld = '--ld' if config.get('Params',{}).get('pureclip',{}).get('ld', True) else '',
         outdir = outdir
     threads: rule_res("pureclip").get("threads", 8)
-    benchmark: logdir + "/{genome}/{sample_id}/pureclip_run.benchmark.txt",
+    benchmark: logdir + "/{genome}/{sample_id}/pureclip_run.benchmark.tsv",
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(
             "pureclip", input_size=input_size_named(input, 'bam'),

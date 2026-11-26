@@ -21,10 +21,10 @@
   输出 --out(默认 <root>/resources_suggest.tsv):rule、n、observed_p90_mb、
      suggest_mb、prev_declared_mb、delta_pct、censored_n、note;
   --apply:把建议值写回 --config 的 resources.<rule>.mem_mb(默认只出表不写)。
-     护栏:样本不足(n<MIN_POINTS)不动、单次 ±30% 限幅(仅已有声明值)、
-     config 里不存在的规则键 n>=MIN_POINTS 时新建(家族聚合名除外,首次
-     写入无 prev 不限幅)、值取整、无变化不动。每次写回是一次可回滚的
-     config 变更,依据都在 tsv 里可审计。
+     护栏:已有声明值的调整须 n>=MIN_POINTS(样本不足不动)且单次 ±30%
+     限幅;config 里不存在的规则键 n>=1 新建锚定(首个真实数据集起步,
+     家族聚合名除外,首次写入无 prev 不限幅);值取整、无变化不动。每次
+     写回是一次可回滚的 config 变更,依据都在 tsv 里可审计。
 """
 import argparse
 import csv
@@ -323,11 +323,10 @@ def main(argv=None):
         if n_ok == 0 and n_cen == 0:
             continue
         note = []
+        low_n = n_ok + n_cen < MIN_POINTS
         if n_ok:
             p90 = percentile(obs, 0.90)
             suggest = p90 * args.safety
-            if n_ok + n_cen < MIN_POINTS:
-                note.append(f"insufficient points({n_ok + n_cen}<{MIN_POINTS}), suggestion informational")
         else:
             # 只有删失观测:以下界给建议(真实需求 ≥ 观测)
             p90 = max(cen)
@@ -341,6 +340,8 @@ def main(argv=None):
                 note.append(f"censored floor applied({n_cen} oom rows)")
         prev = declared.get(rule, {}).get("mem_mb")
         if isinstance(prev, (int, float)):
+            if low_n:
+                note.append(f"insufficient points({n_ok + n_cen}<{MIN_POINTS}), suggestion informational")
             # 限幅:单次调整 ≤±30%(D.4)
             bounded = min(max(suggest, prev * (1 - DAMPING)), prev * (1 + DAMPING))
             if abs(bounded - suggest) > 1:
@@ -354,6 +355,8 @@ def main(argv=None):
                     note.append("family aggregate(家族聚合名,非规则键,不合入)")
                 else:
                     note.append("not in config resources(--apply 新建条目)")
+                    if low_n:
+                        note.append(f"insufficient points({n_ok + n_cen}<{MIN_POINTS}), 单点锚定")
         out_rows.append({
             "rule": rule, "n_ok": n_ok, "n_censored": n_cen,
             "observed_p90_mb": f"{p90:.0f}",
@@ -363,14 +366,15 @@ def main(argv=None):
             "note": "; ".join(note),
         })
         # ---- --apply 合入候选(护栏在写回前统一判定) ----
-        if args.apply and n_ok + n_cen >= MIN_POINTS:
+        if args.apply:
             new_mb = int(round(suggest))
             if isinstance(prev, (int, float)):
-                if new_mb != int(prev):
+                # 已有声明值:调整须 n>=MIN_POINTS(样本不足不动),单次 ±30% 限幅
+                if n_ok + n_cen >= MIN_POINTS and new_mb != int(prev):
                     applies[rule] = new_mb
             elif rule not in family_rules:
-                # config 里不存在的规则键:n>=MIN_POINTS 时新建(首个真实数据集
-                # 锚定;家族聚合名除外)。首次写入无 prev,不做 ±30% 限幅。
+                # 新建锚定:首个真实数据集起步(n>=1,note 记录样本强度)。
+                # 首次写入无 prev,不做 ±30% 限幅。
                 applies[rule] = new_mb
 
     if out_rows:

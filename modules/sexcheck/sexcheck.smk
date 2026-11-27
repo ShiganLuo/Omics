@@ -32,6 +32,7 @@ rule sexcheck_idxstats:
     with the sample id — single-sample rule."""
     input:
         bam=lambda wildcards: sample_bams[wildcards.sample_id],
+        bai=lambda wildcards: os.path.splitext(sample_bams[wildcards.sample_id])[0] + ".bai",
     output:
         tsv=outdir + "/idxstats/{sample_id}/{sample_id}.idxstats.tsv",
     log:

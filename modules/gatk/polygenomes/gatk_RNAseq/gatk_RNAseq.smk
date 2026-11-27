@@ -21,7 +21,7 @@ def get_input_for_SplitNCigarReads(wildcards):
     if not dict_index or not os.path.exists(dict_index) or not fai_index or not os.path.exists(fai_index):
         fasta_link = indir + f"/index/{wildcards.genome}/{wildcards.genome}.fa"
         if not os.path.exists(fasta):
-            os.symblink(fasta, fasta_link)
+            os.symlink(fasta, fasta_link)
         fasta = fasta_link
         dict_index = indir + f"/index/{wildcards.genome}/{wildcards.genome}.dict"
         fai_index = indir + f"/index/{wildcards.genome}/{wildcards.genome}.fa.fai"        
@@ -37,7 +37,8 @@ rule SplitNCigarReads:
     input:
         unpack(get_input_for_SplitNCigarReads)
     output:
-        bam = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}.split.bam", "gatk_RNAseq")
+        bam = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}.split.bam", "gatk_RNAseq"),
+        bai = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}.split.bai", "gatk_RNAseq")
     params:
         javaOptions = config.get("Params", {}).get("gatk", {}).get("SplitNCigarReads", {}).get("javaOptions", "-Xmx30g"),
         tmp_dir = config.get("Params", {}).get("gatk", {}).get("SplitNCigarReads", {}).get("tmp-dir", None),
@@ -98,10 +99,11 @@ def get_input_for_VarientCalling(wildcards):
         fai_index = indir + f"/index/{wildcards.genome}/{wildcards.genome}.fa.fai"
         fasta_link = indir + f"/index/{wildcards.genome}/{wildcards.genome}.fa"
         if not os.path.exists(fasta):
-            os.symblink(fasta, fasta_link)
+            os.symlink(fasta, fasta_link)
         fasta = fasta_link
     in_dict = {
         "bam": bam,
+        "bai": bam[:-4] + ".bai",
         "fasta": fasta,
         "fai_index": fai_index
     }
@@ -111,7 +113,8 @@ rule VarientCalling:
     input:
         unpack(get_input_for_VarientCalling)
     output:
-        vcf = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}.raw.vcf.gz", "gatk_RNAseq")
+        vcf = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}.raw.vcf.gz", "gatk_RNAseq"),
+        tbi = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}.raw.vcf.gz.tbi", "gatk_RNAseq")
     log:
         logdir + "/{sample_id}/{genome}/VarientCalling.log"
     conda: "../../gatk.yaml"
@@ -172,10 +175,11 @@ def get_input_for_vcf_filter(wildcards):
         fai_index = indir + f"/index/{wildcards.genome}/{wildcards.genome}.fa.fai"
         fasta_link = indir + f"/index/{wildcards.genome}/{wildcards.genome}.fa"
         if not os.path.exists(fasta):
-            os.symblink(fasta, fasta_link)
+            os.symlink(fasta, fasta_link)
         fasta = fasta_link
     in_dict = {
         "vcf": vcf,
+        "tbi": vcf + ".tbi",
         "fasta": fasta,
         "fai_index": fai_index
     }

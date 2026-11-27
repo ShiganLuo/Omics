@@ -13,9 +13,10 @@ def get_input_for_SplitNCigarReads(wildcards):
     if not fasta or not os.path.exists(fasta):
         raise ValueError(f"Fasta file for genome is not specified or does not exist: {fasta}")
     dict_index = config.get("genome", {}).get("dict_index")
+    fai_index = config.get("genome", {}).get("fai_index")
     if not dict_index or not os.path.exists(dict_index) or not fai_index or not os.path.exists(fai_index):
         dict_index = indir + "/index/genome.dict"
-        fai_index = indir + "/index/genome.fai"        
+        fai_index = indir + "/index/genome.fa.fai"
     in_dict = {
         "bam": bam,
         "fasta": fasta,
@@ -28,7 +29,8 @@ rule SplitNCigarReads:
     input:
         unpack(get_input_for_SplitNCigarReads)
     output:
-        bam = temp(outdir + "/{sample_id}/{sample_id}.split.bam"),
+        bam = maybe_temp(outdir + "/{sample_id}/{sample_id}.split.bam", "gatk_RNAseq"),
+        bai = maybe_temp(outdir + "/{sample_id}/{sample_id}.split.bai", "gatk_RNAseq")
     params:
         javaOptions = config.get("Params", {}).get("gatk", {}).get("SplitNCigarReads", {}).get("javaOptions", "-Xmx30g"),
         tmp_dir = config.get("Params", {}).get("gatk", {}).get("SplitNCigarReads", {}).get("tmp-dir", None),
@@ -85,9 +87,11 @@ rule SplitNCigarReads:
 
 rule VarientCalling:
     input:
-        bam = outdir + "/{sample_id}/{sample_id}.split.bam"
+        bam = outdir + "/{sample_id}/{sample_id}.split.bam",
+        bai = outdir + "/{sample_id}/{sample_id}.split.bai"
     output:
-        vcf = outdir + "/{sample_id}/{sample_id}.raw.vcf.gz"
+        vcf = maybe_temp(outdir + "/{sample_id}/{sample_id}.raw.vcf.gz", "gatk_RNAseq"),
+        tbi = maybe_temp(outdir + "/{sample_id}/{sample_id}.raw.vcf.gz.tbi", "gatk_RNAseq")
     log:
         logdir + "/{sample_id}/VarientCalling.log"
     conda: "../gatk.yaml"
@@ -119,7 +123,7 @@ rule VarientCalling:
             if not params.fai_index or not os.path.exists(params.fai_index):
                 fasta = indir + "/index/genome.fa" # 依赖SplitNCigarReads真实执行
             else:
-                fasta = input.fasta
+                fasta = params.fasta
             cmd = [
                 params.gatk, "HaplotypeCaller",
                 "--java-options", params.javaOptions,
@@ -146,7 +150,8 @@ rule VarientCalling:
 
 rule vcf_filter:
     input:
-        vcf = outdir + "/{sample_id}/{sample_id}.raw.vcf.gz"
+        vcf = outdir + "/{sample_id}/{sample_id}.raw.vcf.gz",
+        tbi = outdir + "/{sample_id}/{sample_id}.raw.vcf.gz.tbi"
     output:
         vcf = outdir + "/{sample_id}/{sample_id}.filtered.vcf.gz"
     log:
@@ -181,7 +186,7 @@ rule vcf_filter:
             if not params.fai_index or not os.path.exists(params.fai_index):
                 fasta = indir + "/index/genome.fa" # 依赖SplitNCigarReads真实执行
             else:
-                fasta = input.fasta
+                fasta = params.fasta
             cmd1 = [
                 params.gatk, "VariantFiltration",
                 "--java-options", params.javaOptions,

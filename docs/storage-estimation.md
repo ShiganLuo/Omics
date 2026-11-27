@@ -20,7 +20,7 @@ PacVar 等长读长工作流单次运行的输入可达数百 GB，BAM 中间产
 
 ## 2. 用法
 
-两种输入形态（[docs/sample-params-split.md](sample-params-split.md)）：
+两种输入形态：
 
 - **已实例化 json**（`raw.json`，node.run&lt;Workflow&gt;() 写出）：一次完整运行的全部
   参数，含所有输入文件（`raw_files`）、样本、模块开关和注册产物（`outfiles`）。

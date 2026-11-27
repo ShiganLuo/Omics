@@ -23,7 +23,7 @@
 | `indir` + `bam_substring` | 形态 A 拼接:`{indir}/{sample_id}/{sample_id}[.{bam_substring}].bam`(+ `.bai`,Telogator2 需要) |
 | `assembly_dir` | hifiasm 组装目录(centromere 模块产出):`{assembly_dir}/{sample_id}/assembly/asm.bp.p_ctg.fa`。assembly_scan/tidk 需要;也可用 dict-mode `inputs.assembly_scan.fasta`/`inputs.tidk.fasta` 每样本指定。**均未配置时直接报错(无回退路径)** |
 | `samples` | 样本列表 |
-| `comparisons` | 对比设计(平铺 `{对比名: {control_group_name, experimental_group_name, control_samples, experimental_samples}}`,subworkflow 从 `sample_params.comparisons` 嵌套展平,见 `docs/sample-params-split.md`)。合并图据此**对照组样本排最左**并标注组名/角色;缺省不排序 |
+| `comparisons` | 对比设计(平铺 `{对比名: {control_group_name, experimental_group_name, control_samples, experimental_samples}}`,subworkflow 从 `sample_params.comparisons` 嵌套展平)。合并图据此**对照组样本排最左**并标注组名/角色;缺省不排序 |
 | tidk 数据库 | `~/.local/share/tidk/tidk_database.csv`;不存在时先跑 `tidk_init`(`tidk build`)建库 |
 
 ### 1.2 输出

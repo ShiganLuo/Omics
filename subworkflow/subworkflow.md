@@ -149,8 +149,6 @@ Params**。
 4. 手填样本数据(正常对照 panel、expdesign、populations 等)写
    `sample_params.*`,旧位置(如 `Params.workflow.control_samples`)失效。
 
-字段清单与迁移记录见 `docs/sample-params-split.md`。
-
 # 配置字典规范
 
 推荐包含以下字段（按需选用）：

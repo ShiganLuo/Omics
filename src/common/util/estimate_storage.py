@@ -2,7 +2,7 @@
 """Estimate the on-disk footprint of an Omics workflow run (final kept /
 transient / peak), or measure and calibrate against a finished run.
 
-Two kinds of run JSON exist (docs/sample-params-split.md):
+Two kinds of run JSON exist:
 
   * INSTANTIATED json (raw.json, written by node.run<Workflow>()): one full
     run's parameters -- module switches (Params), genome, samples and every

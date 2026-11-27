@@ -3,12 +3,6 @@ include: "../common/common.smk"
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
-# temp 规范(modules.md):本模块的中间文件用 maybe_temp(path, "<key>") 包裹,
-# 是否标 temp 由 Params.<key>.keep_intermediates 决定(缺省 True=兜底保留)。
-
-
-# first col: target(human) genome,second col: contaminating genome. human sample may contaminated by mouse genome
-
 def get_input_for_XenofilteR(wildcards):
     logger.debug(f"[get_input_for_XenofilteR] called with wildcards: {wildcards}")
     host = config.get('Params', {}).get('XenofilteR', {}).get('sample_contamination', {}).get(wildcards.sample_id, {}).get('host')
@@ -21,9 +15,6 @@ def get_input_for_XenofilteR(wildcards):
     in_dict = {
         "contaminant_bam": contaminant_bam,
         "host_bam": host_bam,
-        # .bai 必须声明为 input:star_align 的 .bai 是 temp 输出,无人消费时
-        # 该 job 一结束即被删除,skip 分支会 ln -s 出空链接,产物校验
-        # MissingOutputException(实测 hTBLC3,3 次尝试全挂)。
         "host_bai": host_bam + ".bai",
         "contaminant_bai": contaminant_bam + ".bai",
     }
@@ -89,13 +80,20 @@ rule XenofilteR:
             cmd5 = [
                 "touch", output.csvIn
             ]
+            # 硬链而非软链:host_bam 是 star_align 的 temp 输出(keep_intermediates=False
+            # 时),本 job 一结束即被删除,软链会把坏链留给下游 addReadsGroup
+            # (input.size_mb 调度期 stat 抛 broken symlink,实测 hFibroblast2 3 次
+            # 尝试全挂)。硬链让产物自立:temp 名删除后 inode 仍存活,且下游只读
+            # 不写,零副本成本。ln -f 先移除旧目的(重跑时残留的坏链/旧链接);
+            # 跨文件系统回退复制。
             cmd6 = [
-                "ln", "-s", input.host_bam, output.outBam
+                "ln", "-f", input.host_bam, output.outBam, "||",
+                "cp", "--remove-destination", input.host_bam, output.outBam
             ]
             # 复制而非软链:host_bai 是 temp,本 job 结束后即删,软链会让
-            # 下游 addReadsGroup 拿到空链接;host_bam 非 temp,软链安全。
+            # 下游拿到空链接;--remove-destination 防重跑时写穿旧目的。
             cmd7 = [
-                "cp", input.host_bai, output.outBai
+                "cp", "--remove-destination", input.host_bai, output.outBai
             ]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")

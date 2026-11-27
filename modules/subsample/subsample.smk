@@ -58,10 +58,15 @@ rule subsample_fastq:
             os.makedirs(outdir_sample, exist_ok=True)
 
             if params.n == 0:
-                # Non-abundant: symlink to pass through
-                rule_logger.info(f"Sample {wildcards.sample_id} is not abundant, symlinking")
-                os.symlink(os.path.abspath(input.r1), str(output.r1))
-                os.symlink(os.path.abspath(input.r2), str(output.r2))
+                # Non-abundant: pass through
+                rule_logger.info(f"Sample {wildcards.sample_id} is not abundant, passing through")
+                for src, dst in [(input.r1, output.r1), (input.r2, output.r2)]:
+                    if os.path.lexists(dst):
+                        os.remove(dst)
+                    try:
+                        os.link(os.path.abspath(src), dst)
+                    except OSError:
+                        shutil.copy2(src, dst)
             else:
                 # Abundant: subsample using seqtk
                 rule_logger.info(f"Sample {wildcards.sample_id} is abundant, subsampling to {params.n} reads (seed={params.seed})")

@@ -25,14 +25,12 @@ symbol_expr_to_entrez <- function(
   keep_multi = TRUE,
   verbose = TRUE
 ) {
-  # ---- load required packages ----
   if (!requireNamespace("data.table", quietly = TRUE)) {
     stop("Package 'data.table' is required but not installed.")
   }
   if (!requireNamespace("AnnotationDbi", quietly = TRUE)) {
     stop("Package 'AnnotationDbi' is required but not installed.")
   }
-  # load organism DBs
   species <- match.arg(species)
   db <- switch(
     species,
@@ -41,10 +39,8 @@ symbol_expr_to_entrez <- function(
     rat   = { require(org.Rn.eg.db); org.Rn.eg.db }
   )
 
-  # ---- detect input type ----
   is_dt <- is.data.table(expr_mat)
 
-  # ---- extract gene symbols ----
   if (is_dt) {
     gene_col <- colnames(expr_mat)[1]
     symbols <- expr_mat[[gene_col]]
@@ -55,7 +51,6 @@ symbol_expr_to_entrez <- function(
     symbols <- rownames(expr_mat)
   }
 
-  # ---- symbol -> Entrez mapping ----
   map_df <- AnnotationDbi::select(
     db,
     keys = unique(symbols),
@@ -67,7 +62,6 @@ symbol_expr_to_entrez <- function(
     map_df <- map_df[!duplicated(map_df$symbol), ]
   }
 
-  # ---- print mapping stats ----
   if (verbose) {
     n_input   <- length(unique(symbols))
     n_mapped  <- length(unique(map_df$symbol[!is.na(map_df$entrez_id)]))
@@ -82,10 +76,8 @@ symbol_expr_to_entrez <- function(
     )
   }
 
-  # ---- drop unmapped genes ----
   map_df <- map_df[!is.na(map_df$entrez_id), ]
 
-  # ---- expand expression matrix ----
   if (is_dt) {
     dt <- expr_mat[
       map_df$symbol,
@@ -133,7 +125,6 @@ string_to_adj <- function(file_path,
                           convert_to_entrez = TRUE,
                           species = 9606,
                           score_scale = c(0, 1)) {
-  # 1. 读 STRING 文件
   dt <- fread(file_path, header = TRUE)
   dt[, c("protein1", "protein2") :=
       lapply(.SD, sub, pattern = "^[0-9]+\\.", replacement = ""),
@@ -143,11 +134,9 @@ string_to_adj <- function(file_path,
     log_msg("ERROR", "STRING file must have columns: protein1, protein2, combined_score",quit=TRUE)
   }
 
-  # 2. 可选 ID 转换
   if(convert_to_entrez) {
     log_msg("INFO","Converting ENSEMBL Protein IDs to Entrez Gene IDs via biomaRt...")
 
-    # 2a. 判断 species
     mart_dataset <- switch(as.character(species),
                            "9606" = "hsapiens_gene_ensembl",
                            "human" = "hsapiens_gene_ensembl",
@@ -165,7 +154,6 @@ string_to_adj <- function(file_path,
       attributes = c("ensembl_peptide_id","ensembl_gene_id"),
       mart = ensembl,
     )
-    # 2b. 批量获取映射
     mapping <- bi$getBM(
       attributes = c("ensembl_peptide_id","ensembl_gene_id"),
       filters = "ensembl_peptide_id",
@@ -178,28 +166,22 @@ string_to_adj <- function(file_path,
     dt[, protein1 := map_tbl[protein1]]
     dt[, protein2 := map_tbl[protein2]]
 
-    # 删除没有映射的行
     dt <- dt[!is.na(protein1) & !is.na(protein2)]
   }
 
-  # 3. 统一 protein 列名
   proteins <- unique(c(dt$protein1, dt$protein2))
 
-  # 4. 创建空矩阵
   adj.m <- matrix(0, nrow = length(proteins), ncol = length(proteins),
                   dimnames = list(proteins, proteins))
 
-  # 5. 填充邻接矩阵
   dt[, score := combined_score]
 
-  # 线性缩放 combined_score 到 score_scale
   min_s <- min(dt$score, na.rm = TRUE)
   max_s <- max(dt$score, na.rm = TRUE)
   target_min <- score_scale[1]
   target_max <- score_scale[2]
   dt[, score := (score - min_s) / (max_s - min_s) * (target_max - target_min) + target_min]
 
-  # 填充矩阵（无向图）
   for(i in seq_len(nrow(dt))) {
     p1 <- dt$protein1[i]
     p2 <- dt$protein2[i]
@@ -242,19 +224,15 @@ string_to_adj_binary <- function(file_path,
                                  convert_to_entrez = TRUE,
                                  species = 9606) {
   log_msg("INFO", "Processing STRING file to build binary adjacency matrix...")
-  # 1. 读取并清洗数据
   dt <- fread(file_path, header = TRUE)
-  # 移除 ID 前缀 (如 "9606.")
   dt[, c("protein1", "protein2") := 
        lapply(.SD, sub, pattern = "^[0-9]+\\.", replacement = ""),
      .SDcols = c("protein1", "protein2")]
 
-  # 2. 阈值过滤 (核心修改：只保留高置信度的边)
   dt <- dt[combined_score >= cutoff]
 
   if(nrow(dt) == 0) stop("No interactions found above the specified cutoff.")
 
-  # 3. ID 转换
   if(convert_to_entrez) {
     mart_dataset <- switch(as.character(species),
                            "9606" = "hsapiens_gene_ensembl",
@@ -281,16 +259,13 @@ string_to_adj_binary <- function(file_path,
     dt <- dt[!is.na(protein1) & !is.na(protein2)]
   }
 
-  # 4. 构建 0/1 矩阵
   proteins <- unique(c(dt$protein1, dt$protein2))
   adj.m <- matrix(0, nrow = length(proteins), ncol = length(proteins),
                   dimnames = list(proteins, proteins))
 
-  # 5. 填充矩阵
   idx_matrix <- as.matrix(dt[, .(protein1, protein2)])
   adj.m[idx_matrix] <- 1
   
-  # 对称化 (无向图)
   idx_matrix_rev <- as.matrix(dt[, .(protein2, protein1)])
   adj.m[idx_matrix_rev] <- 1
   

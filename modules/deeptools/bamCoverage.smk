@@ -40,7 +40,7 @@ rule bamCoverage:
     params:
         bamCoverage = config.get("Procedure", {}).get("bamCoverage") or "bamCoverage",
         bin_size    = config.get("Params", {}).get("bamCoverage", {}).get("bin_size") or 50,
-        normalizeUsing  = config.get("Params", {}).get("bamCoverage", {}).get("bamCoverage", {}).get("normalizeUsing", "CPM") or "CPM",   # Params.bamCoverage.bamCoverage.normalizeUsing(与 wig 各自;config 全量路径内联读取)
+        normalizeUsing  = config.get("Params", {}).get("bamCoverage", {}).get("bamCoverage", {}).get("normalizeUsing", "CPM") or "CPM",
         outdir_sample = outdir + "/{sample_id}"
     run:
         log_path = str(log)
@@ -78,7 +78,7 @@ rule bamCoverage:
                 f.write(f'echo "script completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

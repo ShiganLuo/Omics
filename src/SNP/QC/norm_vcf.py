@@ -19,15 +19,12 @@ def ensure_bgzip(vcf: Path) -> Path:
     - 输入 .vcf.gz -> 不做任何处理
     返回压缩后的 .vcf.gz 路径
     """
-    # 已经压缩，直接返回
     if vcf.suffix == ".gz":
         return vcf
 
-    # 未压缩，原地压缩
     logging.info(f"{vcf.name} 未压缩，原地 bgzip...")
     run_cmd(["bgzip", str(vcf)])
 
-    # bgzip 会生成 vcf.gz 并删除原文件
     gz_path = vcf.with_suffix(vcf.suffix + ".gz")
     return gz_path
 
@@ -50,13 +47,10 @@ def process_vcf(vcf_path: Path, ref_fa: Path, outdir: Path):
     """
     outdir.mkdir(parents=True, exist_ok=True)
 
-    # Step 1: 确保压缩
     gz = ensure_bgzip(vcf_path)
 
-    # Step 2: 确保索引
     ensure_tabix(gz)
 
-    # Step 3: 判断是否已经 norm
     if ".norm." in gz.name:
         logging.info("文件名包含 .norm.，认为已经标准化，直接返回。")
         return gz
@@ -74,7 +68,6 @@ def process_vcf(vcf_path: Path, ref_fa: Path, outdir: Path):
         str(gz)
     ])
 
-    # Step 4: 索引新的 norm 文件
     ensure_tabix(norm_out)
 
     return norm_out
@@ -125,7 +118,6 @@ def process_all_vcf(
     outdir = Path(outdir)
     ref_fa = Path(ref_fa)
 
-    # 搜索 VCF 文件
     vcfs = search_vcf(indir, suffix=suffix, recursive=recursive)
     if not vcfs:
         logging.warning(f"目录中没有找到后缀 '{suffix}' 的文件: {indir}")
@@ -133,7 +125,6 @@ def process_all_vcf(
 
     logging.info(f"共找到 {len(vcfs)} 个 VCF 文件，开始多线程处理...")
 
-    # 多线程执行
     futures = []
     with ThreadPoolExecutor(max_workers=threads) as executor:
         for vcf in vcfs:
@@ -148,11 +139,6 @@ def process_all_vcf(
             except Exception as e:
                 logging.error(f"处理某个文件时出错: {e}")
 if __name__ == "__main__":
-    # process_all_vcf(
-    #     indir = "/disk5/luosg/Totipotent20251031/output/SNP/vcf/filter/Homo_sapiens",
-    #     outdir = "/disk5/luosg/Totipotent20251031/output/SNP/vcf/norm/human",
-    #     ref_fa = "/disk5/luosg/Reference/GENCODE/human/GRCh38/GRCh38.primary_assembly.genome.fa",
-    # )
     process_all_vcf(
         indir = "/disk5/luosg/Totipotent20251031/output/SNP/vcf/filter/Mus_musculus",
         outdir = "/disk5/luosg/Totipotent20251031/output/SNP/vcf/norm/mouse",

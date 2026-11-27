@@ -19,8 +19,6 @@ import sys
 from pathlib import Path
 from typing import Dict, Optional, Sequence, TextIO
 
-# Copied verbatim from src/common/util/LogUtil.py (module bin scripts are
-# self-contained — see modules.md 脚本自包含规范 #0).
 
 
 def setup_logger(
@@ -99,7 +97,7 @@ def run(args: argparse.Namespace) -> int:
     (they cannot be placed) and counted in the summary log.
     """
     sizes = read_chrom_sizes(str(args.genome))
-    chrom_names = list(sizes)  # only needed for genome-wide mode
+    chrom_names = list(sizes)
     rng = random.Random(args.seed)
     n_in, n_out, n_skip = 0, 0, 0
 
@@ -119,14 +117,11 @@ def run(args: argparse.Namespace) -> int:
                 n_skip += 1
                 continue
             if args.keep_chrom:
-                # uniform within the original chromosome (ft call-peaks
-                # compares real vs shuffled coverage per chromosome)
                 if length >= gsize:
                     n_skip += 1
                     continue
                 new_start = rng.randint(0, gsize - length)
             else:
-                # genome-wide: also redraw the chromosome
                 chrom = rng.choice(chrom_names)
                 gsize = sizes[chrom]
                 if length >= gsize:

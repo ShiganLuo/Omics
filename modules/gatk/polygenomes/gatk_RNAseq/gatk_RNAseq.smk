@@ -3,12 +3,8 @@ include: "../../../common/common.smk"
 indir = config.get("indir") or "input"
 outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
-# temp 规范(modules.md):本模块的中间文件用 maybe_temp(path, "<key>") 包裹,
-# 是否标 temp 由 Params.<key>.keep_intermediates 决定(缺省 True=兜底保留)。
 
 
-# 参数精确到 rule:javaOptions/tmp-dir 按 rule 独立配置(Params.gatk.<rule_name>
-# .javaOptions/.tmp-dir),无 module 级共享。
 
 def get_input_for_SplitNCigarReads(wildcards):
     logger.debug(f"[get_input_for_SplitNCigarReads] called with wildcards: {wildcards}")
@@ -61,7 +57,7 @@ rule SplitNCigarReads:
             rule_logger.info(f"Start SplitNCigarReads for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bam))
             script = receipt_script(f"SplitNCigarReads_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"SplitNCigarReads.sh")
             fasta = input.fasta
 
@@ -80,7 +76,7 @@ rule SplitNCigarReads:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'SplitNCigarReads completed successfully for sample {wildcards.sample_id} genome {wildcards.genome}'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -137,7 +133,7 @@ rule VarientCalling:
             rule_logger.info(f"Start VarientCalling for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.vcf))
             script = receipt_script(f"VarientCalling_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"VarientCalling.sh")
             cmd = [
                 params.gatk, "HaplotypeCaller",
@@ -156,7 +152,7 @@ rule VarientCalling:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'VarientCalling completed successfully for sample {wildcards.sample_id} genome {wildcards.genome}'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -213,7 +209,7 @@ rule vcf_filter:
             rule_logger.info(f"Start vcf_filter for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.vcf))
             script = receipt_script(f"vcf_filter_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"vcf_filter.sh")
             cmd1 = [
                 params.gatk, "VariantFiltration",
@@ -240,7 +236,7 @@ rule vcf_filter:
                 f.write(" ".join(cmd2) + "\n")
                 f.write(f"echo 'vcf_filter completed successfully for sample {wildcards.sample_id} genome {wildcards.genome}'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

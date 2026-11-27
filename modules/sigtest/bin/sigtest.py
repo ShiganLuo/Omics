@@ -79,18 +79,11 @@ import matplotlib.pyplot as plt  # noqa: E402
 from scipy import stats  # noqa: E402
 
 
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
 SAMPLE_METHODS: Tuple[str, ...] = ("auto", "t-test", "welch", "mannwhitney", "wilcoxon")
 COUNT_METHODS: Tuple[str, ...] = ("chi2", "fisher")
 ALL_METHODS: Tuple[str, ...] = SAMPLE_METHODS + COUNT_METHODS
 CORRECTIONS: Tuple[str, ...] = ("none", "bh", "bonferroni")
 
-# Statistical test + bracket layout come from the vendored house scripts
-# (verbatim copies of src/common/statistics_plot/Python/{statistical_test,
-# bar_significance}.py — modules.md 脚本自包含规范 #0): compare_groups does
-# the testing, draw_significance_bracket/fit_bracket_headroom the layout.
 from statistical_test import compare_groups  # noqa: E402
 from bar_significance import (  # noqa: E402
     LEG_PT, TEXT_PT, FONT_ASCENT_PT, BRACKET_STEP_PT,
@@ -100,8 +93,6 @@ from boxplot import plot_comparison  # noqa: E402
 
 BAR_COLORS: Tuple[str, str] = ("#4C72B0", "#DD8452")
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS: Tuple[str, ...] = ("png", "pdf", "svg", "ps", "eps", "tif",
                                   "tiff", "jpg", "jpeg", "pgf", "raw", "rgba")
 BAR_WIDTH = 0.36
@@ -159,9 +150,6 @@ def setup_logger(
 logger = setup_logger("SigTest", stream=sys.stdout)
 
 
-# ---------------------------------------------------------------------------
-# Stars and multiple-testing correction
-# ---------------------------------------------------------------------------
 def p_to_star(p: float) -> str:
     """Convert p-value to significance star label.
 
@@ -202,7 +190,6 @@ def bh_adjust(pvalues: Sequence[float]) -> np.ndarray:
     q = p[ok]
     order = np.argsort(q, kind="stable")
     ranked = q[order] * n / (np.arange(n) + 1)
-    # Enforce monotonicity from the largest p downwards.
     ranked = np.minimum.accumulate(ranked[::-1])[::-1]
     adjusted = np.empty(n)
     adjusted[order] = np.clip(ranked, 0.0, 1.0)
@@ -234,14 +221,11 @@ def p_adjust(pvalues: Sequence[float], method: str = "bh") -> np.ndarray:
         return bh_adjust(pvalues)
     if method == "bonferroni":
         p = np.asarray(pvalues, dtype=float)
-        n = max(int((~np.isnan(p)).sum()), 1)  # NaN rows do not inflate the family
+        n = max(int((~np.isnan(p)).sum()), 1)
         return np.where(np.isnan(p), np.nan, np.minimum(p * n, 1.0))
     raise ValueError(f"Unsupported correction: {method}")
 
 
-# ---------------------------------------------------------------------------
-# Per-feature testing over one long table (the unifying core)
-# ---------------------------------------------------------------------------
 def test_long_table(
     df: pd.DataFrame,
     feature_col: str = "feature",
@@ -314,7 +298,6 @@ def test_long_table(
         logger.warning(f"Dropping {n_bad} non-numeric value rows")
     work = work.dropna(subset=[value_col])
 
-    # Resolve the two groups.
     if groups is not None:
         if len(groups) != 2:
             raise ValueError(f"Exactly two group labels required, got: {list(groups)}")
@@ -366,7 +349,6 @@ def test_long_table(
                     statistic, p_value, _, _ = stats.chi2_contingency(table)
                     test_name = "Chi-square test"
                 except ValueError:
-                    # Zero expected frequencies: fall back to Fisher.
                     statistic, p_value = stats.fisher_exact(table)
                     test_name = "Fisher's exact test (chi2 fallback)"
                     note = "expected frequencies hit zero"
@@ -374,7 +356,7 @@ def test_long_table(
                 "feature": feature,
                 "group1": g1_name, "group2": g2_name,
                 "n1": total1, "n2": total2,
-                "mean1": c1, "mean2": c2,          # in count mode the "means" are the counts
+                "mean1": c1, "mean2": c2,
                 "std1": np.nan, "std2": np.nan,
                 "test": test_name,
                 "statistic": float(statistic),
@@ -388,9 +370,6 @@ def test_long_table(
             g1_vals = sub.loc[sub[group_col] == g1_name, value_col].to_numpy(dtype=float)
             g2_vals = sub.loc[sub[group_col] == g2_name, value_col].to_numpy(dtype=float)
             try:
-                # vendored statistical_test.compare_groups: auto test
-                # selection (Shapiro/Levene -> t/welch/MW/wilcoxon); a
-                # forced sample method goes through the same scipy calls
                 res = compare_groups(
                     [float(x) for x in g1_vals], [float(x) for x in g2_vals],
                     paired=paired, alpha=alpha, verbose=False,
@@ -406,7 +385,7 @@ def test_long_table(
                     elif method == "welch":
                         stat, p_value = _st.ttest_ind(g1_vals, g2_vals, equal_var=False)
                         res["test_name"] = "Welch's t-test"
-                    else:  # mannwhitney
+                    else:
                         stat, p_value = _st.mannwhitneyu(g1_vals, g2_vals,
                                                          alternative="two-sided")
                         res["test_name"] = "Mann-Whitney U test"
@@ -458,9 +437,6 @@ def test_long_table(
     ]
 
 
-# ---------------------------------------------------------------------------
-# Grouped bar plot with significance brackets
-# ---------------------------------------------------------------------------
 def _pivot_group_stats(
     sub: pd.DataFrame,
     feature_col: str,
@@ -556,9 +532,6 @@ def plot_feature_distributions(
     for feat, vals in g2_rows.groupby(feature_col)[value_col]:
         by_feat_g2[str(feat)] = [float(v) for v in vals]
 
-    # per-feature stats come from the RESULTS table (already computed by
-    # test_long_table) — the renderer never re-tests; skipped features
-    # (n<2 etc.) have no figure, same as they have no tested row
     res_rows = results.set_index(results["feature"].astype(str))
     out_root = Path(out_dir)
     out_root.mkdir(parents=True, exist_ok=True)
@@ -579,7 +552,6 @@ def plot_feature_distributions(
                  "significant": str(row["significant"]).lower() in ("true", "1"),
                  "effect_size": float(row["effect_size"]),
                  "effect_size_name": str(row["effect_size_name"]) or "effect size",
-                 # same thresholds as statistical_test.compare_groups
                  "effect_size_interpretation": (
                      "negligible" if abs(float(row["effect_size"])) < 0.2
                      else "small" if abs(float(row["effect_size"])) < 0.5
@@ -724,11 +696,10 @@ def plot_grouped_bars(
         if not show_errorbars:
             err = np.zeros_like(err)
         else:
-            err = np.where(reps > 1, err, 0.0)  # single value: no error bar
+            err = np.where(reps > 1, err, 0.0)
         ax.bar(x + offset, vals, BAR_WIDTH, color=color, label=str(label),
                yerr=err, capsize=2, error_kw={"lw": 0.8})
 
-    # Formatting first: brackets need finalized transforms.
     ax.set_xticks(x)
     ax.set_xticklabels(features, rotation=45, ha="right")
     ax.set_ylabel(ylabel)
@@ -738,7 +709,6 @@ def plot_grouped_bars(
     fig.tight_layout()
     fig.canvas.draw()
 
-    # Bracket pass: base = tallest bar top including its error bar.
     annotated = [
         (i, feat) for i, feat in enumerate(features)
         if stars.get(feat, "") and (annotate_ns or stars.get(feat, "") != "ns")
@@ -757,15 +727,11 @@ def plot_grouped_bars(
 
     out_path = Path(out_png)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    # savefig infers the format from the extension (multi-format support)
     fig.savefig(out_path, dpi=dpi)
     plt.close(fig)
     logger.info(f"Plot saved: {out_path}")
 
 
-# ---------------------------------------------------------------------------
-# CLI
-# ---------------------------------------------------------------------------
 def read_input_table(path: Path, sep: Optional[str] = None) -> pd.DataFrame:
     """Read a TSV/CSV table, auto-detecting tab vs comma when sep is None.
 
@@ -939,8 +905,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     for test_name, count in tested["test"].value_counts().items():
         logger.info(f"  {test_name}: {count}")
 
-    # formats: None (flag absent) = default ["png"]; an explicit empty
-    # value (--formats '') = no figure. No separate boolean switch.
     formats = ([f for f in (str(x) for x in args.formats) if f]
                if args.formats is not None else ["png"])
     bad = [f for f in formats if f not in VALID_FORMATS]
@@ -949,9 +913,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             f"Unsupported image format(s): {', '.join(bad)}; "
             f"valid formats: {', '.join(VALID_FORMATS)}")
     if formats:
-        # ONE FIGURE PER FEATURE (default; bounded canvas at any feature
-        # count — a single all-in figure exceeds matplotlib's 2^16-px
-        # limit once features pass ~380 at 300 dpi)
         written = plot_feature_distributions(
             df, results, str(args.outdir / "significance_bars"),
             feature_col=args.feature_col, group_col=args.group_col,
@@ -963,12 +924,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         )
         logger.info(f"Per-feature figures: {len(written)} file(s) under "
                     f"{args.outdir / 'significance_bars'}")
-        # DAG marker for the figure subdir (modules.md: no directory()
-        # outputs; the rule declares significance_bars.done)
         (args.outdir / "significance_bars.done").write_text(
             "\n".join(written) + "\n")
-        # overview (all features in one) only when the canvas stays small;
-        # --overview-threshold <= 0 disables it entirely
         n_feat = len(results)
         if 0 < args.overview_threshold and n_feat <= args.overview_threshold:
             for fmt in formats:

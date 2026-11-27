@@ -61,7 +61,7 @@ rule DESeq2_TEcount:
         DESeq2_script = ROOT_DIR + "/modules/DESeq2/bin/DESeq2.r",
         write_group_script = ROOT_DIR + "/modules/DESeq2/bin/write_group_tsv.py",
         annotation_script = ROOT_DIR + "/modules/DESeq2/bin/gene_id2name.py",
-        formats = _formats_TEcount,   # ③ 转发
+        formats = _formats_TEcount,
     conda:
         "../DESeq2.yaml"
     container:
@@ -78,7 +78,7 @@ rule DESeq2_TEcount:
             sample_outdir = os.path.dirname(str(output.deseq2_results))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"DESeq2_TEcount_{wildcards.genome}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"DESeq2_TEcount.sh")
             control_group_name = comparisons.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name")
             experimental_group_name = comparisons.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name")
@@ -132,7 +132,7 @@ rule DESeq2_TEcount:
                 f.write("echo 'DESeq2 TEcount analysis completed successfully'\n")
 
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -188,7 +188,7 @@ rule DESeq2_TElocal:
         DESeq2_script = ROOT_DIR + "/modules/DESeq2/bin/DESeq2.r",
         write_group_script = ROOT_DIR + "/modules/DESeq2/bin/write_group_tsv.py",
         annotation_script = ROOT_DIR + "/modules/DESeq2/bin/gene_id2name.py",
-        formats = _formats_TElocal,   # ③ 转发
+        formats = _formats_TElocal,
     conda:
         "../DESeq2.yaml"
     container:
@@ -205,7 +205,7 @@ rule DESeq2_TElocal:
             sample_outdir = os.path.dirname(str(output.deseq2_results))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"DESeq2_TElocal_{wildcards.genome}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"DESeq2_TElocal.sh")
             control_group_name = comparisons.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name")
             experimental_group_name = comparisons.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name")
@@ -260,7 +260,7 @@ rule DESeq2_TElocal:
                 f.write("echo 'DESeq2 TElocal analysis completed successfully'\n")
 
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -308,7 +308,7 @@ rule DESeq2_TElocal_manhattan:
         highlight_families = lambda wildcards: list(config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_manhattan", {}).get("highlight_families", {}).get(wildcards.genome, {}).get(wildcards.contrast, [])),
         label_top = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_manhattan", {}).get("label_top", 10),
         ylabel = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_manhattan", {}).get("ylabel", "log2(1+|delta TPM|)"),
-        formats = _manhattan_formats,   # ③ 转发
+        formats = _manhattan_formats,
     conda:
         "../tefig.yaml"
     container:
@@ -325,7 +325,7 @@ rule DESeq2_TElocal_manhattan:
             fig_outdir = os.path.dirname(str(output.manhattan[0]))
             os.makedirs(fig_outdir, exist_ok=True)
             script = receipt_script(f"DESeq2_TElocal_manhattan_{wildcards.genome}_{wildcards.contrast}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(fig_outdir, "DESeq2_TElocal_manhattan.sh")
             if not params.control_group_name or not params.experimental_group_name:
                 raise ValueError(f"Group pair {wildcards.contrast} not found in comparisons configuration.")
@@ -355,7 +355,7 @@ rule DESeq2_TElocal_manhattan:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write("echo 'DESeq2 TElocal manhattan completed successfully'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -384,7 +384,7 @@ rule DESeq2_TElocal_locus_boxplot:
         match_mode = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_locus_boxplot", {}).get("match_mode", "exact"),
         normalize = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_locus_boxplot", {}).get("normalize", "log2tpm"),
         kind = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_locus_boxplot", {}).get("kind", "box"),
-        formats = _locus_box_formats,   # ③ 转发
+        formats = _locus_box_formats,
     conda:
         "../tefig.yaml"
     container:
@@ -401,7 +401,7 @@ rule DESeq2_TElocal_locus_boxplot:
             fig_outdir = os.path.dirname(str(output.locus_box[0]))
             os.makedirs(fig_outdir, exist_ok=True)
             script = receipt_script(f"DESeq2_TElocal_locus_boxplot_{wildcards.genome}_{wildcards.contrast}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(fig_outdir, "DESeq2_TElocal_locus_boxplot.sh")
             if not params.control_group_name or not params.experimental_group_name:
                 raise ValueError(f"Group pair {wildcards.contrast} not found in comparisons configuration.")
@@ -433,7 +433,7 @@ rule DESeq2_TElocal_locus_boxplot:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write("echo 'DESeq2 TElocal locus boxplot completed successfully'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -464,7 +464,7 @@ rule DESeq2_TElocal_subfamily_bar:
         normalize = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_subfamily_bar", {}).get("normalize", "tpm"),
         yscale = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_subfamily_bar", {}).get("yscale", "linear"),
         ylabel = config.get("Params", {}).get("DESeq2", {}).get("DESeq2_TElocal_subfamily_bar", {}).get("ylabel", "TPM"),
-        formats = _subfamily_bar_formats,   # ③ 转发
+        formats = _subfamily_bar_formats,
     conda:
         "../tefig.yaml"
     container:
@@ -481,7 +481,7 @@ rule DESeq2_TElocal_subfamily_bar:
             fig_outdir = os.path.dirname(str(output.subfamily_bar[0]))
             os.makedirs(fig_outdir, exist_ok=True)
             script = receipt_script(f"DESeq2_TElocal_subfamily_bar_{wildcards.genome}_{wildcards.contrast}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(fig_outdir, "DESeq2_TElocal_subfamily_bar.sh")
             if not params.control_group_name or not params.experimental_group_name:
                 raise ValueError(f"Group pair {wildcards.contrast} not found in comparisons configuration.")
@@ -515,7 +515,7 @@ rule DESeq2_TElocal_subfamily_bar:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write("echo 'DESeq2 TElocal subfamily bar completed successfully'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

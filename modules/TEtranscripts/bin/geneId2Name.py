@@ -8,7 +8,7 @@ import sys
 logging.basicConfig(
 	level=logging.INFO,
 	format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-	stream=sys.stdout,  # 指定输出到 stdout 而不是 stderr
+	stream=sys.stdout,
 	datefmt='%Y-%m-%d %H:%M:%S'
 )
 
@@ -38,7 +38,7 @@ def load_cache_if_valid(cache_path: str, gtf_signature: dict):
         with open(cache_path, "rb") as f:
             cache = pickle.load(f)
     except:
-        return None  # 缓存损坏
+        return None
 
     cached_sig = cache.get("signature", {})
     if cached_sig == gtf_signature:
@@ -92,17 +92,14 @@ def load_gtf_gene_map(gtf_path: str, cache_path="gene_map.pkl") -> dict:
     """
     gtf_signature = get_file_signature(gtf_path)
 
-    # 尝试加载缓存
     gene_map = load_cache_if_valid(cache_path, gtf_signature)
 
     if gene_map is not None:
         return gene_map
 
-    # 解析 GTF
     logging.info("开始解析 GTF（可能耗时较长）...")
     gene_map = parse_gtf_gene_map(gtf_path)
 
-    # 保存缓存
     save_cache(cache_path, gene_map, gtf_signature)
     logging.info(f"缓存已写入：{cache_path}")
 
@@ -138,7 +135,7 @@ def extract_gene_name_or_keep(df: pd.DataFrame,pattern:str) -> pd.DataFrame:
     """
     df['gene_name'] = df['gene_name'].str.replace(
         pat=pattern,
-        repl=r'\1',   # 替换模式：r'\1' 代表正则表达式中第一个捕获组的内容
+        repl=r'\1',
         regex=True
     )
     

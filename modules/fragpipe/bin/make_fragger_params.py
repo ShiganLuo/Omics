@@ -31,28 +31,24 @@ from typing import Dict, List
 logger = logging.getLogger("make_fragger_params")
 
 
-# Parameter values recovered from the original pepXML (PXD053575) dumps.
 PAPER_PARAMS: Dict[str, str] = {
-    # masses / tolerances
     "precursor_mass_lower": "-20.0",
     "precursor_mass_upper": "20.0",
-    "precursor_mass_units": "1",          # ppm
+    "precursor_mass_units": "1",
     "precursor_true_tolerance": "10.0",
-    "precursor_mass_mode": "CORRECTED",   # mass calibration enabled
+    "precursor_mass_mode": "CORRECTED",
     "calibrate_mass": "1",
     "fragment_mass_tolerance": "0.02",
-    "fragment_mass_units": "0",           # Da
+    "fragment_mass_units": "0",
     "fragment_ion_series": "b,y",
     "max_fragment_charge": "1",
     "deisotope": "1",
     "isotope_error": "-1/0/1/2",
-    # enzyme
     "search_enzyme_name": "stricttrypsin",
     "search_enzyme_cut_1": "KR",
     "search_enzyme_away_1": "P",
     "num_enzyme_termini": "2",
     "allowed_missed_cleavage_1": "2",
-    # search space
     "digest_mass_range": "350.0 10000.0",
     "precursor_charge": "2 6",
     "override_charge": "0",
@@ -62,8 +58,6 @@ PAPER_PARAMS: Dict[str, str] = {
     "mass_diff_to_variable_mod": "0",
     "localize_delta_mass": "0",
     "labile_search_mode": "OFF",
-    # variable mods (paper: Ox M, protein N-term acetyl, TMTpro any N-term,
-    # pyro-Glu on nQ/nC and nE)
     "variable_mod_01": "15.994915 M 3",
     "variable_mod_02": "42.010565 [^ 1",
     "variable_mod_03": "304.207 n* 1",
@@ -72,11 +66,9 @@ PAPER_PARAMS: Dict[str, str] = {
     "max_variable_mods_per_peptide": "5",
     "max_variable_mods_combinations": "10000",
     "allow_multiple_variable_mods_on_residue": "1",
-    # fixed mods (paper: carbamidomethyl C, TMTpro K)
     "add_C_cysteine": "57.021464",
     "add_K_lysine": "304.2070",
     "add_O_user_amino_acid": "225.15829",
-    # output / reporting
     "output_format": "tsv_pepxml_pin",
     "min_matched_fragments": "4",
     "min_fragments_modelling": "2",
@@ -87,7 +79,6 @@ PAPER_PARAMS: Dict[str, str] = {
     "use_y_ions": "1",
 }
 
-# Label-free drop list: everything TMT-specific.
 _TMT_TOKENS = ("304.207", "304.2070")
 
 

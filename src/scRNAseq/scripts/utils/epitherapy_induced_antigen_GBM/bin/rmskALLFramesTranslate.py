@@ -26,7 +26,6 @@ parser.add_argument('-l', type=int, nargs=1, metavar='<LENGTH>',
                     help='Minimum peptide length. Default: 1')
 
 
-#Default arguments
 methionineSpecific = False
 minimumLength = 1
 edgeConsider = False
@@ -91,10 +90,9 @@ def getTEProteins(row):
 						proteinstart.append(positioncounterprot)
 						proteinend.append(positioncounterprot + (len(fullprotein)*3) - 1)
 					
-				positioncounter = positioncounter + ((len(protein) + 1) * 3) #The +1 accounts for the stop codons that are stripped in splitting this
+				positioncounter = positioncounter + ((len(protein) + 1) * 3)
 			
 			if proteinsfound:
-				#Extract relevant fields from description
 	
 				rawuniqid = description.split('|')[0]
 				uniqid = rawuniqid.split('>')[1]

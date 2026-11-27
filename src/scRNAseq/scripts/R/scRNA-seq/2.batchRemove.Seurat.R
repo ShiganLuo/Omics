@@ -10,17 +10,14 @@ normalization1 = function(Sat){
     Sat_list = SplitObject(Sat,split.by = "sample")
     
     for(i in 1:length(Sat_list)){
-        # the first normalization
         
         Sati = Sat_list[[i]]
         Sati = NormalizeData(Sati,normalization.method = "LogNormalize")
-        # find high variable features
         Sati = FindVariableFeatures(Sati,selection.method = "vst",nfeatures = 3000)
         Sat_list[[i]] = Sati
         print(Sat_list[[i]])
 
     }
-    # data Integration
     anchors = FindIntegrationAnchors(
         object.list = Sat_list,
         normalization.method = "LogNormalize",
@@ -28,7 +25,6 @@ normalization1 = function(Sat){
     )
     Sat = IntegrateData(anchorset = anchors)
     DefaultAssay(Sat) = "integrated"
-    # the fourth normalization
     Sat = ScaleData(Sat,features = rownames(Sat))
     return (Sat)
 
@@ -55,6 +51,3 @@ normalization2 = function(Sat){
 }
 SC = normalization1(SC)
 print(str(SC))
-# SC = normalization2(SC)
-# print(str(SC))
-# print(DefaultAssay(SC))

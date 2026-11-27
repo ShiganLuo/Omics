@@ -58,10 +58,6 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 import pandas as pd
 
-# ---------------------------------------------------------------------------
-# setup_logger — verbatim copy of src/common/util/LogUtil.py::setup_logger
-# (modules.md 脚本撰写规范 #0: module bin scripts are self-contained)
-# ---------------------------------------------------------------------------
 from typing import Optional as _Optional, TextIO as _TextIO
 import logging as _logging
 
@@ -113,8 +109,6 @@ def setup_logger(
     return logger
 
 
-# Sex chromosome naming across assembly conventions; first match per
-# category wins per sample (Ensembl uses bare X/Y, UCSC chrX/chrY).
 X_NAMES = ("chrX", "X", "x")
 Y_NAMES = ("chrY", "Y", "y")
 
@@ -177,7 +171,6 @@ def build_table(df: pd.DataFrame, x_hint: Optional[str] = None,
             return float(length_series.iloc[0]), float(mapped_series.iloc[0])
         x_len, x_mapped = _get(x_name)
         y_len, y_mapped = _get(y_name)
-        # length-normalized coverage proxy: mapped reads per Mb
         x_norm = x_mapped / (x_len / 1e6) if x_len and x_len == x_len else float("nan")
         y_norm = y_mapped / (y_len / 1e6) if y_len and y_len == y_len else float("nan")
         ratio = x_norm / y_norm if (y_norm and y_norm == y_norm and y_norm > 0) else float("inf")
@@ -234,16 +227,6 @@ def call_sex(table: pd.DataFrame, y_min_frac: float, ratio_threshold: float,
     return table
 
 
-# ---------------------------------------------------------------------------
-# RNA mode: sex-marker gene expression (XIST + Y-linked genes)
-# ---------------------------------------------------------------------------
-# Sex calling from marker-gene transcription instead of chromosome coverage:
-# XIST is expressed only under the female X-inactivation program and the
-# Y-linked markers are male-specific. The X/Y coverage ratio does not
-# discriminate sex on transcriptome data (Y genes are sparsely expressed in
-# most tissues), so the RNA call uses two expression floors. Gene names are
-# matched case-insensitively against the GTF gene_name attribute; the
-# defaults serve mouse (Xist, Ddx3y, ...) and human (XIST, DDX3Y, ...) alike.
 DEFAULT_XIST_GENE = "xist"
 DEFAULT_Y_GENES = ("ddx3y", "eif2s3y", "kdm5d", "uty", "usp9y")
 _GTF_ATTR_RE = re.compile(r'(\S+)\s+"([^"]+)"')

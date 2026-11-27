@@ -64,7 +64,7 @@ rule samtools_dedup:
                 f.write(" ".join(cmd) + "\n")
                 f.write(success_echo + "\n")
             shutil.copyfile(script_path, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -94,7 +94,7 @@ rule wig:
     params:
         binSize= config.get('Params',{}).get('bamCoverage',{}).get('binSize') or 50,
         bamCoverage = config.get('Procedure',{}).get('bamCoverage') or 'bamCoverage',
-        normalizeUsing = config.get("Params", {}).get("bamCoverage", {}).get("wig", {}).get("normalizeUsing", "CPM") or "CPM",   # Params.bamCoverage.wig.normalizeUsing(与 bamCoverage 各自;config 全量路径内联读取)
+        normalizeUsing = config.get("Params", {}).get("bamCoverage", {}).get("wig", {}).get("normalizeUsing", "CPM") or "CPM",
         offset = config.get('Params', {}).get('bamCoverage',{}).get('offset') or None,
         extendReads = config.get('Params', {}).get('bamCoverage',{}).get('extendReads') or False
     run:
@@ -127,7 +127,7 @@ rule wig:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "wig completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

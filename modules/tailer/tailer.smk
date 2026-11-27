@@ -6,9 +6,6 @@ logdir = config.get("logdir", "log")
 paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
 gtf = config.get("genome", {}).get("gtf")
-# 参数精确到 rule:Params.tailer.<rule_name>.<key>(config 全量路径直读;
-# 无 module 级共享回退,tailer_global 独立键;rev_comp/threshold 与
-# star_3pg_gene_specific 共享,各 rule 各自独立键)。
 
 rule tailer_global:
     input:
@@ -50,7 +47,7 @@ rule tailer_global:
 
             cmd = f"{params.Tailer} -a {params.gtf} -read {params.read_num} -t {params.threshold} {params.rev_comp} {input.bam} >> {log_path} 2>&1"
             rule_logger.info(f"Running: {cmd}")
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(cmd)

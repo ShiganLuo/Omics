@@ -48,10 +48,6 @@ from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN
 from pptx.enum.shapes import MSO_SHAPE
 
-# ---------------------------------------------------------------------------
-# setup_logger — verbatim copy of src/common/util/LogUtil.py::setup_logger
-# (modules.md 脚本撰写规范 #0: module bin scripts are self-contained)
-# ---------------------------------------------------------------------------
 from typing import Optional as _Optional, TextIO as _TextIO
 import logging as _logging
 
@@ -105,16 +101,9 @@ def setup_logger(
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
-# ── 上游产出图 raster-first 变体解析(modules.md #9 formats 规范)──
-# 生产者按各自 Params.<producer>.formats 每格式写一个 `<base>.<fmt>`;报告
-# 消费这些图(spectrum/signature/MSI/FragmentSize)时按 raster-first
-# (png → jpg → jpeg → tif → tiff,再按 VALID_FORMATS 余下顺序)找已存在的
-# 变体;都不存在时原样返回硬编码路径(默认配置下行为与历史逐字节一致)。
 _PICK_EXTS = ("png", "jpg", "jpeg", "tif", "tiff",
               "pdf", "svg", "ps", "eps", "pgf", "raw", "rgba")
 _RASTER_EXTS = ("png", "jpg", "jpeg", "tif", "tiff")
@@ -147,9 +136,6 @@ def _embeddable(path: str) -> bool:
             and os.path.splitext(path)[1].lower() in _RASTER_EXTS)
 
 
-# ============================================================
-# Layout & colors (house report style, cf. PeakCalling_report)
-# ============================================================
 SLIDE_W = 10.0
 SLIDE_H = 5.625
 HEADER_H = 0.65
@@ -166,14 +152,10 @@ C_MUTED = RGBColor(0x74, 0x74, 0x74)
 C_WHITE = RGBColor(0xFF, 0xFF, 0xFF)
 C_ROW_ALT = RGBColor(0xF1, 0xF5, 0xFA)
 
-# QC thresholds surfaced in the summary (PASS/WARN coloring only)
-ALIGN_THRESH = 80.0        # mapped rate % below -> WARN
-DUP_WARN = 30.0            # duplication % above -> WARN
+ALIGN_THRESH = 80.0
+DUP_WARN = 30.0
 
 
-# ============================================================
-# PPT helpers
-# ============================================================
 
 def _header(slide, text: str) -> None:
     bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, Inches(SLIDE_W), Inches(HEADER_H))
@@ -251,9 +233,6 @@ def _status_color(value: float, warn_when_below: Optional[float] = None,
     return C_GREEN
 
 
-# ============================================================
-# Data collection
-# ============================================================
 
 def count_vcf_variants(path: str) -> Optional[int]:
     """Count DATA rows in a (bgzipped) VCF via streaming read."""
@@ -406,14 +385,8 @@ def collect_qc_rows(qc_dir: str) -> Tuple[List[List[str]], Dict[str, List[float]
     return rows, numeric
 
 
-# ============================================================
-# Figure rendering (matplotlib; embedded raster + figures/ 导出)
-# ============================================================
 
-# 报告自有图除嵌入 PPTX 外,还作为独立交付物写到 <report_dir>/figures/
-# <name>.<fmt>(每种请求格式一个文件);manifest.tsv 逐行列出
-# name<TAB>filename,让 DAG 在不逐一声明条件图的情况下保持诚实。
-FIG_DIR = ""  # set in main(): <report_dir>/figures
+FIG_DIR = ""
 _FIG_MANIFEST: List[Tuple[str, str]] = []
 
 
@@ -460,7 +433,7 @@ def write_fig_manifest() -> str:
 def _add_picture(slide, path: str, left: float, top: float,
                  max_w: float, max_h: float) -> None:
     """Insert a picture scaled to fit (max_w x max_h), keeping aspect ratio."""
-    from PIL import Image as PILImage  # python-pptx 依赖 Pillow,惰性导入
+    from PIL import Image as PILImage
     img = PILImage.open(path)
     aspect = img.size[0] / max(img.size[1], 1)
     width = max_w
@@ -510,9 +483,6 @@ def plot_somatic_counts(rows: List[List[str]],
     return raster
 
 
-# ============================================================
-# Excel results collection
-# ============================================================
 
 def write_results_excel(output_path: str, args: argparse.Namespace) -> None:
     """Write the results workbook: one sheet per analysis module plus an
@@ -552,7 +522,6 @@ def write_results_excel(output_path: str, args: argparse.Namespace) -> None:
             ws.append(r)
         _auto_width(ws)
 
-    # 1. Overview
     ws = wb.active
     ws.title = _sheet("Overview")
     overview = [
@@ -569,7 +538,6 @@ def write_results_excel(output_path: str, args: argparse.Namespace) -> None:
         ws.append(row)
     _auto_width(ws)
 
-    # 2. QC Summary (whole qc_summary table transposed 1:1)
     ws_qc = wb.create_sheet(_sheet("QC Summary"))
     qc_path = os.path.join(args.qc_dir, "qc_summary.tsv")
     if os.path.isfile(qc_path):
@@ -580,7 +548,6 @@ def write_results_excel(output_path: str, args: argparse.Namespace) -> None:
     else:
         _write_rows(ws_qc, ["note"], [["qc_summary.tsv not found — QC module not run"]])
 
-    # 3. Somatic Variants (variant-level rows from Mutect2 filtered VCFs)
     ws_sv = wb.create_sheet(_sheet("Somatic Variants"))
     sv_rows: List[List] = []
     for tumor, normal in args.pairs:
@@ -598,13 +565,11 @@ def write_results_excel(output_path: str, args: argparse.Namespace) -> None:
                     sv_rows.append([pair_label, tumor] + f[:7])
     _write_rows(ws_sv, ["pair", "tumor", "chrom", "pos", "id", "ref", "alt", "qual", "filter"], sv_rows)
 
-    # 4. Somatic Counts (per-pair filtered call counts)
     ws_sc = wb.create_sheet(_sheet("Somatic Counts"))
     somatic_rows = collect_somatic(args.somatic_dir, args.pairs)
     _write_rows(ws_sc, ["pair", "tumor", "normal", "filtered_snv_indel"],
                 [r for r in somatic_rows])
 
-    # 5. MSI Scores
     ws_msi = wb.create_sheet(_sheet("MSI"))
     msi_rows = collect_msi(args.msi_dir)
     if msi_rows:
@@ -612,7 +577,6 @@ def write_results_excel(output_path: str, args: argparse.Namespace) -> None:
     else:
         _write_rows(ws_msi, ["note"], [["MSI not run (disabled or no paired design)"]])
 
-    # 6. Burden (summary + per-sample burden tsvs concatenated)
     ws_b = wb.create_sheet(_sheet("Burden"))
     burden_df = load_burden_summary(args.burden_dir)
     if burden_df is not None and len(burden_df):
@@ -622,7 +586,6 @@ def write_results_excel(output_path: str, args: argparse.Namespace) -> None:
     else:
         _write_rows(ws_b, ["note"], [["burden_summary.tsv not found — burden module not run"]])
 
-    # 7. Spectrum (somatic_spectrum.csv, SBS class counts)
     ws_sp = wb.create_sheet(_sheet("Spectrum"))
     sp_path = os.path.join(args.spectrum_dir, "somatic_spectrum.csv")
     if os.path.isfile(sp_path):
@@ -633,7 +596,6 @@ def write_results_excel(output_path: str, args: argparse.Namespace) -> None:
     else:
         _write_rows(ws_sp, ["note"], [["somatic_spectrum.csv not found — no paired design"]])
 
-    # 7b. Signature Refit (per-sample fit summary + family exposures)
     ws_sr = wb.create_sheet(_sheet("Signature Refit"))
     sig_summary, sig_family = load_signature_refit(args.spectrum_dir)
     if sig_summary is not None and len(sig_summary):
@@ -647,7 +609,6 @@ def write_results_excel(output_path: str, args: argparse.Namespace) -> None:
         _write_rows(ws_sr, ["note"],
                     [["signature_refit_summary.csv not found — signature refit not run"]])
 
-    # 7c. Signature NMF (rank diagnostics + COSMIC best match)
     ws_sn = wb.create_sheet(_sheet("Signature NMF"))
     nmf_rank, nmf_best = load_signature_nmf(args.spectrum_dir)
     if nmf_rank is not None and len(nmf_rank):
@@ -660,7 +621,6 @@ def write_results_excel(output_path: str, args: argparse.Namespace) -> None:
         _write_rows(ws_sn, ["note"],
                     [["signature_nmf_rank_diagnostics.csv not found — signature NMF not run"]])
 
-    # 8. Fragment Size (insert-size histogram, first col = insertion size)
     ws_fs = wb.create_sheet(_sheet("Fragment Size"))
     fs_path = os.path.join(args.fragment_dir, "FragmentSize.txt")
     if os.path.isfile(fs_path):
@@ -671,7 +631,6 @@ def write_results_excel(output_path: str, args: argparse.Namespace) -> None:
     else:
         _write_rows(ws_fs, ["note"], [["FragmentSize.txt not found — fragment module not run"]])
 
-    # 9. File Inventory (key deliverables with existence + size)
     ws_inv = wb.create_sheet(_sheet("File Inventory"))
     inv_rows: List[List] = []
     inventory: List[Tuple[str, str]] = [
@@ -723,9 +682,6 @@ def write_results_excel(output_path: str, args: argparse.Namespace) -> None:
     wb.save(output_path)
 
 
-# ============================================================
-# Report assembly
-# ============================================================
 
 def build_report(args: argparse.Namespace, logger) -> None:
     prs = Presentation()
@@ -733,7 +689,6 @@ def build_report(args: argparse.Namespace, logger) -> None:
     prs.slide_height = Inches(SLIDE_H)
     blank = prs.slide_layouts[6]
 
-    # ---- Title slide
     slide = prs.slides.add_slide(blank); _bg(slide)
     _textbox(slide, MARGIN_L, 1.6, CONTENT_W, 0.8, args.title,
              font_size=30, bold=True, color=C_NAVY, align=PP_ALIGN.CENTER)
@@ -744,7 +699,6 @@ def build_report(args: argparse.Namespace, logger) -> None:
              f"samples: {', '.join(args.sample)}",
              font_size=10, color=C_MUTED, align=PP_ALIGN.CENTER)
 
-    # ---- QC summary slide (from qc_summary module)
     slide = prs.slides.add_slide(blank); _bg(slide)
     _header(slide, "QC 汇总 / QC Summary")
     qc_rows, numeric = collect_qc_rows(args.qc_dir)
@@ -761,13 +715,10 @@ def build_report(args: argparse.Namespace, logger) -> None:
                 v = numeric["percent_duplication"][r] if r < len(numeric["percent_duplication"]) else float("nan")
                 return _status_color(v, warn_when_above=DUP_WARN) if v == v else None
             return None
-        # re-add table with colors (single call is enough; keep first simple
-        # table — cell-level coloring is applied on redraw)
     else:
         _bullets(slide, MARGIN_L, CONTENT_TOP, CONTENT_W, 2.0,
                  ["qc_summary.tsv 不存在 — QC 汇总模块未运行或未注册输出"])
 
-    # ---- Somatic SNV/InDel slide
     slide = prs.slides.add_slide(blank); _bg(slide)
     _header(slide, "体细胞 SNV/InDel（Mutect2）/ Somatic SNV/InDel")
     somatic_rows = collect_somatic(args.somatic_dir, args.pairs)
@@ -778,7 +729,6 @@ def build_report(args: argparse.Namespace, logger) -> None:
             somatic_rows,
             image_formats=args.formats if args.formats else ["png"])
         if fig_path and os.path.isfile(fig_path):
-            # 嵌入 raster 副本(png 变体);独立交付物在 figures/ 下
             top = CONTENT_TOP + 0.35 + 0.32 * (len(somatic_rows) + 1)
             _add_picture(slide, fig_path, MARGIN_L, top,
                          CONTENT_W, max(0.5, SLIDE_H - top - 0.12))
@@ -786,20 +736,17 @@ def build_report(args: argparse.Namespace, logger) -> None:
         _bullets(slide, MARGIN_L, CONTENT_TOP, CONTENT_W, 2.0,
                  ["无 tumor/normal 配对设计 — 体细胞检测未运行"])
 
-    # ---- Somatic spectrum slide
     slide = prs.slides.add_slide(blank); _bg(slide)
     _header(slide, "突变频谱 / Somatic Spectrum")
     _picture_or_note(slide,
                      _pick_variant(os.path.join(args.spectrum_dir, "somatic_spectrum_stacked_bar.png")),
                      "Spectrum stacked bar (SBS)")
-    # ---- Spectrum heatmap slide
     slide = prs.slides.add_slide(blank); _bg(slide)
     _header(slide, "突变频谱热图 / Somatic Spectrum Heatmap")
     _picture_or_note(slide,
                      _pick_variant(os.path.join(args.spectrum_dir, "somatic_spectrum_heatmap.png")),
                      "Spectrum heatmap")
 
-    # ---- Signature refit slide (COSMIC known signatures)
     slide = prs.slides.add_slide(blank); _bg(slide)
     _header(slide, "突变签名 refit / COSMIC Signature Refit")
     sig_summary, sig_family = load_signature_refit(args.spectrum_dir)
@@ -822,7 +769,6 @@ def build_report(args: argparse.Namespace, logger) -> None:
                  "Signature refit — 未运行 / not run (签名分析未启用或无配对设计)",
                  font_size=12, color=C_MUTED, align=PP_ALIGN.CENTER)
 
-    # ---- Signature NMF slide (de novo extraction)
     slide = prs.slides.add_slide(blank); _bg(slide)
     _header(slide, "de novo 突变签名（NMF）/ De novo Signatures (NMF)")
     nmf_rank, nmf_best = load_signature_nmf(args.spectrum_dir)
@@ -847,7 +793,6 @@ def build_report(args: argparse.Namespace, logger) -> None:
                  "Signature NMF — 未运行 / not run (签名分析未启用或无配对设计)",
                  font_size=12, color=C_MUTED, align=PP_ALIGN.CENTER)
 
-    # ---- MSI slide
     slide = prs.slides.add_slide(blank); _bg(slide)
     _header(slide, "微卫星不稳定性 / MSI (msisensor-pro)")
     msi_rows = collect_msi(args.msi_dir)
@@ -863,7 +808,6 @@ def build_report(args: argparse.Namespace, logger) -> None:
                  "MSI — 未运行 / not run (可选步骤未启用或无配对设计)",
                  font_size=12, color=C_MUTED, align=PP_ALIGN.CENTER)
 
-    # ---- Burden slide
     slide = prs.slides.add_slide(blank); _bg(slide)
     _header(slide, "肿瘤突变负荷 / Mutation Burden (TMB + SV + CNV)")
     burden_df = load_burden_summary(args.burden_dir)
@@ -875,14 +819,12 @@ def build_report(args: argparse.Namespace, logger) -> None:
                  "Burden — 未运行 / not run (可选步骤未启用)",
                  font_size=12, color=C_MUTED, align=PP_ALIGN.CENTER)
 
-    # ---- Fragment size slide (cfDNA)
     slide = prs.slides.add_slide(blank); _bg(slide)
     _header(slide, "cfDNA 片段长度分布 / Fragment Size")
     _picture_or_note(slide,
                      _pick_variant(os.path.join(args.fragment_dir, "FragmentSize.png")),
                      "Fragment size distribution")
 
-    # ---- Summary slide
     slide = prs.slides.add_slide(blank); _bg(slide)
     _header(slide, "总结 / Summary")
     conclusions: List[str] = []
@@ -930,9 +872,6 @@ def build_report(args: argparse.Namespace, logger) -> None:
     logger.info(f"report written: {args.output}")
 
 
-# ============================================================
-# CLI
-# ============================================================
 
 def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__,

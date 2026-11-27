@@ -40,11 +40,6 @@ class SVCircosPrepare():
         self.fasta_path = fasta_path
         self.outdir = outdir    
         self.image_format = image_format
-        # Chromosome universe: standard chr-prefixed genomes keep the
-        # chr1..chrY,M filter; custom genomes whose contigs use other naming
-        # (e.g. RefSeq CM166248.1-style accessions) fall back to ALL contigs
-        # of the FASTA, otherwise every record is filtered out and the
-        # Circos plot is silently empty.
         fa_keys = list(Fasta(fasta_path).keys())
         main = [c for c in fa_keys if c in self.main_chrom]
         self.chrom_set = set(main) if main else set(fa_keys)
@@ -68,11 +63,9 @@ class SVCircosPrepare():
         if not vcf_path.exists():
             raise FileNotFoundError(vcf_path)
 
-        # ---------- case 1: plain VCF ----------
         if vcf_path.suffix == ".vcf":
             return pysam.VariantFile(str(vcf_path))
 
-        # ---------- case 2: compressed VCF ----------
         if vcf_path.suffixes[-2:] == [".vcf", ".gz"]:
             logger.info(f"Detected compressed VCF: {vcf_path}")
             tbi = vcf_path.with_suffix(".gz.tbi")
@@ -80,7 +73,6 @@ class SVCircosPrepare():
             logger.info(f"Checking for index files: {tbi} / {csi}")
 
             if not tbi.exists() and not csi.exists():
-                # create index only
                 try:
                     subprocess.run(
                         ["tabix", "-p", "vcf", str(vcf_path)],
@@ -160,11 +152,11 @@ class SVCircosPrepare():
         vcf = self.open_vcf_autotabix()
         
         sv_records = {
-            "DEL": [],  # (chrom, start, end)
-            "INS": [],  # (chrom, start, end)
-            "DUP": [],  # (chrom, start, end)
-            "INV": [],  # (chrom, start, end)
-            "TRA": []    # (c1, p1, c2, p2)
+            "DEL": [],
+            "INS": [],
+            "DUP": [],
+            "INV": [],
+            "TRA": []
         }
 
         for rec in vcf:
@@ -174,7 +166,7 @@ class SVCircosPrepare():
             svtype = info.get("SVTYPE")
             end = getattr(rec, 'stop', None)
             if end is None:
-                end_val = info.get("END") # (end,)
+                end_val = info.get("END")
                 if end_val is not None:
                     end = end_val[0] if isinstance(end_val, (list, tuple)) else end_val
 
@@ -183,7 +175,7 @@ class SVCircosPrepare():
 
             if svtype in ("INS","DUP", "INV","DEL") and end is not None:
                 if svtype == "INS":
-                    sv_records[svtype].append((chrom1,pos1, pos1 + 1)) # INS 位置记录为单点，end = pos + 1,vcf中记录为插入位置+插入长度
+                    sv_records[svtype].append((chrom1,pos1, pos1 + 1))
                 else:
                     sv_records[svtype].append((chrom1,pos1, int(end)))
                 continue
@@ -195,16 +187,13 @@ class SVCircosPrepare():
                     continue
 
                 if chrom1 != chrom2:
-                    # 识别为 TRA Link (跨圆心连线)
                     link = tuple(sorted([(chrom1, pos1), (chrom2, pos2)]))
                     sv_records["TRA"].append((link[0][0], link[0][1], link[1][0], link[1][1]))
                 else:
-                    # 同染色体 BND 转为 DEL Block (外圈色块)
                     if self.is_deletion_link(alt):
                         start, end = min(pos1, pos2), max(pos1, pos2)
                         sv_records["DEL"].append((chrom1, start, end))
 
-        # 去重处理
         for key in sv_records:
                     sv_records[key] = list(set(sv_records[key]))
         
@@ -236,17 +225,14 @@ class SVCircosPrepare():
         outdir_p = Path(outdir)
         outdir_p.mkdir(parents=True, exist_ok=True)
 
-        # FASTA
         chrom_sizes = self.parse_fasta_chrom_sizes()
         SVCircosPrepare.write_circos_karyotype(
             chrom_sizes,
             str(outdir_p  / "karyotype.txt"),
         )
 
-        # VCF
         sv_records = self.parse_sv_vcf_for_circle()
 
-        # Write Circos input files
         with open(outdir_p / "blocks_del.bed", "w") as f_blocks:
             for chrom, start, end in sv_records["DEL"]:
                 f_blocks.write(f"{chrom}\t{start}\t{end}\n")

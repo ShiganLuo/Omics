@@ -110,9 +110,6 @@ def comp_map(comparisons):
     return {c["key"]: c["label"] for c in comparisons}
 
 
-# ────────────────────────────────────────────────────────────
-# 2. Pseudobulk preparation
-# ────────────────────────────────────────────────────────────
 
 def _split_pseudo_reps(adata_sub, sample_id, raw_sub, var_names,
                        n_pseudo_reps=3, min_cells_per_rep=10, seed=42):
@@ -142,13 +139,11 @@ def _split_pseudo_reps(adata_sub, sample_id, raw_sub, var_names,
         ``sample``, ``cell_type``, ``n_cells``, ``n_counts``, plus gene counts.
     """
     n_cells_total = adata_sub.shape[0]
-    # Adjust n_pseudo_reps if too few cells
     actual_reps = min(n_pseudo_reps, n_cells_total // min_cells_per_rep)
     if actual_reps < 2:
-        actual_reps = min(2, n_cells_total)  # at least try 2
+        actual_reps = min(2, n_cells_total)
 
     if actual_reps < 2 or n_cells_total < 4:
-        # Can't split: return single aggregate
         counts = np.asarray(np.array(raw_sub.X.sum(axis=0)).flatten()).ravel()
         return [{
             "sample": sample_id,
@@ -158,8 +153,6 @@ def _split_pseudo_reps(adata_sub, sample_id, raw_sub, var_names,
             **{gene: float(c) for gene, c in zip(var_names, counts)},
         }]
 
-    # Equal distribution: each rep gets floor(N/M) or ceil(N/M) cells
-    # then shuffle for randomness
     assignments = np.array([i % actual_reps for i in range(n_cells_total)])
     rng = np.random.RandomState(seed)
     rng.shuffle(assignments)
@@ -233,7 +226,7 @@ def _resolve_count_matrix(sub, raw_sub):
             "Pass a merged h5ad (layers['counts']) instead of a clustered "
             "auto h5ad, whose raw slot stores log1p(CP10K).")
     logger.info("    using adata.raw.X as counts (%d features)", raw_sub.n_vars)
-    return None  # caller falls back to raw_sub.X
+    return None
 
 
 def aggregate_pseudobulk(adata, cell_type, sample_col="sample_id",
@@ -279,19 +272,14 @@ def aggregate_pseudobulk(adata, cell_type, sample_col="sample_id",
     if sub.raw is not None:
         raw_sub = sub.raw.to_adata()
     else:
-        # No raw slot (e.g. the counts_h5ad-rewritten AnnData): synthesise
-        # raw from X so downstream var annotation / per-sample totals work.
         raw_sub = sub.copy()
     counts_matrix = _resolve_count_matrix(sub, raw_sub)
-    # When layers["counts"] exists it is the authoritative count source;
-    # var annotation (gene_type etc.) still comes from raw_sub (full genes).
     if counts_matrix is not None and counts_matrix.shape[1] == raw_sub.n_vars:
-        raw_sub = raw_sub[:, :0].copy()  # placeholder; counts_matrix used below
+        raw_sub = raw_sub[:, :0].copy()
         use_counts_layer = True
     else:
         use_counts_layer = False
 
-    # Filter features by mode (gene/te/all)
     if feature_mode != "all" and "gene_type" in raw_sub.var.columns:
         te_mask = raw_sub.var["gene_type"] == "TE"
         if feature_mode == "gene":
@@ -299,7 +287,6 @@ def aggregate_pseudobulk(adata, cell_type, sample_col="sample_id",
         elif feature_mode == "te":
             raw_sub = raw_sub[:, te_mask].copy()
 
-    # Compute total counts per sample
     counts_by_sample = {}
     for sample in samples_by_cells:
         mask = sub.obs[sample_col] == sample
@@ -309,15 +296,12 @@ def aggregate_pseudobulk(adata, cell_type, sample_col="sample_id",
             total = float(np.array(raw_sub[mask].X.sum()).flatten()[0])
         counts_by_sample[sample] = total
 
-    # Apply min_counts filter
     samples_kept = [s for s in samples_by_cells
                     if counts_by_sample.get(s, 0) >= min_counts]
 
     if len(samples_kept) < 1:
         return None, []
 
-    # Split into pseudo-replicates when n_pseudo_reps > 0
-    # (needed when any comparison will have only 1 sample per condition)
     use_pseudo_reps = (n_pseudo_reps > 0)
 
     rows = []
@@ -398,8 +382,6 @@ def prepare_counts(h5ad_path, out_dir, label, min_cells=30, min_counts=1000,
     if counts_h5ad:
         logger.info(f"[{label}] Loading integer counts from {counts_h5ad} ...")
         counts_adata = sc.read_h5ad(counts_h5ad)
-        # The merged file supersedes the clustered file (auto QC drops cells),
-        # so subset counts to the annotated cells (order of adata.obs).
         missing = adata.obs_names.difference(counts_adata.obs_names)
         if len(missing):
             raise ValueError(
@@ -410,8 +392,6 @@ def prepare_counts(h5ad_path, out_dir, label, min_cells=30, min_counts=1000,
             raise ValueError(f"{counts_h5ad} has no layers['counts']")
         if not _is_integer_matrix(counts_adata.layers["counts"]):
             raise ValueError(f"{counts_h5ad} layers['counts'] is not integer")
-        # Attach full-gene integer counts + var annotation to adata via raw.
-        # This routes the legacy raw path through verified integer counts.
         from anndata import AnnData as _AnnData
         counts_adata.obs_names = adata.obs_names.copy()
         full = _AnnData(
@@ -453,9 +433,6 @@ def prepare_counts(h5ad_path, out_dir, label, min_cells=30, min_counts=1000,
     return written, adata
 
 
-# ────────────────────────────────────────────────────────────
-# 3. PyDESeq2 DEG analysis
-# ────────────────────────────────────────────────────────────
 
 def run_pydeseq2(counts_df, ref_id, treat_id):
     """Run PyDESeq2 on a pseudobulk count matrix for one comparison.
@@ -481,14 +458,12 @@ def run_pydeseq2(counts_df, ref_id, treat_id):
         logger.error("pydeseq2 not installed. pip install pydeseq2")
         return pd.DataFrame()
 
-    # Separate metadata from gene columns
     metadata_cols = ["cell_type", "n_cells", "n_counts"]
     gene_cols = [c for c in counts_df.columns if c not in metadata_cols]
 
     if len(gene_cols) < 100:
         return pd.DataFrame()
 
-    # Subset to the two groups (handle pseudo-replicate IDs like sample_rep0)
     ref_samples = [s for s in counts_df.index if s == ref_id or s.startswith(f"{ref_id}_rep")]
     treat_samples = [s for s in counts_df.index if s == treat_id or s.startswith(f"{treat_id}_rep")]
     selected = ref_samples + treat_samples
@@ -499,13 +474,11 @@ def run_pydeseq2(counts_df, ref_id, treat_id):
     sub = counts_df.loc[selected]
     counts = sub[gene_cols].round().astype(int).copy()
 
-    # Filter genes with zero total counts
     gene_totals = counts.sum(axis=0)
     counts = counts.loc[:, gene_totals > 0]
     if counts.shape[1] < 10:
         return pd.DataFrame()
 
-    # Metadata: assign condition based on prefix matching
     metadata = pd.DataFrame({
         "condition": [ref_id if s in ref_samples else treat_id for s in counts.index]
     }, index=counts.index)
@@ -514,7 +487,6 @@ def run_pydeseq2(counts_df, ref_id, treat_id):
 
     cell_type = counts_df["cell_type"].iloc[0] if "cell_type" in counts_df.columns else "unknown"
 
-    # Fit DESeq2 (no fallback — pseudo-reps should provide enough replicates)
     dds = DeseqDataSet(
         counts=counts,
         metadata=metadata,
@@ -525,7 +497,6 @@ def run_pydeseq2(counts_df, ref_id, treat_id):
     stat_res.summary()
     results_df = stat_res.results_df.copy()
 
-    # Format output
     results_df["gene"] = results_df.index
     results_df = results_df.rename(columns={
         "log2FoldChange": "log2FC",
@@ -537,7 +508,6 @@ def run_pydeseq2(counts_df, ref_id, treat_id):
     results_df["significant"] = (
         (results_df["pval_adj"] < 0.05) & (results_df["log2FC"].abs() > 1)
     )
-    # Fill NaN significance as False
     results_df["significant"] = results_df["significant"].fillna(False)
 
     cols = ["gene", "cell_type", "comparison", "baseMean", "log2FC",
@@ -551,9 +521,6 @@ def run_pydeseq2(counts_df, ref_id, treat_id):
     return results_df
 
 
-# ────────────────────────────────────────────────────────────
-# 4. Diagnostic plots (PyDESeq2)
-# ────────────────────────────────────────────────────────────
 
 import matplotlib
 matplotlib.use("Agg")
@@ -584,7 +551,6 @@ def pydeseq2_diagnostic_plots(results_df, output_prefix, treat_id, ref_id):
     if len(valid) < 10:
         return False
 
-    # ── P-value histogram ──
     fig, ax = plt.subplots(figsize=(8, 6))
     pvals = valid["pval"].values
     n_bins = 50
@@ -594,7 +560,6 @@ def pydeseq2_diagnostic_plots(results_df, output_prefix, treat_id, ref_id):
     ax.axhline(expected, color="red", linestyle="--", linewidth=1.5,
                label=f"Expected uniform ({expected:.0f}/bin)")
 
-    # Enrichment near 0 annotation
     near_zero = np.sum(pvals < 0.05)
     total = len(pvals)
     ax.axvline(0.05, color="orange", linestyle=":", linewidth=1, alpha=0.7)
@@ -614,7 +579,6 @@ def pydeseq2_diagnostic_plots(results_df, output_prefix, treat_id, ref_id):
                 bbox_inches="tight", facecolor="white")
     plt.close()
 
-    # ── MA plot (log2FC vs baseMean) ──
     fig, ax = plt.subplots(figsize=(8, 6))
     plot_df = valid.copy()
     plot_df["baseMean_log"] = np.log10(plot_df["baseMean"].clip(lower=1))
@@ -653,9 +617,6 @@ def pydeseq2_diagnostic_plots(results_df, output_prefix, treat_id, ref_id):
     return True
 
 
-# ────────────────────────────────────────────────────────────
-# 5. QC / Exploration plots (best practices)
-# ────────────────────────────────────────────────────────────
 
 def pca_exploration_plot(adata, output_path, sample_col="sample_id",
                          condition_map=None):
@@ -681,7 +642,6 @@ def pca_exploration_plot(adata, output_path, sample_col="sample_id",
         logger.warning(f"PCA skipped: only {len(samples)} samples (need >= 3)")
         return False
 
-    # Aggregate per sample
     raw = adata.raw.to_adata()
     rows = []
     for sample in samples:
@@ -706,7 +666,6 @@ def pca_exploration_plot(adata, output_path, sample_col="sample_id",
         count_rows.append(np.array(raw[mask].X.sum(axis=0)).flatten())
     counts_df = pd.DataFrame(count_rows, index=meta.index, columns=raw.var_names)
 
-    # Build AnnData for PCA
     pb_adata = sc.AnnData(X=counts_df.values, obs=meta,
                           var=pd.DataFrame(index=counts_df.columns))
     sc.pp.normalize_total(pb_adata, target_sum=1e6)
@@ -714,7 +673,6 @@ def pca_exploration_plot(adata, output_path, sample_col="sample_id",
     sc.pp.scale(pb_adata, max_value=10)
     sc.tl.pca(pb_adata)
 
-    # Plot
     color_by = ["cell_type", "n_cells"]
     if condition_map:
         color_by.append("condition")
@@ -731,13 +689,11 @@ def pca_exploration_plot(adata, output_path, sample_col="sample_id",
         vals = pb_adata.obs[col]
 
         if pd.api.types.is_numeric_dtype(vals):
-            # Continuous coloring (e.g., n_cells)
             sc = ax.scatter(pca_coords[:, 0], pca_coords[:, 1],
                             c=vals.values, cmap="viridis", s=100,
                             edgecolor="black", linewidth=0.5)
             plt.colorbar(sc, ax=ax, label=col)
         else:
-            # Categorical coloring
             categories = sorted(vals.unique())
             palette = sns.color_palette("colorblind", len(categories))
             for j, cat in enumerate(categories):
@@ -753,7 +709,6 @@ def pca_exploration_plot(adata, output_path, sample_col="sample_id",
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
 
-        # Label sample names
         for k, sample_name in enumerate(meta.index):
             ax.annotate(sample_name, (pca_coords[k, 0], pca_coords[k, 1]),
                         fontsize=6, alpha=0.7, ha="left", va="bottom")
@@ -826,7 +781,6 @@ def sample_filter_plot(adata, output_path, sample_col="sample_id",
                  fontsize=12, fontweight="bold")
     ax.legend(fontsize=10, loc="lower right")
 
-    # Annotate failed samples
     for _, row in failed.iterrows():
         ax.annotate(f"{row['sample']}\n({row['cell_type']})",
                     (row["n_cells"], row["n_counts"]),
@@ -869,9 +823,6 @@ def pseudobulk_summary_plot(written_records, output_path):
     logger.info(f"  Summary plot: {output_path}")
 
 
-# ────────────────────────────────────────────────────────────
-# 6. Result plotting (volcano, heatmap, GO, overlap)
-# ────────────────────────────────────────────────────────────
 
 def load_all_deg(deg_dir, label_prefix):
     """Load and concatenate all DEG CSVs matching a tissue prefix.
@@ -974,14 +925,12 @@ def volcano_plot(deg_df, cell_type, comparison, output_path, title=None,
     up = sig_df[sig_df["log2FC"] > 0]
     dn = sig_df[sig_df["log2FC"] < 0]
 
-    # Skip if no significant DEGs
     if len(sig_df) == 0:
         return False
 
     fig, ax = plt.subplots(figsize=(8, 6))
     not_sig = sub[~sub["sig"]]
 
-    # Plot ALL NS genes as background
     if len(not_sig) > 0:
         ax.scatter(not_sig["log2FC"], not_sig["nlogp"],
                    s=2, c="#cccccc", alpha=0.3, edgecolor="none",
@@ -995,8 +944,6 @@ def volcano_plot(deg_df, cell_type, comparison, output_path, title=None,
                    s=25, c="#1f77b4", alpha=0.9, edgecolor="darkblue",
                    linewidth=0.3, label=f"Down ({len(dn)})", zorder=4)
 
-    # Label genes with auto-repulsion
-    # When highlight_genes is provided, only label those; otherwise top_n per direction
     texts = []
     if not highlight_genes:
         for _, r in pd.concat([up.nlargest(top_n, "nlogp"),
@@ -1004,19 +951,12 @@ def volcano_plot(deg_df, cell_type, comparison, output_path, title=None,
             texts.append(ax.text(r["log2FC"], r["nlogp"], r["gene"],
                                  fontsize=7, color="black", zorder=5))
 
-    # Highlight custom genes (e.g. aging markers, SASP factors)
-    # Added to the same `texts` pool as top-N labels so adjustText
-    # repels ALL labels from each other (fixed-offset annotate caused
-    # overlapping labels when many highlights share similar coordinates).
     if highlight_genes:
         for gene_name in highlight_genes:
             gene_row = sub[sub["gene"] == gene_name]
             if len(gene_row) == 0:
                 continue
             g = gene_row.iloc[0]
-            # NaN coordinates (pval_adj NaN → nlogp NaN) poison adjust_text:
-            # one NaN makes it move EVERY label to NaN. Use finite rows only;
-            # pval NaN → display as NS at pval (not padj).
             if not (np.isfinite(g["log2FC"]) and np.isfinite(g["nlogp"])):
                 p = g["pval"] if np.isfinite(g.get("pval", np.nan)) else 1.0
                 if not np.isfinite(p):
@@ -1031,7 +971,6 @@ def volcano_plot(deg_df, cell_type, comparison, output_path, title=None,
         adjust_text(texts, ax=ax, arrowprops=dict(arrowstyle="-",
                     color="gray", lw=0.5, alpha=0.6))
 
-    # Threshold lines: p=0.05 and |log2FC|=1
     ax.axhline(-np.log10(0.05), color="black", linestyle="--",
                linewidth=0.7, alpha=0.6)
     ax.axvline(1, color="black", linestyle="--", linewidth=0.7, alpha=0.6)
@@ -1138,7 +1077,6 @@ def go_dotplot(go_file, output_path, title, top_n=12):
         return False
     df = df.sort_values("pvalue").head(top_n).copy()
 
-    # Parse GeneRatio "k/n" → float
     if "GeneRatio" in df.columns:
         parts = df["GeneRatio"].str.split("/", expand=True)
         df["gene_ratio_num"] = parts[0].astype(float) / parts[1].astype(float)
@@ -1167,7 +1105,6 @@ def go_dotplot(go_file, output_path, title, top_n=12):
     cbar = plt.colorbar(sc_plot, ax=ax, shrink=0.8, pad=0.02)
     cbar.set_label("-log10(pvalue)", fontsize=10)
 
-    # Size legend for dot interpretation
     nlogp_legend_vals = [v for v in [2, 5, 10] if v <= df["nlogp"].max()]
     if nlogp_legend_vals:
         x_legend = df["gene_ratio_num"].max() * 1.15
@@ -1215,12 +1152,10 @@ def deg_overlap_bar(deg_df, sets_to_compare, output_path, title):
     n = len(keys)
     overlap_data = {}
 
-    # Genes shared by ALL comparisons (only meaningful when n >= 3)
     if n >= 3:
         common_all = set.intersection(*sig_per_set.values())
         overlap_data["All"] = len(common_all)
 
-    # Pairwise: genes in exactly this pair, NOT in any other set
     for i, j in combinations(range(n), 2):
         label = f"{keys[i]} & {keys[j]}"
         shared = sig_per_set[keys[i]] & sig_per_set[keys[j]]
@@ -1229,7 +1164,6 @@ def deg_overlap_bar(deg_df, sets_to_compare, output_path, title):
                 shared -= sig_per_set[keys[k]]
         overlap_data[label] = len(shared)
 
-    # Unique: genes found ONLY in this comparison, not in any other
     for i in range(n):
         label = f"Only {keys[i]}"
         only = sig_per_set[keys[i]].copy()
@@ -1256,9 +1190,6 @@ def deg_overlap_bar(deg_df, sets_to_compare, output_path, title):
     plt.close()
 
 
-# ────────────────────────────────────────────────────────────
-# 7. Plot orchestration
-# ────────────────────────────────────────────────────────────
 
 def plot_all(config, out_dir, deg_dir, go_dir, fig_dir, top_cell_types=None,
              highlight_genes=None):
@@ -1291,7 +1222,6 @@ def plot_all(config, out_dir, deg_dir, go_dir, fig_dir, top_cell_types=None,
         prefix = f"{tissue}_"
         tissue_deg_dir = os.path.join(deg_dir, f"deg_{tissue}")
 
-        # Load DEG results for this tissue
         t_deg = load_all_deg(tissue_deg_dir, prefix)
         if len(t_deg) == 0:
             logger.warning(f"[{tissue}] No DEG results found, skipping plots")
@@ -1299,7 +1229,6 @@ def plot_all(config, out_dir, deg_dir, go_dir, fig_dir, top_cell_types=None,
         all_deg_frames.append(t_deg)
         logger.info(f"  [{tissue}] DEG rows: {len(t_deg)}")
 
-        # 1. Count heatmap (cross-comparison → fig_dir)
         os.makedirs(fig_dir, exist_ok=True)
         deg_count_heatmap(
             t_deg, cmap,
@@ -1307,7 +1236,6 @@ def plot_all(config, out_dir, deg_dir, go_dir, fig_dir, top_cell_types=None,
             os.path.join(fig_dir, f"{tissue}_DEG_count_heatmap.png"),
         )
 
-        # 2. Volcano + expression heatmap + GO dotplot (per comparison → comp_dir/ct_dir)
         adata = sc.read_h5ad(cfg["h5ad"])
 
         for comp in cfg["comparisons"]:
@@ -1315,8 +1243,6 @@ def plot_all(config, out_dir, deg_dir, go_dir, fig_dir, top_cell_types=None,
             label = comp["label"]
             comp_dir = os.path.join(tissue_deg_dir, f"{tissue}_{key}")
 
-            # Pick cell types: user-specified, or top 3 by sig count,
-            # or all cell types if no significant genes found
             if top_cell_types:
                 cts = top_cell_types
             else:
@@ -1346,7 +1272,6 @@ def plot_all(config, out_dir, deg_dir, go_dir, fig_dir, top_cell_types=None,
                 if ok:
                     logger.info(f"    heatmap: {tissue}/{ct}/{label}")
 
-            # GO dotplots → ct_dir
             if os.path.isdir(go_dir):
                 for go_file in sorted(os.listdir(go_dir)):
                     if not go_file.endswith(".csv"):
@@ -1355,7 +1280,6 @@ def plot_all(config, out_dir, deg_dir, go_dir, fig_dir, top_cell_types=None,
                         continue
                     if "_kegg_" in go_file:
                         continue
-                    # Match: {tissue}_{key}_{cell_type}_go_{dir}.csv
                     expected_prefix = f"{tissue}_{key}_"
                     if not go_file.startswith(expected_prefix):
                         continue
@@ -1373,7 +1297,6 @@ def plot_all(config, out_dir, deg_dir, go_dir, fig_dir, top_cell_types=None,
                     if ok:
                         logger.info(f"    GO: {base}")
 
-        # 3. Overlap bar plot (cross-comparison → fig_dir)
         if len(cfg["comparisons"]) >= 2:
             sets = [(c["label"], c["key"]) for c in cfg["comparisons"]]
             deg_overlap_bar(
@@ -1382,16 +1305,12 @@ def plot_all(config, out_dir, deg_dir, go_dir, fig_dir, top_cell_types=None,
                 f"{tissue.title()}: DEG overlap across {len(sets)} comparisons",
             )
 
-    # Save combined DEG table across all tissues
     if all_deg_frames:
         all_deg = pd.concat(all_deg_frames, ignore_index=True)
         all_deg.to_csv(os.path.join(deg_dir, "all_pseudobulk_DEG.csv"), index=False)
         logger.info(f"\nCombined DEG: {len(all_deg)} rows -> {deg_dir}/all_pseudobulk_DEG.csv")
 
 
-# ────────────────────────────────────────────────────────────
-# 8. Main
-# ────────────────────────────────────────────────────────────
 
 def parse_cli_args(argv=None):
     """Parse CLI arguments and build the internal config dict.
@@ -1474,18 +1393,15 @@ Examples:
                              "all (default, genes+TE). Multiple modes run sequentially.")
     args = parser.parse_args(argv)
 
-    # Load config from YAML or CLI args
     if args.comp_config:
         config = load_config(args.comp_config)
     elif args.h5ad and args.compare:
         config = {}
-        # Parse --h5ad tissue=path
         for item in args.h5ad:
             if "=" not in item:
                 parser.error(f"--h5ad format: tissue=path, got: {item}")
             tissue, path = item.split("=", 1)
             config[tissue] = {"h5ad": path, "comparisons": []}
-        # Parse --counts-h5ad tissue=path (optional merged count source)
         for item in (args.counts_h5ad or []):
             if "=" not in item:
                 parser.error(f"--counts-h5ad format: tissue=path, got: {item}")
@@ -1493,9 +1409,7 @@ Examples:
             if tissue not in config:
                 parser.error(f"Unknown tissue '{tissue}', define it with --h5ad first")
             config[tissue]["counts_h5ad"] = path
-        # Parse --compare tissue:ref:treat[=label]
         for item in args.compare:
-            # Split on = for label (only the last =)
             if "=" in item:
                 pair, label = item.rsplit("=", 1)
             else:
@@ -1523,7 +1437,7 @@ def main():
     """Entry point: prepare counts → PyDESeq2 DEG → generate figures."""
     args, config = parse_cli_args()
 
-    modes = args.deg_mode  # e.g. ["gene", "te", "all"]
+    modes = args.deg_mode
 
     for mode in modes:
         mode_suffix = "" if mode == "all" else f"_{mode}"
@@ -1536,7 +1450,6 @@ def main():
         logger.info(f"DEG MODE: {mode}")
         logger.info("=" * 60)
 
-        # ── Step 1: Prepare counts ──
         if not args.skip_prepare:
             logger.info("=" * 60)
             logger.info("STEP 1: Prepare pseudo-bulk counts")
@@ -1558,7 +1471,6 @@ def main():
                     os.path.join(counts_dir, "pseudobulk_summary.csv"), index=False)
                 logger.info(f"\nTotal count files: {len(all_written)}")
 
-                # QC plots (PCA, sample filtering, summary)
                 if not args.skip_qc:
                     logger.info("\n--- QC / Exploration plots ---")
                     os.makedirs(fig_dir, exist_ok=True)
@@ -1585,7 +1497,6 @@ def main():
         else:
             tissue_adata = {}
 
-        # ── Step 2: PyDESeq2 DEG ──
         if not args.skip_deseq2:
             logger.info("\n" + "=" * 60)
             logger.info("STEP 2: PyDESeq2 DEG analysis")
@@ -1637,7 +1548,6 @@ def main():
                             treat_id, ref_id,
                         )
 
-        # ── Step 3: Plot ──
         if not args.skip_plot:
             logger.info("\n" + "=" * 60)
             logger.info("STEP 3: Generate figures")

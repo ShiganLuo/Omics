@@ -43,8 +43,6 @@ from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import PP_ALIGN
 from pptx.util import Inches, Pt
 
-# setup_logger copied verbatim from src/common/util/LogUtil (module bin
-# scripts are self-contained per modules.md 脚本撰写规范 #0).
 from typing import Optional as _Optional, TextIO as _TextIO
 import logging as _logging
 
@@ -101,13 +99,9 @@ logger = setup_logger("DR_report", stream=sys.stdout)
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
-# ── 上游产出图 raster-first 变体解析(modules.md #9 formats 规范;与
-# Mutation_report/RNAseq_report 一致)──
 _PICK_EXTS = ("png", "jpg", "jpeg", "tif", "tiff",
               "pdf", "svg", "ps", "eps", "pgf", "raw", "rgba")
 _RASTER_EXTS = ("png", "jpg", "jpeg", "tif", "tiff")
@@ -137,9 +131,6 @@ def _embeddable(path: Optional[str]) -> bool:
             and os.path.splitext(path)[1].lower() in _RASTER_EXTS)
 
 
-# ============================================================
-# I18N (zh default / en)
-# ============================================================
 
 I18N = {
     "zh": {
@@ -213,9 +204,6 @@ def _setup_cjk_font() -> None:
             continue
 
 
-# ============================================================
-# Layout & colors (house report style, cf. Mutation_report)
-# ============================================================
 SLIDE_W = 10.0
 SLIDE_H = 5.625
 HEADER_H = 0.65
@@ -232,14 +220,10 @@ C_MUTED = RGBColor(0x74, 0x74, 0x74)
 C_WHITE = RGBColor(0xFF, 0xFF, 0xFF)
 C_ROW_ALT = RGBColor(0xF1, 0xF5, 0xFA)
 
-# QC thresholds surfaced in the summary (PASS/WARN coloring only)
-ALIGN_THRESH = 80.0        # mapped rate % below -> WARN
-DUP_WARN = 30.0            # duplication % above -> WARN
+ALIGN_THRESH = 80.0
+DUP_WARN = 30.0
 
 
-# ============================================================
-# PPT helpers (copied from modules/Mutation_report/bin/generate_report.py)
-# ============================================================
 
 def _header(slide, text: str) -> None:
     bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, Inches(SLIDE_W), Inches(HEADER_H))
@@ -310,7 +294,7 @@ def _picture_or_note(slide, path: Optional[str], caption: str, lang: str,
 def _add_picture(slide, path: str, left: float, top: float,
                  max_w: float, max_h: float) -> None:
     """Insert a picture scaled to fit (max_w x max_h), keeping aspect ratio."""
-    from PIL import Image as PILImage  # python-pptx 依赖 Pillow,惰性导入
+    from PIL import Image as PILImage
     img = PILImage.open(path)
     aspect = img.size[0] / max(img.size[1], 1)
     width = max_w
@@ -322,20 +306,12 @@ def _add_picture(slide, path: str, left: float, top: float,
                              Inches(width), Inches(height))
 
 
-# Bottom margin floor for content (report-module-creation table sizing):
-# y + table height must stay below this line.
 _SLIDE_BOTTOM = SLIDE_H - 0.22
 
 
-# ============================================================
-# Figure rendering (matplotlib; embedded raster + figures/ 导出)
-# ============================================================
 
-# 报告自有图除嵌入 PPTX 外,还作为独立交付物写到 <report_dir>/figures/
-# <name>.<fmt>(每种请求格式一个文件);manifest.tsv 逐行列出
-# name<TAB>filename,让 DAG 在不逐一声明条件图的情况下保持诚实。
-FIG_DIR = ""  # set in main(): <img_dir>
-_MANIFEST_PATH = ""  # set in main(): <img_dir>/manifest.tsv
+FIG_DIR = ""
+_MANIFEST_PATH = ""
 _FIG_MANIFEST: List[Tuple[str, str]] = []
 
 
@@ -378,9 +354,6 @@ def write_fig_manifest() -> str:
     return _MANIFEST_PATH
 
 
-# ============================================================
-# Data collection (DNA chain; collectors copied from Mutation_report)
-# ============================================================
 
 def count_vcf_variants(path: str) -> Optional[int]:
     """Count DATA rows in a (bgzipped) VCF via streaming read."""
@@ -516,9 +489,6 @@ def collect_sexcheck_rows(path: str, max_cols: int = 8,
     return df_to_table_rows(df, max_cols=max_cols, max_rows=max_rows)
 
 
-# ============================================================
-# DR-unique data collection (burden / DRclass / TransEffect)
-# ============================================================
 
 DRCLASS_LABELS = ["D1R1", "D1R2", "D1R3", "D1R4", "D1R6", "D1R5",
                   "D2R1", "D3R1", "D6R1", "D5R1", "D0R1", "R1-ANCHOR-REJ"]
@@ -540,9 +510,6 @@ def load_teffect_tables(teffect_dir: str) -> Dict[str, pd.DataFrame]:
     return out
 
 
-# ============================================================
-# RNA chain data collection
-# ============================================================
 
 def count_lines(path: str) -> int:
     """Count non-empty lines of a text file (0 when absent)."""
@@ -581,9 +548,6 @@ def collect_func_top_terms(func_dir: str, csv_name: str, top: int = 3) -> List[s
     return [str(v) for v in df.iloc[:top, 0].tolist() if not pd.isna(v)]
 
 
-# ============================================================
-# Report-own charts
-# ============================================================
 
 def plot_somatic_counts(rows: List[List[str]],
                         image_formats: Optional[List[PlotFormat]] = None,
@@ -692,9 +656,6 @@ def plot_de_updown(rows: List[List[str]],
     return raster
 
 
-# ============================================================
-# Excel workbook
-# ============================================================
 
 _MAX_ROWS = 5000
 
@@ -767,9 +728,6 @@ class _SheetWriter:
         self.wb.save(self.output_path)
 
 
-# ============================================================
-# Slides
-# ============================================================
 
 def _qc_sexcheck_slide(slide, root: str, lang: str) -> None:
     """DNA/RNA QC slide: qc_summary table + sexcheck table, hard-clipped to
@@ -808,7 +766,6 @@ def build_report(args: argparse.Namespace) -> None:
     pairs: List[Tuple[str, str]] = args.pairs
     genome = args.genome or args.genome_label
 
-    # ---- S1 title ----
     s = prs.slides.add_slide(blank)
     _bg(s)
     bar = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, Inches(1.6), Inches(SLIDE_W), Inches(1.5))
@@ -822,7 +779,6 @@ def build_report(args: argparse.Namespace) -> None:
         _textbox(s, 0.8, 3.4, SLIDE_W - 1.6, 1.2, args.pipeline, font_size=11,
                  color=C_MUTED, align=PP_ALIGN.CENTER)
 
-    # ---- S2 overview ----
     s = new_slide(_t("overview", lang))
     cards = [
         (_t("chain_dna", lang),
@@ -848,11 +804,9 @@ def build_report(args: argparse.Namespace) -> None:
         _textbox(s, MARGIN_L, CONTENT_TOP + 2.4, CONTENT_W, 1.6, args.pipeline,
                  font_size=10, color=C_TEXT)
 
-    # ---- S3 DNA QC ----
     s = new_slide(f"{_t('dna_qc', lang)} (DNA)")
     _qc_sexcheck_slide(s, args.dna_dir, lang)
 
-    # ---- S4 DNA variants (somatic + MSI) ----
     s = new_slide(_t("dna_variants", lang))
     somatic_rows = collect_somatic(os.path.join(args.dna_dir, "variation", "somatic_snv_indel"), pairs)
     if somatic_rows:
@@ -874,7 +828,6 @@ def build_report(args: argparse.Namespace) -> None:
         _textbox(s, MARGIN_L, CONTENT_TOP + 1.5, CONTENT_W, 0.5,
                  _t("not_run", lang), font_size=12, color=C_MUTED, align=PP_ALIGN.CENTER)
 
-    # ---- S5 spectrum / signatures ----
     s = new_slide(_t("spectrum", lang))
     spec_dir = os.path.join(args.dna_dir, "stability", "spectrum")
     figs = [_pick_variant(os.path.join(spec_dir, n)) for n in
@@ -889,13 +842,11 @@ def build_report(args: argparse.Namespace) -> None:
     if not shown:
         _picture_or_note(s, None, _t("spectrum", lang), lang)
 
-    # ---- S6 fragment size ----
     s = new_slide(_t("fragment", lang))
     frag = _pick_variant(os.path.join(args.dna_dir, "results", "fragment_size",
                                       "fragment", "FragmentSize.png"))
     _picture_or_note(s, frag, _t("fragment", lang), lang)
 
-    # ---- S7 burden (DR-unique) ----
     s = new_slide(f"★ {_t('burden', lang)}")
     bdf = load_burden_summary(args.burden_dir)
     if bdf is not None and not bdf.empty:
@@ -909,11 +860,9 @@ def build_report(args: argparse.Namespace) -> None:
     else:
         _picture_or_note(s, None, _t("burden", lang), lang)
 
-    # ---- S8 RNA QC ----
     s = new_slide(f"{_t('rna_qc', lang)} (RNA)")
     _qc_sexcheck_slide(s, args.rna_dir, lang)
 
-    # ---- S9 TE chimeric ----
     s = new_slide(_t("te_chimeric", lang))
     te_dir = os.path.join(args.rna_dir, "transcripts", args.genome_label, "TE_chimeric")
     te_df = read_table(os.path.join(te_dir, "TE_chimeric_sample_summary.tsv"), sep="\t")
@@ -928,7 +877,6 @@ def build_report(args: argparse.Namespace) -> None:
     else:
         _picture_or_note(s, None, _t("te_chimeric", lang), lang)
 
-    # ---- S10 DE ----
     s = new_slide(_t("de", lang))
     de_rows = collect_de_summary(args.rna_dir, args.genome_label, args.contrasts)
     if de_rows:
@@ -943,7 +891,6 @@ def build_report(args: argparse.Namespace) -> None:
     else:
         _picture_or_note(s, None, _t("de", lang), lang)
 
-    # ---- S11 function ----
     s = new_slide(_t("func", lang))
     items: List[str] = []
     for contrast in args.contrasts:
@@ -967,7 +914,6 @@ def build_report(args: argparse.Namespace) -> None:
     else:
         _picture_or_note(s, None, _t("func", lang), lang)
 
-    # ---- S12 fusion ----
     s = new_slide(_t("fusion", lang))
     fu_dir = os.path.join(args.rna_dir, "fusion", args.genome_label, "arriba_report")
     fu_df = read_table(os.path.join(fu_dir, "per_sample_summary.tsv"), sep="\t")
@@ -982,7 +928,6 @@ def build_report(args: argparse.Namespace) -> None:
     else:
         _picture_or_note(s, None, _t("fusion", lang), lang)
 
-    # ---- S13 DRclass (DR-unique) ----
     s = new_slide(f"★ {_t('drclass', lang)}")
     ddf = load_drclass_summary(args.drclass_dir)
     if ddf is not None and not ddf.empty:
@@ -996,7 +941,6 @@ def build_report(args: argparse.Namespace) -> None:
     else:
         _picture_or_note(s, None, _t("drclass", lang), lang)
 
-    # ---- S14 TransEffect (DR-unique) ----
     s = new_slide(f"★ {_t('teffect', lang)}")
     teffect = load_teffect_tables(args.teffect_dir)
     if teffect:
@@ -1019,7 +963,6 @@ def build_report(args: argparse.Namespace) -> None:
     else:
         _picture_or_note(s, None, _t("teffect", lang), lang)
 
-    # ---- S15 conclusion ----
     s = new_slide(_t("conclusion", lang))
     n_pairs = sum(1 for r in collect_somatic(
         os.path.join(args.dna_dir, "variation", "somatic_snv_indel"), pairs) if r[3] != "NA")
@@ -1042,9 +985,6 @@ def build_report(args: argparse.Namespace) -> None:
     prs.save(args.output)
 
 
-# ============================================================
-# Excel inventory
-# ============================================================
 
 def write_results_excel(output_path: str, args: argparse.Namespace) -> None:
     """Write the results workbook: one sheet per analysis output plus a
@@ -1053,7 +993,6 @@ def write_results_excel(output_path: str, args: argparse.Namespace) -> None:
     w = _SheetWriter(output_path)
     gl = args.genome_label
 
-    # DNA chain
     w.write_df("dna_qc", read_table(os.path.join(args.dna_dir, "QC", "qc_summary", "qc_summary.tsv")))
     w.write_df("dna_sexcheck", read_table(os.path.join(args.dna_dir, "QC", "sexcheck", "sexcheck.tsv")))
     w.write_rows("somatic_calls",
@@ -1067,7 +1006,6 @@ def write_results_excel(output_path: str, args: argparse.Namespace) -> None:
     w.write_df("signature_nmf_best", read_table(os.path.join(spec_dir, "signature_nmf_cosmic_best_match.csv"), ","))
     w.write_df("burden_summary", load_burden_summary(args.burden_dir))
 
-    # DR-unique
     w.write_df("drclass_summary", load_drclass_summary(args.drclass_dir))
     if os.path.isdir(args.drclass_dir):
         for sample in sorted(os.listdir(args.drclass_dir)):
@@ -1078,7 +1016,6 @@ def write_results_excel(output_path: str, args: argparse.Namespace) -> None:
     for stem, df in load_teffect_tables(args.teffect_dir).items():
         w.write_df(f"teffect_{stem}", df)
 
-    # RNA chain
     w.write_df("rna_qc", read_table(os.path.join(args.rna_dir, "QC", "qc_summary", "qc_summary.tsv")))
     w.write_df("rna_sexcheck", read_table(os.path.join(args.rna_dir, "QC", "sexcheck", "sexcheck.tsv")))
     te_dir = os.path.join(args.rna_dir, "transcripts", gl, "TE_chimeric")
@@ -1109,7 +1046,6 @@ def write_results_excel(output_path: str, args: argparse.Namespace) -> None:
                         ("inframe_fusions.tsv", "inframe_fusions")):
         w.write_df(sheet, read_table(os.path.join(fu_dir, name)))
 
-    # file inventory
     inv: List[List[str]] = [["path"]]
     for root in (args.dna_dir, args.rna_dir, args.drclass_dir, args.teffect_dir):
         if root and os.path.isdir(root):
@@ -1121,9 +1057,6 @@ def write_results_excel(output_path: str, args: argparse.Namespace) -> None:
     w.save()
 
 
-# ============================================================
-# CLI
-# ============================================================
 
 def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__,
@@ -1180,7 +1113,6 @@ def main(argv: Optional[List[str]] = None) -> int:
         os.makedirs(os.path.dirname(os.path.abspath(args.log)), exist_ok=True)
     logger = setup_logger("DR_report", stream=sys.stdout, log_file=args.log)
 
-    # resolve section roots (explicit flag wins, else derive from analysis-dir)
     if not args.dna_dir:
         args.dna_dir = os.path.join(args.analysis_dir, "DNA")
     if not args.rna_dir:

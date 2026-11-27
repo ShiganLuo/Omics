@@ -28,8 +28,6 @@ DPI = 300
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
@@ -90,7 +88,6 @@ def compute_enrichment_single_pair(df_pair, method):
         if not has_reads:
             raise ValueError("method='reads' requires ip_reads/input_reads columns in data. "
                              "Ensure --ip-bam and --input-bam are provided to intersect_te.py")
-        # Sum reads per subfamily directly (ip_reads and input_reads are in the same row)
         agg = df_pair.groupby("te_subfamily").agg(
             ip_total=("ip_reads", "sum"),
             input_total=("input_reads", "sum"),
@@ -163,27 +160,22 @@ def plot_single_pair(df_pair, pairs, ip_name, input_name, out_base,
         raise ValueError(
             f"Unsupported image format(s): {', '.join(bad)}; "
             f"valid: {', '.join(VALID_FORMATS)}")
-    # Compute enrichment
     log2fc = compute_enrichment_single_pair(df_pair, method)
     if log2fc.empty:
         logger.warning(f"No enrichment data for {ip_name} vs {input_name}")
         return
 
-    # Select top N
     sorted_subfamilies = select_top_subfamilies(log2fc, df_pair, top_n)
     log2fc = log2fc.loc[sorted_subfamilies]
 
-    # Sort display
     mean_length = df_pair.groupby("te_subfamily")["te_length"].mean()
     if sort_by == "te_length":
         common = log2fc.index.intersection(mean_length.index)
         sorted_subfamilies = mean_length.loc[common].sort_values().index.tolist()
         log2fc = log2fc.reindex(sorted_subfamilies)
-    # else: already sorted by enrichment descending
 
     mean_length = mean_length.reindex(sorted_subfamilies)
 
-    # Build figure
     fig, (ax_top, ax_bot) = plt.subplots(
         2, 1,
         figsize=(max(12, len(sorted_subfamilies) * 0.5), 8),
@@ -193,14 +185,12 @@ def plot_single_pair(df_pair, pairs, ip_name, input_name, out_base,
 
     x_pos = np.arange(len(sorted_subfamilies))
 
-    # Top: mean TE length
     lengths = [mean_length.get(sf, 0) for sf in sorted_subfamilies]
     ax_top.plot(x_pos, lengths, color="black", linewidth=1.5)
     ax_top.set_ylabel("Mean TE length (bp)", fontsize=11)
     ax_top.set_xlim(-0.5, len(sorted_subfamilies) - 0.5)
     ax_top.grid(axis="y", alpha=0.3)
 
-    # Bottom: bar chart log2(IP/Input)
     values = [log2fc.get(sf, 0) for sf in sorted_subfamilies]
     colors = ["#DD8452" if v > 0 else "#4C72B0" for v in values]
     ax_bot.bar(x_pos, values, color=colors, width=0.6, edgecolor="black", linewidth=0.3)
@@ -257,9 +247,6 @@ def plot_combined(df_all, pairs, out_base, image_formats=None,
         gridspec_kw={"height_ratios": [1, 2] * n_pairs},
     )
     if n_pairs == 1:
-        # plt.subplots(2, 1) already returns both axes; unwrap them as a
-        # flat list so the per-pair indexing below works for any n_pairs
-        # (a bare [axes] wraps the array instead and breaks axes[1])
         axes = list(axes)
 
     from matplotlib.patches import Patch
@@ -272,7 +259,6 @@ def plot_combined(df_all, pairs, out_base, image_formats=None,
         ax_top = axes[idx * 2]
         ax_bot = axes[idx * 2 + 1]
 
-        # Filter data for this pair
         pair_samples = [ip_name, input_name]
         df_pair = df_all[df_all["sample_id"].isin(pair_samples)].copy()
         df_pair["condition"] = df_pair["sample_id"].apply(
@@ -295,7 +281,6 @@ def plot_combined(df_all, pairs, out_base, image_formats=None,
         mean_length = mean_length.reindex(sorted_subfamilies)
         x_pos = np.arange(len(sorted_subfamilies))
 
-        # Top
         lengths = [mean_length.get(sf, 0) for sf in sorted_subfamilies]
         ax_top.plot(x_pos, lengths, color="black", linewidth=1.5)
         ax_top.set_ylabel("Mean TE length (bp)", fontsize=9)
@@ -303,7 +288,6 @@ def plot_combined(df_all, pairs, out_base, image_formats=None,
         ax_top.grid(axis="y", alpha=0.3)
         ax_top.set_title(f"{ip_name} vs {input_name}", fontsize=11, fontweight="bold")
 
-        # Bottom
         values = [log2fc.get(sf, 0) for sf in sorted_subfamilies]
         colors = ["#DD8452" if v > 0 else "#4C72B0" for v in values]
         ax_bot.bar(x_pos, values, color=colors, width=0.6, edgecolor="black", linewidth=0.3)
@@ -346,11 +330,9 @@ def main():
     logger.info(f"Loading {len(tsv_paths)} TSV files")
     df = load_tsvs(tsv_paths)
 
-    # Save combined TSV
     df.to_csv(args.combined_tsv, sep="\t", index=False)
     logger.info(f"Combined TSV saved to {args.combined_tsv}")
 
-    # Parse IP:Input pairs
     pairs = {}
     if args.ip_input_pairs:
         pairs = make_pairs(args.ip_input_pairs)
@@ -358,11 +340,9 @@ def main():
 
     image_formats = args.formats if args.formats else ["png"]
     if args.combine:
-        # Single combined plot (--output is the base path without extension)
         plot_combined(df, pairs, args.output, image_formats=image_formats,
                       method=args.method, sort_by=args.sort_by, top_n=args.top_n)
     else:
-        # Separate plot per pair
         output_dir = args.output
         os.makedirs(output_dir, exist_ok=True)
         for ip_name, input_name in pairs.items():

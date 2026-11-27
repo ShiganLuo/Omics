@@ -176,22 +176,17 @@ def compare_groups(
     >>> after = [12, 14, 16, 18, 20]
     >>> result = compare_groups(before, after, paired=True)
     """
-    # Input validation
     if len(group1) < 2 or len(group2) < 2:
         raise ValueError("Each group must have at least 2 data points")
 
-    # Convert to numpy arrays
     g1 = np.array(group1, dtype=float)
     g2 = np.array(group2, dtype=float)
 
-    # Calculate basic statistics
     g1_mean, g1_std = np.mean(g1), np.std(g1, ddof=1)
     g2_mean, g2_std = np.mean(g2), np.std(g2, ddof=1)
 
-    # Check assumptions
     assumptions = {}
 
-    # Normality tests
     g1_normal, g1_normal_p, g1_normal_msg = check_normality(g1, alpha)
     g2_normal, g2_normal_p, g2_normal_msg = check_normality(g2, alpha)
 
@@ -206,10 +201,8 @@ def compare_groups(
         'message': g2_normal_msg
     }
 
-    # Both groups normal?
     both_normal = g1_normal and g2_normal
 
-    # Equal variance test (only if both groups are normal)
     if both_normal:
         equal_var, equal_var_p, equal_var_msg = check_equal_variance(g1, g2, alpha)
         assumptions['equal_variance'] = {
@@ -225,54 +218,42 @@ def compare_groups(
             'message': 'Skipped (not both groups are normal)'
         }
 
-    # Select and perform appropriate test
     if paired:
         if both_normal:
-            # Paired t-test
             test_name = "Paired t-test"
             statistic, p_value = stats.ttest_rel(g1, g2)
-            # Effect size: Cohen's d for paired samples
             diff = g1 - g2
             effect_size = np.mean(diff) / np.std(diff, ddof=1)
             effect_size_name = "Cohen's d"
         else:
-            # Wilcoxon signed-rank test
             test_name = "Wilcoxon signed-rank test"
             statistic, p_value = stats.wilcoxon(g1, g2)
-            # Effect size: rank-biserial correlation
             n = len(g1)
             effect_size = statistic / (n * (n + 1) / 2)
             effect_size_name = "rank-biserial r"
     else:
         if both_normal:
             if equal_var:
-                # Independent t-test (equal variance)
                 test_name = "Independent t-test (equal variance)"
                 statistic, p_value = stats.ttest_ind(g1, g2, equal_var=True)
             else:
-                # Welch's t-test (unequal variance)
                 test_name = "Welch's t-test (unequal variance)"
                 statistic, p_value = stats.ttest_ind(g1, g2, equal_var=False)
-            # Effect size: Cohen's d for independent samples
             pooled_std = np.sqrt(((len(g1) - 1) * g1_std**2 + (len(g2) - 1) * g2_std**2) /
                                  (len(g1) + len(g2) - 2))
             effect_size = (g1_mean - g2_mean) / pooled_std
             effect_size_name = "Cohen's d"
         else:
-            # Mann-Whitney U test
             test_name = "Mann-Whitney U test"
             statistic, p_value = stats.mannwhitneyu(g1, g2, alternative='two-sided')
-            # Effect size: rank-biserial correlation
             u1 = statistic
             u2 = len(g1) * len(g2) - u1
             u_max = max(u1, u2)
             effect_size = 1 - (2 * u_max) / (len(g1) * len(g2))
             effect_size_name = "rank-biserial r"
 
-    # Determine significance
     significant = p_value <= alpha
 
-    # Effect size interpretation
     abs_effect = abs(effect_size)
     if abs_effect < 0.2:
         effect_interp = "negligible"
@@ -283,7 +264,6 @@ def compare_groups(
     else:
         effect_interp = "large"
 
-    # Build interpretation
     if significant:
         interpretation = (
             f"There IS a statistically significant difference between the two groups "
@@ -297,7 +277,6 @@ def compare_groups(
             f"The effect size is {effect_interp} ({effect_size_name} = {effect_size:.4f})."
         )
 
-    # Prepare result
     result = {
         'test_name': test_name,
         'statistic': float(statistic),
@@ -315,7 +294,6 @@ def compare_groups(
         'assumptions': assumptions
     }
 
-    # logger.info detailed output if verbose
     if verbose:
         logger.info("=" * 70)
         logger.info("STATISTICAL COMPARISON OF TWO GROUPS")
@@ -394,7 +372,6 @@ def compare_groups_simple(
 
 
 if __name__ == "__main__":
-    # Example usage
     logger.info("Example 1: Independent samples (normal data)")
     logger.info("-" * 70)
     np.random.seed(42)
@@ -410,7 +387,6 @@ if __name__ == "__main__":
 
     logger.info("\n\nExample 3: Non-normal data (Mann-Whitney U)")
     logger.info("-" * 70)
-    # Skewed data
     group3 = np.random.exponential(scale=2, size=20).tolist()
     group4 = np.random.exponential(scale=3, size=20).tolist()
     result3 = compare_groups(group3, group4)

@@ -47,10 +47,6 @@ from typing import Callable, Dict, List, NamedTuple, Optional, Sequence, Tuple
 
 import numpy as np
 
-# ---------------------------------------------------------------------------
-# setup_logger copied verbatim from src/common/util/LogUtil.py (module bin
-# scripts are self-contained; provenance: Omics repo LogUtil, 2026-11).
-# ---------------------------------------------------------------------------
 from typing import Literal, TextIO  # noqa: E402
 
 PlotFormat = Literal["png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg", "jpeg", "pgf", "raw", "rgba"]
@@ -106,13 +102,13 @@ def setup_logger(
 logger = setup_logger("FiberCluster", stream=sys.stdout)
 
 
-Region = Tuple[str, str, int, int]  # (name, chrom, start, end)
-Blocks = List[Tuple[int, int]]  # absolute [start, end) intervals
-FiberRec = Tuple[str, Blocks, int, int]  # (read_name, element_blocks, fiber_start, fiber_end)
-FiberChrom = Dict[str, List[FiberRec]]  # chrom -> fiber records
-FiberSample = Dict[str, FiberChrom]  # sample -> chrom -> fiber records
-FireSample = Dict[str, Dict[str, List[Tuple[int, int, float]]]]  # sample -> chrom -> peaks (start, end, fdr)
-FireSeg = Tuple[int, int, int]  # (start, end, tier) tier: 2=q<=0.01, 1=0.01<q<=0.05, 0=0.05<q<=0.1
+Region = Tuple[str, str, int, int]
+Blocks = List[Tuple[int, int]]
+FiberRec = Tuple[str, Blocks, int, int]
+FiberChrom = Dict[str, List[FiberRec]]
+FiberSample = Dict[str, FiberChrom]
+FireSample = Dict[str, Dict[str, List[Tuple[int, int, float]]]]
+FireSeg = Tuple[int, int, int]
 
 
 class FiberRow(NamedTuple):
@@ -128,9 +124,6 @@ class FiberRow(NamedTuple):
     fire_segs: List[FireSeg]
 
 
-# ---------------------------------------------------------------------------
-# Input parsing
-# ---------------------------------------------------------------------------
 
 def parse_sample_paths(entries: Sequence[str], flag: str) -> Dict[str, Path]:
     """Parse repeated '<sample>=<path>' CLI entries into a sample->path map.
@@ -211,9 +204,6 @@ def read_regions_bed(path: Path) -> List[Region]:
     return regions
 
 
-# ---------------------------------------------------------------------------
-# BED12 streaming extraction
-# ---------------------------------------------------------------------------
 
 def merged_intervals(regions: Sequence[Region]) -> Dict[str, List[Tuple[int, int]]]:
     """Per-chromosome sorted disjoint [start, end) intervals of all regions."""
@@ -236,7 +226,7 @@ def merged_intervals(regions: Sequence[Region]) -> Dict[str, List[Tuple[int, int
 def _overlaps_any(spans: Sequence[Tuple[int, int]], start: int, end: int) -> bool:
     """True if [start, end) intersects any interval in the sorted disjoint list."""
     lo, hi = 0, len(spans)
-    while lo < hi:  # first span with span_end > start
+    while lo < hi:
         mid = (lo + hi) // 2
         if spans[mid][1] <= start:
             lo = mid + 1
@@ -360,7 +350,6 @@ def extract_bed12(path: Path, query: Dict[str, List[Tuple[int, int]]],
             logger.info("extract %s: %d records via cache in %.1fs", path.name, n, time.time() - t0)
             return out
 
-    # full-file stream (and refresh the cache along the way)
     kept_lines: List[str] = []
     opener = gzip.open if path.suffix == ".gz" else open
     with opener(path, "rt") as fh:  # type: ignore[operator]
@@ -524,9 +513,6 @@ def subtract_blocks(blocks: Blocks, cuts: Sequence[Tuple[int, ...]]) -> Blocks:
     return out
 
 
-# ---------------------------------------------------------------------------
-# Binarization and clustering
-# ---------------------------------------------------------------------------
 
 def bin_covered_bp(blocks: Blocks, start: int, end: int, bin_size: int) -> np.ndarray:
     """Per-bin covered base pairs of a fiber's element blocks.
@@ -608,7 +594,7 @@ def choose_k(mat: np.ndarray, method: str, seed: int,
     """
     from scipy.spatial.distance import pdist, squareform
 
-    TIE_EPS = 0.02  # silhouettes within this are considered tied -> smaller k
+    TIE_EPS = 0.02
     n = mat.shape[0]
     k_hi = min(k_max, n - 1)
     dist = squareform(pdist(mat.astype(float), metric="hamming"))
@@ -621,15 +607,14 @@ def choose_k(mat: np.ndarray, method: str, seed: int,
             continue
         sizes = np.bincount(labels, minlength=k)
         if len(sizes[sizes > 0]) < k:
-            continue  # degenerate: engine collapsed a cluster away
+            continue
         if sizes.min() < max(2, min_cluster_frac * n):
-            continue  # guard: a 1-2 fiber 'cluster' is noise
+            continue
         scores[str(k)] = float(_silhouette(dist, labels))
         eligible.append(k)
     if not eligible:
-        return 1, scores  # homogeneous fibers: single state is the truth
+        return 1, scores
     best_score = max(scores[str(k)] for k in eligible)
-    # near-tie -> smallest k within TIE_EPS of the best silhouette
     return min(k for k in eligible if scores[str(k)] >= best_score - TIE_EPS), scores
 
 
@@ -700,7 +685,6 @@ def cluster_matrix(mat: np.ndarray, k: Optional[int], method: str, seed: int) ->
         logger.info("auto-k: chose k=%d (silhouette: %s)", k,
                     ", ".join(f"{kk}={vv:.3f}" for kk, vv in sorted(k_scores.items())) or "n/a")
         if k == 1:
-            # homogeneous patterns: one cluster, neutral display order
             out = np.ones(mat.shape[0], dtype=int)
             return out, np.arange(mat.shape[0], dtype=int), k_scores
     n = mat.shape[0]
@@ -723,7 +707,6 @@ def cluster_matrix(mat: np.ndarray, k: Optional[int], method: str, seed: int) ->
     else:
         raise ValueError(f"unknown method {method!r}")
 
-    # Relabel by mean openness (descending) so labels are stable across runs.
     sorted_c = sorted(set(int(x) for x in labels),
                       key=lambda c: -float(mat[labels == c].mean()))
     remap = {old: new for new, old in enumerate(sorted_c, start=1)}
@@ -731,15 +714,11 @@ def cluster_matrix(mat: np.ndarray, k: Optional[int], method: str, seed: int) ->
     if len(set(out.tolist())) < k:
         logger.warning("clustering produced %d non-empty clusters, expected %d "
                        "(identical/tied patterns in this channel)", len(set(out.tolist())), k)
-    # Display order: clusters contiguous (in label order), tree/centroid order within.
     rank = {int(idx): r for r, idx in enumerate(order)}
     display = sorted(range(n), key=lambda i: (int(out[i]), rank[i]))
     return out, np.array(display, dtype=int), k_scores
 
 
-# ---------------------------------------------------------------------------
-# Region-level pipeline
-# ---------------------------------------------------------------------------
 
 def run_region(region: Region, msp: FiberSample, nuc: FiberSample,
                fire: FireSample, sample_order: List[str], args: argparse.Namespace,
@@ -763,7 +742,6 @@ def run_region(region: Region, msp: FiberSample, nuc: FiberSample,
     n_bins = max(1, math.ceil((end - start) / bin_size))
     reg_len = end - start
 
-    # ---- collect fibers per sample (MSP is the clustering channel) --------
     nuc_lookup: Dict[str, Dict[str, Blocks]] = {
         s: {r_name: blocks for r_name, blocks, _fs, _fe in recs.get(chrom, [])}
         for s, recs in nuc.items()}
@@ -795,10 +773,9 @@ def run_region(region: Region, msp: FiberSample, nuc: FiberSample,
     open_mat = np.vstack([r.open for r in rows]).astype(int)
     labels, disp_order, k_scores = cluster_matrix(
         open_mat,
-        args.clusters if args.clusters and args.clusters > 0 else None,  # 0 = auto
+        args.clusters if args.clusters and args.clusters > 0 else None,
         args.method, args.seed)
     if k_scores:
-        # auto-k transparency: per-k silhouette table beside the assignments
         outdir.mkdir(parents=True, exist_ok=True)
         with open(outdir / "k_selection.tsv", "w") as fh:
             fh.write("k\tsilhouette\n")
@@ -818,7 +795,6 @@ def run_region(region: Region, msp: FiberSample, nuc: FiberSample,
     fire_mat = (blocks_matrix(lambda r: [(s, e) for s, e, _t in r.fire_segs], args.bin_mode)
                 if fire else np.zeros((n_fibers, n_bins)))
 
-    # ---- tables ----------------------------------------------------------
     outdir.mkdir(parents=True, exist_ok=True)
     bin_starts = [start + i * bin_size for i in range(n_bins)]
 
@@ -854,7 +830,6 @@ def run_region(region: Region, msp: FiberSample, nuc: FiberSample,
             fh.write(f"{r.read}\t{r.sample}\t{lab}\t{r.span_frac:.3f}\t" +
                      "\t".join(str(x) for x in r.open) + "\n")
 
-    # ---- figure ----------------------------------------------------------
     plot_region(region, rows, labels, disp_order, sample_order, args,
                 outdir / f"{_safe(name)}.clusters.png")
 
@@ -864,20 +839,16 @@ def _safe(name: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]", "_", name)
 
 
-# ---------------------------------------------------------------------------
-# fiberbrowser palette (copied verbatim from modules/fiberbrowser/bin/
-# fiberbrowser.py; colors sampled from the paper figure at 500 dpi pixels)
-# ---------------------------------------------------------------------------
-NUC_LINE = "#1A1A1A"      # black molecule line = nucleosome / neutral DNA
-LINKER = "#8A78B6"        # purple rectangle = linker DNA (non-FIRE MSP)
-FIRE_ORANGE = "#F0A246"   # MSP inside a FIRE peak, 0.05 < q <= 0.10
-FIRE_RED = "#E01B24"      # MSP inside a FIRE peak, 0.01 < q <= 0.05
-FIRE_DKRED = "#7D3219"    # MSP inside a FIRE peak, q <= 0.01 (RE/P)
-LABEL_BOX = "#D8ECD8"     # pale green sample label box
+NUC_LINE = "#1A1A1A"
+LINKER = "#8A78B6"
+FIRE_ORANGE = "#F0A246"
+FIRE_RED = "#E01B24"
+FIRE_DKRED = "#7D3219"
+LABEL_BOX = "#D8ECD8"
 LABEL_EC = "#7A9A7A"
-COV_NUC = "#B0B1B5"       # grey   = nucleosome coverage (stack top)
-COV_LNK = "#8A78B6"       # purple = linker (MSP) coverage (stack middle)
-COV_FIRE = "#C0392B"      # red    = FIRE coverage (stack bottom)
+COV_NUC = "#B0B1B5"
+COV_LNK = "#8A78B6"
+COV_FIRE = "#C0392B"
 TIER_COLORS = {0: FIRE_ORANGE, 1: FIRE_RED, 2: FIRE_DKRED}
 
 
@@ -929,7 +900,6 @@ def plot_region(region: Region, rows: List[FiberRow], labels: np.ndarray,
     _name, chrom, start, end = region
     sample_rank = {s: i for i, s in enumerate(sample_order)}
 
-    # ---- display rows: (cluster, sample, tree order), optional subsample --
     rank = {int(idx): r for r, idx in enumerate(disp_order)}
     order_all = sorted(range(len(rows)),
                        key=lambda i: (int(labels[i]), sample_rank.get(rows[i].sample, 99),
@@ -949,8 +919,7 @@ def plot_region(region: Region, rows: List[FiberRow], labels: np.ndarray,
         order = order_all
     n_show = len(order)
 
-    # sub-stack runs: contiguous (cluster, sample) blocks in display order
-    runs: List[List] = []  # each: [cluster, sample, y_lo, y_hi]
+    runs: List[List] = []
     for j, i in enumerate(order):
         key = (int(labels[i]), rows[i].sample)
         if runs and (runs[-1][0], runs[-1][1]) == key:
@@ -959,13 +928,11 @@ def plot_region(region: Region, rows: List[FiberRow], labels: np.ndarray,
             runs.append([key[0], key[1], j, j])
 
     fig = plt.figure(figsize=(13.5, 8.2))
-    # right sub-plot width >= half of the main panel (visual balance)
     ax = fig.add_axes((0.26, 0.10, 0.46, 0.84))
     axr = fig.add_axes((0.74, 0.10, 0.25, 0.84), sharey=ax)
     ax.set_xlim(start, end)
-    ax.set_ylim(n_show - 0.2, -0.6)  # fiberbrowser row convention
+    ax.set_ylim(n_show - 0.2, -0.6)
     ax.set_yticks([])
-    # no frame: keep only the coordinate axes (bottom x axis)
     for spine in ("top", "right", "left"):
         ax.spines[spine].set_visible(False)
     axr.set_xlim(start, end)
@@ -986,7 +953,6 @@ def plot_region(region: Region, rows: List[FiberRow], labels: np.ndarray,
         """
         return (n_show - 0.2 - y) / (n_show + 0.4)
 
-    # ---- fiber rows: black molecule line, purple linkers, tiered FIRE MSPs
     for j, i in enumerate(order):
         r = rows[i]
         lo_f, hi_f = max(r.f_start, start), min(r.f_end, end)
@@ -1004,7 +970,6 @@ def plot_region(region: Region, rows: List[FiberRow], labels: np.ndarray,
                 ax.add_patch(Rectangle((lo_b, j - 0.28), hi_b - lo_b, 0.56,
                                        facecolor=TIER_COLORS[tier], ec="none", zorder=3))
 
-    # ---- per-run bracket (tinted per cluster) + green label box ----------
     for c, sample, y_lo, y_hi in runs:
         f_lo, f_hi = y2f(y_lo - 0.5), y2f(y_hi + 0.5)
         cc = cluster_color(c)
@@ -1023,14 +988,13 @@ def plot_region(region: Region, rows: List[FiberRow], labels: np.ndarray,
                 bbox=dict(boxstyle="round,pad=0.35", facecolor=LABEL_BOX,
                           edgecolor=LABEL_EC, lw=0.6))
 
-    # ---- cluster band labels at the far left (outside, dodged) -----------
     band_center: Dict[int, List[float]] = {}
     for c, _s, y_lo, y_hi in runs:
         band_center.setdefault(c, []).append((y_lo + y_hi) / 2)
     centers = [float(np.mean(v)) for v in band_center.values()]
     lab_frac: List[float] = []
     prev_f = None
-    for cy in centers:  # clusters top -> bottom; dodge pushes labels downward
+    for cy in centers:
         cf = y2f(cy)
         y_lab = cf if prev_f is None else min(cf, prev_f - 0.075)
         lab_frac.append(y_lab)
@@ -1043,7 +1007,6 @@ def plot_region(region: Region, rows: List[FiberRow], labels: np.ndarray,
         ax.text(-0.22, y_lab, f"cluster {c} (n={n_c})", transform=ax.transAxes,
                 fontsize=8, ha="right", va="center", zorder=5, color=cluster_color(c))
 
-    # ---- right sub-plots: per-cluster coverage tracks (fiberbrowser style) --
     wanted = [t.strip() for t in args.right_tracks.split(",")
               if t.strip() and t.strip() != "none"]
     x_pos = np.arange(start, end)
@@ -1055,7 +1018,7 @@ def plot_region(region: Region, rows: List[FiberRow], labels: np.ndarray,
         spans[c][1] = max(spans[c][1], y_hi)
     for c in sorted(spans):
         y_lo, y_hi = spans[c]
-        y_t, y_b = y_lo - 0.4, y_hi + 0.4  # band top/bottom in row coordinates
+        y_t, y_b = y_lo - 0.4, y_hi + 0.4
         cov = {k: np.zeros(end - start, dtype=float) for k in ("fire", "lnk", "nuc")}
 
         def paint(arr: np.ndarray, blocks: Blocks) -> None:
@@ -1071,9 +1034,6 @@ def plot_region(region: Region, rows: List[FiberRow], labels: np.ndarray,
             paint(cov["fire"], [(s, e) for s, e, _t in r.fire_segs])
             paint(cov["lnk"], subtract_blocks(r.msp_blocks, r.fire_segs))
             paint(cov["nuc"], r.nuc_blocks)
-        # fiberbrowser coverage stack (red FIRE bottom, purple linker middle,
-        # grey nucleosome top): draw the widest cumulative band first so the
-        # inner layers stay visible
         order = [k for k in ("fire", "lnk", "nuc") if k in wanted]
         cum = np.zeros(end - start, dtype=float)
         layers: List[Tuple[np.ndarray, str]] = []
@@ -1082,15 +1042,13 @@ def plot_region(region: Region, rows: List[FiberRow], labels: np.ndarray,
             layers.append((cum.copy(), cov_colors[k]))
         scale = max(float(cum.max()), 1.0) if layers else 1.0
         for cum_arr, color in reversed(layers):
-            yv = y_b - (cum_arr / scale) * (y_b - y_t)  # max coverage = band top
+            yv = y_b - (cum_arr / scale) * (y_b - y_t)
             axr.fill_between(x_pos, y_b, yv, color=color, lw=0)
 
-    # ---- bottom coordinate ruler + element legend ------------------------
     ticks = np.linspace(start, end, 6)
     ax.set_xticks(ticks)
     ax.set_xticklabels([f"{t / 1000:.1f}" for t in ticks], fontsize=7)
     ax.set_xlabel(f"position on {chrom} (kb)", fontsize=8)
-    # ---- bottom legends: one per sub-plot, each under its own panel ------
     handles_left = [
         Line2D([0], [0], color=NUC_LINE, lw=1.2, label="nucleosome / neutral DNA"),
         Rectangle((0, 0), 1, 1, facecolor=LINKER, edgecolor="none", label="linker (MSP)"),
@@ -1117,9 +1075,6 @@ def plot_region(region: Region, rows: List[FiberRow], labels: np.ndarray,
     plt.close(fig)
 
 
-# ---------------------------------------------------------------------------
-# Entry point
-# ---------------------------------------------------------------------------
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the CLI parser.
@@ -1226,7 +1181,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if sample not in fire_map:
             logger.warning("sample %s has no --fire overlay", sample)
 
-    k_arg = args.clusters if args.clusters and args.clusters > 0 else None  # 0/None = auto
+    k_arg = args.clusters if args.clusters and args.clusters > 0 else None
     logger.info("regions: %d | samples: %s | bin=%d k=%s method=%s",
                 len(regions), sample_order, args.bin_size,
                 k_arg if k_arg else "auto", args.method)
@@ -1240,7 +1195,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         logger.info("[dry-run] outdir=%s", args.outdir)
         return 0
 
-    # ---- one extraction pass per element file (multi-region filter) -------
     query = merged_intervals(regions)
     logger.info("extracting MSP channels ...")
     msp_all = {s: extract_bed12(p, query, args.cache_dir) for s, p in msp_map.items()}

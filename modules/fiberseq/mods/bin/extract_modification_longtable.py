@@ -32,8 +32,6 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, TextIO, Tuple
 
-# Self-contained module bin scripts import the module-private helper
-# (verbatim src/common copies) — modules.md 脚本撰写规范 #0.
 from _fiberlib import BedRecord, ChromSweep, read_bed, setup_logger
 
 logger = setup_logger("ModsLongTable", stream=sys.stdout)
@@ -66,7 +64,6 @@ def count_region_calls(
     for k, (_chrom, _s, _e), ov in sweep.advance():
         n = 0
         p = peaks[k]
-        # blocks are absolute (chromStart + blockStart, + blockSizes)
         for rec in ov[0]:
             for b_start, b_end in rec.iter_blocks():
                 if b_start < p.end and b_end > p.start:
@@ -93,7 +90,6 @@ def count_region_fibers(
 
 def build_long_table(args: argparse.Namespace) -> int:
     """Aggregate every sample's modification BED over its peak set."""
-    # sample-parallel inputs: mod beds, peak beds, msp beds share order
     entries = [e for e in args.mods.split(",") if e.strip()]
     sample_ids = [e.split(":")[0] for e in entries]
     mod_beds = [e.split(":", 1)[1] for e in entries]
@@ -116,9 +112,6 @@ def build_long_table(args: argparse.Namespace) -> int:
         f"samples: {sample_ids}"
     )
 
-    # Region axis = union of every sample's peak names, first-seen order;
-    # a sample missing a region (its own peaks differ) contributes no row
-    # for that region — sigtest handles unequal n per group natively.
     region_order: List[str] = []
     region_peaks: Dict[str, BedRecord] = {}
     per_sample: Dict[str, Dict[str, float]] = {s: {} for s in sample_ids}
@@ -141,8 +134,6 @@ def build_long_table(args: argparse.Namespace) -> int:
             if key not in region_peaks:
                 region_peaks[key] = peak
                 region_order.append(key)
-            # 0 when uncovered: region stays in the test instead of
-            # silently dropping (a real biological zero)
             per_sample[sid][key] = calls / fibers if calls is not None and fibers else 0.0
         logger.info(f"sample {sid}: {len(peaks)} peaks aggregated")
 

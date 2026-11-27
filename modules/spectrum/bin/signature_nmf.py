@@ -102,15 +102,10 @@ logger = setup_logger("SignatureNMF", stream=sys.stdout)
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
 
-# ---------------------------------------------------------------------------
-# NMF core (KL divergence, multiplicative updates; Brunet et al. 2004)
-# ---------------------------------------------------------------------------
 
 def kl_divergence(m: np.ndarray, wh: np.ndarray) -> float:
     """Generalized KL divergence D(m || wh) = sum(m*log(m/wh) - m + wh).
@@ -156,10 +151,8 @@ def nmf_kl(m: np.ndarray, k: int, rng: np.random.Generator,
     prev = np.inf
     for _ in range(max_iter):
         wh = np.maximum(w @ h, eps)
-        # H update: H *= (W^T (M / WH)) / (W^T 1)
         h *= (w.T @ (m / wh)) / np.maximum(w.sum(axis=0)[:, None], eps)
         wh = np.maximum(w @ h, eps)
-        # W update: W *= ((M / WH) H^T) / (1 H^T)
         w *= ((m / wh) @ h.T) / np.maximum(h.sum(axis=1)[None, :], eps)
         w /= np.maximum(w.sum(axis=0, keepdims=True), eps)
         cur = kl_divergence(m, w @ h)
@@ -194,8 +187,6 @@ def cophenetic_coefficient(h: np.ndarray) -> float:
     if not condensed.any():
         return float("nan")
     z = linkage(condensed, method="average")
-    # scipy versions differ in cophenet's return shape ((distances, corrcoef)
-    # vs distances only); pick whichever element matches the condensed size.
     res = cophenet(z, condensed)
     candidates = res if isinstance(res, tuple) else (res,)
     coph = None
@@ -226,7 +217,7 @@ def consensus_stability(m: np.ndarray, k: int, rng: np.random.Generator,
     ref = runs[0]
     scores = []
     for w in runs[1:]:
-        sim = cosine_matrix(ref.T, w.T)  # k x k
+        sim = cosine_matrix(ref.T, w.T)
         matched = sim.max(axis=1)
         scores.append(float(matched.mean()))
     return float(np.mean(scores)) if scores else float("nan")
@@ -303,7 +294,7 @@ def plot_cosmic_match(contexts, sig_df, sig_ref, sim_df, names: List[str],
 
     x = np.arange(96)
     colors = [CLASS_COLORS[label.split("[")[1].split("]")[0]] for label in contexts]
-    n_cols = 5  # extracted | best | second | third | cosine bar
+    n_cols = 5
     fig, axes = plt.subplots(len(names), n_cols,
                              figsize=(3.0 * n_cols, 2.6 * len(names)),
                              squeeze=False)
@@ -329,7 +320,6 @@ def plot_cosmic_match(contexts, sig_df, sig_ref, sim_df, names: List[str],
                 _context_axis_labels(ax, contexts)
             else:
                 ax.set_xticks([])
-        # Top-5 cosine ranking bar in the last column.
         ax = axes[row][n_cols - 1]
         top5 = order_idx[:5]
         labels = [sim_df.columns[i] for i in top5][::-1]
@@ -358,9 +348,6 @@ def cosine_matrix(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     return (a / na) @ (b / nb).T
 
 
-# ---------------------------------------------------------------------------
-# Analysis driver
-# ---------------------------------------------------------------------------
 
 def run_nmf(counts, args, sig_ref=None,
             image_formats: Optional[List[PlotFormat]] = None) -> None:
@@ -410,16 +397,12 @@ def run_nmf(counts, args, sig_ref=None,
 
     diag = pd.DataFrame(rows, columns=["rank", "kl_divergence", "cophenetic", "stability"])
 
-    # Choose rank: the KL elbow (first K where the improvement from K to K+1
-    # collapses relative to the improvement that got K here), restricted to
-    # ranks meeting the cophenetic floor. Fall back to best stability, then
-    # rank 1. The choice is always reported, never silent.
     chosen = args.rank
     if chosen is None:
         kl = diag["kl_divergence"].to_numpy()
         coph = diag["cophenetic"].to_numpy()
         chosen = None
-        for idx in range(1, len(kl) - 1):          # K = idx+1, needs K+1 to exist
+        for idx in range(1, len(kl) - 1):
             gain_here = kl[idx - 1] - kl[idx]
             gain_next = kl[idx] - kl[idx + 1]
             if gain_here > 0 and gain_next < args.elbow_ratio * gain_here \
@@ -449,7 +432,6 @@ def run_nmf(counts, args, sig_ref=None,
     exp_df = pd.DataFrame(h.T, index=samples, columns=names)
     exp_df.to_csv(f"{args.output_prefix}_exposures.csv")
 
-    # Rank diagnostics plot.
     fig, ax1 = plt.subplots(figsize=(8, 5))
     ax1.plot(diag["rank"], diag["kl_divergence"], "o-", color="tab:blue", label="KL divergence")
     ax1.set_xlabel("Rank K")
@@ -471,7 +453,6 @@ def run_nmf(counts, args, sig_ref=None,
         logger.info(f"Saved {out_path}")
     plt.close(fig)
 
-    # Exposure stacked bar per sample.
     ax = exp_df.plot(kind="bar", stacked=True, figsize=(max(6, 1.2 * len(samples)), 6))
     ax.set_ylabel("Exposure (mutations)")
     ax.set_xlabel("Sample")
@@ -484,7 +465,6 @@ def run_nmf(counts, args, sig_ref=None,
         logger.info(f"Saved {out_path}")
     plt.close(fig)
 
-    # COSMIC annotation (optional).
     if sig_ref is not None:
         sim = cosine_matrix(sig_df.T.to_numpy(), sig_ref.T.to_numpy())
         sim_df = pd.DataFrame(sim, index=names, columns=list(sig_ref.columns))
@@ -507,8 +487,6 @@ def run_nmf(counts, args, sig_ref=None,
             "extracted_signature", "best_match", "cosine",
             "second_match", "second_cosine",
         ]).to_csv(f"{args.output_prefix}_cosmic_best_match.csv", index=False)
-        # The best-match claim must be visible as evidence, not only a CSV
-        # number: profile-vs-profile figure with cosine annotated.
         plot_cosmic_match(
             contexts, sig_df, sig_ref, sim_df, names,
             f"{args.output_prefix}_cosmic_match",

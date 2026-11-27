@@ -41,8 +41,6 @@ logger = logging.getLogger("te_5mc")
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
@@ -204,7 +202,6 @@ def overlapping_tes(
         return
     stop = bisect.bisect_left(starts[chrom], end)
     i = stop - 1
-    # Walk backwards only while an earlier interval could still overlap start.
     while i >= 0 and prefix_max_end[chrom][i] > start:
         te = intervals[i]
         if te.end > start:
@@ -236,8 +233,6 @@ def parse_bed12(line: str, line_no: int) -> Optional[Tuple[str, int, int, str, L
     if len(block_sizes) != n_blocks or len(block_starts) != n_blocks:
         return None
 
-    # ft extract v0.13.1 writes two sentinel blocks, one at each read boundary.
-    # Exclude both explicitly; filtering only size==0 would retain the terminal sentinel.
     positions = []
     for offset, size in zip(block_starts[1:-1], block_sizes[1:-1]):
         if size != 1:
@@ -271,7 +266,6 @@ def analyze_sample(
     Call counts are computed from the read's sorted call positions, avoiding a
     second interval-index lookup for every individual 5mC call.
     """
-    # idx -> [5mC calls, overlapping reads, read-overlap bp]
     stats: Dict[int, List[int]] = {}
     total_records = 0
     malformed = 0
@@ -295,8 +289,6 @@ def analyze_sample(
             if overlap_bp <= 0:
                 continue
             item[2] += overlap_bp
-            # positions are sorted; count calls within this TE/read intersection
-            # in O(log n) rather than querying the TE interval index per call.
             left = bisect.bisect_left(positions, overlap_start)
             right = bisect.bisect_left(positions, overlap_end, lo=left)
             item[0] += right - left
@@ -418,22 +410,17 @@ def compare_groups(
     >>> after = [12, 14, 16, 18, 20]
     >>> result = compare_groups(before, after, paired=True)
     """
-    # Input validation
     if len(group1) < 2 or len(group2) < 2:
         raise ValueError("Each group must have at least 2 data points")
 
-    # Convert to numpy arrays
     g1 = np.array(group1, dtype=float)
     g2 = np.array(group2, dtype=float)
 
-    # Calculate basic statistics
     g1_mean, g1_std = np.mean(g1), np.std(g1, ddof=1)
     g2_mean, g2_std = np.mean(g2), np.std(g2, ddof=1)
 
-    # Check assumptions
     assumptions = {}
 
-    # Normality tests
     g1_normal, g1_normal_p, g1_normal_msg = check_normality(g1, alpha)
     g2_normal, g2_normal_p, g2_normal_msg = check_normality(g2, alpha)
 
@@ -448,10 +435,8 @@ def compare_groups(
         'message': g2_normal_msg
     }
 
-    # Both groups normal?
     both_normal = g1_normal and g2_normal
 
-    # Equal variance test (only if both groups are normal)
     if both_normal:
         equal_var, equal_var_p, equal_var_msg = check_equal_variance(g1, g2, alpha)
         assumptions['equal_variance'] = {
@@ -467,54 +452,42 @@ def compare_groups(
             'message': 'Skipped (not both groups are normal)'
         }
 
-    # Select and perform appropriate test
     if paired:
         if both_normal:
-            # Paired t-test
             test_name = "Paired t-test"
             statistic, p_value = stats.ttest_rel(g1, g2)
-            # Effect size: Cohen's d for paired samples
             diff = g1 - g2
             effect_size = np.mean(diff) / np.std(diff, ddof=1)
             effect_size_name = "Cohen's d"
         else:
-            # Wilcoxon signed-rank test
             test_name = "Wilcoxon signed-rank test"
             statistic, p_value = stats.wilcoxon(g1, g2)
-            # Effect size: rank-biserial correlation
             n = len(g1)
             effect_size = statistic / (n * (n + 1) / 2)
             effect_size_name = "rank-biserial r"
     else:
         if both_normal:
             if equal_var:
-                # Independent t-test (equal variance)
                 test_name = "Independent t-test (equal variance)"
                 statistic, p_value = stats.ttest_ind(g1, g2, equal_var=True)
             else:
-                # Welch's t-test (unequal variance)
                 test_name = "Welch's t-test (unequal variance)"
                 statistic, p_value = stats.ttest_ind(g1, g2, equal_var=False)
-            # Effect size: Cohen's d for independent samples
             pooled_std = np.sqrt(((len(g1) - 1) * g1_std**2 + (len(g2) - 1) * g2_std**2) /
                                  (len(g1) + len(g2) - 2))
             effect_size = (g1_mean - g2_mean) / pooled_std
             effect_size_name = "Cohen's d"
         else:
-            # Mann-Whitney U test
             test_name = "Mann-Whitney U test"
             statistic, p_value = stats.mannwhitneyu(g1, g2, alternative='two-sided')
-            # Effect size: rank-biserial correlation
             u1 = statistic
             u2 = len(g1) * len(g2) - u1
             u_max = max(u1, u2)
             effect_size = 1 - (2 * u_max) / (len(g1) * len(g2))
             effect_size_name = "rank-biserial r"
 
-    # Determine significance
     significant = p_value <= alpha
 
-    # Effect size interpretation
     abs_effect = abs(effect_size)
     if abs_effect < 0.2:
         effect_interp = "negligible"
@@ -525,7 +498,6 @@ def compare_groups(
     else:
         effect_interp = "large"
 
-    # Build interpretation
     if significant:
         interpretation = (
             f"There IS a statistically significant difference between the two groups "
@@ -539,7 +511,6 @@ def compare_groups(
             f"The effect size is {effect_interp} ({effect_size_name} = {effect_size:.4f})."
         )
 
-    # Prepare result
     result = {
         'test_name': test_name,
         'statistic': float(statistic),
@@ -557,7 +528,6 @@ def compare_groups(
         'assumptions': assumptions
     }
 
-    # logger.info detailed output if verbose
     if verbose:
         logger.info("=" * 70)
         logger.info("STATISTICAL COMPARISON OF TWO GROUPS")
@@ -723,14 +693,12 @@ def plot_comparison(
     if verbose and selected_font:
         logger.info(f"Using Chinese font: {selected_font}")
 
-    # Extract data from result
     group1_name = result['group1_name']
     group2_name = result['group2_name']
     group1_data = result['group1_data']
     group2_data = result['group2_data']
     comparison = result['comparison']
 
-    # Set style
     sns.set_style("whitegrid")
     apply_font_after_style(selected_font)
     plt.rcParams['font.size'] = 12
@@ -740,11 +708,9 @@ def plot_comparison(
     plt.rcParams['ytick.labelsize'] = 12
 
     
-    # Prepare data for plotting
     data_to_plot = [group1_data, group2_data]
     positions = [1, 2]
 
-    # Create box plot
     bp = ax.boxplot(
         data_to_plot,
         positions=positions,
@@ -758,17 +724,14 @@ def plot_comparison(
         flierprops={"marker": "o", "markerfacecolor": "gray", "markersize": 6, "alpha": 0.5}
     )
 
-    # Color the boxes
     for patch, color in zip(bp['boxes'], palette):
         patch.set_facecolor(color)
         patch.set_alpha(0.7)
         patch.set_edgecolor("black")
         patch.set_linewidth(1.5)
 
-    # Add individual data points if requested
     if show_points:
         for i, (data, pos, color) in enumerate(zip(data_to_plot, positions, palette)):
-            # Add jitter to x-coordinates
             jitter = np.random.uniform(-0.15, 0.15, size=len(data))
             ax.scatter(
                 np.full_like(data, pos) + jitter,
@@ -781,7 +744,6 @@ def plot_comparison(
                 zorder=5
             )
 
-    # Set x-axis labels with explicit font properties
     if selected_font:
         font_prop = FontProperties(family=selected_font, size=12)
         font_prop_bold = FontProperties(family=selected_font, size=14, weight='bold')
@@ -795,20 +757,16 @@ def plot_comparison(
     ax.set_xticklabels([f"{group1_name}\n(n={len(group1_data)})", f"{group2_name}\n(n={len(group2_data)})"],
                        fontproperties=font_prop)
 
-    # Set axis labels
     ax.set_xlabel(xlabel, fontproperties=font_prop_bold)
     ax.set_ylabel(ylabel, fontproperties=font_prop_bold)
     ax.set_title(title, fontproperties=font_prop_title, pad=20)
 
-    # Add statistics annotation if requested
     if show_stats:
-        # Get statistical results
         p_value = comparison['p_value']
         significant = comparison['significant']
         effect_size = comparison['effect_size']
         effect_interp = comparison['effect_size_interpretation']
 
-        # Determine significance stars
         if p_value < 0.001:
             sig_stars = "***"
         elif p_value < 0.01:
@@ -818,36 +776,28 @@ def plot_comparison(
         else:
             sig_stars = "ns"
 
-        # Calculate position for annotation
         y_max = max(max(group1_data), max(group2_data))
         y_min = min(min(group1_data), min(group2_data))
         y_range = y_max - y_min
 
-        # Position the bracket
         bracket_y = y_max + y_range * 0.15
         star_y = bracket_y + y_range * 0.05
 
-        # Draw bracket
         ax.plot([1, 1, 2, 2], [bracket_y, bracket_y + y_range * 0.02, bracket_y + y_range * 0.02, bracket_y],
                 color='black', linewidth=1.5)
 
-        # Add significance stars
         ax.text(1.5, star_y, sig_stars, ha='center', va='bottom', fontsize=16, fontweight='bold')
 
-        # Add p-value text
         p_text = f"p = {p_value:.4f}" if p_value >= 0.001 else f"p < 0.001"
         ax.text(1.5, star_y - y_range * 0.08, p_text, ha='center', va='top', fontsize=11, style='italic')
 
-        # Add effect size info - use axes transform for better positioning
         effect_text = f"{comparison['effect_size_name']}: {effect_size:.2f} ({effect_interp})"
         ax.text(0.98, 0.98, effect_text, transform=ax.transAxes, fontsize=10, 
                 color='gray', ha='right', va='top', style='italic')
 
-        # Add test name - use axes transform for better positioning
         test_text = f"Test: {comparison['test_name']}"
         ax.text(0.02, 0.02, test_text, transform=ax.transAxes, fontsize=9, color='gray', style='italic')
 
-    # Add mean and SD annotations
     for i, (data, pos, name) in enumerate(zip(data_to_plot, [0,3], [group1_name, group2_name])):
         mean_val = np.mean(data)
         std_val = np.std(data, ddof=1)
@@ -862,18 +812,14 @@ def plot_comparison(
             bbox=dict(boxstyle='round,pad=0.3', facecolor='white', edgecolor='gray', alpha=0.8)
         )
 
-    # Adjust y-axis limits to make room for annotation
     ax.set_ylim(y_min - y_range * 0.1, y_max + y_range * 0.35)
     
-    # Add grid
     ax.yaxis.grid(True, linestyle='--', alpha=0.7)
     ax.set_axisbelow(True)
 
-    # Remove top and right spines
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 
-    # Tight layout
     plt.tight_layout()
 
     if verbose:
@@ -905,7 +851,6 @@ def plot_a(
     Returns:
     - None. Saves plots to the specified output directory.
     """
-    # Calculate density per insertion first, then show distribution across insertions.
     valid = all_df[
         (all_df["n_read_overlaps"] > 0) &
         all_df["calls_per_kb_read_overlap"].notna()
@@ -1000,7 +945,6 @@ def plot_b(all_df: pd.DataFrame, labels: List[str], outdir: str, top_n: int, dpi
     sub["log2_density"] = np.log2(sub["calls_per_kb_read_overlap"] + 1e-9)
     pivot = sub.pivot(index="subfamily", columns="sample", values="log2_density")
     pivot = pivot.reindex(columns=labels)
-    # Select subfamilies with the greatest pooled read-overlap bases, avoiding low-coverage labels.
     exposure = valid.groupby("subfamily")["read_overlap_bp"].sum()
     eligible = exposure[exposure > 0].index
     pivot = pivot.loc[pivot.index.intersection(eligible)]
@@ -1010,8 +954,6 @@ def plot_b(all_df: pd.DataFrame, labels: List[str], outdir: str, top_n: int, dpi
     pivot.to_csv(os.path.join(outdir, "B_subfamily_heatmap_matrix.tsv"), sep="\t", na_rep="NA")
     if pivot.empty:
         return
-    # With only two samples, row-wise z-scores collapse to nearly +/-1 and are misleading.
-    # Plot the log2 normalized call-density values directly instead.
     values = pivot.to_numpy(dtype=float)
     finite = values[np.isfinite(values)]
     if finite.size:
@@ -1043,10 +985,8 @@ def collect_locus_reads(path: str, te: TE, max_reads: int) -> List[Tuple[str, Li
         if chrom != te.chrom or read_end <= te.start or read_start >= te.end:
             continue
         relative = [p - te.start for p in positions if te.start <= p < te.end]
-        # Include overlapping reads even when no called sites fall inside this TE.
         rows.append((read_name, relative))
     if len(rows) > max_reads:
-        # Deterministic sampling for display only; summary statistics use all reads.
         idx = np.linspace(0, len(rows) - 1, max_reads, dtype=int)
         rows = [rows[i] for i in idx]
     return rows
@@ -1132,7 +1072,6 @@ def main() -> None:
         all_df = pd.concat(dfs, ignore_index=True)
         all_df.to_csv(outfile_insertions, sep="\t", index=False)
 
-    # Remove low-support insertions for display/summary tables; raw per-insertion table is retained.
     plot_df = all_df[all_df["n_read_overlaps"] >= args.min_overlap_reads].copy()
     outfile_filtered = os.path.join(outdir, "filtered.te_insertion_summary.tsv")
     plot_df.to_csv(outfile_filtered, sep="\t", index=False)
@@ -1142,8 +1081,6 @@ def main() -> None:
         plot_df = all_df.copy()
 
     plot_a(plot_df, labels, outdir, args.dpi, level = "subfamily", TEs = args.TEs, imageFormat = args.imageFormat)
-    # plot_b(plot_df, labels, outdir, args.top_subfamilies, args.dpi, imageFormat = args.imageFormat)
-    # plot_c(all_df, samples, tes, outdir, args.max_reads_per_locus, args.dpi, imageFormat = args.imageFormat)
 
     logger.info("Finished. Output directory: %s", outdir)
 

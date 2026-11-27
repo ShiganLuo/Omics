@@ -179,7 +179,6 @@ def random_position(rng, chrom: str, sizes: dict[str, int],
         lo = max(0, s - local_flank)
         hi = min(sizes[chrom], e + local_flank)
         return rng.randrange(lo, hi)
-    # circle_interior: pick a fragment interval weighted by length, then a pos
     total = sum(e - s for s, e in circle_iv)
     x = rng.randrange(total)
     for s, e in circle_iv:
@@ -210,7 +209,6 @@ def main(argv: list[str] | None = None) -> int:
         ("cls", i): f"class:{c}" for i, c in enumerate(rmsk.classes)}
     key_name["any"] = "any"
 
-    # per-locus circle context (first member decides the circle span / union)
     for loc in loci:
         sample, circ = loc["members"][0].split(":")[:2]
         loc["span"] = spans[(sample, circ)]
@@ -231,13 +229,12 @@ def main(argv: list[str] | None = None) -> int:
         window_hits(loc["pos"], loc["chrom"]) for loc in loci]
     obs_nearest = [rmsk.nearest_distance(loc["chrom"], loc["pos"]) for loc in loci]
 
-    comp_fams: dict[int, set[int]] = {}   # locus index -> set of fam idx
+    comp_fams: dict[int, set[int]] = {}
     for i, loc in enumerate(loci):
         els = rmsk.elements_overlapping(loc["chrom"], loc["pos"] - args.comp_window,
                                         loc["pos"] + args.comp_window)
         comp_fams[i] = {fi for _, _, fi, _ in els}
 
-    # ---------------- null draws ---------------- #
     null_hits: dict[str, dict[int, dict[RmskKey, list[float]]]] = {
         mode: {w: {k: [] for k in keys} for w in windows}
         for mode in ("local", "circle_interior", "genome")}
@@ -277,7 +274,6 @@ def main(argv: list[str] | None = None) -> int:
         if (draw + 1) % 200 == 0:
             logger.info(f"null draws: {draw + 1}/{args.n_draws}")
 
-    # ---------------- output: per-locus table ---------------- #
     loci_path = os.path.join(args.out_dir, "breakpoint_loci.tsv")
     with open(loci_path, "w") as fh:
         cols = (["locus_id", "chrom", "pos", "n_breakpoints",
@@ -293,7 +289,6 @@ def main(argv: list[str] | None = None) -> int:
             fh.write("\t".join(row) + "\n")
     logger.info(f"Wrote {loci_path}")
 
-    # ---------------- output: window summary ---------------- #
     window_path = os.path.join(args.out_dir, "breakpoint_window_summary.tsv")
     with open(window_path, "w") as fh:
         fh.write("window_bp\tkey\tobs_frac\tn_loci_hit\t"
@@ -313,7 +308,6 @@ def main(argv: list[str] | None = None) -> int:
                              f"{p_low:.4f}\n")
     logger.info(f"Wrote {window_path}")
 
-    # ---------------- output: family composition ---------------- #
     fam_path = os.path.join(args.out_dir, "breakpoint_family_composition.tsv")
     obs_fam_frac = {fi: sum(1 for i in range(len(loci)) if fi in comp_fams[i])
                     / len(loci) for fi in range(len(rmsk.families))}
@@ -340,7 +334,6 @@ def main(argv: list[str] | None = None) -> int:
                          f"{r[5]:.4f}\t{r[6]:.3f}\t{r[7]:.4f}\t{fdr:.4f}\n")
     logger.info(f"Wrote {fam_path}")
 
-    # ---------------- stdout summary ---------------- #
     print(f"\n=== eccDNA breakpoint repeat content ({len(loci)} loci) ===")
     print(f"breakpoints with a repeat within W bp (obs vs null, any repeat):")
     for w in windows:

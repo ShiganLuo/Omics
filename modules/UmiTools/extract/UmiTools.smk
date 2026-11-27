@@ -4,15 +4,11 @@ outdir = config.get("outdir", "output")
 indir = config.get("indir", "output")
 logdir = config.get("logdir", "log")
 
-# 参数精确到 rule:Params.umi_tools.<rule_name>.<key>(config 全量路径直读;
-# 无 module 级共享回退,UmiTools_extract_single / UmiTools_extract_paired 各自独立键)。
 
 rule UmiTools_extract_single:
     input:
         fastq = indir + "/{sample_id}.single.fq.gz"
     output:
-        # temp 规范(modules.md):umi fastq 为中间产物,受 keep_intermediates
-        # 字段控制(缺省 True=保留),不再硬编码 temp
         fastq = maybe_temp(outdir + "/{sample_id}.umi.single.fq.gz", "UmiTools")
     params:
         umi_tools = config.get('Procedure',{}).get('umi_tools') or 'umi_tools',
@@ -40,7 +36,7 @@ rule UmiTools_extract_single:
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"UmiTools_extract_single_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"UmiTools_extract_single.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -51,7 +47,7 @@ rule UmiTools_extract_single:
                 f.write(f"    -S {output.fastq} \\\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -94,7 +90,7 @@ rule UmiTools_extract_paired:
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"UmiTools_extract_paired_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"UmiTools_extract_paired.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -107,7 +103,7 @@ rule UmiTools_extract_paired:
                 f.write(f"    --read2-out={output.fastq2} \\\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

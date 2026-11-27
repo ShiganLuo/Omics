@@ -9,7 +9,6 @@ go_plot = function(gene_list,gofile,gojpeg,top=10,mainTitle = "GO Enrichment Ana
     if (!file.exists(gofile)) {
         if ( species == "mouse") {
             gene_info <- bitr(gene_list, fromType = "ENSEMBL", toType = "ENTREZID", OrgDb = org.Mm.eg.db,drop = TRUE)
-            # Get a unique Entrez ID
             entrez_ids <- unique(gene_info$ENTREZID)
             print(paste("entrez_ids:",length(entrez_ids)))
             ego <- enrichGO(gene = entrez_ids,
@@ -22,7 +21,6 @@ go_plot = function(gene_list,gofile,gojpeg,top=10,mainTitle = "GO Enrichment Ana
             df = ego@result
         } else if ( species == "human") {
             gene_info <- bitr(gene_list, fromType = "ENSEMBL", toType = "ENTREZID", OrgDb = org.Hs.eg.db,drop = TRUE)
-            # Get a unique Entrez ID
             entrez_ids <- unique(gene_info$ENTREZID)
             print(paste("entrez_ids:",length(entrez_ids)))
             ego <- enrichGO(gene = entrez_ids,
@@ -46,7 +44,7 @@ go_plot = function(gene_list,gofile,gojpeg,top=10,mainTitle = "GO Enrichment Ana
     p = ggplot(df, aes(x = reorder(df[,"Description"],  -log10(df[,"pvalue"])), y = -log10(df[,"pvalue"]))) +
         geom_point(aes(color = -log10(df[,"pvalue"]), size = Count )) +
         scale_color_gradient(low = "#E2A3A3", high = "#F54E4E")+
-        coord_flip() +  # 翻转坐标轴，使GO_Term在纵轴上显示
+        coord_flip() +
         labs(title = mainTitle,
             x = "",
             y = expression(-log[10]("pvalue")),
@@ -55,13 +53,13 @@ go_plot = function(gene_list,gofile,gojpeg,top=10,mainTitle = "GO Enrichment Ana
         guides(color = guide_colorbar(order = 1), size = guide_legend(order = 2))+
     theme_minimal() +
     theme(
-        panel.border = element_blank(),  # 去除整个面板边框
+        panel.border = element_blank(),
         axis.line = element_line(colour = "black"),  # 重新添加坐标轴线条
-        panel.grid.major = element_blank(),  # 去除主要网格线
-        panel.grid.minor = element_blank(),  # 去除次要网格线
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
         axis.ticks = element_line(colour = "black"),  # 设置坐标轴刻度线颜色
         axis.text = element_text(colour = "black"),  # 设置坐标轴文本颜色
-        plot.title = element_text(hjust = 0.5),  # 标题居中
+        plot.title = element_text(hjust = 0.5),
         axis.title = element_text(colour = "black")  # 设置坐标轴标题颜色
     )
     jpeg(width = 200, height = 150, units = "mm", res = 300, file = gojpeg)

@@ -1,8 +1,5 @@
 #! /usr/bin/env python3
 
-######################################################
-# Coverage calculation and table output for plotting #
-######################################################
 
 import subprocess
 import pandas as pd
@@ -14,12 +11,10 @@ from multiprocessing import Pool
 log = logging.getLogger(__name__)
 
 def filterCoverage (cov_table, min_cov):
-# returns isodecoders as list from counts table with less than min_cov reads (excluding mito/plastid clusters)
 
 	log.info("\n+-----------------------------------+ \
 		\n| Final deconvolution and filtering |\
 		\n+-----------------------------------+")
-	# if min_cov is a fraction
 	if min_cov < 1:
 		cov_table_new = cov_table.div(cov_table.sum(axis=0), axis=1)
 		filtered_list = list(cov_table_new[(cov_table_new.values < min_cov).all(1) & (~cov_table_new.index.str.contains('mito')) & (~cov_table_new.index.str.contains('plastid')) & (~cov_table_new.index.str.contains('eColi'))].index)
@@ -30,7 +25,6 @@ def filterCoverage (cov_table, min_cov):
 		filtered_list = list(cov_table[(cov_table.values < min_cov).all(1) & (~cov_table.index.str.contains('mito')) & (~cov_table.index.str.contains('plastid')) & (~cov_table.index.str.contains('eColi'))].index)
 		log.info("{} clusters filtered out according to minimum coverage threshold: {} total read coverage per isodecoder.".format(len(filtered_list), min_cov))
 
-	# warn user about many filtered clusters
 	filter_warning = False
 	if len(filtered_list) / len(cov_table.index) >= 0.7:
 		log.warning("70% or more clusters filtered out by --min-cov: consider reducing or assessing data quality and depth!")
@@ -39,8 +33,6 @@ def filterCoverage (cov_table, min_cov):
 	return(filtered_list, filter_warning)
 
 def getBamList (sampleGroups):
-# reads sampleGroups file and creates dictionary of bam and groups
-# sampleGroups text file contains bam file locations, group and library size in read number, tab-separated. 
 
 	with open(sampleGroups,"r") as sampleGroups:
 		baminfo = defaultdict(list)
@@ -56,7 +48,6 @@ def getBamList (sampleGroups):
 	return(baminfo, bamlist)
 
 def getCoverage(sampleGroups, out_dir, control_cond, filtered_cov, unsplitCluster_lookup):
-# Uses bedtools coverage and pandas generate coverage in 5% intervals per gene and isoacceptor for plotting
 
 	log.info("\n+-----------------------------------+\
 		\n| Calculating coverage and plotting |\
@@ -82,13 +73,10 @@ def getCoverage(sampleGroups, out_dir, control_cond, filtered_cov, unsplitCluste
 		coverage['cov'] = coverage['cov'].astype(float)
 		coverage['cov_norm'] = coverage['cov'] / info[1]
 
-		# bin by grouping by each gene and cutting into 20 - i.e. 5% bins by gene length (pos)
 		coverage['bin'] = coverage.groupby([coverage.index])['pos'].transform(lambda x: pd.qcut(x, 25, labels=range(4,104,4)))
-		# append big coverage table and remove original coverage output
 		cov_mean.append(coverage)
 		os.remove(os.path.dirname(bam) + "/" + bam.split("/")[-1] + "_coverage.txt")	 
 
-	# concatenate all tables together, groupby + mean
 	cov_mean = pd.concat(cov_mean, axis = 0)
 	cov_mean_gene = cov_mean.copy()
 	cov_mean_gene['Cluster'] = cov_mean_gene.index.format()
@@ -100,10 +88,8 @@ def getCoverage(sampleGroups, out_dir, control_cond, filtered_cov, unsplitCluste
 	cov_mean_gene['Cluster'] = cov_mean_gene['Cluster'].replace(unsplitCluster_lookup)
 	cov_mean_gene.to_csv(out_dir + "coverage_bygene.txt", sep = "\t", index = False)
 
-	# coverage per amino acid
-	cov_mean_aa = cov_mean.groupby(['aa', 'condition', 'bam', 'pos']).sum() # sum coverages for all clusters for each amino acid
+	cov_mean_aa = cov_mean.groupby(['aa', 'condition', 'bam', 'pos']).sum()
 	cov_mean_aa = cov_mean_aa.reset_index()
-	# remove last pos for each group (i.e. max pos) since this has very low coverage arising from members with different lengths
 	cov_mean_aa = cov_mean_aa.groupby('aa').apply(lambda group: group.loc[group['pos'] != group['pos'].max()])
 	cov_mean_aa = cov_mean_aa.drop(columns='aa')
 	cov_mean_aa = cov_mean_aa.reset_index()
@@ -114,11 +100,9 @@ def getCoverage(sampleGroups, out_dir, control_cond, filtered_cov, unsplitCluste
 	cov_mean_aa	= cov_mean_aa.reset_index()
 	cov_mean_aa.to_csv(out_dir + "coverage_byaa.txt", sep = "\t", index = False)
 	
-	# 5' to 3' coverage ratio calculation for ordering AAs on coverage plot
 	if control_cond:
 		cov_mean_aa_controlcond = cov_mean_aa[cov_mean_aa.condition == control_cond]
 	else:
-		# Use first available condition as fallback
 		first_cond = cov_mean_aa['condition'].unique()[0]
 		cov_mean_aa_controlcond = cov_mean_aa[cov_mean_aa.condition == first_cond]
 	bam = pd.unique(cov_mean_aa_controlcond['bam'])[0] 

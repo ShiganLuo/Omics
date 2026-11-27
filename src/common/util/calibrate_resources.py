@@ -39,40 +39,33 @@ import re
 import sys
 
 DEFAULT_SAFETY = 1.3
-DAMPING = 0.30          # 单次调整限幅 ±30%(D.4)
-MIN_POINTS = 3          # ≥3 个数据点才动(D.4:样本不足不动)
+DAMPING = 0.30
+MIN_POINTS = 3
 
-# benchmark 文件名(去 .benchmark.*)→ config resources 键的固定映射
-# (模块输出文件名与规则名不一致处,来源:各模块 .smk 的 benchmark: 声明)。
 RULE_ALIASES = {
     "hisat2_build": "hisat2_index",
     "RNAseq_report": "generate_report",
     "gsva": "function_gsva",
     "cutadapt_paired": "trimming_Paired",
     "cutadapt_single": "trimming_Single",
-    # benchmark 文件名与 rule_res 键的历史拼写差异,来源:各模块 benchmark: 声明
-    "bwa_mem2-alignment": "bwaMem2_alignment",          # modules/bwa-mem2/bwa-mem2.smk
-    "flagstat": "bam_flagstat",                          # modules/samtools/samtools.smk
-    "haplotypeCaller": "HaplotypeCaller",                # modules/gatk/gatk_germline/gatk_germline.smk
+    "bwa_mem2-alignment": "bwaMem2_alignment",
+    "flagstat": "bam_flagstat",
+    "haplotypeCaller": "HaplotypeCaller",
     "haplotypeCaller-filtered": "filterHaplotypeCallerVcf",
-    "DR_report": "generate_report",                      # modules/DR_report/DR_report.smk
-    "telogator2": "telogator2_run",                      # length.smk 现名;存量观测为旧名
-    # fibercluster fiber_cluster 的 {setting} 通配值档位,非规则名
+    "DR_report": "generate_report",
+    "telogator2": "telogator2_run",
     "fire_auto": "fiber_cluster",
     "msp_auto": "fiber_cluster",
 }
-# 文件名带 contrast 前缀(<contrast>.<suffix>)的按后缀映射。
 SUFFIX_ALIASES = {
     ".go_kegg": "function_go_kegg",
     ".gsea": "function_gsea",
     ".manhattan": "DESeq2_TElocal_manhattan",
     ".locus_box": "DESeq2_TElocal_locus_boxplot",
     ".subfamily_bar": "DESeq2_TElocal_subfamily_bar",
-    # 2026-11-26 拆开 polygenomes DESeq2 两条规则 benchmark 路径后的新命名
     ".TEcount": "DESeq2_TEcount",
     ".TElocal": "DESeq2_TElocal",
 }
-# PE/SE 两条规则共用同一 benchmark 文件名:按 raw.json 样本布局逐行归属。
 LAYOUT_ALIASES = {
     "trimming": ("trimming_Paired", "trimming_Single"),
     "bowtie2_align": ("bowtie2_align_paired", "bowtie2_align_single"),
@@ -134,10 +127,6 @@ def resolve_rule(base, path, layout):
     for suf, key in SUFFIX_ALIASES.items():
         if base.endswith(suf):
             return key, ""
-    # 对比名文件名(<contrast>,如 2iL_vs_SL):主干是 comparison_id 不是规则名。
-    # 规则取 log/group/<seg>/ 的模块段(如 DESeq2)——裸对比文件由 DESeq2_TEcount/
-    # DESeq2_TElocal 共写同一 benchmark 路径,无法从文件区分,家族名是诚实标注。
-    # (与 bioplatform OmicsRuleNames.resolve 同构,2026-11-26)
     parts = path.split(os.sep)
     seg = None
     for i in range(len(parts) - 1):
@@ -146,8 +135,6 @@ def resolve_rule(base, path, layout):
             break
     if "_vs_" in base and seg:
         return seg, "family"
-    # 已按家族名落库的历史行(如 "DESeq2"):与 group/<seg>/ 段同名 → 家族聚合,
-    # 不是可写回 config 的规则键。
     if seg and base == seg:
         return base, "family"
     return base, ""
@@ -177,15 +164,11 @@ def read_benchmarks(root):
             base = base[:-len(".benchmark.txt")]
         else:
             base = base[:-4]
-        # OOM 删失标记:若某次运行检测到 OOM,wrapper 会写 benchmarks/<rule>.OOM;
-        # 该规则本次全部观测按删失(真实需求 ≥ 观测)处理。
         oom_marker = os.path.join(os.path.dirname(tsv), base + ".OOM")
         censored_all = os.path.exists(oom_marker)
         try:
             with open(tsv, newline="") as fh:
                 for rec in csv.DictReader(fh, delimiter="\t"):
-                    # benchmark tsv 每 job(含每次重试)追加一行;attempt 无法从行号
-                    # 唯一还原(多 wildcard job 共享文件),删失判定只用 .OOM 标记。
                     attempt = 1
                     rule, _why = resolve_rule(base, tsv, layout)
                     if rule is None:
@@ -193,7 +176,6 @@ def read_benchmarks(root):
                         continue
                     secs = parse_hms(rec.get("s") or rec.get("h:m:s"))
                     try:
-                        # snakemake benchmark 的 max_rss 单位是 MB
                         rss_mb = float(rec.get("max_rss", 0) or 0)
                     except ValueError:
                         rss_mb = 0.0
@@ -274,7 +256,6 @@ def main(argv=None):
         print("no benchmark tsv under any --root(先跑一次带 benchmark 的运行)", file=sys.stderr)
         return 1
 
-    # ---- D.1 append to history ----
     new_history = 0
     if not args.no_append:
         exists = os.path.exists(args.history)
@@ -291,7 +272,6 @@ def main(argv=None):
             ts = datetime.datetime.now().isoformat(timespec="seconds")
             for rule, attempt, secs, rss_mb, src in rows:
                 key = (run_id, rule, attempt, rss_mb)
-                # per-run dedupe: same (rule,attempt,rss) repeated across wildcard jobs
                 if sum(1 for r in rows if r[0] == rule and r[1] == attempt and r[3] == rss_mb) > 1:
                     key = (run_id, rule, attempt, rss_mb, src)
                 if key in seen:
@@ -302,9 +282,6 @@ def main(argv=None):
                 new_history += 1
         print(f"history: appended {new_history} rows -> {args.history}")
 
-    # ---- load history for suggestions ----
-    # 历史行按当前别名表重新归并(append-only 不改写旧行):老的未映射名
-    # (bwa_mem2-alignment 等)在此折叠进正确规则键,别名幂等。
     hist = {}
     family_rules = set()
     root_layouts = [(r, load_sample_layout(r)) for r in roots]
@@ -338,7 +315,6 @@ def main(argv=None):
         with open(args.config) as fh:
             declared = (json.load(fh).get("resources") or {})
 
-    # ---- D.3 suggest ----
     out_rows = []
     applies = {}
     for rule in sorted(hist):
@@ -354,12 +330,10 @@ def main(argv=None):
             p90 = percentile(obs, 0.90)
             suggest = p90 * args.safety
         else:
-            # 只有删失观测:以下界给建议(真实需求 ≥ 观测)
             p90 = max(cen)
             suggest = p90 * args.safety
             note.append(f"censored-only({n_cen} oom rows), lower-bound suggestion")
         if n_cen:
-            # 删失数据:建议值不得低于任何删失观测(下界约束)
             floor = max(cen) * args.safety
             if floor > suggest:
                 suggest = floor
@@ -368,7 +342,6 @@ def main(argv=None):
         if isinstance(prev, (int, float)):
             if low_n:
                 note.append(f"insufficient points({n_ok + n_cen}<{MIN_POINTS}), suggestion informational")
-            # 限幅:单次调整 ≤±30%(D.4)
             bounded = min(max(suggest, prev * (1 - DAMPING)), prev * (1 + DAMPING))
             if abs(bounded - suggest) > 1:
                 note.append("damped ±30%")
@@ -391,16 +364,12 @@ def main(argv=None):
             "delta_pct": f"{delta:+.0f}" if delta is not None else "",
             "note": "; ".join(note),
         })
-        # ---- --apply 合入候选(护栏在写回前统一判定) ----
         if args.apply:
             new_mb = int(round(suggest))
             if isinstance(prev, (int, float)):
-                # 已有声明值:调整须 n>=MIN_POINTS(样本不足不动),单次 ±30% 限幅
                 if n_ok + n_cen >= MIN_POINTS and new_mb != int(prev):
                     applies[rule] = new_mb
             elif rule not in family_rules:
-                # 新建锚定:首个真实数据集起步(n>=1,note 记录样本强度)。
-                # 首次写入无 prev,不做 ±30% 限幅。
                 applies[rule] = new_mb
 
     if out_rows:
@@ -412,7 +381,6 @@ def main(argv=None):
     else:
         print("no rules with usable history")
 
-    # ---- --apply 写回 config ----
     if args.apply:
         apply_to_config(args.config, applies)
         for rule in sorted(applies):

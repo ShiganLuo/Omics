@@ -19,9 +19,6 @@ suppressPackageStartupMessages({
   library(tibble)
 })
 
-# ---------------------------
-# Utility helpers
-# ---------------------------
 ensure_dir <- function(dir){
   if(!dir.exists(dir)) dir.create(dir, recursive = TRUE, showWarnings = FALSE)
 }
@@ -37,11 +34,6 @@ log_msg <- function(level = c("INFO","WARN","ERROR"), ..., quit = FALSE) {
   if (quit) stop(msg, call. = FALSE)
 }
 
-# ---------------------------
-# Image output formats
-# ---------------------------
-# Valid output image formats = the R ggsave/base-graphics device set.
-# pgf/raw/rgba are matplotlib-only and fail fast here (modules.md #9).
 VALID_FORMATS <- c("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg", "jpeg")
 
 #' Validate image output formats, fail fast on anything unsupported
@@ -85,9 +77,6 @@ open_image_device <- function(path, fmt, width_in, height_in, res = 300) {
                  paste(VALID_FORMATS, collapse = " "))))
 }
 
-# ---------------------------
-# DESeq2Analysis: core function
-# ---------------------------
 #' Perform DESeq2 differential expression and return results + dds
 #'
 #' @param counts_df Data frame or matrix. Raw counts where rows are features (genes) 
@@ -139,7 +128,6 @@ DESeq2Analysis <- function(counts_df, colData, resfile = NULL,
     log_msg("ERROR","DESeq() failed: ", e$message, quit = TRUE)
   })
 
-  # normalized counts
   if(normMethods == "DESeq2"){
     normalized_counts <- counts(dds, normalized = TRUE)
   } else if(normMethods == "cpm"){
@@ -150,11 +138,9 @@ DESeq2Analysis <- function(counts_df, colData, resfile = NULL,
   }
 
   normalized_counts <- as.data.frame(normalized_counts, check.names = FALSE)
-  # DESeq2 results: experiment vs control (assumes factor levels: control, experiment)
   res <- results(dds, contrast = c("condition", "experiment", "control"))
   res_df <- as.data.frame(res, stringsAsFactors = FALSE, check.names = FALSE)
 
-  # combine results and normalized counts; preserve rownames as feature id
   combined <- cbind(res_df, normalized_counts)
   rownames(combined) <- rownames(res_df)
 
@@ -213,20 +199,16 @@ ScreenFeature <- function(res_df, upfile = NULL, downfile = NULL, updownfile = N
   if (!is.data.frame(res_df)) {
     log_msg("ERROR","The res_df must be dataframe",quit = TRUE)
   }
-  # ensure padj and log2FoldChange exist
   if(!("padj" %in% colnames(res_df)) || !("log2FoldChange" %in% colnames(res_df))){
     stop("res_df must contain 'padj' and 'log2FoldChange' columns.")
   }
 
-  # sort by padj asc then log2FC desc
   res_df <- res_df[order(res_df$padj, -res_df$log2FoldChange, na.last = TRUE), , drop = FALSE]
 
-  # handle NA padj by assigning 'none'
   res_df$sig <- "none"
   res_df$sig[ which(!is.na(res_df$padj) & res_df$log2FoldChange >= lfc_cut & res_df$padj < padj_cut) ] <- "up"
   res_df$sig[ which(!is.na(res_df$padj) & res_df$log2FoldChange <= -lfc_cut & res_df$padj < padj_cut) ] <- "down"
 
-  # move 'sig' after padj (if exists)
   if("padj" %in% colnames(res_df)){
     cols <- colnames(res_df)
     cols <- append(setdiff(cols, "sig"), "sig", after = match("padj", cols))
@@ -284,21 +266,16 @@ updown_heatmap <- function(res_df, out_base, coldata = NULL, brewer_palette = "R
   if (!is.data.frame(res_df)) {
     log_msg("ERROR","The res_df must be dataframe", quit = TRUE)
   }
-  # find numeric columns (counts) by detecting columns with numeric type
   heatmat <- as.matrix(res_df[, -c(1:7), drop = FALSE])
-  # scale rows for heatmap
   if (nrow(heatmat) < 1) stop("Empty matrix for heatmap.")
   ramp <- colorRampPalette(RColorBrewer::brewer.pal(11, brewer_palette))(256)
-  ramp <- rev(ramp) # original used reversed palette
+  ramp <- rev(ramp)
 
   formats <- check_formats(formats)
   ensure_dir(dirname(out_base))
-  # compute sensible row/column font sizes
   n_genes <- nrow(heatmat)
   row_font <- ifelse(n_genes <= 50, 8, max(3, 200 / n_genes))
   show_rows <- n_genes <=50
-  # use pheatmap; write via one graphics device per format extension
-  # (10 x 7.5 in, res 200 -- same geometry as the old fixed png/pdf devices)
   for (fmt in formats) {
     outfile <- sprintf("%s.%s", out_base, fmt)
     open_image_device(outfile, fmt, width_in = 10, height_in = 7.5, res = 200)
@@ -330,33 +307,26 @@ updown_heatmap <- function(res_df, out_base, coldata = NULL, brewer_palette = "R
 .add_gene_name <- function(res_df, mode = c("gene", "TE"), geneAnnotation = NULL) {
   mode <- match.arg(mode)
 
-  # Convert rownames to a column for processing
   res <- res_df %>% tibble::rownames_to_column(var = "index")
 
   if (mode == "TE") {
-    # TE Logic: Always extract the prefix before the first colon
     res <- res %>% 
       dplyr::mutate(gene_name = stringr::word(index, 1, sep = ":"))
 
   } else {
     if (!is.null(geneAnnotation)) {
-      # Load annotation mapping
       ann <- read.csv(geneAnnotation, sep = "\t", header = TRUE, 
                       row.names = 1, stringsAsFactors = FALSE)
 
       res <- res %>% dplyr::mutate(
         gene_name = ifelse(
-          # Condition: If ID contains 2+ colons, treat as TE-format
           stringr::str_count(index, ":") >= 2,
           stringr::str_extract(index, "^[^:]+"),
-          # Else: Lookup in annotation file
           ann$gene_name[match(index, rownames(ann))]
         ),
-        # OPTIMIZATION: If lookup resulted in NA, fallback to the original ID (index)
         gene_name = dplyr::coalesce(gene_name, index)
       )
     } else {
-      # Warning if mode is gene but no file is provided
       log_msg("WARN", "Mode 'gene' requires geneAnnotation. Using original IDs as names.")
       res <- res %>% dplyr::mutate(gene_name = index)
     }
@@ -412,7 +382,6 @@ plot_volcano <- function(res_df, out_base, mode = c("gene","TE"), geneAnnotation
     )
   )
 
-  # prepare labels
   if(label.by == "padj"){
     up_genes <- res %>% filter(gene_status == "Upregulated genes") %>% arrange(padj) %>% head(nlabel)
     down_genes <- res %>% filter(gene_status == "Downregulated genes") %>% arrange(padj) %>% head(nlabel)
@@ -421,7 +390,6 @@ plot_volcano <- function(res_df, out_base, mode = c("gene","TE"), geneAnnotation
     down_genes <- res %>% filter(gene_status == "Downregulated genes") %>% arrange(log2FoldChange) %>% head(nlabel)
   }
 
-  # counts for legend
   status_counts <- res %>% group_by(gene_status) %>% summarise(n = n())
   new_labels <- setNames(paste0(status_counts$gene_status, " (n = ", status_counts$n, ")"),
                          status_counts$gene_status)
@@ -572,7 +540,6 @@ TEcount_read <- function(infile, control, experiment, min_mean = 5,
     log_msg("ERROR",paste0(infile," don't exist"), quit = TRUE)
   }
   TEcount <- read.csv(infile, sep = "\t", header = TRUE, row.names = 1, check.names = FALSE)
-  # Subset columns by sample lists (preserve original column order of control then experiment)
   samples_sel <- c(control, experiment)
   if(!all(samples_sel %in% colnames(TEcount))){
     log_msg("ERROR", "Some samples in control/experiment not present in matrix columns.", quit = TRUE)
@@ -649,21 +616,17 @@ count_read <- function(infile, control, experiment, min_mean = 5) {
   
   count <- read.csv(infile, sep = "\t", header = TRUE, row.names = 1, check.names = FALSE)
   
-  # Validate and subset samples
   samples_sel <- c(control, experiment)
   if (!all(samples_sel %in% colnames(count))) {
     log_msg("ERROR", "Some samples in control/experiment not present in matrix columns.", quit = TRUE)
   }
   count <- count[, samples_sel, drop = FALSE]
 
-  # Check for non-integers and round if necessary
-  # (Important for compatibility with DESeq2 if fraction counts were used)
   if (!all(count == floor(count), na.rm = TRUE)) {
     log_msg("INFO", "Non-integer values detected in count matrix. Rounding to nearest integer for DESeq2 compatibility.")
     count <- round(count)
   }
 
-  # Filter rows based on mean expression
   count <- count[rowMeans(count, na.rm = TRUE) > min_mean, , drop = FALSE]
   
   print(head(count))
@@ -713,14 +676,11 @@ parser$add_argument('-a', '--annotation', type = 'character', required = FALSE, 
                     help = 'annotation file: gene_id, gene_type, gene_name (tab)')
 parser$add_argument('-Tcm', '--TEcountMode', type = 'character', nargs = "+",
                     choices = c("all","Gene_TE","TE","Gene"), default = "all")
-# repeatable --format (action="append"); no short flag because -f is taken by
-# --figure. Valid set is the R ggsave device set; fail fast before any analysis.
 parser$add_argument('--format', type = 'character', action = 'append',
                     help = 'output image format, repeatable (default: png); valid: png pdf svg ps eps tif tiff jpg jpeg')
 args <- parser$parse_args()
 fmts <- check_formats(if (is.null(args$format)) "png" else as.character(unlist(args$format)))
 
-# read group and extract sample lists
 df_group <- read.csv(args$group, sep = "\t", header = TRUE, stringsAsFactors = FALSE)
 if(!all(c("sample","group") %in% colnames(df_group))){
   log_msg("ERROR","Group file must contain columns 'sample' and 'group'.",quit = TRUE)
@@ -732,7 +692,6 @@ experiment <- as.vector(df_group$sample[df_group$group == experimentStr])
 if(length(control) == 0 || length(experiment) == 0){
   log_msg("ERROR","No samples found for control or experiment. Check group file and --pattern.", quit = TRUE)
 }
-# prepare annotation for heatmap align withe read function
 sample_anno <- subset(df_group, group %in% c(controlStr, experimentStr))
 sample_anno <- sample_anno[order(factor(sample_anno$group, levels = c(controlStr, experimentStr))), ]
 rownames(sample_anno) <- sample_anno$sample
@@ -750,9 +709,7 @@ prefix <- args$prefix
 ensure_dir(outdir)
 log_msg("INFO","Mode:", args$mode, "Matrix:", args$matrix, "Outdir:", outdir, "Prefix:", prefix, "Figures:", paste(args$figure, collapse = ","))
 
-# main branch
 if(args$mode %in% c("TEcount", "TElocal")){
-  # TEcount subfamily rows have 3 colon-separated fields; TElocal locus rows have 4
   te_pattern <- if(args$mode == "TElocal") "^[^:]+:[^:]+:[^:]+:[^:]+$" else "^[^:]+:[^:]+:[^:]+$"
   mode_tag <- args$mode
   if(args$mode == "TElocal"){
@@ -764,10 +721,8 @@ if(args$mode %in% c("TEcount", "TElocal")){
   if("pca" %in% args$figure){
     df_for_pca <- dfList[["Gene"]]
     res_for_pca <- DESeq2Analysis(df_for_pca, colData, normMethods = "cpm")
-    # res_for_pca$results contains combined table; pass normalized to PCA plotting
     pca_out <- file.path(outdir, "PCA", paste0(prefix, ".cpmPCA"))
     ensure_dir(dirname(pca_out))
-    # create a simple PCA plot using normalized counts
     normalized <- res_for_pca$normalized
     pca_mat <- prcomp(t(normalized))
     pca_df <- data.frame(PC1 = pca_mat$x[,1], PC2 = pca_mat$x[,2],
@@ -786,7 +741,6 @@ if(args$mode %in% c("TEcount", "TElocal")){
     }
   }
 
-  # which data subsets to process
   modes_to_run <- if("all" %in% args$TEcountMode) names(dfList) else args$TEcountMode
 
   for(dataType in modes_to_run){
@@ -798,18 +752,15 @@ if(args$mode %in% c("TEcount", "TElocal")){
     ensure_dir(dirname(outfile))
     resDds <- DESeq2Analysis(df, colData, resfile = outfile, normMethods = "DESeq2")
     res_comb <- resDds$results
-    # TEFilter only for Gene_TE type (to extract TE-like rows)
     if(dataType == "Gene_TE"){
       res_comb_TE <- TEFilter(res_comb, pattern = te_pattern)
     } else {
       res_comb_TE <- res_comb
     }
 
-    # plotting
     if("heatmap" %in% args$figure){
       heat_dir <- file.path(outdir, "heatmap")
       ensure_dir(heat_dir)
-      # create up/down sets and heatmaps
       sf <- ScreenFeature(res_comb_TE,
                           upfile = file.path(outdir,"upDown",paste0(prefix,".",mode_tag,"_",dataType,"_up.tsv")),
                           downfile = file.path(outdir,"upDown",paste0(prefix,".",mode_tag,"_",dataType,"_down.tsv")),
@@ -831,7 +782,6 @@ if(args$mode %in% c("TEcount", "TElocal")){
     if("volcano" %in% args$figure){
       vol_dir <- file.path(outdir, "volcano")
       ensure_dir(vol_dir)
-      # decide gene vs TE based on name pattern or dataType
       is_gene_mode <- grepl("Gene", dataType)
       if(is_gene_mode){
         vol_out <- file.path(vol_dir, paste0(prefix,".",mode_tag,"_", dataType, "_volcano"))
@@ -845,14 +795,13 @@ if(args$mode %in% c("TEcount", "TElocal")){
         plot_MA(res_comb_TE, ma_out, mode = "TE", formats = fmts)
       }
     }
-  } # end loop dataType
+  }
 
 } else if(args$mode == "Count"){
   df <- count_read(args$matrix, control, experiment)
   outfile <- file.path(outdir, paste0(prefix, ".Count.tsv"))
   resDds <- DESeq2Analysis(df, colData, resfile = outfile, normMethods = "DESeq2")
   res_comb <- resDds$results
-    # plotting
   if("heatmap" %in% args$figure){
     plot_dir <- file.path(outdir, "heatmap")
     ensure_dir(plot_dir)

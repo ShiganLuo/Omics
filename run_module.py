@@ -128,7 +128,6 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
                              "receipt without running tools. Default MODE: dag")
     parser.add_argument("--log", default=None)
     args, unknown = parser.parse_known_args(argv)
-    # dotted overrides: --Params.cutadapt.quality 30 / --key=value
     extra: Dict[str, Any] = {}
     i = 0
     while i < len(unknown):
@@ -139,9 +138,6 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
                 k, v = key.split("=", 1)
                 extra[k] = v
             else:
-                # dotted/unknown flags take exactly one value in --key value
-                # form; multi-value input uses --key=v1,v2 (comma-split), so a
-                # following bare token can never be swallowed as a value.
                 if i + 1 < len(unknown) and not unknown[i + 1].startswith("--"):
                     extra[key] = unknown[i + 1]
                     i += 1
@@ -200,7 +196,6 @@ def discover_module_files(module: str,
         return sorted(hits, key=len)
 
     def _pick(candidates: List[str]) -> Optional[str]:
-        # polygenomes/ first (the variant subworkflows import), then shortest
         for h in candidates:
             if "polygenomes" in h and _includes_resolve(h):
                 return h
@@ -247,7 +242,6 @@ def load_module_config(config_path: str, module: str) -> Dict[str, Any]:
 
     cfg["ROOT_DIR"] = ROOT_DIR
 
-    # env section: modules commonly omit it; the workflow configs carry it.
     env = cfg.setdefault("env", {})
     if not env.get("env_dir"):
         for db_dir in SERVER_DATABASE_DIR.values():
@@ -255,10 +249,6 @@ def load_module_config(config_path: str, module: str) -> Dict[str, Any]:
             if os.path.isdir(candidate):
                 env["env_dir"] = candidate
                 break
-    # sif() fallback uses workflow.basedir (= wrapper dir when running via the
-    # generated wrapper), producing <env_dir>/.run_module/<stem>.sif — wrong.
-    # Pre-resolve each conda yaml stem of this module to an explicit SIF path
-    # so sif() branch 1 (explicit mapping) always hits.
     env_dir = env.get("env_dir")
     if env_dir:
         module_root = os.path.join(ROOT_DIR, "modules", module)
@@ -268,7 +258,6 @@ def load_module_config(config_path: str, module: str) -> Dict[str, Any]:
                     stem = os.path.splitext(fname)[0]
                     env.setdefault(stem, os.path.join(env_dir, module, f"{stem}.sif"))
 
-    # server path migration (same as _init_raw_json)
     current_db = _detect_current_server_db()
     if current_db is not None:
         foreign_dirs = sorted(
@@ -294,8 +283,6 @@ def apply_overrides(cfg: Dict[str, Any], extra: Dict[str, Any]) -> None:
             for k in keys[:-1]:
                 d = d.setdefault(k, {})
             leaf = keys[-1]
-            # *_samples keys (and their per-genome children) hold lists —
-            # downstream code does membership tests against them.
             samples_context = any("sample" in k for k in keys[:-1]) or \
                 re.search(r"samples?(_\w+)?$", leaf)
             if isinstance(value, str) and samples_context:
@@ -345,7 +332,6 @@ def _module_source(snakefile: str, _seen: Optional[set] = None) -> str:
     with open(path, encoding="utf-8") as f:
         for line in f.read().splitlines(keepends=True):
             if in_rule:
-                # rule 体 = 空行/注释/缩进行;顶格语句结束 rule 体
                 if line.strip() == "" or line.lstrip().startswith("#") \
                         or line[:1] in (" ", "\t"):
                     continue
@@ -396,18 +382,14 @@ def _eval_output_exprs(body: str, outdir: str,
     env: Dict[str, Any] = dict(module_globals or {})
     env.update({"outdir": outdir, "wildcards": _Wildcards(), "os": os,
                 "config": config or {},
-                # output markers in module smks; the path inside is what matters
                 "directory": lambda x: x, "protected": lambda x: x,
                 "ancient": lambda x: x, "temp": lambda x: x,
                 "touch": lambda x: x, "report": lambda x: x})
-    # strip the 'output:' prefix; each line like `name = expr,` or bare `expr,`
     payload = re.sub(r"^\s*output:\s*", "", body)
-    # join continuation lines into one expression list
     for stmt in _split_output_stmts(payload):
         stmt = stmt.strip().rstrip(",")
         if not stmt:
             continue
-        # named output: name = expr -> take RHS
         if re.match(r"^\w+\s*=\s*", stmt):
             stmt = re.sub(r"^\w+\s*=\s*", "", stmt)
         try:
@@ -577,8 +559,6 @@ def write_wrapper(snakefile: str, patterns: List[str], outdir: str) -> str:
     lines = []
     for p in patterns:
         escaped = p.replace('"', '\\"')
-        # plain string inside expand(): snakemake enumerates wildcard values
-        # from the included module's rules at DAG-build time.
         lines.append(f'        expand("{escaped}"),')
     body = WRAPPER_TEMPLATE.format(snakefile=snakefile, inputs="\n".join(lines))
     with open(wrapper, "w", encoding="utf-8") as f:
@@ -603,13 +583,9 @@ def build_cmd(wrapper: str, config_path: str, args: argparse.Namespace,
     if mem_mb:
         cmd += ["--resources", f"mem_mb={mem_mb}"]
     if os.environ.get("OMICS_SCRIPT_ONLY", "") == "1":
-        # 测试/--script-only 模式:run 块只落盘 shell 回执不执行工具,
-        # 无需构建 conda/apptainer 环境(与 run.py::build_snakemake_cmd 一致);
-        # --forceall 全量重新生成回执,--keep-going 单规则失败不连坐。
         pass
         cmd += ["--forceall", "--keep-going"]
     elif args.dry_run:
-        # dry-run 不执行任何 job,无需环境后端
         pass
     elif not use_singularity:
         if not args.conda_prefix:
@@ -662,7 +638,6 @@ def inject_test_paths(cfg: Dict[str, Any], schema_path: str, test_data: str) -> 
                 if not cfg.get(key) or _is_template_value(cfg.get(key)):
                     cfg[key] = val
                 continue
-            # 多级键(genome.<G>.fasta 等)逐层下钻建嵌套 dict;既有非空标量不覆盖
             parts = key.split(".")
             node = cfg
             for part in parts[:-1]:
@@ -766,7 +741,6 @@ def infer_module_from_snakefile(snakefile: str) -> str:
 def main(argv: List[str] | None = None) -> None:
     args = parse_args(argv)
     if args.test == "shell":
-        # 测试模式(shell):执行 run 代码但只落盘 shell 回执,不执行工具
         if args.dry_run:
             raise SystemExit("--test shell cannot combine with --dry-run")
         os.environ["OMICS_SCRIPT_ONLY"] = "1"
@@ -801,7 +775,6 @@ def main(argv: List[str] | None = None) -> None:
         logger.info("user config merged: %s", args.config)
     apply_overrides(cfg, args.extra_args)
 
-    # schema validation: <config_stem>.schema.json next to the module JSON
     schema_path = os.path.splitext(config_path)[0] + ".schema.json"
     schema_errors: List[str] = []
     if args.schema_validate and os.path.isfile(schema_path):
@@ -811,7 +784,6 @@ def main(argv: List[str] | None = None) -> None:
         schema_validator._schema = schema
         schema_errors = schema_validator.validate(cfg)
         if args.test is not None:
-            # 测试模式:'Required field is empty' 视为待填模板,不判失败
             for e in [e for e in schema_errors
                       if e.startswith("Required field is empty")]:
                 logger.info(f"[schema] {e} (test mode: unfilled template, ignored)")
@@ -827,15 +799,11 @@ def main(argv: List[str] | None = None) -> None:
     else:
         logger.info("schema validation skipped for %s (no schema file or flag)", schema_path)
 
-    # outdir/indir: CLI wins over config; outdir default ./<module>_run
     outdir = os.path.abspath(args.outdir or cfg.get("outdir") or f"{module}_run")
     if args.outdir or not cfg.get("outdir"):
         cfg["outdir"] = outdir
     if args.indir:
         cfg["indir"] = os.path.abspath(args.indir)
-    # Log directory defaults to <outdir>/log. Module JSONs may carry relative
-    # logdir values ("logs"); anchor them to outdir (snakemake resolves
-    # relative paths against its cwd, which is NOT the outdir).
     logdir = cfg.get("logdir") or os.path.join(outdir, "log")
     if not os.path.isabs(logdir):
         logdir = os.path.join(outdir, logdir)
@@ -847,13 +815,8 @@ def main(argv: List[str] | None = None) -> None:
                 cfg[key] = os.path.join(outdir, v)
     os.makedirs(cfg["outdir"], exist_ok=True)
     os.makedirs(cfg["logdir"], exist_ok=True)
-    # 回执 RECEIPT_DIR 与占位清单固定到 outdir/log/cmd(common.smk 从
-    # OUTDIR_ROOT 拼 RECEIPT_DIR,缺省会落到 cwd/output)
     cfg["OUTDIR_ROOT"] = outdir
     if args.test is not None:
-        # 测试模式(dag|shell):模块没有固定输入,sweep 同款测试路径注入 +
-        # 输入占位(空文件,只为通过存在性检查,不进 git)。用户显式给的
-        # --indir/--samples 与 config 非空字段优先。
         test_data = os.path.join(ROOT_DIR, "assests", "test", "data")
         if not args.indir and not os.path.isdir(cfg.get("indir") or ""):
             cfg["indir"] = os.path.join(test_data, "fastq")
@@ -861,15 +824,12 @@ def main(argv: List[str] | None = None) -> None:
             for s in ("TestSample1", "TestSample2"):
                 d = os.path.join(cfg["indir"], s)
                 os.makedirs(d, exist_ok=True)
-                # PE(_1/_2)与 SE(.single)两种命名约定都占位
                 for name in (f"{s}_1.fq.gz", f"{s}_2.fq.gz", f"{s}.single.fq.gz"):
                     p = os.path.join(d, name)
                     if not os.path.exists(p):
                         open(p, "a").close()
         inject_test_paths(cfg, schema_path, test_data)
 
-    # write the effective config next to the module JSON's own copy? No — write
-    # a run copy into outdir so the original module JSON stays pristine.
     import json
     effective_config = os.path.join(outdir, f"{module}.config.json")
     with open(effective_config, "w", encoding="utf-8") as f:
@@ -878,10 +838,6 @@ def main(argv: List[str] | None = None) -> None:
 
     mem_mb = args.mem_mb or _detect_total_mem_mb()
 
-    # Default target: a generated wrapper that includes the module smk and adds
-    # `rule all` over the module's per-sample outputs (expand() fixes wildcards
-    # at DAG-build time, so input functions see concrete values). The module
-    # smk is never modified.
     wrapper = None
     if not args.target and not args.until and not args.list_rules:
         target_samples = args.samples

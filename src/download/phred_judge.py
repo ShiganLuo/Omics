@@ -43,31 +43,26 @@ def detect_phred_encoding(fastq_files: Union[str, List[str]]) -> Dict[str, str]:
 
     results = {}
     for fq_file in fastq_files:
-        # Open file (support gzip)
         open_func = gzip.open if fq_file.endswith(".gz") else open
         with open_func(fq_file, 'rt', encoding='utf-8', errors='ignore') as f:
             line_count = 0
             ascii_codes = []
             for i, line in enumerate(f):
-                # FASTQ quality lines: every 4th line (lines 4, 8, 12, ...)
                 if (i + 1) % 4 == 0:
                     codes = np.fromiter((ord(c) for c in line.strip()), dtype=np.uint8)
                     ascii_codes.append(codes)
                     line_count += 1
-                    if line_count >= 10000:  # sample first 10,000 quality lines for speed
+                    if line_count >= 10000:
                         break
             if not ascii_codes:
                 results[fq_file] = 'unknown'
                 continue
 
-            # Concatenate all sampled quality lines
             all_codes = np.concatenate(ascii_codes)
             min_code = all_codes.min()
             max_code = all_codes.max()
 
-            # Decision rules
-            # Phred+33: ASCII 33–73; Phred+64: ASCII 64–104
-            if min_code < 59:  # lower than 64 minus safety margin → phred33
+            if min_code < 59:
                 results[fq_file] = 'phred33'
             elif min_code >= 59 and max_code <= 104:
                 results[fq_file] = 'phred64'

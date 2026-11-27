@@ -6,31 +6,20 @@ indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
 outdir_combine = config.get("outdir_combine", outdir)
-# pseudobulk deliverables root (scRNAseq: <outdir>/diff/pseudobulk)
 outdir_pseudobulk = config.get("outdir_pseudobulk", outdir_combine)
 logdir_combine = config.get("logdir_combine", logdir)
 
 procedure = config.get("Procedure", {})
 python = procedure.get("python") or "python"
 
-# tissue_samples: {tissue: [sample_id, ...]} — sample_params.tissue_samples
-# (subworkflow wiring passes it bare, purity 规范见 subworkflow/subworkflow.md)
 tissue_samples = config.get("tissue_samples", {})
 script = os.path.join(ROOT_DIR, "modules", "scanpy", "bin", "scRNAseq.py")
 
-# 参数精确到 rule:Params.scanpy.<counter>.<rule_name>.<key>(无 counter 级共享回退)。原 qc/auto/advanced/cluster/pseudobulk
-# 参数段逐 key 挂到消费它的 rule 名下(scanpy_qc / scanpy_merge / scanpy_auto /
-# scanpy_reannotate / scanpy_advanced / scanpy_pseudobulk)各 rule 独立。
 
 
-# Gene type annotation references
 te_bed = config.get("te_bed", "")
 gene_tsv = config.get("gene_tsv", "")
-# Species for tissue-specific annotation
 species = config.get("species", "")
-# ---------------------------------------------------------------------------
-# Per-sample QC
-# ---------------------------------------------------------------------------
 rule scanpy_qc:
     """Perform QC on single-cell data using Scanpy."""
     input:
@@ -52,7 +41,6 @@ rule scanpy_qc:
     params:
         python=python,
         script=script,
-        # 参数精确到 rule:Params.scanpy.<counter>.scanpy_qc.<key>
         min_genes=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_qc", {}).get("min_genes", 200),
         max_genes=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_qc", {}).get("max_genes", 6000),
         max_pct_mt=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_qc", {}).get("max_pct_mt", 20),
@@ -73,7 +61,7 @@ rule scanpy_qc:
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(str(output.plot_dir), exist_ok=True)
             script = receipt_script(f"scanpy_qc_{wildcards.counter}_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"scanpy_qc_{wildcards.counter}_{wildcards.sample_id}.sh")
             cmd = [params.python, params.script, "qc",
                    "-i", input.h5ad,
@@ -91,11 +79,6 @@ rule scanpy_qc:
                 cmd += ["-s", "-d", str(params.doublet_rate)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
-                # Cap numeric-library threads to the rule's thread budget
-                # (config resources -> rule_res -> threads) so the process
-                # honors what snakemake allocated instead of grabbing every
-                # core; the value is injected at script generation, never
-                # hardcoded here.
                 f.write(f"export OMP_NUM_THREADS={threads}\n")
                 f.write(f"export OPENBLAS_NUM_THREADS={threads}\n")
                 f.write(f"export MKL_NUM_THREADS={threads}\n")
@@ -104,7 +87,7 @@ rule scanpy_qc:
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy QC for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -112,9 +95,6 @@ rule scanpy_qc:
             rule_logger.error(f"Error occurred during scanpy QC for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred during scanpy QC for sample {wildcards.sample_id}: {e}")
 
-        # ---------------------------------------------------------------------------
-        # Merge by tissue
-        # ---------------------------------------------------------------------------
 def get_tissue_qc_files(wildcards):
     """Get QC'd h5ad paths for all samples in a tissue group."""
     sample_ids = tissue_samples[wildcards.tissue]
@@ -142,7 +122,6 @@ rule scanpy_merge:
         script=script,
         te_bed=te_bed,
         gene_tsv=gene_tsv,
-        # 参数精确到 rule:Params.scanpy.<counter>.scanpy_merge.formats
         formats=lambda wildcards: (lambda fmts: [fmts] if isinstance(fmts, str) else [str(f) for f in fmts])(
             config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_merge", {}).get("formats") or ["png"])
     run:
@@ -156,7 +135,7 @@ rule scanpy_merge:
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(str(output.plot_dir), exist_ok=True)
             script = receipt_script(f"scanpy_merge_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"scanpy_merge_{wildcards.counter}_{wildcards.tissue}.sh")
             cmd = [params.python, params.script, "merge",
                    "-i"] + list(input.h5ad) + ["-o", output.h5ad]
@@ -167,11 +146,6 @@ rule scanpy_merge:
                 cmd += ["-b", params.te_bed, "-G", params.gene_tsv]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
-                # Cap numeric-library threads to the rule's thread budget
-                # (config resources -> rule_res -> threads) so the process
-                # honors what snakemake allocated instead of grabbing every
-                # core; the value is injected at script generation, never
-                # hardcoded here.
                 f.write(f"export OMP_NUM_THREADS={threads}\n")
                 f.write(f"export OPENBLAS_NUM_THREADS={threads}\n")
                 f.write(f"export MKL_NUM_THREADS={threads}\n")
@@ -180,7 +154,7 @@ rule scanpy_merge:
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy merge for {wildcards.tissue} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -209,8 +183,6 @@ rule scanpy_auto:
         python=python,
         script=script,
         tissue=lambda wildcards: wildcards.tissue,
-        # 参数精确到 rule:Params.scanpy.<counter>.scanpy_auto.<key>
-        # (原 auto/cluster 参数段逐 key 挂到 scanpy_auto 名下)
         llm_method=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("llm_method", ""),
         llm_model=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("llm_model", ""),
         llm_api_key=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("llm_api_key", ""),
@@ -229,8 +201,6 @@ rule scanpy_auto:
         skip_te=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("skip_te", True),
         regress_cell_cycle=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("regress_cell_cycle", True),
         save_iteration_h5ad=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("save_iteration_h5ad", False),
-        # marker_supplement 原为 scanpy_auto/scanpy_reannotate 共享 key;
-        # 现按 rule 独立(Params.scanpy.<counter>.scanpy_auto.marker_supplement)
         marker_supplement=lambda wildcards: (config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("marker_supplement", {}) or {}).get(wildcards.tissue, ""),
         marker_supplement_llm=lambda wildcards: bool(config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("marker_supplement_llm", True)),
         exclude_genes=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_auto", {}).get("exclude_genes", "") or "",
@@ -293,11 +263,6 @@ rule scanpy_auto:
                 cmd.append("-D")
             with open(script_path, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
-                # Cap numeric-library threads to the rule's thread budget
-                # (config resources -> rule_res -> threads) so the process
-                # honors what snakemake allocated instead of grabbing every
-                # core; the value is injected at script generation, never
-                # hardcoded here.
                 f.write(f"export OMP_NUM_THREADS={threads}\n")
                 f.write(f"export OPENBLAS_NUM_THREADS={threads}\n")
                 f.write(f"export MKL_NUM_THREADS={threads}\n")
@@ -306,7 +271,7 @@ rule scanpy_auto:
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy auto for {wildcards.tissue} at {current_time} completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -383,8 +348,6 @@ rule scanpy_reannotate:
     params:
         python=python,
         script=script,
-        # 参数精确到 rule:Params.scanpy.<counter>.scanpy_reannotate.<key>
-        # (marker_supplement 原与 scanpy_auto 共享,现各自独立 key)
         marker_supplement=lambda wildcards: (config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_reannotate", {}).get("marker_supplement", {}) or {}).get(wildcards.tissue, ""),
         formats=lambda wildcards: (lambda fmts: [fmts] if isinstance(fmts, str) else [str(f) for f in fmts])(
             config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_reannotate", {}).get("formats") or ["png"]),
@@ -397,7 +360,7 @@ rule scanpy_reannotate:
             rule_logger.info(f"Start scanpy reannotate (in-place) for tissue {wildcards.tissue}")
             sample_outdir = os.path.dirname(str(input.h5ad))
             script = receipt_script(f"scanpy_reannotate_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"scanpy_reannotate_{wildcards.counter}_{wildcards.tissue}.sh")
             cmd = [params.python, params.script, "reannotate",
                    "-i", input.h5ad,
@@ -413,7 +376,7 @@ rule scanpy_reannotate:
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy reannotate for {wildcards.tissue} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -428,9 +391,6 @@ rule scanpy_advanced:
     """
     input:
         h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_auto.h5ad",
-        # ordering guard: when overrides are configured for this tissue,
-        # reannotate rewrites the auto h5ad in place; this marker ensures
-        # advanced reads the post-override labels.
         reannotated = scanpy_advanced_reannotated
     output:
         h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_advanced.h5ad",
@@ -448,8 +408,6 @@ rule scanpy_advanced:
     params:
         python=python,
         script=script,
-        # 参数精确到 rule:Params.scanpy.<counter>.scanpy_advanced.<key>
-        # (原 cluster/advanced 参数段逐 key 挂到 scanpy_advanced 名下)
         n_pcs=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_advanced", {}).get("n_pcs", 50),
         n_neighbors=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_advanced", {}).get("n_neighbors", 15),
         trajectory=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_advanced", {}).get("trajectory", True),
@@ -471,7 +429,7 @@ rule scanpy_advanced:
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(str(output.plot_dir), exist_ok=True)
             script = receipt_script(f"scanpy_advanced_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"scanpy_advanced_{wildcards.counter}_{wildcards.tissue}.sh")
             cmd = [params.python, params.script, "advanced",
                     "-i", input.h5ad,
@@ -495,11 +453,6 @@ rule scanpy_advanced:
                 cmd += ["--format", str(fmt)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
-                # Cap numeric-library threads to the rule's thread budget
-                # (config resources -> rule_res -> threads) so the process
-                # honors what snakemake allocated instead of grabbing every
-                # core; the value is injected at script generation, never
-                # hardcoded here.
                 f.write(f"export OMP_NUM_THREADS={threads}\n")
                 f.write(f"export OPENBLAS_NUM_THREADS={threads}\n")
                 f.write(f"export MKL_NUM_THREADS={threads}\n")
@@ -508,7 +461,7 @@ rule scanpy_advanced:
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy advanced analysis for {wildcards.tissue} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -516,17 +469,6 @@ rule scanpy_advanced:
             rule_logger.error(f"Error occurred during scanpy advanced analysis for tissue {wildcards.tissue}: {e}")
             raise RuntimeError(f"Error occurred during scanpy advanced analysis for tissue {wildcards.tissue}: {e}")
 
-        # ---------------------------------------------------------------------------
-        #   Pseudo-bulk DEG (PyDESeq2) — modules/scanpy/bin/pseudobulk.py
-        #   Two-file design: --h5ad (scanpy_auto output) supplies the cell_type
-        #   annotations; --counts-h5ad (scanpy_merge output) supplies the
-        #   full-gene integer layers["counts"] (the auto file's counts layer is
-        #   HVG-subset and its raw slot is log1p-normalised — neither is valid
-        #   pseudobulk input). Runs PyDESeq2 per compare entry, plots
-        #   volcano/heatmap/GO. 参数精确到 rule:compare 等逐 key 配置于
-        #   Params.scanpy.<counter>.scanpy_pseudobulk.<key>
-        #   (原 pseudobulk 整段 dict 转发已展开逐 key,无共享回退)。
-        # ---------------------------------------------------------------------------
 rule scanpy_pseudobulk:
     """Pseudo-bulk DEG via PyDESeq2: annotations from scanpy_auto, full-gene
     raw counts from the merged h5ad. When overrides are configured for the
@@ -548,8 +490,6 @@ rule scanpy_pseudobulk:
     container:
         sif("scanpy.yaml", "scanpy_pseudobulk")
     params:
-        # 参数精确到 rule:Params.scanpy.<counter>.scanpy_pseudobulk.<key>
-        # (原 pb_cfg 整段 dict 转发已展开逐 key)
         pb_min_cells=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_pseudobulk", {}).get("min_cells", 30),
         pb_min_counts=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_pseudobulk", {}).get("min_counts", 1000),
         pb_n_pseudo_reps=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_pseudobulk", {}).get("n_pseudo_reps", 3),
@@ -573,9 +513,8 @@ rule scanpy_pseudobulk:
             rule_logger.info(f"Start scanpy pseudobulk for tissue {wildcards.tissue} at {current_time}")
             out_root = os.path.dirname(str(output.report))
             os.makedirs(out_root, exist_ok=True)
-            # dual-write receipts: timestamped copy in log/cmd, plain copy in outdir
             script = receipt_script(f"scanpy_pseudobulk_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(out_root, f"scanpy_pseudobulk_{wildcards.counter}_{wildcards.tissue}.sh")
             cmd = [params.python, params.script,
                    "--h5ad", f"{wildcards.tissue}={input.h5ad}",
@@ -585,15 +524,8 @@ rule scanpy_pseudobulk:
                    "--min-counts", str(params.pb_min_counts),
                    "--n-pseudo-reps", str(params.pb_n_pseudo_reps),
                    "--min-cells-per-rep", str(params.pb_min_cells_per_rep)]
-            # --cell-types is nargs='+': ONE flag carrying all values —
-            # repeated flags overwrite each other in argparse.
             if params.pb_cell_types:
                 cmd += ["--cell-types"] + [str(ct) for ct in params.pb_cell_types]
-            # 比较设计:sample_params.design → comparison_design(pairwise
-            # 视图,多组 entry 按 coding 展开成两两 group_pairs)→
-            # compare_design.json → --compare-json。转化集中在
-            # common.smk::write_compare_design(rule 层唯一转化点),
-            # 语义错误(缺组织/组名悬空/样本互斥)在那里快速失败。
             compare_json = os.path.join(out_root, "compare_design.json")
             write_compare_design(params.pb_design, wildcards.tissue,
                                  "pairwise", compare_json,
@@ -603,11 +535,7 @@ rule scanpy_pseudobulk:
                 cmd += ["--top-cell-types", str(ct)]
             for g in (params.pb_highlight_genes or []):
                 cmd += ["--highlight-genes", str(g)]
-            # --deg-mode is nargs='+': ONE flag carrying all values —
-            # repeated flags overwrite each other in argparse and only the
-            # last mode would run.
             cmd += ["--deg-mode"] + [str(m) for m in (params.pb_deg_mode or ["all"])]
-            # --format is action='append': one flag per format (modules.md #9)
             for fmt in params.formats:
                 cmd += ["--format", str(fmt)]
             with open(script, "w") as f:
@@ -620,7 +548,7 @@ rule scanpy_pseudobulk:
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy pseudobulk for {wildcards.tissue} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

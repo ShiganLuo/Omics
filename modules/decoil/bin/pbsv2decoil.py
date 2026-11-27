@@ -37,12 +37,11 @@ BND_ALT_RE = re.compile(
     r"|(?P<br2>[\[\]])(?P<mate2>[^\[\]:]+):(?P<pos2>\d+)(?P=br2)(?P<post>[A-Za-z.*]+))$"
 )
 
-# breakend ALT form -> Decoil strand code (POS side, mate side)
 BND_STRANDS: dict[tuple[str, str], str] = {
-    ("[", "right"): "+-",   # t[p[  — mate piece right of p joined after t
-    ("]", "right"): "++",   # t]p]  — mate piece left of p joined after t
-    ("]", "left"): "-+",    # ]p]t  — POS right side kept, mate left kept
-    ("[", "left"): "--",    # [p[t  — POS right side kept, mate right kept
+    ("[", "right"): "+-",
+    ("]", "right"): "++",
+    ("]", "left"): "-+",
+    ("[", "left"): "--",
 }
 
 INFO_STRANDS_HDR = (

@@ -52,8 +52,8 @@ plot_sv_circos_from_files <- function(
   show_legend = TRUE, 
   outImg = "sv_circos.png",
   ins_plot_type = "points" , # "points" or "bar"
-  bin_size = 1e6, # 1Mb bins for bar plot
-  input_dir = dirname(file_list[[1]])  # dir holding karyotype.txt from prepare
+  bin_size = 1e6,
+  input_dir = dirname(file_list[[1]])
   ) {
   
   ext <- tolower(tools::file_ext(outImg))
@@ -80,20 +80,11 @@ plot_sv_circos_from_files <- function(
   )
 
   circos.clear()
-  # 2. 初始化 Ideogram
-  # Prefer the karyotype.txt written by sv_circos_prepare.py from the ACTUAL
-  # reference FASTA (column order: chrom, start, end -- the prepare script
-  # writes "chrom 0 length"). This is authoritative for custom genomes whose
-  # contig names (e.g. RefSeq CM166248.1) do not exist in circlize's UCSC
-  # cytoband database; species lookup is only a fallback for standard
-  # assemblies.
   karyotype_local <- file.path(input_dir, "karyotype.txt")
   if (!is.null(cytoband_file) && file.exists(cytoband_file)) {
     cyto_data <- read.cytoband(cytoband_file)$df
     circos.initializeWithIdeogram(cyto_data)
   } else if (file.exists(karyotype_local)) {
-    # prepare writes "chrom 0 length" (whitespace-separated); default
-    # sep handles both spaces and tabs
     kt <- read.table(karyotype_local, header = FALSE,
                      colClasses = c("character", "numeric", "numeric"))
     names(kt) <- c("chr", "start", "end")
@@ -124,13 +115,12 @@ plot_sv_circos_from_files <- function(
     # silently drop every record from the plot.
     add_prefix <- function(x) ifelse(grepl("^chr", x) | grepl("^[A-Z]{2}", x), x, paste0("chr", x))
     df[[1]] <- add_prefix(df[[1]])
-    if (ncol(df) >= 3 && is.character(df[[3]])) { # 针对 TRA 的第二坐标列
+    if (ncol(df) >= 3 && is.character(df[[3]])) {
        df[[3]] <- add_prefix(df[[3]])
     }
     return(df)
   }
 
-  # 3. BLOCKS (DEL, DUP, INV)
   block_configs <- list(
     list(type = "DEL", col = "#FF413680"),
     list(type = "DUP", col = "#0074D980"),
@@ -148,35 +138,27 @@ plot_sv_circos_from_files <- function(
     }
   }
   
-  # 4. POINTS (INS)
     if (!is.null(file_list$INS) && file.exists(file_list$INS) && file.info(file_list$INS)$size > 0) {
         ins_data <- fix_chr(read.table(file_list$INS, header = FALSE))
         
-        # 强制设为 1bp 范围，防止因 VCF 的 END 导致横向占满
         ins_clean <- data.frame(
         chr = ins_data[[1]],
         start = ins_data[[2]],
         end = ins_data[[2]]
         )
         if (ins_plot_type == "points") {
-          # 使用透明度颜色，重叠越多颜色越深，视觉效果更好
           ins_col <- "#2ECC4044" 
 
           circos.genomicTrack(ins_clean, ylim = c(0, 1), panel.fun = function(region, value, ...) {
-          # 为当前扇区（Sector）的点生成随机 Y 坐标实现抖动
-          # nrow(region) 获取当前轨道在该扇区的点数
           y_jitter = runif(nrow(region), min = 0.1, max = 0.9)
           
-          # 绘制抖动后的点
           circos.genomicPoints(region, y_jitter, col = ins_col, pch = 16, cex = 0.1)
-          }, track.height = 0.08) # 稍微加高轨道，给抖动留出空间
+          }, track.height = 0.08)
         } else if (ins_plot_type == "bar") {
           if (bin_size <= 0 || !is.numeric(bin_size)) {
                   log_msg("ERROR", "bin_size must be positive number for bar plot.", quit = TRUE)  
               }
               
-              # 1. 计算 Bins，并显式确保 start < end
-              # base-R rewrite (no dplyr -- not installed in the container)
               agg <- aggregate(
                 list(count = rep(1, nrow(ins_clean))),
                 by = list(chr = ins_clean$chr,
@@ -189,25 +171,20 @@ plot_sv_circos_from_files <- function(
                 end   = as.numeric((agg$bin + 1) * bin_size),
                 count = agg$count
               )
-              # circlize 默认前三列为 genomic regions; 确保 start < end
               ins_bins <- ins_bins[ins_bins$end > ins_bins$start, , drop = FALSE]
 
-              # 4. 调试输出：检查是否有负值或异常
-              # write.table(ins_bins, file = "debug_ins_bins.txt", ...)
               max_val <- if(nrow(ins_bins) > 0) max(ins_bins$count) else 1
-              # 5. 绘图
               circos.genomicTrack(
                 ins_bins, 
                 ylim = c(0, max_val * 1.2), 
                 track.height = 0.12,
                 panel.fun = function(region, value, ...) {
-                  # type = "h" 是关键，它会从每个 bin 的位置向底部画垂线. genomicReact 画矩形在这里不合适
                   circos.genomicLines(
                     region, 
                     value, 
                     type = "h", 
                     col = "#2ECC40", 
-                    lwd = 1   # 如果柱子太稀疏，调大 lwd；太挤则调小
+                    lwd = 1
                   )
                 }
               )
@@ -220,16 +197,13 @@ plot_sv_circos_from_files <- function(
     }
 
     
-    # 5. LINKS (TRA)
   tra_col <- "#FF000080" # 改为红色半透明，更容易看见
   if (!is.null(file_list$TRA) && file.exists(file_list$TRA) && file.info(file_list$TRA)$size > 0) {
     tra_raw <- fix_chr(read.table(file_list$TRA, header = FALSE))
     
-    # 构建 region 对象
     region1 <- data.frame(chr = tra_raw[,1], start = tra_raw[,2], end = tra_raw[,2])
     region2 <- data.frame(chr = tra_raw[,3], start = tra_raw[,4], end = tra_raw[,4])
     
-    # 过滤掉不在 Ideogram 中的染色体防止报错
     sectors <- get.all.sector.index()
     keep <- region1$chr %in% sectors & region2$chr %in% sectors
     
@@ -242,12 +216,11 @@ plot_sv_circos_from_files <- function(
     log_msg("INFO", "No TRA data found or file is empty. Skipping TRA links.")
   }
 
-  # 6. 添加图例
   if (show_legend) {
     lgd_list = Legend(
       labels = c("Deletion", "Duplication", "Inversion", "Insertion", "Translocation"),
       type   = "points",
-      pch    = rep(15, 5),            # 实心方块
+      pch    = rep(15, 5),
       size   = unit(4, "mm"),         # 控制色块大小
       legend_gp = gpar(
         col = c(
@@ -255,7 +228,7 @@ plot_sv_circos_from_files <- function(
           "#0074D9",  # Duplication
           "#B10DC9",  # Inversion
           "#2ECC40",  # Insertion
-          tra_col     # Translocation
+          tra_col
         )
       ),
       title = "SV Types",
@@ -288,12 +261,11 @@ parse_bin_size <- function(x) {
   if (grepl("k$", x)) return(as.integer(as.numeric(sub("k$", "", x)) * 1e3))
   if (grepl("m$", x)) return(as.integer(as.numeric(sub("m$", "", x)) * 1e6))
   if (grepl("g$", x)) return(as.integer(as.numeric(sub("g$", "", x)) * 1e9))
-  as.integer(as.numeric(x))  # 支持 1e6
+  as.integer(as.numeric(x))
 }
 
 parser <- ArgumentParser(description='High-performance Circos Plotter for SV visualization')
 
-# 设置参数组
 group_input <- parser$add_argument_group("Input/Output Arguments")
 group_input$add_argument("-i", "--input_dir", required=TRUE, help="Directory containing .bed files (DEL, TRA, INS, etc.)")
 group_input$add_argument("-o", "--output", default="sv_circos.png", help="Output image path [default %(default)s]")
@@ -310,7 +282,6 @@ group_ins <- parser$add_argument_group("Insertion (INS) Plot Settings")
 group_ins$add_argument("-n","--ins_plot_type", choices=c("points","bar"), default="points", help="INS plot type: points or bar [default %(default)s]")
 group_ins$add_argument("-b","--ins_bin_size", type="character", default=1e6, help="Bin size for INS bar plot (e.g. 500k, 1e6, 2M)")
 
-# 解析参数
 args <- parser$parse_args()
 
 #' CLI entry point for the SV Circos plotter.
@@ -320,7 +291,6 @@ args <- parser$parse_args()
 #'
 #' @return Returns \code{NULL} invisibly.
 main <- function() {
-  # 构建文件路径列表
   file_list <- list(
     DEL = file.path(args$input_dir, "blocks_del.bed"),
     TRA = file.path(args$input_dir, "links_tra.bed"),
@@ -330,7 +300,6 @@ main <- function() {
   )
   args$ins_bin_size <- parse_bin_size(args$ins_bin_size)
   log_msg("INFO", paste("INS bar plot bin size set to:", args$ins_bin_size))
-  # 调用绘图函数
   plot_sv_circos_from_files(
     file_list = file_list,
     genome = args$genome,
@@ -343,11 +312,3 @@ main <- function() {
 }
 main()
 
-# file_list <- list(
-#   DEL = "/data/pub/zhousha/Totipotent20251031/PacBio/circos/DMSO06/blocks_del.bed",
-#   TRA = "/data/pub/zhousha/Totipotent20251031/PacBio/circos/DMSO06/links_tra.bed",
-#   INS = "/data/pub/zhousha/Totipotent20251031/PacBio/circos/DMSO06/points_ins.bed",
-#   DUP = "/data/pub/zhousha/Totipotent20251031/PacBio/circos/DMSO06/points_dup.bed",
-#   INV = "/data/pub/zhousha/Totipotent20251031/PacBio/circos/DMSO06/points_inv.bed"
-# )
-# plot_sv_circos_from_files(file_list, genome = "mm39")

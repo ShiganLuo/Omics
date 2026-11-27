@@ -25,8 +25,7 @@ def main() -> None:
     p.add_argument("--source-gtf", default="", help="source GTF path (header)")
     args = p.parse_args()
 
-    # Pass 1: gene spans + names
-    spans = {}  # gene_id -> [chrom, strand, start, end, gene_name, source]
+    spans = {}
     with open(args.gtf) as fh:
         for line in fh:
             if line.startswith("#"):
@@ -54,11 +53,9 @@ def main() -> None:
                 s[2] = min(s[2], start)
                 s[3] = max(s[3], end)
 
-    # Pass 2: emit one gene line before the first transcript of each gene
     seen = set()
     n_gene = 0
     with open(args.gtf) as fh, open(args.out, "w") as out:
-        # provenance header (comment lines; GTF parsers skip '#' lines)
         if args.genome:
             out.write(f"#!genome-build {args.genome}\n")
         if args.source_gtf:

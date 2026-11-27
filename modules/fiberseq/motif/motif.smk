@@ -8,8 +8,6 @@ samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
 genome_cfg = config.get("genome", {})
-# 参数精确到 rule:formats 按 rule 独立配置(Params.fiberseq_motif.<rule_name>.formats,
-# 无 module 级共享回退),每 rule 一个 parse 期变量(config 全量路径读取 + str 规范化)。
 _formats_profile = config.get("Params", {}).get("fiberseq_motif", {}).get("fiberseq_motif_profile", {}).get("formats") or ["pdf"]
 if isinstance(_formats_profile, str):
     _formats_profile = [_formats_profile]
@@ -50,10 +48,7 @@ rule fiberseq_motif_scan:
             sample_outdir = os.path.dirname(str(output.sites))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"fiberseq_motif_scan_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
-            # timestamped copy stays in log/cmd as history; the outdir copy
-            # (no timestamp, overwritten each run) documents the current command
-            # next to the results it produced
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"fiberseq_motif_scan_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.script,
@@ -72,7 +67,7 @@ rule fiberseq_motif_scan:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "fiberseq_motif_scan for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -90,7 +85,6 @@ rule fiberseq_motif_profile:
     output:
         profile = outdir + "/{sample_id}/{sample_id}.motif_profile.tsv",
         scores = outdir + "/{sample_id}/{sample_id}.motif_footprint_scores.tsv",
-        # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
         plots = [outdir + "/{sample_id}/{sample_id}.motif_profile." + fmt
                  for fmt in _formats_profile],
     log:
@@ -109,7 +103,7 @@ rule fiberseq_motif_profile:
         script = ROOT_DIR + "/modules/fiberseq/bin/motif_profile.py",
         flank = config.get("Params", {}).get("fiberseq_motif", {}).get("fiberseq_motif_profile", {}).get("flank", 250),
         min_fibers = config.get("Params", {}).get("fiberseq_motif", {}).get("fiberseq_motif_profile", {}).get("min_fibers", 10),
-        formats = _formats_profile,   # ③ 转发
+        formats = _formats_profile,
     run:
         log_path = str(log)
         open(log_path, "a").close()
@@ -120,10 +114,7 @@ rule fiberseq_motif_profile:
             sample_outdir = os.path.dirname(str(output.profile))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"fiberseq_motif_profile_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
-            # timestamped copy stays in log/cmd as history; the outdir copy
-            # (no timestamp, overwritten each run) documents the current command
-            # next to the results it produced
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"fiberseq_motif_profile_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.script,
@@ -145,7 +136,7 @@ rule fiberseq_motif_profile:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "fiberseq_motif_profile for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

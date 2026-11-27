@@ -31,7 +31,7 @@ def load_cache_if_valid(cache_path: str, gtf_signature: dict):
         with open(cache_path, "rb") as f:
             cache = pickle.load(f)
     except:
-        return None  # 缓存损坏
+        return None
 
     cached_sig = cache.get("signature", {})
     if cached_sig == gtf_signature:
@@ -85,17 +85,14 @@ def load_gtf_gene_map(gtf_path: str, cache_path="gene_map.pkl") -> dict:
     """
     gtf_signature = get_file_signature(gtf_path)
 
-    # 尝试加载缓存
     gene_map = load_cache_if_valid(cache_path, gtf_signature)
 
     if gene_map is not None:
         return gene_map
 
-    # 解析 GTF
     print("开始解析 GTF（可能耗时较长）...")
     gene_map = parse_gtf_gene_map(gtf_path)
 
-    # 保存缓存
     save_cache(cache_path, gene_map, gtf_signature)
     print(f"缓存已写入：{cache_path}")
 
@@ -139,7 +136,7 @@ def extract_gene_name_or_keep(df: pd.DataFrame,pattern:str) -> pd.DataFrame:
     """
     df['gene_name'] = df['gene_name'].str.replace(
         pat=pattern,
-        repl=r'\1',   # 替换模式：r'\1' 代表正则表达式中第一个捕获组的内容
+        repl=r'\1',
         regex=True
     )
     
@@ -197,23 +194,6 @@ if __name__ == "__main__":
     human_gtf = "/disk5/luosg/Reference/GENCODE/human/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf"
     mouse_gtf = "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf"
     
-    ### TEtranscripts and TElocal
-    # convert_TEtranscripts_gene_ids("/disk5/luosg/Totipotent20251031/output/counts/TEcount/human/all_TEcount.cntTable",
-    #                                human_gtf,
-    #                                "GRCh38_gene_map.pkl",
-    #                                "/disk5/luosg/Totipotent20251031/output/counts/TEcount/human/all_TEcount_name.cntTable")
-    # convert_TEtranscripts_gene_ids("/disk5/luosg/Totipotent20251031/output/counts/TElocal/human/all_TElocal.cntTable",
-    #                             human_gtf,
-    #                             "GRCh38_gene_map.pkl",
-    #                             "/disk5/luosg/Totipotent20251031/output/counts/TElocal/human/all_TElocal_name.cntTable")
-    # convert_TEtranscripts_gene_ids("/disk5/luosg/Totipotent20251031/output/counts/TEcount/mouse/all_TEcount.cntTable",
-    #                         mouse_gtf,
-    #                         "GRCm39_gene_map.pkl",
-    #                         "/disk5/luosg/Totipotent20251031/output/counts/TEcount/mouse/all_TEcount_name.cntTable")
-    # convert_TEtranscripts_gene_ids("/disk5/luosg/Totipotent20251031/output/counts/TElocal/mouse/all_TElocal.cntTable",
-    #                     mouse_gtf,
-    #                     "GRCm39_gene_map.pkl",
-    #                     "/disk5/luosg/Totipotent20251031/output/counts/TElocal/mouse/all_TElocal_name.cntTable")
     convert_matrix_gene_ids("/disk5/luosg/Totipotent20251031/output/result/ci8CLC/DESeq2/TEcount_Gene.tsv",
                             gtf_path=human_gtf,
                             cache_path="GRCh38_gene_map.pkl",
@@ -233,68 +213,5 @@ if __name__ == "__main__":
                     gtf_path=mouse_gtf,
                     cache_path="GRCm39_gene_map.pkl",
                     save_path="/disk5/luosg/Totipotent20251031/output/result/ciTotiSC/DESeq2/TEcount_Gene_name.tsv")
-    #### totionly
-    # files = {
-    #     "ci8CLC": "/disk5/luosg/Totipotent20251031/output/SNP/vcf/intersect/annotate/ci8CLC/table/toti_only.vcf.GRCh38_multianno.csv",
-    #     "hTBLC": "/disk5/luosg/Totipotent20251031/output/SNP/vcf/intersect/annotate/hTBLC/table/toti_only.vcf.GRCh38_multianno.csv",
-    #     "TLSC": "/disk5/luosg/Totipotent20251031/output/SNP/vcf/intersect/annotate/TLSC/table/toti_only.vcf.GRCm39_multianno.csv",
-    #     "ciTotiSC": "/disk5/luosg/Totipotent20251031/output/SNP/vcf/intersect/annotate/ciTotiSC/table/toti_only.vcf.GRCm39_multianno.csv"
-    # }
 
-    # human_cell = ["ci8CLC","hTBLC"]
-    # mouse_cell = ["TLSC","ciTotiSC"]
-    # outdir = "/disk5/luosg/Totipotent20251031/output/SNP/vcf/intersect/annotate"
-    # for cell,infile in files.items():
-    #     if cell in human_cell:
-    #         outfile = f"{outdir}/{cell}/toti_only.vcf.GRCh38_multianno_with_names.csv"
-    #         convert_annovar_gene_ids(
-    #             multiano_path=infile,
-    #             gtf_path=human_gtf,
-    #             cache_path="GRCh38_gene_map.pkl",
-    #             save_path=outfile
-    #         )
-    #     elif cell in mouse_cell:
-    #         outfile = f"{outdir}/{cell}/toti_only.vcf.GRCm39_multianno_with_names.csv"
-    #         convert_annovar_gene_ids(
-    #             multiano_path=infile,
-    #             gtf_path=mouse_gtf,
-    #             cache_path="GRCm39_gene_map.pkl",
-    #             save_path=outfile
-    #         )
-    #     else:
-    #         raise ValueError("not support cell")
-    ### 
-    # mouse = ["TLSC","ciTotiSC"]
-    # human = ["ci8CLC","hTBLC"]
-    # indir = "/disk5/luosg/Totipotent20251031/output/SNP/vcf/intersect"
-    # infiles = glob.glob(f"{indir}/**/*_multianno.csv",recursive=True)
-    # target_names = ["pluripotency","totipotency"]
-    # for infile in infiles:
-    #     infile = Path(infile)
-    #     outdir = infile.parent
-    #     if infile.parent.parent.name in target_names:
-    #         basePrefix = infile.with_suffix('')
-    #         outfile = f"{str(basePrefix)}_with_names.csv" 
-    #         print(infile)
-    #         print(outfile)
-    #         if infile.parent.parent.parent.name in human:
-    #             print("human\n")
-    #             convert_annovar_gene_ids(
-    #                 multiano_path=infile,
-    #                 gtf_path=human_gtf,
-    #                 cache_path="GRCh38_gene_map.pkl",
-    #                 save_path=outfile
-    #             )
-    #         elif infile.parent.parent.parent.name in mouse:
-    #             print("mouse\n")
-    #             convert_annovar_gene_ids(
-    #                 multiano_path=infile,
-    #                 gtf_path=mouse_gtf,
-    #                 cache_path="GRCm39_gene_map.pkl",
-    #                 save_path=outfile
-    #             )
-    #         else:
-    #             raise ValueError("something wrong!")
-    #     else:
-    #         print("skip: " + str(infile))
 

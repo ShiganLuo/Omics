@@ -40,7 +40,6 @@ class SVVEPAnalyzer:
         self.vcf = VCF(vcf_path)
         self.csq_fields = self._extract_csq_fields()
 
-        # 预计算字段索引（提高性能）
         self.field_index = {
             field: self.csq_fields.index(field)
             for field in self.TARGET_FIELDS
@@ -122,7 +121,6 @@ class SVVEPAnalyzer:
             if not csq:
                 continue
 
-            # 只取第一个 transcript（通常你用了 --pick）
             first_entry = csq.split(",")[0]
             values = first_entry.split("|")
 

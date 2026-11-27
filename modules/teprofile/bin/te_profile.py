@@ -50,8 +50,6 @@ import scanpy as sc
 
 warnings.filterwarnings("ignore")
 
-# Curated housekeeping genes (human symbols; macaque orthologs share
-# symbols in the merged object's var_names — intersection decides).
 HK_CANDIDATES = [
     "ACTB", "GAPDH", "RPL13A", "RPLP0", "HPRT1", "TBP", "PPIA", "B2M",
     "SDHA", "YWHAZ", "UBC", "PGK1", "RPL4", "RPS18", "RPLP1", "FTL",
@@ -71,10 +69,9 @@ def cell_metrics(merged):
     X = np.asarray(X.todense() if hasattr(X, "todense") else X)
     is_te = merged.var["gene_type"].astype(str).values == "TE"
     var_names = merged.var_names.astype(str).values
-    # housekeeping normalizer: intersection of candidates with gene symbols
     hk_idx = [i for i, g in enumerate(var_names) if (not is_te[i]) and
               any(g == h or g.startswith(h + ".") for h in HK_CANDIDATES)]
-    if len(hk_idx) < 5:  # degenerate HK set -> fall back to total gene output
+    if len(hk_idx) < 5:
         hk_idx = np.where(~is_te)[0]
         hk_mode = "all_genes"
     else:
@@ -86,7 +83,7 @@ def cell_metrics(merged):
     return {
         "te_abs": te,
         "te_pct": te / np.maximum(tot, 1.0) * 100.0,
-        "te_norm": te / np.maximum(hk, eps) * 100.0,   # TE per 100 HK counts
+        "te_norm": te / np.maximum(hk, eps) * 100.0,
         "gene_abs": tot - te,
         "n_gene": (X[:, ~is_te] > 0).sum(1).astype(float),
         "hk_mode": hk_mode,
@@ -105,7 +102,6 @@ def family_shares(cm, merged, mask):
     te_cols = np.where(cm["is_te"])[0]
     fam_of = {j: fam[j] for j in te_cols}
     X = cm["X"][mask][:, te_cols]
-    # aggregate to family-level counts per cell
     fams = sorted(set(fam_of.values()))
     fam_idx = {f: i for i, f in enumerate(fams)}
     agg = np.zeros((X.shape[0], len(fams)))
@@ -176,23 +172,19 @@ def layer2_clusters(merged, auto, cm, tissue, fe_cut, n_boot, rng_seed):
     for c in sorted(set(leiden)):
         m = leiden == c
         ct_c = Counter(ct[m]).most_common(1)[0][0]
-        bg = (ct == ct_c) & ~m           # same-lineage background
+        bg = (ct == ct_c) & ~m
         if bg.sum() < 30:
-            bg = ~m                       # fall back to whole tissue
+            bg = ~m
         gene_ratio = float(np.median(cm["n_gene"][m]) / max(np.median(cm["n_gene"][bg]), 1e-9))
         collapsed = gene_ratio < 0.7
-        # fe: HK-normalized for healthy clusters; raw-counts ratio when
-        # collapsed (HK deflation would otherwise inflate it)
         fe_hk = float(np.median(cm["te_norm"][m]) / max(np.median(cm["te_norm"][bg]), 1e-9))
         fe_raw = float(np.median(cm["te_abs"][m]) / max(np.median(cm["te_abs"][bg]), 1e-9))
         fe = fe_raw if collapsed else fe_hk
         pct_shift = float(np.median(cm["te_pct"][m]) - np.median(cm["te_pct"][bg]))
-        # observed composition distance
         bg_idx = np.where(bg)[0]
         c_idx = np.where(m)[0]
         s_bg = _share_mean(cm, merged, bg_idx)
         aD = aitchison(_share_mean(cm, merged, c_idx), s_bg)
-        # bootstrap null: same-size random subsets of the background
         n_c = len(c_idx)
         null = np.empty(n_boot)
         for b in range(n_boot):
@@ -228,13 +220,11 @@ def layer3_remodeling(merged, auto, cm, tissue, group_by, contrasts):
     None when no comparison is applicable."""
     sid = auto.obs["sample_id"].astype(str).values
     ct = auto.obs["cell_type"].astype(str).values
-    comps = []  # (label, samples_a, samples_b)
+    comps = []
     for c in contrasts:
         if c["tissue"] == tissue:
             comps.append((c["label"], c["a"], c["b"]))
     if group_by:
-        # declaration order of --groups defines ref -> exp
-        # (young declared first => "young→aged"); do NOT sort
         groups = list(dict.fromkeys(group_by.values()))
         if len(groups) >= 2:
             g0, g1 = groups[0], groups[1]
@@ -265,7 +255,6 @@ def layer3_remodeling(merged, auto, cm, tissue, group_by, contrasts):
     return pd.DataFrame(rows) if rows else None
 
 
-# ------------------------- figures -------------------------
 
 def _violin_by_type(ax, values, ct, title, ylabel):
     order = sorted(set(ct), key=lambda t: -np.median(values[ct == t]))
@@ -289,7 +278,7 @@ def fig_baseline(cm, auto, tissue, outdir, hk_mode):
     _violin_by_type(axes[0], cm["te_pct"], ct,
                     f"{tissue} — TE fraction by cell type",
                     "TE fraction (%)")
-    safe = np.maximum(cm["te_norm"], 1e-2)  # log-safe floor
+    safe = np.maximum(cm["te_norm"], 1e-2)
     _violin_by_type(axes[1], safe, ct,
                     f"{tissue} — TE output per 100 {'HK' if hk_mode=='housekeeping' else 'gene'} counts (log)",
                     "TE counts per 100 housekeeping counts (log scale)")
@@ -308,7 +297,6 @@ def fig_family_comp(cm, merged, auto, tissue, outdir):
         fams, df = family_shares(cm, merged, ct == t)
         shares_by_type[t] = df.mean().values
     M = np.vstack([shares_by_type[t] for t in types])
-    # top-8 families, rest as 'other'
     top = np.argsort(-M.mean(0))[:8]
     keep = M[:, top]
     other = M.sum(1) - keep.sum(1)
@@ -350,8 +338,6 @@ def fig_cluster_dev(tab, tissue, outdir, fe_cut):
     axes[0].axvline(fe_cut, ls="--", lw=1, color="#333")
     axes[0].set_xlabel("TE output fold-change vs same-lineage background")
     axes[1].barh(y, order["family_aitchison"], color=colors)
-    # per-cluster adaptive threshold: bootstrap null q95 (tick markers);
-    # a bar is a composition outlier only if it passes its own marker
     axes[1].scatter(order["aitchison_null_q95"], y, marker="|", s=200,
                     color="#333333", linewidths=1.2, zorder=5,
                     label="null q95 (adaptive)")
@@ -388,9 +374,6 @@ def fig_remodeling(tab, tissue, outdir, groups):
         return
     comps = list(dict.fromkeys(tab["comparison"].tolist()))
     n = len(comps)
-    # 每个对比一个"上下双条带"面板:上条带 Δ TE fraction(百分比,独立 x 轴),
-    # 下条带 Δ TE output(HK 归一化,独立 x 轴)。两个指标量级差 >100 倍,
-    # 同轴会把 Δ占比 压成不可见的线——必须各用各的缩放。
     per_comp = [len(tab[tab["comparison"] == c]) for c in comps]
     row_h = 0.34
     fig_h = sum(per_comp) * row_h + 2.2 * n + 0.8

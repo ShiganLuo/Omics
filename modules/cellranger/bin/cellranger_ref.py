@@ -22,7 +22,6 @@ from src.common.util.LogUtil import setup_logger
 logger = setup_logger(__name__, logging.INFO)
 
 
-# 10x Genomics standard biotype allowlist
 BIOTYPE_PATTERN = (
     "protein_coding|protein_coding_LoF|lncRNA|"
     "IG_C_gene|IG_D_gene|IG_J_gene|IG_LV_gene|IG_V_gene|"
@@ -71,7 +70,6 @@ def filter_gtf_by_biotype(gtf_in, gtf_out, biotype_re):
     readthrough_pattern = re.compile(r'tag "readthrough_transcript"')
     gene_id_pattern = re.compile(r'(gene_id "[^"]+")')
 
-    # Step 1: collect gene IDs from transcripts passing filters
     gene_ids = set()
     import gzip
     opener = gzip.open if gtf_in.endswith(".gz") else open
@@ -95,7 +93,6 @@ def filter_gtf_by_biotype(gtf_in, gtf_out, biotype_re):
 
     logger.info(f"{len(gene_ids)} genes pass biotype filter")
 
-    # Step 2: write header
     with open(gtf_in, "r") as fin, open(gtf_out, "w") as fout:
         for line in fin:
             if line.startswith("#"):
@@ -103,7 +100,6 @@ def filter_gtf_by_biotype(gtf_in, gtf_out, biotype_re):
             else:
                 break
 
-    # Step 3: filter to allowlisted genes, remove PAR_Y
     with open(gtf_in, "r") as fin, open(gtf_out, "a") as fout:
         for line in fin:
             if line.startswith("#"):
@@ -111,10 +107,8 @@ def filter_gtf_by_biotype(gtf_in, gtf_out, biotype_re):
             fields = line.split("\t")
             if len(fields) < 9:
                 continue
-            # Check gene is in allowlist
             if not any(gid in fields[8] for gid in gene_ids):
                 continue
-            # Remove PAR_Y: exclude Y entries in PAR range (except ENSG00000290840)
             if fields[0] == "Y":
                 start = int(fields[3])
                 if start < 2752083 or start >= 56887903:
@@ -162,7 +156,6 @@ def main():
     source_dir = os.path.join(build_dir, "source")
     os.makedirs(source_dir, exist_ok=True)
 
-    # Derive filenames
     fasta_basename = os.path.basename(args.fasta).replace(".gz", "")
     gtf_basename = os.path.basename(args.gtf).replace(".gz", "")
     fasta_src = os.path.join(source_dir, fasta_basename)
@@ -170,7 +163,6 @@ def main():
     gtf_id_modified = os.path.join(build_dir, f"{gtf_basename}.id_modified")
     gtf_filtered = os.path.join(build_dir, f"{gtf_basename}.filtered")
 
-    # Step 1: Download
     if not os.path.exists(fasta_src):
         download_or_copy(args.fasta, fasta_src)
     else:
@@ -181,17 +173,13 @@ def main():
     else:
         logger.info(f"GTF already exists: {gtf_src}")
 
-    # Step 2: Modify GTF IDs
     logger.info("Modifying GTF IDs ...")
     modify_gtf_ids(gtf_src, gtf_id_modified)
 
-    # Step 3: Filter GTF
     logger.info("Filtering GTF by biotype ...")
     filter_gtf_by_biotype(gtf_id_modified, gtf_filtered, BIOTYPE_PATTERN)
 
-    # Step 4: Build reference
     logger.info("Building Cell Ranger reference ...")
-    # Clean up stale mkref directory if present
     mkref_dir = os.path.join(args.output, f"mkref_{args.genome}")
     if os.path.exists(mkref_dir):
         logger.warning(f"Removing stale mkref directory: {mkref_dir}")

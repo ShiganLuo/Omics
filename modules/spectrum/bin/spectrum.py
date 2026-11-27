@@ -92,12 +92,9 @@ logger = setup_logger("Spectrum", stream=sys.stdout)
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
-# Canonical order of the six pyrimidine-strand base substitutions.
 BASE_MUT_ORDER = ["C>A", "C>G", "C>T", "T>A", "T>C", "T>G"]
 _COMPLEMENT = str.maketrans("ACGT", "TGCA")
 
@@ -146,7 +143,6 @@ def get_trinucleotide(ref_seq: Dict[str, str], chrom: str, pos: int, ref: str, a
         return None
     ref_base = ref.upper()
     alt_base = alt.upper()
-    # Normalize to the pyrimidine strand.
     if ref_base in ("A", "G"):
         tri = tri.translate(_COMPLEMENT)[::-1]
         ref_base = ref_base.translate(_COMPLEMENT)

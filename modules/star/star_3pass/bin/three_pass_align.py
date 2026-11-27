@@ -23,11 +23,6 @@ import time
 from dataclasses import dataclass
 
 
-# =========================================================================
-# 1. STAR 参数中心化配置字典 (数据驱动)
-# 想要增删改 STAR 参数？只需在这里修改，命令行和运行逻辑会自动同步！
-# 值为 None 代表该参数默认不传给 STAR，但允许在命令行中指定。
-# =========================================================================
 
 PASS1_STAR_DEFAULTS = {
     "--outFilterMultimapNmax": 1000,
@@ -45,8 +40,8 @@ PASS2_STAR_DEFAULTS = {
     "--alignIntronMin": 9999999,
     "--alignMatesGapMax": 500,
     "--alignEndsType": "EndToEnd",
-    "--clip5pNbases": '20 0',  # 动态默认值：PE为 '20 0', SE为 '20'
-    "--clip3pNbases": '0 20',  # 动态默认值：PE为 '0 20', SE为 '0'
+    "--clip5pNbases": '20 0',
+    "--clip3pNbases": '0 20',
 }
 
 PASS3_STAR_DEFAULTS = {
@@ -76,10 +71,8 @@ def _star_pass_options(pass_name: str, paired: bool, args: argparse.Namespace) -
         val = getattr(args, attr_name)                
         if val is not None:
             tokens.append(star_flag)
-            # 兼容 "20 0" 这种带空格的值，打散为多个 token 传给 subprocess
             tokens.extend(str(val).split())
             
-    # 解析万能逃逸通道 extra-args
     extra_args_str = getattr(args, f"{pass_name}_extra_args")
     if extra_args_str:
         tokens.extend(shlex.split(extra_args_str))
@@ -98,9 +91,6 @@ def _samtools_fastq_cmds(samtools: str, threads: int, source_bam: str,
              "-0", read1, "-s", "/dev/null", source_bam]]
 
 
-# =========================================================================
-# 2. Pipeline 执行核心
-# =========================================================================
 
 @dataclass
 class Step:
@@ -108,8 +98,8 @@ class Step:
     cmd: list[str]
     desc: str = ""
     pipe_to: list[str] | None = None
-    stdout: str | None = None      # redirect final stdout to this file
-    skip_log: bool = False         # if True, don't log stdout/stderr to log
+    stdout: str | None = None
+    skip_log: bool = False
 
 
 def build_steps(args: argparse.Namespace, paired: bool) -> list[Step]:
@@ -131,7 +121,6 @@ def build_steps(args: argparse.Namespace, paired: bool) -> list[Step]:
 
     steps: list[Step] = []
 
-    # ── Pass 1: whole-genome end-to-end alignment ───────────────────
     steps.append(Step(
         cmd=[star, "--runThreadN", str(threads),
              "--genomeDir", args.genome_index,
@@ -143,7 +132,6 @@ def build_steps(args: argparse.Namespace, paired: bool) -> list[Step]:
         desc="pass1: whole-genome end-to-end alignment",
     ))
 
-    # Extract small-RNA reads from pass 1 (bedtools | samtools).
     steps.append(Step(
         cmd=[bedtools, "intersect", "-abam",
              pass1_prefix + "Aligned.sortedByCoord.out.bam",
@@ -153,7 +141,6 @@ def build_steps(args: argparse.Namespace, paired: bool) -> list[Step]:
         desc="pass1: extract small-RNA reads",
     ))
 
-    # Index, name-sort, and extract FASTQ from pass 1.
     steps.append(Step(
         cmd=[samtools, "index", "-@", str(threads), args.pass1_bam],
         desc="pass1: index BAM",
@@ -167,7 +154,6 @@ def build_steps(args: argparse.Namespace, paired: bool) -> list[Step]:
                                        args.pass1_fq1, args.pass1_fq2, paired):
         steps.append(Step(cmd=fq_cmd, desc="pass1: extract FASTQ"))
 
-    # ── Pass 2: small-RNA reference end-to-end alignment ────────────
     pass1_reads = [args.pass1_fq1]
     if paired:
         pass1_reads.append(args.pass1_fq2)
@@ -190,7 +176,6 @@ def build_steps(args: argparse.Namespace, paired: bool) -> list[Step]:
         cmd=[samtools, "index", "-@", str(threads), args.pass2_bam],
         desc="pass2: index BAM",
     ))
-    # gzip unmapped reads
     steps.append(Step(
         cmd=["gzip", "-c", pass2_prefix + "Unmapped.out.mate1"],
         stdout=args.pass2_unmapped1,
@@ -203,7 +188,6 @@ def build_steps(args: argparse.Namespace, paired: bool) -> list[Step]:
             desc="pass2: compress unmapped mate2",
         ))
     else:
-        # SE: create empty placeholder for mate2
         steps.append(Step(
             cmd=["python", "-c",
                  f"import gzip; gzip.open({args.pass2_unmapped2!r}, \"wb\").close()"],
@@ -211,7 +195,6 @@ def build_steps(args: argparse.Namespace, paired: bool) -> list[Step]:
             skip_log=True,
         ))
 
-    # Name-sort pass 2 BAM and extract mapped reads as FASTQ.
     steps.append(Step(
         cmd=[samtools, "sort", "-n", "-@", str(threads),
              "-o", pass2_name_bam, args.pass2_bam],
@@ -221,7 +204,6 @@ def build_steps(args: argparse.Namespace, paired: bool) -> list[Step]:
                                        pass2_mapped_fq1, pass2_mapped_fq2, paired):
         steps.append(Step(cmd=fq_cmd, desc="pass2: extract mapped FASTQ"))
 
-    # ── Pass 3a: local alignment of pass 2 mapped reads ─────────────
     pass2_mapped_reads = [pass2_mapped_fq1]
     if paired:
         pass2_mapped_reads.append(pass2_mapped_fq2)
@@ -251,7 +233,6 @@ def build_steps(args: argparse.Namespace, paired: bool) -> list[Step]:
         desc="pass3a: index BAM",
     ))
 
-    # ── Pass 3b: local alignment of pass 2 unmapped reads ───────────
     pass2_unmapped_reads = [args.pass2_unmapped1]
     if paired:
         pass2_unmapped_reads.append(args.pass2_unmapped2)
@@ -274,7 +255,6 @@ def build_steps(args: argparse.Namespace, paired: bool) -> list[Step]:
         desc="pass3b: index BAM",
     ))
 
-    # ── Merge and index final BAM ───────────────────────────────────
     steps.append(Step(
         cmd=[samtools, "merge", "-f", "-@", str(threads), args.bam,
              args.pass3a_bam, args.pass3b_bam],
@@ -324,9 +304,6 @@ def _run_step(step: Step, log_handle) -> None:
     log_handle.flush()
 
 
-# =========================================================================
-# 3. CLI 参数解析与强校验
-# =========================================================================
 
 def valid_existing_file(path_str: str) -> str:
     """Fail-fast: 校验输入文件是否存在"""
@@ -363,7 +340,6 @@ def _add_dynamic_star_args(group: argparse._ArgumentGroup, prefix: str, defaults
         group.add_argument(cli_flag, type=arg_type, default=default_val, 
                            metavar="VAL", help=f"STAR {star_flag} for {prefix}")
 
-    # 万能逃逸通道
     group.add_argument(f"--{prefix}-extra-args", type=str, default="",
                        metavar="STR", help=f"Raw extra STAR args for {prefix} (e.g. '--limitBAMsortRAM 10000')")
 
@@ -375,7 +351,6 @@ def parse_args() -> argparse.Namespace:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    # ── I/O 参数 (包含防呆校验) ──
     g_io = parser.add_argument_group("Input/Output parameters")
     g_io.add_argument("--fastq", nargs="+", type=valid_existing_file, required=True,
                       help="Input FASTQ file(s)")
@@ -397,14 +372,12 @@ def parse_args() -> argparse.Namespace:
     g_io.add_argument("--bam", required=True, help="Final merged BAM output")
     g_io.add_argument("--log", required=True, help="Log file path")
 
-    # ── Tools ──
     g_tools = parser.add_argument_group("Tool binaries & Compute")
     g_tools.add_argument("--threads", type=int, default=12)
     g_tools.add_argument("--star", type=valid_executable, default="STAR")
     g_tools.add_argument("--samtools", type=valid_executable, default="samtools")
     g_tools.add_argument("--bedtools", type=valid_executable, default="bedtools")
 
-    # ── 动态 STAR 参数 ──
     for pass_name in ["pass1", "pass2", "pass3"]:
         group = parser.add_argument_group(f"{pass_name} STAR parameters")
         _add_dynamic_star_args(group, pass_name, STAR_PASS_CONFIGS[pass_name])
@@ -412,9 +385,6 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-# =========================================================================
-# 4. 主程序入口
-# =========================================================================
 
 def main() -> None:
     """Execute the three-pass alignment pipeline."""
@@ -422,7 +392,6 @@ def main() -> None:
     log_path = args.log
     paired = len(args.fastq) == 2
 
-    # 自动创建所有输出文件所在的目录
     for path in (
         args.pass1_bam, args.pass1_fq1, args.pass2_bam,
         args.pass2_unmapped1, args.pass3a_bam, args.pass3b_bam,
@@ -432,7 +401,6 @@ def main() -> None:
 
     steps = build_steps(args, paired)
 
-    # Write command log for reproducibility
     stamp = time.strftime("%Y%m%d_%H%M%S", time.localtime())
     cmd_log = os.path.join(os.path.dirname(args.bam), f"three_pass_{stamp}.cmd.log")
 
@@ -441,7 +409,6 @@ def main() -> None:
             log_handle.write(f"three_pass_align.py — {stamp}\n")
             log_handle.write(f"paired={paired}\n")
 
-            # Write command log header
             with open(cmd_log, "a", encoding="utf-8") as cmd_handle:
                 cmd_handle.write(f"# three_pass_align.py command log — {stamp}\n")
                 cmd_handle.write(f"# paired={paired}\n")

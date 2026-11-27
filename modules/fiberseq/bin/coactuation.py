@@ -72,8 +72,6 @@ def run(args: argparse.Namespace) -> int:
             break
     logger.info(f"Testing {len(pairs)} region pairs (max_distance={args.max_distance})")
 
-    # Stream the big element BEDs once, keeping only records overlapping a
-    # peak region (whole-file read_bed of msp+nuc+fire OOMs on real data).
     sweep = ChromSweep(
         [str(args.fire), str(args.msp), str(args.nuc)],
         [(p.chrom, p.start, p.end) for p in peaks],

@@ -26,7 +26,6 @@ import matplotlib.pyplot as plt
 from scipy.stats import wilcoxon
 
 CLASSES = ["cen_core", "cen_flank", "subtelomere", "telomere_core"]
-# first group = baseline (youth colour), second = compared (aged colour)
 COLORS = ["#2E86C1", "#C0392B"]
 
 
@@ -72,7 +71,6 @@ def main():
         for s in slist:
             sample2label[s] = label
 
-    # (metric, class) -> {label: {region_key: [values]}}
     per = {}
     for r in csv.DictReader(open(args.input), delimiter="\t"):
         key = (r["chrom"], int(r["start"]), int(r["end"]))
@@ -85,7 +83,6 @@ def main():
             per.setdefault(metric, {}).setdefault(r["region_class"], {}) \
               .setdefault(label, {}).setdefault(key, []).append(float(r[metric]))
 
-    # keep known class order, append any extra classes found in the data
     classes = [c for c in CLASSES if any(c in per.get(m, {}) for m in per)]
     for m in per:
         for c in per[m]:

@@ -18,9 +18,6 @@ from typing import Dict, Iterator, List, Optional, Sequence, Tuple, TextIO
 import logging
 
 
-# ---------------------------------------------------------------------------
-# Copied verbatim from src/common/util/LogUtil.py.
-# ---------------------------------------------------------------------------
 def setup_logger(
     logger_name: str,
     level: int = logging.INFO,
@@ -68,9 +65,6 @@ def setup_logger(
     return logger
 
 
-# ---------------------------------------------------------------------------
-# Copied verbatim from src/common/util/FiberlibUtil.py.
-# ---------------------------------------------------------------------------
 @dataclass
 class BedRecord:
     """One BED/BED12 row with its element blocks as absolute intervals."""
@@ -120,7 +114,7 @@ def read_bed(path: str) -> List[BedRecord]:
             try:
                 start, end = int(f[1]), int(f[2])
             except ValueError:
-                continue  # skip header lines (e.g. TSV headers in .bed files)
+                continue
             chrom = f[0]
             name = f[3] if len(f) > 3 else "."
             score = float(f[4]) if len(f) > 4 and f[4] not in (".", "") else 0.0

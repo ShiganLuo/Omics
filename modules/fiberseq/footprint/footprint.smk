@@ -7,8 +7,6 @@ logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
-# 参数精确到 rule:formats 按 rule 独立配置(Params.fiberseq_footprint.<rule_name>.formats,
-# 无 module 级共享回退),每 rule 一个 parse 期变量(config 全量路径读取 + str 规范化)。
 _formats_run = config.get("Params", {}).get("fiberseq_footprint", {}).get("fiberseq_footprint_run", {}).get("formats") or ["pdf"]
 if isinstance(_formats_run, str):
     _formats_run = [_formats_run]
@@ -16,7 +14,6 @@ _formats_result = config.get("Params", {}).get("fiberseq_footprint", {}).get("fi
 if isinstance(_formats_result, str):
     _formats_result = [_formats_result]
 
-# upstream contract: motif sites come from fiberseq_analysis/motif
 MOTIF_DIR = config.get("motif_dir") or indir + "/motif"
 
 rule fiberseq_footprint_run:
@@ -30,7 +27,6 @@ rule fiberseq_footprint_run:
         categories = outdir + "/{sample_id}/{sample_id}.footprint_categories.tsv",
         profiles = outdir + "/{sample_id}/{sample_id}.footprint_profiles.tsv",
         scores = outdir + "/{sample_id}/{sample_id}.footprint_scores.tsv",
-        # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
         plots = [outdir + "/{sample_id}/{sample_id}.footprint_profile." + fmt
                  for fmt in _formats_run],
     log:
@@ -48,7 +44,7 @@ rule fiberseq_footprint_run:
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/footprint_profile.py",
         flank = config.get("Params", {}).get("fiberseq_footprint", {}).get("fiberseq_footprint_run", {}).get("flank", 1000),
-        formats = _formats_run,   # ③ 转发
+        formats = _formats_run,
     run:
         log_path = str(log)
         open(log_path, "a").close()
@@ -59,10 +55,7 @@ rule fiberseq_footprint_run:
             sample_outdir = os.path.dirname(str(output.categories))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"fiberseq_footprint_run_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
-            # timestamped copy stays in log/cmd as history; the outdir copy
-            # (no timestamp, overwritten each run) documents the current command
-            # next to the results it produced
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"fiberseq_footprint_run_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.script,
@@ -83,7 +76,7 @@ rule fiberseq_footprint_run:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "fiberseq_footprint_run for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

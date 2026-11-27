@@ -30,5 +30,3 @@ if __name__ == "__main__":
     for i in control + experiment:
         df_snp = totalSNP(i, "a.png")
         print(f"{i} : {len(df_snp)}")
-    # df_snp = totalSNP(args.gzvcf, args.outImage)
-    # print(df_snp.head())  # Display the first few rows of the DataFrame

@@ -12,7 +12,7 @@ import seaborn as sns
 import os
 
 def somatic_selection_pipeline(
-    mutation_files,           # list of CSV files, each for one sample
+    mutation_files,
     output_dir="somatic_analysis",
     vaf_threshold=0.3,
     cadd_threshold=20,
@@ -38,9 +38,6 @@ def somatic_selection_pipeline(
     
     os.makedirs(output_dir, exist_ok=True)
 
-    # -----------------------------
-    # 1. Load and merge all mutation files
-    # -----------------------------
     all_mutations = []
     for f in mutation_files:
         df = pd.read_csv(f)
@@ -48,9 +45,6 @@ def somatic_selection_pipeline(
     mutations = pd.concat(all_mutations, ignore_index=True)
     print(f"Total mutations across {len(mutation_files)} files: {mutations.shape[0]}")
 
-    # -----------------------------
-    # 2. VAF distribution
-    # -----------------------------
     plt.figure(figsize=(8,5))
     sns.histplot(mutations['VAF'], bins=50, color='skyblue')
     plt.xlabel('Variant Allele Frequency')
@@ -59,9 +53,6 @@ def somatic_selection_pipeline(
     plt.savefig(os.path.join(output_dir, "VAF_distribution_all_samples.png"))
     plt.close()
 
-    # -----------------------------
-    # 3. Hotspot gene analysis
-    # -----------------------------
     gene_counts = mutations['Gene'].value_counts()
     hotspot_genes = gene_counts[gene_counts > 1]
 
@@ -75,15 +66,9 @@ def somatic_selection_pipeline(
     plt.savefig(os.path.join(output_dir, "hotspot_genes_all_samples.png"))
     plt.close()
 
-    # -----------------------------
-    # 4. High-impact mutation filtering
-    # -----------------------------
     high_impact = mutations[mutations['CADD'] > cadd_threshold]
     print(f"High-impact mutations (CADD>{cadd_threshold}): {high_impact.shape[0]}")
 
-    # -----------------------------
-    # 5. dN/dS analysis (optional)
-    # -----------------------------
     selected_genes_dn_ds = mutations['Gene'].unique().tolist()
     if perform_dn_ds:
         try:
@@ -96,9 +81,6 @@ def somatic_selection_pipeline(
         except ModuleNotFoundError:
             print("dndscv not installed. Skipping dN/dS analysis.")
 
-    # -----------------------------
-    # 6. Candidate mutations (综合筛选)
-    # -----------------------------
     candidate_mutations = mutations[
         (mutations['VAF'] > vaf_threshold) &
         (mutations['CADD'] > cadd_threshold) &
@@ -107,9 +89,6 @@ def somatic_selection_pipeline(
     candidate_mutations.to_csv(os.path.join(output_dir, "candidate_mutations_all_samples.csv"), index=False)
     print(f"Candidate mutations after filtering: {candidate_mutations.shape[0]}")
 
-    # -----------------------------
-    # 7. Candidate VAF distribution
-    # -----------------------------
     plt.figure(figsize=(8,5))
     sns.histplot(candidate_mutations['VAF'], bins=30, color='green')
     plt.xlabel('VAF')
@@ -118,9 +97,6 @@ def somatic_selection_pipeline(
     plt.savefig(os.path.join(output_dir, "candidate_VAF_distribution_all_samples.png"))
     plt.close()
 
-    # -----------------------------
-    # 8. Candidate hotspot genes
-    # -----------------------------
     candidate_gene_counts = candidate_mutations['Gene'].value_counts()
     plt.figure(figsize=(12,5))
     sns.barplot(x=candidate_gene_counts.index, y=candidate_gene_counts.values, color='purple')

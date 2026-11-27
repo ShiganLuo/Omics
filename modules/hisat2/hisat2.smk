@@ -37,7 +37,7 @@ rule hisat2_index:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start hisat2 index at {current_time}")
             script = receipt_script(f"hisat2_index_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"index/hisat2_index.sh")
             cmd = [
                 "mkdir", "-p", os.path.dirname(str(params.prefix))
@@ -55,7 +55,7 @@ rule hisat2_index:
                 f.write(cmd_str)
                 f.write(f"echo 'hisat2 index was successfully completed'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -86,12 +86,10 @@ def get_alignment_input(wildcards):
     return: A list of input file paths for the STAR alignment step. 
     """
     logger.debug(f"[get_alignment_input] called with wildcards: {wildcards}")
-    # 构造可能的输入路径
     paired_r1 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_1.fq.gz"
     paired_r2 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_2.fq.gz"
     single = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.single.fq.gz"
 
-    # 检查文件实际存在情况
     if wildcards.sample_id in paired_samples:
         logger.info(f"双端测序：{[paired_r1, paired_r2]}")
         logger.info(f"双端测序：{[paired_r1, paired_r2]}")
@@ -109,8 +107,6 @@ rule hisat2_align:
         fastq = get_alignment_input,
         index = get_hisat2_index
     output:
-        # temp 规范(modules.md):比对中间产物受 keep_intermediates 字段控制,
-        # 缺省 True=保留;CLIP/ncRNAseq 注册 bam 为交付物,不设字段即保持常驻
         outfile = maybe_temp(outdir + "/{sample_id}/{sample_id}.bam", "hisat2"),
         splice = maybe_temp(outdir + "/{sample_id}/{sample_id}.splice.txt", "hisat2")
     log:
@@ -144,7 +140,7 @@ rule hisat2_align:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             sample_outdir = os.path.dirname(output.outfile)
             script = receipt_script(f"hisat2_align_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = f"{sample_outdir}/hisat2_align.sh"
             cmd1 = [
                 f"{params.hisat2}",
@@ -168,7 +164,7 @@ rule hisat2_align:
                 f.write(" ".join(cmd) +"\n")
                 f.write(f"echo 'hisat_align for {wildcards.sample_id} was completed successfully at {current_time}'")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

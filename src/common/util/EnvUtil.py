@@ -36,17 +36,11 @@ except ImportError:
 
 logger = setup_logger(__name__, level=logging.INFO)
 
-# ---------------------------------------------------------------------------
-# Regex patterns for parsing Dockerfile comments
-# ---------------------------------------------------------------------------
 _BUILD_RE = re.compile(r"#\s*Build:\s*docker\s+build\s+-t\s+(\S+)")
 _SOURCE_RE = re.compile(r"#\s*Source:\s*(.+)")
 _SAVE_RE = re.compile(r"#\s*Save:\s*docker\s+save\s+\S+\s+-o\s+(.+)")
 _COPY_RE = re.compile(r"^COPY\s+(\S+)\s+", re.IGNORECASE)
 
-# --------------------------------------------------------------------------- #
-# Regex patterns for parsing Apptainer .def comments
-# --------------------------------------------------------------------------- #
 _DEF_BUILD_RE = re.compile(r"#\s*Build:\s*apptainer\s+build\s+(\S+)\.sif")
 _DEF_SOURCE_RE = re.compile(r"#\s*Source YAML:\s*(.+)")
 
@@ -87,9 +81,6 @@ class EnvUtil:
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    # ------------------------------------------------------------------
-    # Parsing
-    # ------------------------------------------------------------------
     @staticmethod
     def parse_dockerfile(dockerfile_path: str) -> Dict[str, Optional[str]]:
         """Extract image name, conda YAML path, and save path from a Dockerfile.
@@ -167,14 +158,12 @@ class EnvUtil:
         if parsed is None:
             parsed = self.parse_dockerfile(dockerfile_path)
 
-        # 1. From Dockerfile comment
         if parsed["image_name"]:
             return parsed["image_name"]
 
         dockerfile = Path(dockerfile_path)
         module_dir = dockerfile.parent
 
-        # 2. From conda YAML name: field
         yaml_name = parsed.get("yaml_filename")
         if yaml_name:
             yaml_path = module_dir / yaml_name
@@ -183,7 +172,6 @@ class EnvUtil:
                 if name:
                     return name
 
-        # 3. Fallback: directory name
         return module_dir.name
 
     @staticmethod
@@ -198,9 +186,6 @@ class EnvUtil:
             pass
         return None
 
-    # ------------------------------------------------------------------
-    # Path helpers
-    # ------------------------------------------------------------------
     def get_module_relpath(self, dockerfile_path: str) -> Path:
         """Return the module path relative to ``modules_dir``.
 
@@ -224,7 +209,6 @@ class EnvUtil:
         try:
             rel = dockerfile.parent.relative_to(self.modules_dir)
         except ValueError:
-            # Dockerfile is not under modules_dir — use its parent name
             logger.warning(
                 f"Dockerfile {dockerfile} is not under modules_dir {self.modules_dir}, "
                 f"using parent directory name only"
@@ -240,9 +224,6 @@ class EnvUtil:
         rel = self.get_module_relpath(dockerfile_path)
         return self.output_dir / rel
 
-    # ------------------------------------------------------------------
-    # Docker operations
-    # ------------------------------------------------------------------
     @staticmethod
     def _run_streaming(
         cmd: List[str],
@@ -276,11 +257,6 @@ class EnvUtil:
         cmd_str = " ".join(shlex.quote(c) for c in cmd)
         logger.info(f"{log_prefix}Running: {cmd_str}")
 
-        # Surface apptainer build failures with verbose context. The default
-        # `apptainer build` output sometimes collapses the real error to one
-        # line (e.g. "conveyor failed to get: ..."). Capturing the full stream
-        # and re-emitting it on failure lets the user see WHY the build broke
-        # instead of just the exit code.
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
@@ -304,9 +280,6 @@ class EnvUtil:
             logger.error(
                 f"Command failed (rc={process.returncode}): {cmd_str}"
             )
-            # Re-emit last 60 lines at ERROR level so they stand out and survive
-            # log rotation. Do not write to cwd by default -- keep build output
-            # only in stderr.
             tail = "".join(captured_lines[-60:])
             logger.error("--- last 60 lines of failed command output ---")
             for line in tail.splitlines():
@@ -318,9 +291,6 @@ class EnvUtil:
 
         return process.returncode
 
-    # ------------------------------------------------------------------
-    # Mirror / registry diagnostics
-    # ------------------------------------------------------------------
     @staticmethod
     def probe_registry_mirror(
         mirror: str,
@@ -362,18 +332,12 @@ class EnvUtil:
             with urlopen(req, timeout=timeout) as resp:
                 return True, f"HTTP {resp.status}"
         except HTTPError as exc:
-            # 401 = mirror's generic auth gate (NOT proof image exists);
-            # 404 = repo not in this mirror; 403 = repo exists but no access.
-            # Only 200 (in the try block above) confirms image availability.
             return False, f"HTTP {exc.code}: {exc.reason}"
         except (URLError, socket.timeout, TimeoutError) as exc:
             return False, f"{type(exc).__name__}: {exc}"
         except Exception as exc:
             return False, f"{type(exc).__name__}: {exc}"
 
-    # ------------------------------------------------------------------
-    # YAML parsing helpers
-    # ------------------------------------------------------------------
     @staticmethod
     def find_env_yamls(module_dir: str) -> List[Path]:
         """Find conda env YAML files in a module directory.
@@ -440,7 +404,6 @@ class EnvUtil:
             if not stripped or stripped.startswith("#"):
                 continue
 
-            # Top-level key (no leading whitespace)
             if not raw_line[0].isspace():
                 m = re.match(r"^(\w+):\s*(.*)", stripped)
                 if not m:
@@ -453,7 +416,6 @@ class EnvUtil:
                     current_section = None
                     in_pip_subsection = False
                 elif key in ("channels", "dependencies", "build_dependencies") and val:
-                    # Inline value, e.g. "dependencies: [a, b]"
                     current_section = key
                     in_pip_subsection = False
                     items = [x.strip() for x in val.strip("[]").split(",") if x.strip()]
@@ -470,7 +432,6 @@ class EnvUtil:
                     current_section = None
                     in_pip_subsection = False
             else:
-                # Indented list item
                 m = re.match(r"^\s+-\s+(.+)", stripped)
                 if m and current_section:
                     item = m.group(1).strip()
@@ -480,16 +441,13 @@ class EnvUtil:
                         build_deps.append(item)
                     elif current_section == "dependencies":
                         if in_pip_subsection:
-                            # pip: sub-section items
                             pip_deps.append(item)
                         elif ":" in item and not item.startswith("'") and not item.startswith('"'):
-                            # Nested dict marker, e.g. "pip:"
                             if item.rstrip(":") == "pip":
                                 in_pip_subsection = True
                             continue
                         else:
                             deps.append(item)
-                # Check for standalone "pip:" line under dependencies
                 elif current_section == "dependencies":
                     m2 = re.match(r"^\s+pip:\s*$", stripped)
                     if m2:
@@ -530,9 +488,6 @@ class EnvUtil:
         stem = Path(yaml_path).stem
         return stem if stem else (fallback or "env")
 
-    # ------------------------------------------------------------------
-    # Backend configurations
-    # ------------------------------------------------------------------
     BACKENDS = {
         "micromamba": {
             "apptainer_from": "docker.1ms.run/mambaorg/micromamba:latest",
@@ -561,16 +516,8 @@ class EnvUtil:
     }
     DEFAULT_BACKEND = "micromamba"
 
-    # ------------------------------------------------------------------
-    # Apptainer definition file generation
-    # ------------------------------------------------------------------
     APPTAINER_BOOTSTRAP = "docker"
 
-    # ------------------------------------------------------------------
-    # Download mirrors + explicit-spec (solve-once) support
-    # ------------------------------------------------------------------
-    # Channel name -> mirror URL for host-side solves and generated %post
-    # install commands. Channels not listed pass through unchanged.
     CHANNEL_MIRRORS = {
         "conda-forge": "https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge",
         "bioconda": "https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/bioconda",
@@ -579,8 +526,6 @@ class EnvUtil:
         "r": "https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/r",
         "msys2": "https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/msys2",
     }
-    # Package-URL prefix rewrites for explicit specs. Specific prefixes first,
-    # generic conda-forge/bioconda cloud mapping last.
     URL_PREFIX_MIRRORS = (
         ("https://conda.anaconda.org/defaults/", "https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main/"),
         ("https://conda.anaconda.org/main/", "https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main/"),
@@ -604,7 +549,6 @@ class EnvUtil:
         import urllib.request
         import urllib.error
         for dep in deps:
-            # Strip version specifiers: =, >=, <=, >, <, ~=
             pkg = re.split(r"[><=!~]", dep.strip())[0].strip()
             if not pkg:
                 continue
@@ -642,16 +586,12 @@ class EnvUtil:
         deps: List[str] = parsed["dependencies"]  # type: ignore[assignment]
         channels: List[str] = parsed.get("channels", [])  # type: ignore[assignment]
 
-        # conda deps that are just python/pip meta-packages are fine
         conda_deps = [d for d in deps if not re.match(r"^(python|pip)\b", d.strip(), re.I)]
         pip_deps: List[str] = parsed.get("pip_dependencies", [])  # type: ignore[assignment]
 
-        # No real conda deps (only python/pip): pypi-only if there are pip deps
-        # Channels like conda-forge/bioconda are harmless when unused
         if not conda_deps:
             return bool(pip_deps)
 
-        # Has real conda deps: not pypi-only
         return False
 
     @classmethod
@@ -813,9 +753,6 @@ class EnvUtil:
             env_name = cls.resolve_env_name(str(yaml))
 
         if def_path is None:
-            # Default: "<parent_dir>.def" in the YAML's directory.
-            # If a .def already exists but references a *different* YAML,
-            # use "<env_name>.def" to avoid clobbering it (multi-env modules).
             default_path = yaml.parent / f"{yaml.parent.name}.def"
             if default_path.is_file():
                 existing_text = default_path.read_text(encoding="utf-8")
@@ -832,33 +769,28 @@ class EnvUtil:
 
         yaml_content = yaml.read_text(encoding="utf-8")
 
-        # Read optional post-install hook: <env_name>.post.sh
         post_hook = ""
         hook_path = yaml.parent / f"{env_name}.post.sh"
         if hook_path.is_file():
             post_hook = hook_path.read_text(encoding="utf-8").rstrip()
             logger.info(f"Found post-install hook: {hook_path}")
 
-        # Check if all packages are PyPI-only -> use uv template
         pypi_only = cls.is_pypi_only(str(yaml))
         parsed = cls.parse_conda_yaml(str(yaml))
         pip_packages: List[str] = parsed.get("pip_dependencies", [])  # type: ignore[assignment]
 
-        # pypi_only but no pip: section -> use conda dependencies as pip packages
         if pypi_only and not pip_packages:
             conda_deps: List[str] = parsed.get("dependencies", [])  # type: ignore[assignment]
             pip_packages = []
             for d in conda_deps:
                 if re.match(r"^(python|pip)\b", d.strip(), re.I):
                     continue
-                # conda "=" (exact version) -> pip "=="
                 d = re.sub(r"(?<=[^<>~!])=(?=[0-9])", "==", d)
                 pip_packages.append(d)
 
         _rc = parsed.get("channels")
         raw_channels: List[str] = [str(c) for c in _rc] if isinstance(_rc, list) else []
 
-        # Resolve backend
         if backend is None or backend == "auto":
             if pypi_only:
                 resolved_backend = "uv"
@@ -873,8 +805,7 @@ class EnvUtil:
         backend_config = cls.BACKENDS[resolved_backend]
         logger.info(f"Using backend: {resolved_backend} ({backend_config['description']})")
 
-        # Extract python version from dependencies for uv base image
-        python_version = "3.11"  # default
+        python_version = "3.11"
         all_deps: List[str] = parsed.get("dependencies", [])  # type: ignore[assignment]
         for d in all_deps:
             m = re.match(r"^python\s*[=~><!]+\s*(\d+\.\d+)", d.strip(), re.I)
@@ -976,9 +907,6 @@ class EnvUtil:
         ch_args = (" " + " ".join(ch_args_list)) if ch_args_list else ""
         env_prefix = f"/opt/conda/envs/{env_name}"
 
-        # One command per line: a failing step must abort the build (set -e),
-        # never hide behind an `a && b` chain that lets %post continue past a
-        # failed env create (which yields an empty image reported as success).
         if spec_filename:
             if backend == "micromamba":
                 install_cmd = f"""    export MAMBA_ROOT_PREFIX="/opt/conda"
@@ -992,7 +920,7 @@ class EnvUtil:
     mamba create -y -p {env_prefix} -f /opt/conda/{spec_filename} < /dev/null
     mamba clean -afy
     rm /opt/conda/{spec_filename}"""
-            else:  # conda
+            else:
                 install_cmd = f"""    export PATH="/opt/conda/bin:$PATH"
     export CONDA_NO_PLUGINS=true
     conda create -y -p {env_prefix} -f /opt/conda/{spec_filename} < /dev/null
@@ -1010,7 +938,7 @@ class EnvUtil:
     mamba env create -f /opt/conda/{yaml_filename}{ch_args} < /dev/null
     mamba clean -afy
     rm /opt/conda/{yaml_filename}"""
-        else:  # conda
+        else:
             install_cmd = f"""    export PATH="/opt/conda/bin:$PATH"
     export CONDA_NO_PLUGINS=true
     conda config --set solver classic
@@ -1018,9 +946,6 @@ class EnvUtil:
     conda clean -afy
     rm /opt/conda/{yaml_filename}"""
 
-        # pip: sub-section packages cannot ride in a conda explicit spec;
-        # install them after the conda env exists (spec mode only — the yaml
-        # flow lets `env create` handle the pip: section itself).
         pip_block = ""
         if pip_packages and spec_filename:
             index = f"-i {cls.PYPI_MIRROR} " if mirror else ""
@@ -1142,9 +1067,6 @@ ENDOFSCRIPT
     Built with uv venv (python {python_version}).
 """
 
-    # ------------------------------------------------------------------
-    # Dockerfile generation (from conda YAML, same pattern as .def)
-    # ------------------------------------------------------------------
     DOCKER_FROM = "docker.1ms.run/mambaorg/micromamba:latest"
 
     @classmethod
@@ -1184,9 +1106,6 @@ ENDOFSCRIPT
             image_name = cls.resolve_env_name(str(yaml))
 
         if dockerfile_path is None:
-            # Default: "<parent_dir>.dockerfile" in the YAML's directory.
-            # If a dockerfile already exists but references a *different* YAML,
-            # use "<env_name>.dockerfile" to avoid clobbering it (multi-env modules).
             default_path = yaml.parent / f"{yaml.parent.name}.dockerfile"
             if default_path.is_file():
                 existing_text = default_path.read_text(encoding="utf-8")
@@ -1260,13 +1179,6 @@ ENV PATH="/opt/conda/envs/{image_name}/bin:$PATH"
 CMD ["bash"]
 """
 
-    # ------------------------------------------------------------------
-    # Apptainer build
-    # ------------------------------------------------------------------
-    # Known good Docker registry mirrors in approximate preference order.
-    # First entry is the EnvUtil default; the rest are fallbacks probed at
-    # build time so failures point at a concrete replacement instead of a
-    # cryptic "conveyor failed to get" error.
     _KNOWN_DOCKER_MIRRORS = [
         "docker.1ms.run",
         "docker.xuanyuan.me",
@@ -1295,7 +1207,6 @@ CMD ["bash"]
             logger.warning(f"Could not read def file for mirror probe: {exc}")
             return
 
-        # Find "From: <value>" line, ignoring commented ones.
         from_value: Optional[str] = None
         for line in text.splitlines():
             stripped = line.strip()
@@ -1306,18 +1217,14 @@ CMD ["bash"]
             logger.debug("No From: line found in def; skipping mirror probe")
             return
 
-        # Parse <host>(/<repo>)?(:<tag>)?.
         parts = from_value.split("/")
         if len(parts) < 2 or "." not in parts[0]:
-            # Likely Docker Hub canonical form ("python:3.11-slim") — no
-            # mirror to probe.
             logger.debug(
                 f"From: {from_value} has no registry host; skipping probe"
             )
             return
 
         host = parts[0]
-        # Only probe Docker Hub mirrors — other registries (ghcr.io, quay.io) are direct
         if host not in ("docker.io", "registry-1.docker.io"):
             logger.info(f"From: {from_value} — skipping Docker Hub mirror probe")
             return
@@ -1327,7 +1234,6 @@ CMD ["bash"]
             repo, tag = repo.rsplit(":", 1)
 
         logger.info(f"Probing Docker mirrors for {repo}:{tag}")
-        # Build an ordered de-duplicated candidate list, primary first.
         candidates: List[str] = []
         for m in [host] + self._KNOWN_DOCKER_MIRRORS:
             if m not in candidates:
@@ -1358,9 +1264,6 @@ CMD ["bash"]
                 f"one of these (or pass the host directly to apptainer): "
                 f"{', '.join(ok_candidates)}"
             )
-            # Best-effort patch the def file so the user can simply re-run.
-            # Skip silently if the file is read-only or the user passes
-            # --no-patch.
             try:
                 patched = text.replace(
                     f"From: {from_value}",
@@ -1372,10 +1275,6 @@ CMD ["bash"]
                         f"Auto-patched {def_path} → From: "
                         f"{ok_candidates[0]}/{repo}:{tag}"
                     )
-                    # The previous mirror may have left a partial blob in
-                    # ~/.apptainer/cache/blob (often hundreds of MB). Clear it
-                    # so the new mirror doesn't try to resume against a corrupt
-                    # local cache.
                     cache_dir = Path.home() / ".apptainer" / "cache"
                     if cache_dir.exists():
                         try:
@@ -1398,10 +1297,6 @@ CMD ["bash"]
                 f"_KNOWN_DOCKER_MIRRORS."
             )
 
-    # ------------------------------------------------------------------
-    # Package verification
-    # ------------------------------------------------------------------
-    # pip package name → import name (only cases where they differ)
     _PIP_IMPORT_MAP: Dict[str, str] = {
         "pillow": "PIL",
         "scikit-learn": "sklearn",
@@ -1425,7 +1320,6 @@ CMD ["bash"]
         ``"scikit-learn>=1.0"`` → ``"sklearn"``
         ``"Pillow==9.0"`` → ``"PIL"``
         """
-        # Strip version specifiers: >=, <=, ==, ~=, !=, >, <, =
         name = re.split(r"[><=!~]", pkg_spec)[0].strip().lower()
         return cls._PIP_IMPORT_MAP.get(name, name.replace("-", "_"))
 
@@ -1447,11 +1341,10 @@ CMD ["bash"]
         if not pip_deps:
             return
 
-        # Skip meta-packages and comments
         skip_re = re.compile(r"^(python|pip)\b", re.I)
         import_names = []
         for dep in pip_deps:
-            dep = dep.split("#")[0].strip()  # strip inline comments
+            dep = dep.split("#")[0].strip()
             if not dep or skip_re.match(dep):
                 continue
             import_names.append(self._pip_to_import_name(dep))
@@ -1459,7 +1352,6 @@ CMD ["bash"]
         if not import_names:
             return
 
-        # Build a single import check script
         imports = "; ".join(f"import {n}" for n in import_names)
         check_script = (
             f"exec /bin/bash << 'EOF'\n"
@@ -1479,7 +1371,6 @@ CMD ["bash"]
             return
 
         if result.returncode != 0:
-            # Find which package failed
             failed = []
             for name in import_names:
                 test = [
@@ -1531,11 +1422,6 @@ CMD ["bash"]
         if not df.is_file():
             raise FileNotFoundError(f"Def file not found: {df}")
 
-        # Diagnose the configured Docker mirror BEFORE invoking apptainer.
-        # If the mirror can't resolve the base image, the user will see one
-        # confusing "conveyor failed to get" line with no actionable info.
-        # Probing the mirror first turns this into a clear mirror-selection
-        # problem with concrete HTTP statuses for every candidate.
         self._diagnose_build_mirror(df)
 
         out = Path(output_sif).resolve()
@@ -1551,9 +1437,6 @@ CMD ["bash"]
         logger.info(f"Building SIF: {out}")
         self._run_streaming(cmd, cwd=str(df.parent), timeout=timeout, log_prefix=log_prefix)
 
-        # Verify build: reject truncated/empty artifacts. Small environments
-        # legitimately produce ~100 MB images, so this is only a low floor —
-        # the real completeness check is the in-SIF env verification below.
         sif_size_mb = out.stat().st_size / (1024 * 1024)
         def_text = df.read_text() if df.exists() else ""
         min_size = 50
@@ -1563,11 +1446,9 @@ CMD ["bash"]
                 f"build likely failed. Check build output above."
             )
 
-        # Verify build: check conda env exists inside SIF (skip for PyPI/uv)
         if "PyPI/uv" not in def_text:
             env_name_from_def = self.resolve_env_name_from_def(str(df))
 
-            # Determine which verify command to use based on backend in def file
             verify_cmds = []
             if "Backend: micromamba" in def_text:
                 verify_cmds = [["micromamba", "env", "list"]]
@@ -1576,7 +1457,6 @@ CMD ["bash"]
             elif "Backend: conda" in def_text:
                 verify_cmds = [["conda", "env", "list"]]
             else:
-                # Fallback: try all
                 verify_cmds = [
                     ["micromamba", "env", "list"],
                     ["mamba", "env", "list"],
@@ -1604,15 +1484,11 @@ CMD ["bash"]
                     f"build failed silently. Check build output above."
                 )
 
-        # Verify key pip packages are importable (catches silent pip failures)
         self._verify_pip_packages(out, yaml_path)
         logger.info(f"SIF built: {out}")
 
         return str(out)
 
-    # ------------------------------------------------------------------
-    # Full Apptainer workflow
-    # ------------------------------------------------------------------
     def process_yaml(
         self,
         yaml_path: str,
@@ -1685,14 +1561,11 @@ CMD ["bash"]
         if env_name is None:
             env_name = self.resolve_env_name(str(yaml))
 
-        # Determine output sub-directory first (spec and build files are
-        # copied there alongside the SIF).
         if output_subdir is None:
             output_subdir = str(self.get_output_subdir_for_module(yaml.parent))
         out_dir = Path(output_subdir).resolve()
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        # Stage 1 (one-time, host): solve -> explicit spec.
         spec_path: Optional[str] = None
         if use_spec and not self.is_pypi_only(str(yaml)):
             try:
@@ -1710,7 +1583,6 @@ CMD ["bash"]
                 )
                 spec_path = None
 
-        # Generate .def next to the YAML (in the module directory)
         def_path = self.generate_def_file(
             yaml_path=str(yaml),
             env_name=env_name,
@@ -1732,7 +1604,6 @@ CMD ["bash"]
             "module_relpath": str(self.get_module_relpath_for_module(yaml.parent)),
         }
 
-        # Copy .def, .yaml and the explicit spec to output directory
         shutil.copy2(yaml, out_dir / yaml.name)
         shutil.copy2(def_path, out_dir / Path(def_path).name)
         if spec_path:
@@ -1747,7 +1618,6 @@ CMD ["bash"]
             logger.info(f"[SKIP] SIF already exists: {sif_path}")
             return result
 
-        # Build SIF
         self.build_sif(
             def_path=def_path,
             output_sif=str(sif_path),
@@ -1764,9 +1634,6 @@ CMD ["bash"]
         )
         return result
 
-    # ------------------------------------------------------------------
-    # Full Docker workflow (from YAML: generate Dockerfile, build, save)
-    # ------------------------------------------------------------------
     def process_yaml_docker(
         self,
         yaml_path: str,
@@ -1818,13 +1685,11 @@ CMD ["bash"]
         if image_name is None:
             image_name = self.resolve_env_name(str(yaml))
 
-        # Generate Dockerfile next to the YAML (in the module directory)
         dockerfile_path = self.generate_dockerfile(
             yaml_path=str(yaml),
             image_name=image_name,
         )
 
-        # Determine output sub-directory
         if output_subdir is None:
             output_subdir = str(self.get_output_subdir_for_module(yaml.parent))
         out_dir = Path(output_subdir).resolve()
@@ -1842,7 +1707,6 @@ CMD ["bash"]
             "module_relpath": str(self.get_module_relpath_for_module(yaml.parent)),
         }
 
-        # Copy Dockerfile and YAML to output directory
         shutil.copy2(yaml, out_dir / yaml.name)
         shutil.copy2(dockerfile_path, out_dir / Path(dockerfile_path).name)
         logger.info(f"Copied {yaml.name} and {Path(dockerfile_path).name} to {out_dir}")
@@ -1855,7 +1719,6 @@ CMD ["bash"]
             logger.info(f"[SKIP] Tar already exists: {tar_path}")
             return result
 
-        # Build Docker image
         self.build_image(
             dockerfile_path=dockerfile_path,
             image_name=image_name,
@@ -1863,7 +1726,6 @@ CMD ["bash"]
             timeout=build_timeout,
         )
 
-        # Save as tar
         self.save_image(
             image_name=image_name,
             output_tar=str(tar_path),
@@ -2073,9 +1935,6 @@ CMD ["bash"]
         rel = self.get_module_relpath_for_module(module_dir)
         return self.output_dir / rel
 
-    # ------------------------------------------------------------------
-    # Batch Docker workflow (from YAML)
-    # ------------------------------------------------------------------
     def process_module_docker(
         self,
         module_dir: str,
@@ -2265,9 +2124,6 @@ CMD ["bash"]
 
         return str(output_path)
 
-    # ------------------------------------------------------------------
-    # File copying
-    # ------------------------------------------------------------------
     def copy_artefacts(
         self,
         dockerfile_path: str,
@@ -2299,13 +2155,11 @@ CMD ["bash"]
 
         copied: List[str] = []
 
-        # Copy Dockerfile
         dest_dockerfile = dest_dir / dockerfile.name
         shutil.copy2(dockerfile, dest_dockerfile)
         copied.append(str(dest_dockerfile))
         logger.info(f"Copied {dockerfile.name} -> {dest_dockerfile}")
 
-        # Copy conda YAML if referenced by COPY directive
         yaml_name = parsed.get("yaml_filename")
         if yaml_name:
             yaml_src = dockerfile.parent / yaml_name
@@ -2319,9 +2173,6 @@ CMD ["bash"]
 
         return copied
 
-    # ------------------------------------------------------------------
-    # Full workflow
-    # ------------------------------------------------------------------
     def process_dockerfile(
         self,
         dockerfile_path: str,
@@ -2380,7 +2231,6 @@ CMD ["bash"]
                 "module_relpath": str(self.get_module_relpath(str(dockerfile))),
             }
 
-        # Build
         self.build_image(
             dockerfile_path=str(dockerfile),
             image_name=image_name,
@@ -2388,14 +2238,12 @@ CMD ["bash"]
             timeout=build_timeout,
         )
 
-        # Save
         self.save_image(
             image_name=image_name,
             output_tar=str(tar_path),
             timeout=save_timeout,
         )
 
-        # Copy Dockerfile + YAML
         copied = self.copy_artefacts(
             dockerfile_path=str(dockerfile),
             output_subdir=str(output_subdir),
@@ -2416,9 +2264,6 @@ CMD ["bash"]
             "module_relpath": str(self.get_module_relpath(str(dockerfile))),
         }
 
-    # ------------------------------------------------------------------
-    # Apptainer: parse / find / process existing .def files
-    # ------------------------------------------------------------------
     @staticmethod
     def parse_def_file(def_path: str) -> Dict[str, Optional[str]]:
         """Extract env name and YAML filename from an Apptainer ``.def`` file.
@@ -2543,7 +2388,6 @@ CMD ["bash"]
         output_subdir.mkdir(parents=True, exist_ok=True)
         sif_path = output_subdir / f"{env_name}.sif"
 
-        # Copy .def and YAML to output directory
         def_dest = output_subdir / df.name
         shutil.copy2(df, def_dest)
         yaml_name = parsed.get("yaml_filename")
@@ -2568,7 +2412,6 @@ CMD ["bash"]
                 "module_relpath": str(self.get_module_relpath(str(df))),
             }
 
-        # Build SIF
         yaml_for_verify = str(yaml_src) if yaml_src and yaml_src.is_file() else None
         self.build_sif(
             def_path=str(df),
@@ -2729,7 +2572,6 @@ def is_path_like(value: object) -> bool:
     if not value:
         return False
 
-    # URL is not a local filesystem path.
     parsed = urlparse(value)
     if parsed.scheme.lower() in {
         "http",
@@ -2740,30 +2582,22 @@ def is_path_like(value: object) -> bool:
     }:
         return False
 
-    # Obvious shell/pipeline expressions.
     if any(x in value for x in (" -> ", " | ", " && ", " || ")):
         return False
 
-    # Windows absolute paths.
     if re.match(r"^[A-Za-z]:[\\/]", value):
         return True
 
-    # UNC path.
     if value.startswith("\\\\"):
         return True
 
-    # Unix absolute path.
     if value.startswith("/"):
         return True
 
-    # Explicit relative path.
     if value.startswith(("./", "../", "~/")):
         return True
 
     return False
-# ---------------------------------------------------------------------------
-# CLI
-# ---------------------------------------------------------------------------
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="EnvUtil.py",
@@ -2781,7 +2615,6 @@ def main() -> None:
     )
     sub = parser.add_subparsers(dest="backend", required=True)
 
-    # --- args shared by ALL subcommands ---
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument(
         "-m", "--modules-dir",
@@ -2818,7 +2651,6 @@ def main() -> None:
         ),
     )
 
-    # --- args shared by apptainer subcommands ---
     appt_common = argparse.ArgumentParser(add_help=False)
     appt_common.add_argument(
         "--no-fakeroot",
@@ -2855,7 +2687,6 @@ def main() -> None:
         help="Do not route channels/downloads through the download mirrors.",
     )
 
-    # --- args shared by docker subcommands ---
     docker_common = argparse.ArgumentParser(add_help=False)
     docker_common.add_argument(
         "--no-cache",
@@ -2869,7 +2700,6 @@ def main() -> None:
         help="docker save timeout in seconds.",
     )
 
-    # --- args for 'gen' actions (YAML -> build file, output next to YAML) ---
     gen_common = argparse.ArgumentParser(add_help=False)
     gen_common.add_argument(
         "-y", "--yaml",
@@ -2884,7 +2714,6 @@ def main() -> None:
         help="Override env / image name (single YAML mode only).",
     )
 
-    # --- args for 'build'/'all' actions (image output requires -o) ---
     image_common = argparse.ArgumentParser(add_help=False)
     image_common.add_argument(
         "-o", "--output-dir",
@@ -2896,7 +2725,6 @@ def main() -> None:
         ),
     )
 
-    # --- args for 'build' actions (build file -> image) ---
     build_file_common = argparse.ArgumentParser(add_help=False)
     build_file_common.add_argument(
         "-f", "--file",
@@ -2914,7 +2742,6 @@ def main() -> None:
         help="Override env / image name (single file mode only).",
     )
 
-    # --- args for 'all' actions (YAML -> image) ---
     all_common = argparse.ArgumentParser(add_help=False)
     all_common.add_argument(
         "-y", "--yaml",
@@ -2929,7 +2756,6 @@ def main() -> None:
         help="Override env / image name (single YAML mode only).",
     )
 
-    # ===== apptainer subcommands =====
     p_appt = sub.add_parser(
         "apptainer",
         help="Apptainer backend: YAML -> .def -> .sif",
@@ -2958,7 +2784,6 @@ def main() -> None:
         help="Build up to N images in parallel (default: 1 = serial).",
     )
 
-    # ===== docker subcommands =====
     p_docker = sub.add_parser(
         "docker",
         help="Docker backend: YAML -> .dockerfile -> image -> .tar",
@@ -2983,13 +2808,9 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    # --force implies --no-skip-existing
     if getattr(args, "force", False):
         args.skip_existing = False
 
-    # ------------------------------------------------------------------
-    # Validate -y / -f file arguments
-    # ------------------------------------------------------------------
     yaml_arg = getattr(args, "yaml", None)
     if yaml_arg:
         p = Path(yaml_arg)
@@ -3001,7 +2822,6 @@ def main() -> None:
             )
         if not p.is_file():
             parser.error(f"-y/--yaml file not found: {p}")
-        # Lightweight content check: must have channels: or dependencies:
         text = p.read_text(encoding="utf-8")
         if "channels:" not in text and "dependencies:" not in text:
             parser.error(
@@ -3021,8 +2841,6 @@ def main() -> None:
         if not p.is_file():
             parser.error(f"-f/--file file not found: {p}")
 
-    # gen: no output-dir needed (build files go next to source YAMLs)
-    # build/all: output-dir is required (image_common enforces this)
     output_dir = getattr(args, "output_dir", None) or args.modules_dir
 
     util = EnvUtil(
@@ -3030,7 +2848,6 @@ def main() -> None:
         output_dir=output_dir,
     )
 
-    # ---- apptainer ----
     if args.backend == "apptainer":
         if args.action == "gen":
             if args.yaml:
@@ -3099,7 +2916,6 @@ def main() -> None:
                 )
                 logger.info(f"Processed {len(results)} YAML(s)")
 
-    # ---- docker ----
     elif args.backend == "docker":
         if args.action == "gen":
             if args.yaml:

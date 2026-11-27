@@ -20,11 +20,9 @@ def query_gene_for_vcf(
         gtf:str,
         outfile:str
 ):
-    # 读取 vcf（只要 CHROM, POS）
     vcf = pd.read_csv(vcf, comment="#", sep="\t",
                     usecols=[0,1,3,4], names=["chrom","pos","ref","alt"])
 
-    # 转成 bed
     vcf["start"] = vcf["pos"] - 1
     vcf["end"] = vcf["pos"]
 
@@ -54,7 +52,6 @@ def gene_pred(
     db_dir = Path(db_dir)
     ref_gene = db_dir / f"{buildver}_refGene.txt"
 
-    # 创建输出目录
     ref_gene.parent.mkdir(parents=True, exist_ok=True)
 
     cmd = [
@@ -105,9 +102,6 @@ def retrieve(
 
     subprocess.run(cmd, check=True)
     return ref_gene_mrna
-# -----------------------------
-# ANNOVAR 调用函数
-# -----------------------------
 def convert_to_avinput(
         convert_pl:Union[str,Path], 
         input_file:Union[str,Path], 
@@ -159,9 +153,6 @@ def annotate_avinput(
     ], check=True)
     return out_prefix
 
-# -----------------------------
-# 批量处理单文件函数
-# -----------------------------
 def process_file(file_path:Union[str,Path], 
                  convert_pl:Union[str,Path], 
                  table_pl:Union[str,Path], 
@@ -195,9 +186,6 @@ def prepare_db(
     except subprocess.CalledProcessError as e:
         logger.error(f"Error processing {gtf.name}: {e}")
 
-# -----------------------------
-# 批量处理整个文件夹并行化
-# -----------------------------
 def batch_process(input_dir:str, 
                   convert_pl:str, 
                   table_pl:str, 
@@ -219,7 +207,7 @@ def batch_process(input_dir:str,
             for f in files
         ]
         for future in as_completed(futures):
-            future.result()  # 捕获异常
+            future.result()
 
 if __name__ == "__main__":
     vcf_dict = {
@@ -232,9 +220,6 @@ if __name__ == "__main__":
     mouse = ["TLSC","ciTotiSC"]
     human = ["ci8CLC","hTBLC"]
 
-    # -----------------------------
-    # gtf 注释
-    # -----------------------------
     gtf_GRCh38 = "/disk5/luosg/Reference/GENCODE/human/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf"
     gtf_GRCm39 = "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf"
     TEgtf_GRCh38 = "/disk5/luosg/Reference/GENCODE/human/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf"
@@ -243,10 +228,6 @@ if __name__ == "__main__":
     query_gene_for_vcf("/disk5/luosg/Totipotent20251031/output/SNP/vcf/intersect/ci8CLC/toti_only.vcf.gz",
                        TEgtf_GRCh38,"a.bed")
     
-    # -----------------------------
-    # annovar 注释
-    # -----------------------------
-    ######## toti
     convert_pl = "/opt/annovar/convert2annovar.pl"
     table_pl = "/opt/annovar/table_annovar.pl"
     
@@ -255,60 +236,5 @@ if __name__ == "__main__":
     db_dir_GRCm39 = "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/annovar/GRCm39"
     buildver_GRCm39 = "GRCm39"
 
-    threads = 4  # 可修改为你机器的 CPU 数
-    # gtf_GRCm38 = "/disk5/luosg/Reference/GENCODE/mouse/GRCm38/gencode.vM23.primary_assembly.annotation.gtf"
-    # retrieve_pl = "/opt/annovar/retrieve_seq_from_fasta.pl"
-    # genome_GRCm38 = "/disk5/luosg/Reference/GENCODE/mouse/GRCm38/GRCm38.primary_assembly.genome.fa"
-    # db_dir = "/disk5/luosg/Reference/GENCODE/mouse/GRCm38/annovar/GRCm38"
-    # buildver = "GRCm38"
-    # # prepare_db(gtf_GRCm38,retrieve_pl,genome_GRCm38,db_dir,buildver)
-    # outdir = "/disk5/luosg/Totipotent20251031/output/SNP/vcf/intersect/annotate"
-    # for cell,infile in vcf_dict.items():
-    #     avinput_outdir = Path(f"{outdir}/{cell}/avinput")
-    #     table_outdir = Path(f"{outdir}/{cell}/table")
-    #     avinput_outdir.mkdir(parents=True,exist_ok=True)
-    #     table_outdir.mkdir(parents=True,exist_ok=True)
-    #     if cell in human:
-    #         process_file(infile,
-    #                      convert_pl=convert_pl,
-    #                      table_pl=table_pl,
-    #                      db_dir=db_dir_GRCh38,
-    #                      buildver=buildver_GRCh38,
-    #                      avinput_outdir=avinput_outdir,
-    #                      table_outdir=table_outdir)
-    #     elif cell in mouse:
-    #         process_file(infile,
-    #             convert_pl=convert_pl,
-    #             table_pl=table_pl,
-    #             db_dir=db_dir_GRCm39,
-    #             buildver=buildver_GRCm39,
-    #             avinput_outdir=avinput_outdir,
-    #             table_outdir=table_outdir)
-    #     else:
-    #         raise ValueError("not support organism")
-    # batch_process(input_dir, convert_pl, table_pl, db_dir, buildver, avinput_outdir, table_outdir, threads)
+    threads = 4
     
-    ### pluripotency and totipotency
-    # indir = "/disk5/luosg/Totipotent20251031/PRJNA663159/SNV"
-    # infiles = glob.glob(f"{indir}/*_SNV.txt.gz")
-    # for infile in infiles:
-    #     infile = Path(infile)
-    #     outdir = infile.parent
-    #     pattern = r"GSM\d+_(.+?)_SNV\.txt\.gz"
-    #     match = re.match(pattern,infile.name)
-    #     if match:
-    #         group = match[1]
-    #     else:
-    #         raise ValueError("not match any thing")
-    #     avinput_outdir = outdir / f"{group}/avinput"
-    #     table_outdir = outdir / f"{group}/table"
-    #     avinput_outdir.mkdir(parents=True,exist_ok=True)
-    #     table_outdir.mkdir(parents=True,exist_ok=True)
-    #     process_file(infile,
-    #         convert_pl=convert_pl,
-    #         table_pl=table_pl,
-    #         db_dir=db_dir_GRCm39,
-    #         buildver=buildver_GRCm39,
-    #         avinput_outdir=avinput_outdir,
-    #         table_outdir=table_outdir
-    #     )

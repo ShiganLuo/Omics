@@ -44,10 +44,6 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 
-# ---------------------------------------------------------------------------
-# setup_logger — verbatim copy of src/common/util/LogUtil.py::setup_logger
-# (modules.md 脚本撰写规范 #0: module bin scripts are self-contained)
-# ---------------------------------------------------------------------------
 from typing import Optional as _Optional, TextIO as _TextIO
 import logging as _logging
 
@@ -101,32 +97,18 @@ def setup_logger(
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
-# module-level logger for figure save messages (render functions run outside
-# main()'s scoped logger)
 logger = _logging.getLogger(__name__)
 
-# ============================================================
-# Per-stage parsers: stage dir + sample -> metric dict
-# ============================================================
-# Each parser receives the stage directory and a sample id, and returns a
-# flat {metric_name: value} dict (values numeric or "NA"). Missing files
-# yield {} so the sample row keeps NA for that stage.
 
-# samtools flagstat summary line -> named counters (order = flagstat output)
 _FLAGSTAT_FIELDS = [
     "total", "secondary", "supplementary", "duplicates", "mapped",
     "paired", "read1", "read2", "properly_paired", "with_itself",
     "singletons", "mate_mapped_diff_chr", "mate_mapped_diff_chr_mapq5",
 ]
 
-# samtools flagstat label -> metric key. The whitelist above uses short
-# keys, but real flagstat labels read "in total", "paired in sequencing",
-# "with itself and mate mapped", "with mate mapped to a different chr".
 _FLAGSTAT_LABEL_ALIASES = {
     "in_total": "total",
     "paired_in_sequencing": "paired",
@@ -134,7 +116,6 @@ _FLAGSTAT_LABEL_ALIASES = {
     "with_mate_mapped_to_a_different_chr": "mate_mapped_diff_chr",
 }
 
-# GATK MarkDuplicates metrics file -> kept columns (LIBRARY row)
 _MARKDUP_FIELDS = [
     "READ_PAIRS_EXAMINED", "READ_PAIR_DUPLICATES", "READ_PAIR_OPTICAL_DUPLICATES",
     "PERCENT_DUPLICATION", "ESTIMATED_LIBRARY_SIZE",
@@ -161,7 +142,6 @@ def parse_fastqc(stage_dir: str, sample: str) -> Dict[str, str]:
     Dict[str, str]
         Metric -> value; empty when no fastqc_data.txt is found.
     """
-    # candidate data files: <sample>/<sample>_1_fastqc/fastqc_data.txt etc.
     cands: List[str] = []
     sample_dir = os.path.join(stage_dir, sample)
     if os.path.isdir(sample_dir):
@@ -169,7 +149,6 @@ def parse_fastqc(stage_dir: str, sample: str) -> Dict[str, str]:
             if entry.endswith("_fastqc"):
                 cands.append(os.path.join(sample_dir, entry, "fastqc_data.txt"))
         cands.append(os.path.join(sample_dir, "fastqc_data.txt"))
-    # fallback: flat stage dir with <sample>*_fastqc subdirs
     if not any(os.path.isfile(c) for c in cands) and os.path.isdir(stage_dir):
         for entry in sorted(os.listdir(stage_dir)):
             if entry.startswith(sample) and entry.endswith("_fastqc"):
@@ -255,7 +234,6 @@ def parse_cutadapt(stage_dir: str, sample: str) -> Dict[str, str]:
             if m:
                 pct = pct_re.search(line)
                 metrics["cutadapt_bases_written_pct"] = pct.group(1) if pct else ""
-    # drop empty extractions (report present but block missing)
     return {k: v for k, v in metrics.items() if v != ""}
 
 
@@ -392,24 +370,19 @@ def parse_bwa_mem2(stage_dir: str, sample: str) -> Dict[str, str]:
                 in_fr = True
                 continue
             if not in_fr:
-                # candidate unique pairs: (FF, FR, RF, RR) — FR is 2nd
                 m = re.search(r"\[PE\] # candidate unique pairs.*?: \(\d+, (\d+),", line)
                 if m:
                     metrics.setdefault("bwa_unique_pairs_fr", m.group(1))
                 continue
-            # "(25, 50, 75) percentile: (152, 186, 227)" — median is the
-            # SECOND value of the VALUE tuple (186), not the label tuple
             m = re.search(r"percentile: \(\d+, (\d+), \d+\)", line)
             if m:
                 metrics["insert_size_median"] = m.group(1)
                 continue
-            # anchor on "[PE] mean and std" so the "boundaries for computing
-            # mean and std.dev: (low, high)" line cannot match
             m = re.search(r"\[PE\] mean and std\.dev: \(([\d.]+), ([\d.]+)\)", line)
             if m:
                 metrics["insert_size_mean"] = m.group(1)
                 metrics["insert_size_std"] = m.group(2)
-                break  # first FR block done
+                break
     return metrics
 
 
@@ -429,10 +402,6 @@ def parse_flagstat(stage_dir: str, sample: str) -> Dict[str, str]:
     if not path:
         return {}
 
-    # summary lines: "<n> + <n> <label> (<pct>%)". Non-percentage lines
-    # ("primary", "read1", "read2", "paired in sequencing") have no trailing
-    # "(...)" block, so accept the bare "<n> + <n> <label>" form too; keep
-    # the FIRST n per label (skips the "primary ..." repeats).
     no_pct = re.compile(r"^(\d+) \+ \d+\s+([A-Za-z0-9_% ()/-]+?)\s*$")
     metrics: Dict[str, str] = {}
     with open(path) as fh:
@@ -482,9 +451,6 @@ def parse_markdup(stage_dir: str, sample: str) -> Dict[str, str]:
     return metrics
 
 
-# GATK CollectHsMetrics <sample>.hs_metrics.txt -> kept columns (data row
-# after the header line starting with BAIT_SET; pick the row whose first
-# field equals the sample id, else the first non-empty data row)
 _HS_METRICS_FIELDS = [
     "BAIT_TERRITORY", "TOTAL_READS", "PF_READS", "PF_UNIQUE_READS",
     "PF_UQ_READS_ALIGNED", "ON_BAIT_BASES", "NEAR_BAIT_BASES",
@@ -540,7 +506,7 @@ def parse_hs_metrics(stage_dir: str, sample: str) -> Dict[str, str]:
                 continue
             fields = line.split("\t")
             if fields[0] != sample and metrics:
-                continue  # not our bait-set row and a row was already taken
+                continue
             for key, val in zip(header[1:], fields[1:]):
                 if key in _HS_METRICS_FIELDS and val != "":
                     metrics[key.lower()] = val
@@ -592,7 +558,6 @@ def parse_sexcheck(stage_dir: str, sample: str) -> Dict[str, str]:
     return metrics
 
 
-# stage name -> parser (unknown stages fall back to fastqc layout probing)
 PARSERS = {
     "fastqc_raw": parse_fastqc,
     "fastqc_trimmed": parse_fastqc,
@@ -621,15 +586,12 @@ def collect_stage(stage: str, stage_dir: str, samples: List[str]) -> Dict[str, D
     for sample in samples:
         try:
             out[sample] = parser(stage_dir, sample)
-        except Exception as exc:  # a malformed file must not sink the table
+        except Exception as exc:
             print(f"[warn] {stage}/{sample}: parse failed ({exc}); leaving NA", file=sys.stderr)
             out[sample] = {}
     return out
 
 
-# ============================================================
-# Table assembly
-# ============================================================
 
 def build_table(samples: List[str], stages: Dict[str, Dict[str, Dict[str, str]]]) -> pd.DataFrame:
     """Merge per-stage metric dicts into one sample x metric DataFrame.
@@ -679,9 +641,6 @@ def to_num(series: pd.Series) -> pd.Series:
     return coerced if isinstance(coerced, pd.Series) else pd.Series([coerced])
 
 
-# ============================================================
-# Plots
-# ============================================================
 
 def render_plots(table: pd.DataFrame, outdir: str, plots: List[str],
                  image_formats: Optional[List[PlotFormat]] = None) -> List[str]:
@@ -769,9 +728,6 @@ def _bar_plot(vals: pd.Series, ylabel: str, title: str, out_base: str,
     plt.close(fig)
 
 
-# ============================================================
-# HTML rendering
-# ============================================================
 
 _HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="zh">
@@ -824,9 +780,6 @@ def render_html(table: pd.DataFrame, figs: List[str], out_path: str,
         fh.write(_HTML_TEMPLATE.format(title=html.escape(title), body="\n".join(parts)))
 
 
-# ============================================================
-# CLI
-# ============================================================
 
 def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__,
@@ -871,8 +824,6 @@ def main(argv: Optional[List[str]] = None) -> int:
             return 1
         stage, stage_dir = pair.split("=", 1)
         if not os.path.isdir(stage_dir):
-            # optional stage not run in this DAG — keep the column set empty,
-            # do not fail (node.py gates optional stages via outfiles)
             logger.warning(f"stage '{stage}' dir missing ({stage_dir}); skipping")
             continue
         stages[stage] = collect_stage(stage, stage_dir, args.sample)

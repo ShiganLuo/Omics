@@ -29,12 +29,6 @@ log_msg <- function(level = c("INFO","WARN","ERROR"), ..., quit = FALSE) {
   if (quit) stop(msg, call. = FALSE)
 }
 
-## =========================
-## Multi-format figure output (modules.md #9)
-## =========================
-## ggsave derives the device from the file extension, so writing every
-## requested format is a plain loop over "{out_base}.{fmt}". pgf/raw/rgba
-## are matplotlib-only and fail fast here (R ggsave device set).
 VALID_FORMATS <- c("png", "pdf", "svg", "ps", "eps", "tif", "tiff",
                    "jpg", "jpeg")
 
@@ -83,7 +77,6 @@ read_vep_genes <- function(tab_file, impact_filter = c("HIGH","MODERATE","LOW"))
 
   df_f <- df[df$IMPACT %in% impact_filter, ]
   genes <- unique(na.omit(df_f$SYMBOL))
-  # VEP writes "-" for missing SYMBOL; drop it
   genes <- genes[genes != "-" & nzchar(trimws(genes))]
   list(genes = genes, total = nrow(df), filtered = nrow(df_f))
 }
@@ -133,7 +126,6 @@ run_go_kegg <- function(
   if (is.null(res)) return(empty)
   out <- as.data.frame(res@result)
   if (nrow(out) > 0 && "geneID" %in% colnames(out)) {
-    # readable=FALSE for KEGG: map ENTREZ back to symbols for readability
     if (type == "kegg") {
       id2sym <- setNames(gene_df$SYMBOL, gene_df$ENTREZID)
       out$geneID <- vapply(strsplit(as.character(out$geneID), "/"),
@@ -194,9 +186,6 @@ plot_bar <- function(res_df, top = 10, title = "", out_base, formats = "png") {
                       bg = "white")
 }
 
-## =========================
-## CLI
-## =========================
 parser <- ArgumentParser(description = "GO/KEGG enrichment for SV-affected genes (VEP tab input)")
 
 parser$add_argument("-i", "--input", required = TRUE, type = "character",
@@ -215,14 +204,9 @@ parser$add_argument("--format", action = "append", dest = "formats", type = "cha
                     help = "Output image format (png/pdf/svg/ps/eps/tif/tiff/jpg/jpeg; repeatable). Default: png")
 args <- parser$parse_args()
 
-## One format per --format flag; default keeps the historical png output.
-## Fail fast on pgf/raw/rgba etc. before any heavy computation runs.
 formats <- if (is.null(args$formats)) "png" else unlist(args$formats)
 validate_formats(formats)
 
-## =========================
-## Main
-## =========================
 log_msg("INFO", "Input: ", args$input)
 log_msg("INFO", "Outdir: ", args$outdir)
 log_msg("INFO", "Species: ", args$species)
@@ -234,8 +218,6 @@ log_msg("INFO", "Total SVs: ", info$total,
         "  Filtered (IMPACT in ", paste(impact, collapse = ","), "): ",
         info$filtered, "  Unique genes: ", length(info$genes))
 
-# Gene list is always written (empty list -> empty enrichment outputs, not a
-# missing file: downstream rules declare these outputs)
 writeLines(info$genes, file.path(args$outdir, "sv_genes.txt"))
 
 for (type in c("go", "kegg")) {

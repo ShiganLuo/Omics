@@ -61,8 +61,6 @@ CATEGORIES = ("msp_footprint", "msp_no_footprint", "nucleosome")
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
@@ -115,8 +113,6 @@ def _merged_spans(fid: array, start: array, end: array,
     first = np.empty(n, dtype=bool)
     first[0] = True
     np.not_equal(f[1:], f[:-1], out=first[1:])
-    # segmented running max of block ends within each fiber: a per-fiber
-    # base offset makes the global cummax segment-safe
     base = f * (int(e.max()) + 1)
     run_max = np.maximum.accumulate(e + base) - base
     prev_max = np.empty(n, dtype=np.int64)
@@ -226,19 +222,16 @@ def run(args: argparse.Namespace) -> int:
     width = 2 * flank
 
     paths = {"m6a": str(args.m6a), "msp": str(args.msp), "nuc": str(args.nuc)}
-    # background parser per BED: gzip decompression overlaps with the scan
     rec_iters = {p: iter(ChromBlockStream(path)) for p, path in paths.items()}
     pending = {p: next(rec_iters[p], None) for p in paths}
     passed: Dict[str, set] = {p: set() for p in paths}
-    # ONE shared namespace for all three files: classification compares m6a
-    # fiber ids against msp/nuc fiber ids, so ids must be globally consistent
     mappers = {"all": IdMapper()}
     mapper_of = {"m6a": "all", "msp": "all", "nuc": "all"}
 
     args.outdir.mkdir(parents=True, exist_ok=True)
     cats_path = args.outdir / f"{args.sample}.footprint_categories.tsv"
     cats_tmp = Path(f"{cats_path}.tmp")
-    cats_tmp.unlink(missing_ok=True)  # clear stale leftovers from failed runs
+    cats_tmp.unlink(missing_ok=True)
     cats_fh = cats_tmp.open("w", encoding="utf-8")
     cats_fh.write("\t".join(["chrom", "start", "end", "motif", *CATEGORIES]) + "\n")
 
@@ -283,8 +276,6 @@ def run(args: argparse.Namespace) -> int:
         S_m6a = _SpanSet(*_merged_spans(*raw["m6a"]))
         S_msp = _SpanSet(*_merged_spans(*raw["msp"]))
         S_nuc = _SpanSet(*_merged_spans(*raw["nuc"]))
-        # a fiber's MSP and nucleosome spans may overlap: union-merge per fiber
-        # (legacy coverage_signal counts such a fiber once per base)
         S_un = _SpanSet(*_merged_spans(
             np.concatenate([S_msp.fid, S_nuc.fid]),
             np.concatenate([S_msp.start, S_nuc.start]),

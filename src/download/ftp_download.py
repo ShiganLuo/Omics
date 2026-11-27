@@ -65,15 +65,12 @@ from src.common.util.LogUtil import setup_logger
 from src.common.util.SepUtil import detect_delimiter
 from src.common.util.MatchUtil import run_accession_match
 
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
-DEFAULT_TIMEOUT = 60        # FTP socket timeout in seconds
-DEFAULT_JOBS = 4            # parallel download workers
-DEFAULT_RETRIES = 3         # per-file retry attempts
-BACKOFF_BASE = 10           # first retry sleep in seconds (doubles each try)
-BACKOFF_MAX = 300           # retry sleep upper bound in seconds
-PART_SUFFIX = ".part"       # temporary suffix for in-progress downloads
+DEFAULT_TIMEOUT = 60
+DEFAULT_JOBS = 4
+DEFAULT_RETRIES = 3
+BACKOFF_BASE = 10
+BACKOFF_MAX = 300
+PART_SUFFIX = ".part"
 
 def _get_logger(log_file: Optional[Path] = None) -> logging.Logger:
     """Configure the module logger.
@@ -87,7 +84,7 @@ def _get_logger(log_file: Optional[Path] = None) -> logging.Logger:
     else:
         lg = setup_logger("FTPDownloader")
     for handler in lg.handlers:
-        if type(handler) is logging.StreamHandler:  # console only, not FileHandler
+        if type(handler) is logging.StreamHandler:
             handler.setStream(sys.stdout)
     return lg
 
@@ -95,9 +92,6 @@ def _get_logger(log_file: Optional[Path] = None) -> logging.Logger:
 logger = _get_logger()
 
 
-# ---------------------------------------------------------------------------
-# URL helpers
-# ---------------------------------------------------------------------------
 def parse_ftp_url(url: str) -> Tuple[str, str]:
     """Split an ftp:// URL into (server, absolute remote path).
 
@@ -137,9 +131,6 @@ def strip_server_prefix(remote_file_path: str, server: str) -> str:
     return remote_file_path if remote_file_path.startswith("/") else "/" + remote_file_path
 
 
-# ---------------------------------------------------------------------------
-# FTP connection
-# ---------------------------------------------------------------------------
 def open_ftp(
     server: str,
     username: Optional[str] = None,
@@ -159,9 +150,6 @@ def open_ftp(
     return ftp
 
 
-# ---------------------------------------------------------------------------
-# Single-file download
-# ---------------------------------------------------------------------------
 def download_file_from_ftp(
     server: str,
     remote_file_path: str,
@@ -309,9 +297,6 @@ def download_file_from_http(
     return False
 
 
-# ---------------------------------------------------------------------------
-# Directory download
-# ---------------------------------------------------------------------------
 def download_files_from_ftp(
     server: str,
     remote_dir: str = "/",
@@ -353,7 +338,6 @@ def download_files_from_ftp(
     ftp = open_ftp(server, username, password, timeout)
     try:
         ftp.cwd(remote_dir)
-        # mlsd gives file type info; fall back to a bare name list
         try:
             entries = list(ftp.mlsd())
             names = [name for name, facts in entries if facts.get("type") == "file"]
@@ -387,9 +371,6 @@ def download_files_from_ftp(
     return failed
 
 
-# ---------------------------------------------------------------------------
-# URL collection: plain list file
-# ---------------------------------------------------------------------------
 def collect_urls_from_file(
     url_file: Path,
     url_column: int = 1,
@@ -425,9 +406,6 @@ def collect_urls_from_file(
     return urls
 
 
-# ---------------------------------------------------------------------------
-# URL collection: table columns
-# ---------------------------------------------------------------------------
 def _is_ftp_value(value: str) -> bool:
     """True when a stripped cell value looks like a downloadable archive URL.
 
@@ -512,9 +490,6 @@ def collect_urls_from_table(
     return urls
 
 
-# ---------------------------------------------------------------------------
-# URL collection: metadata + run accession match
-# ---------------------------------------------------------------------------
 def collect_urls_from_metadata(
     meta_file: Path,
     ftp_ref_file: Path,
@@ -606,9 +581,6 @@ def collect_urls_from_metadata(
     return matched_urls
 
 
-# ---------------------------------------------------------------------------
-# Batch download
-# ---------------------------------------------------------------------------
 def plan_downloads(
     urls: Sequence[str],
     output_dir: Path,
@@ -703,9 +675,6 @@ def download_urls(
     return failed
 
 
-# ---------------------------------------------------------------------------
-# argparse
-# ---------------------------------------------------------------------------
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         prog="ftp_download.py",
@@ -732,7 +701,6 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         sp.add_argument("-n", "--dry-run", action="store_true",
                         help="only log planned downloads, do not transfer")
 
-    # ---- urls mode ----
     sp_urls = sub.add_parser("urls", help="download URLs listed in a text file",
                              formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sp_urls.add_argument("-f", "--url-file", type=Path, required=True,
@@ -741,7 +709,6 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
                          help="0-based column index holding the URL")
     add_common(sp_urls)
 
-    # ---- table mode ----
     sp_table = sub.add_parser("table", help="download URLs from matching table columns",
                               formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     sp_table.add_argument("-t", "--table", type=Path, required=True,
@@ -752,7 +719,6 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
                                "by cell content)")
     add_common(sp_table)
 
-    # ---- metadata mode ----
     sp_meta = sub.add_parser(
         "metadata",
         help="filter metadata by condition, match run accessions, download URLs",
@@ -778,21 +744,17 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     return args
 
 
-# ---------------------------------------------------------------------------
-# main
-# ---------------------------------------------------------------------------
 def main(argv: Optional[Sequence[str]] = None) -> int:
     global logger
     args = parse_args(argv)
     logger = _get_logger(args.log)
     logger.info(f"Command: {' '.join(sys.argv)}")
 
-    # ---- collect URLs according to the input mode ----
     if args.mode == "urls":
         urls = collect_urls_from_file(args.url_file, url_column=args.url_column)
     elif args.mode == "table":
         urls = collect_urls_from_table(args.table, args.url_pattern)
-    else:  # metadata
+    else:
         urls = collect_urls_from_metadata(
             meta_file=args.meta,
             ftp_ref_file=args.ftp_ref,
@@ -805,7 +767,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         )
     logger.info(f"Total FTP URLs to download: {len(urls)}")
 
-    # ---- download ----
     tasks = plan_downloads(urls, args.outdir)
     if args.dry_run:
         for url, server, remote_path, local_path in tasks:

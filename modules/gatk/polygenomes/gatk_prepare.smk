@@ -5,8 +5,6 @@ outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
 logdir_combine = config.get("logdir_combine") or "log"
 input_bam_substring = config.get("input_bam_substring") or ""
-# 参数精确到 rule:javaOptions/tmp-dir 按 rule 独立配置(Params.gatk.<rule_name>
-# .javaOptions/.tmp-dir),无 module 级共享。
 
 def get_input_for_gatk_index(wildcards):
     logger.debug(f"gatk_index called with {wildcards}")
@@ -45,7 +43,7 @@ rule gatk_index:
             index_outdir = os.path.join(outdir, "index", wildcards.genome)
             os.makedirs(index_outdir, exist_ok=True)
             script = receipt_script(f"gatk_index_{wildcards.genome}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(index_outdir, f"gatk_index.sh")
             cmd1 = ["ln", "-s", input.fasta, output.fasta_link]
             cmd2 = [
@@ -69,7 +67,7 @@ rule gatk_index:
                 f.write(" ".join(cmd3) + "\n")
                 f.write(f'echo "gatk_index for genome {wildcards.genome} successfully completed!"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -119,7 +117,7 @@ rule addReadsGroup:
             sample_outdir = os.path.join(outdir, wildcards.genome, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"addReadsGroup_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"addReadsGroup.sh")
             cmd1 = [
                 params.gatk, "AddOrReplaceReadGroups", "--java-options", f'"{params.javaOptions}"',
@@ -146,7 +144,7 @@ rule addReadsGroup:
                 f.write(" ".join(cmd2) + "\n")
                 f.write(f'echo "addReadsGroup for sample {wildcards.sample_id} on genome {wildcards.genome} successfully completed!"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -187,7 +185,7 @@ rule MarkDuplicates:
             sample_outdir = os.path.join(outdir, wildcards.genome, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"MarkDuplicates_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"MarkDuplicates.sh")
             cmd = [
                 params.gatk, "MarkDuplicates", "--java-options", f'"{params.javaOptions}"',
@@ -205,7 +203,7 @@ rule MarkDuplicates:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "MarkDuplicates for sample {wildcards.sample_id} on genome {wildcards.genome} successfully completed!"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

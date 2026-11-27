@@ -94,7 +94,7 @@ def parse_stringtie_gtf(gtf: str) -> Dict:
 	trans_coords : dict
 		Dictionary mapping transcript_id to (chrom, start, end, strand, cov, fpkm, tpm).
 	"""
-	trans_coords = dict()  # transcript_id: (chrom, start, end, strand, cov, fpkm, tpm)
+	trans_coords = dict()
 	with open(gtf) as f:
 		for line in f:
 			if line.startswith('#') or line.strip() == '':
@@ -201,34 +201,15 @@ def classify_te_position(
     if transcript_overlap == 0:
         return 'outside'
 
-    # ------------------------------------------------------------------
-    # transcript length
-    # ------------------------------------------------------------------
 
     transcript_length = trans_end - trans_start + 1
 
-    # terminal region size should not exceed half transcript length
-    #
-    # otherwise short transcripts may have fully overlapping
-    # 5' and 3' regions
-    # ------------------------------------------------------------------
 
     terminal_size = min(
         internal_distance,
         max(1, transcript_length // 2)
     )
 
-    # ------------------------------------------------------------------
-    # define transcript-relative terminal regions
-    #
-    # positive strand:
-    #
-    # 5' ---------------------> 3'
-    #
-    # negative strand:
-    #
-    # 3' <--------------------- 5'
-    # ------------------------------------------------------------------
 
     if strand == '+':
 
@@ -258,9 +239,6 @@ def classify_te_position(
         five_prime_region = None
         three_prime_region = None
 
-    # ------------------------------------------------------------------
-    # unknown strand
-    # ------------------------------------------------------------------
 
     if strand not in ('+', '-'):
 
@@ -291,9 +269,6 @@ def classify_te_position(
 
         return 'internal'
 
-    # ------------------------------------------------------------------
-    # calculate overlaps
-    # ------------------------------------------------------------------
 
     five_prime_overlap = interval_overlap(
         te_start,
@@ -307,15 +282,9 @@ def classify_te_position(
         *three_prime_region
     )
 
-    # ------------------------------------------------------------------
-    # classify
-    # ------------------------------------------------------------------
 
     if five_prime_overlap > 0 and three_prime_overlap > 0:
 
-        # short transcript or long TE
-        #
-        # choose side with larger overlap
 
         if five_prime_overlap > three_prime_overlap:
             return 'five_prime'
@@ -324,10 +293,6 @@ def classify_te_position(
             return 'three_prime'
 
         else:
-            # equal overlap
-            #
-            # prioritize 5' because promoter-associated
-            # TE events are usually biologically more important
 
             return 'five_prime'
 

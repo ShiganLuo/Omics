@@ -37,8 +37,6 @@ logger = setup_logger(__name__)
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
@@ -103,9 +101,8 @@ def compute_gsva(
     n_samples = expr.shape[1]
     gene_to_idx = {g: i for i, g in enumerate(gene_names)}
 
-    # Rank expression values per sample
     ranks = expr.apply(lambda col: rankdata(col.values, method="average"), axis=0)
-    ranks_np = ranks.values  # (n_genes, n_samples)
+    ranks_np = ranks.values
 
     results = {}
     for gs_name, gs_genes in gene_sets.items():
@@ -120,24 +117,20 @@ def compute_gsva(
 
         scores = np.zeros(n_samples)
         for s in range(n_samples):
-            # Sort genes by rank for this sample
             order = np.argsort(ranks_np[:, s])
             hit_ordered = hit_mask[order]
 
-            # Walkman statistic: cumulative sum of hits minus misses
             hit_cum = np.cumsum(hit_ordered)
             miss_cum = np.cumsum(~hit_ordered)
 
             hit_frac = hit_cum / len(hit_indices)
             miss_frac = miss_cum / (n_genes - len(hit_indices))
 
-            # Positive = gene set concentrated at the HIGH-expression end
             diff = miss_frac - hit_frac
 
             if abs_rank:
                 scores[s] = diff[np.argmax(np.abs(diff))]
             else:
-                # Positive-only enrichment at the high-expression end
                 scores[s] = np.max(diff)
 
         results[gs_name] = scores
@@ -289,7 +282,6 @@ def plot_heatmap(
     ax.set_yticklabels(y_labels, fontsize=8)
     ax.set_title(title, fontsize=11)
 
-    # Thin white cell separators
     ax.set_xticks(np.arange(-0.5, n_samples), minor=True)
     ax.set_yticks(np.arange(-0.5, n_gs), minor=True)
     ax.grid(which="minor", color="white", linewidth=0.6)
@@ -329,26 +321,21 @@ def main() -> None:
 
     os.makedirs(args.outdir, exist_ok=True)
 
-    # Load expression matrix
     expr = pd.read_csv(args.input, sep="\t", index_col=0)
     logger.info(f"Loaded expression matrix: {expr.shape[0]} genes × {expr.shape[1]} samples")
 
-    # Parse GMT
     gene_sets = parse_gmt(args.gmt)
 
-    # Compute KS-based scores (sign convention: positive = high-expression end)
     scores = compute_gsva(
         expr,
         gene_sets,
         abs_rank=not args.no_abs_rank,
     )
 
-    # Save KS scores
     scores_path = os.path.join(args.outdir, "gsva_scores.tsv")
     scores.to_csv(scores_path, sep="\t")
     logger.info(f"GSVA KS scores saved to {scores_path}")
 
-    # Compute mean per-gene z-score matrix (used for the heatmap)
     mean_z = compute_mean_z(
         expr,
         gene_sets,
@@ -358,7 +345,6 @@ def main() -> None:
     mean_z.to_csv(mean_z_path, sep="\t")
     logger.info(f"Mean z-score matrix saved to {mean_z_path}")
 
-    # Plot heatmap of row-scaled mean z-scores
     heatmap_base = os.path.join(args.outdir, "gsva_heatmap")
     transform_note = "" if args.no_log2 else " (log2(x+1) of TPM before z)"
     value_label = f"Row z-score of mean gene z{transform_note}"

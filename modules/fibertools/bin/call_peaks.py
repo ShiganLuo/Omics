@@ -80,7 +80,6 @@ def setup_logger(
 
 logger = setup_logger("CallPeaks", stream=sys.stdout)
 
-# Header-only placeholder contents for guard / fire_frac branches.
 PEAKS_HEADER = "#chrom\tstart\tend\tname\tscore\tstrand\n"
 FDR_TABLE_HEADER = "#sample\tsd_cov\tthreshold\tmax_fdr\tn_peaks\n"
 FDR_PLACEHOLDER = "#FDR table not computed (fire_frac mode)\n"
@@ -131,7 +130,7 @@ def extract_fiber_spans(bam: str, out_bed: str, samtools: str) -> int:
         text=True,
     )
     with open(out_path, "w") as out:
-        assert proc.stdout is not None  # PIPE above guarantees a pipe stream
+        assert proc.stdout is not None
         for line in proc.stdout:
             f = line.rstrip("\n").split("\t")
             if len(f) < 11 or f[2] == "*" or f[9] == "*":
@@ -280,7 +279,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     )
                     return 1
 
-        # Phase 1: aligned-read guard — all outputs as header-only files
         n_aligned = count_aligned_reads(args.bam, args.samtools)
         logger.info(f"Aligned reads: {n_aligned}")
         if n_aligned == 0:
@@ -291,7 +289,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             write_placeholder(args.shuffled_bed, SHUFFLED_PLACEHOLDER)
             return 0
 
-        # Phase 2: shuffled null (fdr mode only)
         shuffled_bed: Optional[str] = None
         if args.mode == "fdr":
             n_spans = extract_fiber_spans(args.bam, args.fibers_bed, args.samtools)
@@ -300,14 +297,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                                 str(args.shuffle_script), args.seed)
             shuffled_bed = args.shuffled_bed
 
-        # Phase 3: the tool itself
         call_ft_peaks(
             args.ft, args.bam, args.out_peaks, args.fdr_table,
             args.threads, args.mode, args.sd_cov, args.max_fdr,
             args.min_fire_frac, args.haps, shuffled_bed,
         )
 
-        # Phase 4: non-fdr artifacts — keep the declared outputs present
         if args.mode != "fdr":
             write_placeholder(args.fdr_table, FDR_PLACEHOLDER)
             write_placeholder(args.fibers_bed, FIBERS_PLACEHOLDER)

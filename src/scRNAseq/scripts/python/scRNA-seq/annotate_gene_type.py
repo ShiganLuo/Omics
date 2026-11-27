@@ -34,7 +34,7 @@ def parse_te_bed(bed_path: str) -> Dict[str, Tuple[str, str]]:
     """TE BED: chrom, start, end, strand, gene_id, family_id, class_id (with header)."""
     result: Dict[str, Tuple[str, str]] = {}
     with open(bed_path, encoding="utf-8") as fh:
-        fh.readline()  # skip header
+        fh.readline()
         for line in fh:
             parts = line.strip().split("\t")
             if len(parts) < 7:
@@ -49,7 +49,7 @@ def parse_gene_tsv(tsv_path: str) -> Dict[str, str]:
     """Gene TSV: gene_id, gene_name, gene_type (with header)."""
     result: Dict[str, str] = {}
     with open(tsv_path, encoding="utf-8") as fh:
-        fh.readline()  # skip header
+        fh.readline()
         for line in fh:
             parts = line.strip().split("\t")
             if len(parts) < 3:
@@ -105,32 +105,26 @@ def main():
                         help="Overwrite original file (default: write to .annotated.h5ad)")
     args = parser.parse_args()
 
-    # Parse references
     te_map = parse_te_bed(args.te_bed)
     logger.info("TE BED: %d unique TE subfamilies", len(te_map))
     gene_map = parse_gene_tsv(args.gene_tsv)
     logger.info("Gene TSV: %d entries", len(gene_map))
 
-    # Read h5ad
     logger.info("Reading: %s", args.h5ad)
     adata = ad.read_h5ad(args.h5ad)
     logger.info("Shape: %d cells x %d genes", adata.n_obs, adata.n_vars)
 
-    # Annotate main .var
     logger.info("Annotating .var ...")
     adata.var = annotate_var(adata.var, te_map, gene_map)
 
-    # Annotate .raw.var if exists
     if adata.raw is not None:
         logger.info("Annotating .raw.var ...")
         raw_adata = adata.raw.to_adata()
         raw_adata.var = annotate_var(raw_adata.var, te_map, gene_map)
         adata.raw = raw_adata
 
-    # Output
     if args.replace:
         out_path = args.h5ad
-        # Backup original
         backup = args.h5ad + ".bak"
         if not os.path.exists(backup):
             shutil.copy2(args.h5ad, backup)
@@ -143,7 +137,6 @@ def main():
     adata.write_h5ad(out_path)
     logger.info("Done.")
 
-    # Summary
     vc = adata.var["gene_type"].value_counts()
     logger.info("gene_type summary:\n%s", vc.to_string())
     te_count = int((adata.var["gene_type"] == "TE").sum())

@@ -40,13 +40,12 @@ class VEP_SV:
         -------
         None
         """
-        self.vep_cache_dir = str(Path(vep_cache_dir).expanduser().resolve()) # 支持 ~ 和绝对路径
+        self.vep_cache_dir = str(Path(vep_cache_dir).expanduser().resolve())
         self.species = species
         self.assembly = assembly
         self.custom_gtf = custom_gtf
         self.custom_fasta = custom_fasta
         
-        # 自动创建缓存根目录
         if not os.path.exists(self.vep_cache_dir):
             os.makedirs(self.vep_cache_dir, exist_ok=True)
             logger.info(f"Created VEP cache directory: {self.vep_cache_dir}")
@@ -79,7 +78,6 @@ class VEP_SV:
 
         logger.info(f"Running: {cmd_str}")
 
-        # 1️⃣ 预检查：命令是否存在（比 FileNotFoundError 更友好）
         if shutil.which(cmd_bin) is None:
             logger.error(f"Command not found: '{cmd_bin}'")
             logger.error("Please make sure it is installed and in $PATH")
@@ -150,7 +148,6 @@ class VEP_SV:
         None
             Writes the merged VCF to *out_vcf*.
         """
-        # 在输出目录旁创建一个实体的临时文件夹
         work_dir = os.path.dirname(os.path.abspath(out_vcf))
         tmp_folder = os.path.join(work_dir, "survivor_tmp")
         os.makedirs(tmp_folder, exist_ok=True)
@@ -158,8 +155,7 @@ class VEP_SV:
         decompressed_list = []
         try:
             for i, vcf in enumerate(vcf_files):
-                # 显式获取样本名并生成绝对路径
-                s_name = f"Sample_{i}" # 强制用不同名字避免任何冲突
+                s_name = f"Sample_{i}"
                 tmp_vcf = os.path.abspath(os.path.join(tmp_folder, f"S{i}.vcf"))
                 
                 logger.info(f"Decompressing {vcf} to {tmp_vcf}")
@@ -170,7 +166,6 @@ class VEP_SV:
                     shutil.copy2(vcf, tmp_vcf)
                 decompressed_list.append(tmp_vcf)
 
-            # 写入列表文件，强制使用 \n 换行
             tmp_list = os.path.abspath(os.path.join(tmp_folder, "vcf_list.txt"))
             with open(tmp_list, "w", newline='\n') as f:
                 for path in decompressed_list:
@@ -179,9 +174,6 @@ class VEP_SV:
             logger.info(f"Final VCF list path: {tmp_list}")
             logger.info(f"VCF list content:\n{open(tmp_list).read()}")
 
-            # 执行 SURVIVOR (先写临时文件: SURVIVOR 输出按染色体分组、
-            # 但染色体内位置不保证升序, 而 VEP custom-GTF 模式要求输入
-            # VCF 完全排序, 否则 "input file appears to be unsorted" 退出)
             raw_merged = os.path.abspath(os.path.join(tmp_folder, "merged_unsorted.vcf"))
             cmd = ["SURVIVOR", "merge", tmp_list, str(dist), str(min_support), "1", "1", "0", "50", raw_merged]
             self._run_cmd(cmd)
@@ -193,7 +185,6 @@ class VEP_SV:
             ]
             self._run_cmd(sort_cmd)
 
-            # 验证结果
             with open(out_vcf, 'r') as f:
                 for line in f:
                     if line.startswith("#CHROM"):
@@ -201,7 +192,6 @@ class VEP_SV:
                         logger.info(f"Merge Check - Columns: {len(cols)}, Samples: {cols[9:]}")
                         break
         finally:
-            # 如果成功了就清理，没成功你可以注释掉这行进去看文件在不在
             if os.path.exists(out_vcf) and os.path.getsize(out_vcf) > 0:
                 shutil.rmtree(tmp_folder)
                 logger.info("Cleaned up temporary files.")
@@ -262,10 +252,6 @@ class VEP_SV:
             Writes annotated output to *outfile*.
         """
         if self.custom_gtf:
-            # Custom genome: annotate from GTF/GFF + FASTA. The cache route
-            # is unreachable here -- vep_install exits 255 "No matching
-            # species found" for custom assemblies -- and pointing VEP at a
-            # wrong-species cache silently skips every contig.
             if not self.custom_fasta:
                 raise ValueError(
                     "custom_fasta (genome FASTA) is required together with "
@@ -277,10 +263,6 @@ class VEP_SV:
                 "--fasta", self.custom_fasta,
                 "--format", "vcf", f"--{result_format}", "--force_overwrite",
                 "--everything", "--pick", "--per_gene"
-                # NOTE: no --offline/--cache here: --offline implies --cache,
-                # which conflicts with --gtf (VEP then demands a
-                # .vep/homo_sapiens cache dir and dies). VEP sets offline
-                # mode by itself when given --gtf/--gff + --fasta.
             ]
         else:
             species_cache = os.path.join(self.vep_cache_dir, self.species)
@@ -357,7 +339,6 @@ if __name__ == "__main__":
     specific = os.path.join(work_dir, "PlaB_only.vcf")
     annotated = os.path.join(work_dir, "PlaB_only_annotated.vcf")
 
-    # 流程运行
     analysis.merge_sv_survivor(raw_vcfs, merged)
     analysis.extract_specific_sv(merged, specific, vec="01")
     analysis.annotate_sv_vep(specific, annotated)

@@ -50,12 +50,8 @@ hisat2_config = {
             "hisat2": config.get('Procedure',{}).get('hisat2')
         },
         "Params": {
-            # 参数精确到 rule:整段透传(Params.hisat2.<rule>.<key>);
-            # keep_intermediates 随段直达(maybe_temp 读
-            # Params.hisat2.keep_intermediates,缺省 True=保留)
             "hisat2": config.get('Params',{}).get('hisat2', {})
         },
-        # polygenomes modules resolve refs via genome.references.<genome>.fasta
         "genome": {"references": genome.get("references", {})}
     }
 
@@ -98,12 +94,6 @@ use rule ngs_disambiguate from disambiguate as CoCulture_ngs_disambiguate
 use rule disambiguate_sort_rename from disambiguate as CoCulture_disambiguate_sort_rename
 use rule disambiguate_report from disambiguate as CoCulture_disambiguate_report
 
-# ============================================
-# Sex check (coverage on sex chromosomes)
-# ============================================
-# Wired unconditionally over the alignment BAMs; node.py registers the
-# sexcheck outputs (subworkflow.md QC wiring).
-# genome/sample tuples ("GRCh38/TestSample1") expanded from the per-genome dicts
 _sexcheck_samples = [
     f"{g}/{s}"
     for g in list(genome_paired_samples) + list(genome_single_samples)
@@ -126,18 +116,15 @@ sexcheck_config = {
         "samtools": config.get("Procedure", {}).get("samtools")
     },
     "genome": {
-        # multi-genome workflow: per-genome sex contigs {genome: [x, y]}
         "sex_chroms_map": {
             g: (refs.get("sex_chroms") or [None, None])[:2]
             for g, refs in (config.get("genome", {}) or {}).get("references", {}).items()
         },
-        # RNA-mode marker lookup per genome {genome: gtf}
         "gtf_map": {
             g: refs.get("gtf")
             for g, refs in (config.get("genome", {}) or {}).get("references", {}).items()
             if refs.get("gtf")
         },
-        # per-sample genome assignment (pure sample_id keys)
         "samples": {
             s: g
             for g in list(genome_paired_samples) + list(genome_single_samples)
@@ -155,12 +142,6 @@ logger.info(f"sexcheck_config: {sexcheck_config}")
 use rule sexcheck_idxstats from sexcheck as CoCulture_sexcheck_idxstats
 use rule sexcheck from sexcheck as CoCulture_sexcheck
 
-# ============================================
-# QC Summary (cross-sample metric aggregation)
-# ============================================
-# Wired unconditionally; node.py registers the qc_summary outputs (see
-# subworkflow.md QC wiring spec). Only stages with qc_summary parsers are
-# declared; unregistered stages stay best-effort scans.
 qc_summary_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -192,9 +173,6 @@ TEtranscripts_config = {
         "env": config.get("env", {}),
         "genome_pairs": disambiguate_config["genome_pairs"],
         "samples": single_samples + paired_samples,
-        # disambiguate TEtranscripts resolves refs via genome.<genome>.<field>
-        # (flat map), while the workflow config keeps them under
-        # genome.references.<genome>
         "genome": genome.get("references", {}),
         "Procedure": {
             "TEcount": config.get('Procedure',{}).get('TEcount') or 'TEcount',

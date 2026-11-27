@@ -4,11 +4,8 @@ library(ggpubr)
 library(ggrepel)
 library(ggrastr)
 
-#### 导入数据 ----
 markers <- read.table("./results/deg/tc.txt", sep = ",", header = T)
 
-#### 定义差异基因 ----
-# 设置阈值
 logFC.cutoff <- 0.5
 pvalue.cutoff <- 0.05
 
@@ -24,7 +21,6 @@ table(markers$change)
 Volcano_data <- na.omit(markers)
 Volcano_data$logP <- -log10(Volcano_data$p_val)
 
-# 输入关注的基因
 genes <- c("TM4SF1", "COL6A3", "APOE", "DDX5")
 Volcano_data$label <- ""
 Volcano_data$label[Volcano_data$gene %in% genes] <-
@@ -82,8 +78,6 @@ Volcano_paired <-
   ))))
 Volcano_paired
 
-#### 保存结果 ----
-# 保存图片
 ggsave(
   "./results/deg/tc_volcano.pdf",
   plot = Volcano_paired,
@@ -92,7 +86,6 @@ ggsave(
   dpi = 600
 )
 
-# 保存上调基因
 write.table(
   Volcano_data[Volcano_data$change=="UP",],
   file = "./results/deg/tc_up_deg.csv",
@@ -101,7 +94,6 @@ write.table(
   row.names = F
 )
 
-# 保存下调基因
 write.table(
   Volcano_data[Volcano_data$change=="DOWN",],
   file = "./results/deg/tc_down_deg.csv",

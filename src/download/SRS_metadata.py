@@ -94,9 +94,6 @@ from AccessionResolver import AccessionResolver
 
 logger = logging.getLogger(__name__)
 
-# ============================================================================
-# Constants
-# ============================================================================
 
 ENA_SAMPLE_XML_URL = "https://www.ebi.ac.uk/ena/browser/api/xml/{acc}"
 ENA_FILEREPORT_URL = (
@@ -104,10 +101,6 @@ ENA_FILEREPORT_URL = (
     "?accession={acc}&result=read_run&fields={fields}&format=tsv"
 )
 
-# Run-table fields requested from the ENA portal API. The filereport
-# endpoint always hoists the primary accession (run_accession) to the
-# first column; parse_run_tsv validates the returned header as a set and
-# keeps its order for the output columns (verbatim names below).
 RUN_FIELDS = [
     "run_accession",
     "study_accession",
@@ -146,9 +139,6 @@ SRS_PATTERN = re.compile(r"^SRS\d+$", re.IGNORECASE)
 _thread_local = threading.local()
 
 
-# ============================================================================
-# HTTP helpers
-# ============================================================================
 
 def _get_session() -> requests.Session:
     """
@@ -206,8 +196,6 @@ def http_get_text(
                     f"HTTP {response.status_code}: {response.reason}"
                 )
             if 400 <= response.status_code < 500 and response.status_code != 429:
-                # Deterministic client error (e.g. 404 unknown accession):
-                # retrying cannot help.
                 raise requests.HTTPError(
                     f"HTTP {response.status_code}: {response.reason}",
                     response=response,
@@ -247,9 +235,6 @@ def http_get_text(
     raise RuntimeError(f"GET failed after {retries} attempts: {url}: {last_error}")
 
 
-# ============================================================================
-# Small utilities
-# ============================================================================
 
 def atomic_write_text(path: Path, text: str) -> None:
     """
@@ -284,9 +269,6 @@ def read_cache(path: Path, overwrite: bool) -> Optional[str]:
     return None
 
 
-# ============================================================================
-# ENA fetchers (raw text, cached on disk)
-# ============================================================================
 
 def fetch_sample_xml(
     srs: str,
@@ -340,9 +322,6 @@ def fetch_run_tsv(
     return text
 
 
-# ============================================================================
-# Parsers
-# ============================================================================
 
 def parse_sample_xml(srs: str, xml_text: str) -> Dict[str, str]:
     """
@@ -449,9 +428,6 @@ def parse_run_tsv(srs: str, tsv_text: str) -> List[Dict[str, str]]:
     return rows
 
 
-# ============================================================================
-# Group label parsing
-# ============================================================================
 
 def parse_group_specs(specs: Optional[List[str]]) -> Dict[str, str]:
     """
@@ -557,9 +533,6 @@ def _assign_group(mapping: Dict[str, str], acc: str, label: str) -> None:
     mapping[acc] = label
 
 
-# ============================================================================
-# Output writers
-# ============================================================================
 
 def write_sample_table(
     records: List[Dict[str, str]],
@@ -624,9 +597,6 @@ def write_run_table(
     logger.info("Wrote %d run rows to %s", len(records), output_tsv)
 
 
-# ============================================================================
-# Batch orchestration
-# ============================================================================
 
 def collect_srs_metadata(
     srs_list: List[str],
@@ -703,7 +673,6 @@ def collect_srs_metadata(
                 "Collected %s: 1 sample row, %d run rows", srs, len(runs)
             )
 
-    # Emit rows in the stable input order.
     ordered_samples = [
         sample_records[srs] for srs in srs_list if srs in sample_records
     ]
@@ -731,9 +700,6 @@ def collect_srs_metadata(
     return ordered_samples, run_records, failed
 
 
-# ============================================================================
-# CLI
-# ============================================================================
 
 def parser_args() -> argparse.Namespace:
     """
@@ -846,9 +812,6 @@ def parser_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-# ============================================================================
-# Main
-# ============================================================================
 
 def main() -> None:
     """
@@ -864,7 +827,6 @@ def main() -> None:
         "SRS_metadata", log_file=log_file, stream=sys.stdout
     )
 
-    # ---- group labels -------------------------------------------------
     group_map = parse_group_specs(args.group)
     if args.group_file:
         group_map.update(
@@ -875,9 +837,6 @@ def main() -> None:
             )
         )
 
-    # ---- accession list -----------------------------------------------
-    # Accessions named in --group specs are collected as well, so pass
-    # them into the resolver up front (it raises on an empty source set).
     resolver = AccessionResolver(
         acc=(args.srs or []) + list(group_map.keys()),
         acc_file=args.input,

@@ -8,35 +8,18 @@ dna_samples = config.get("dna_samples", []) or []
 rna_samples = config.get("rna_samples", []) or []
 paired_samples = config.get("paired_samples", []) or []
 single_samples = config.get("single_samples", []) or []
-# tumor -> normal design pairs (same shape as Params.workflow.paired_design
-# consumed by gatk_somatic/msi: {"experimental": t, "control": n})
 paired_design = config.get("paired_design", []) or []
 contrasts = config.get("contrasts", []) or []
-# Registered workflow outputs (node.py outfiles, passed through by the
-# subworkflow). Used as DAG anchors (Mutation_report 同款): every registered
-# file under a consumed root becomes a tracked input so this report runs
-# AFTER its producers and re-runs when a section output is refreshed.
-# Optional stages that were never registered contribute nothing, so no
-# MissingInputException.
 outfiles = config.get("outfiles") or []
 
-# Upstream roots — subworkflow passes xxx_config["outdir"] values
-# (subworkflow.md chaining rule); the script tolerates absent dirs/stages.
 dna_dir = config.get("dna_dir") or os.path.join(outdir, "DNA")
 rna_dir = config.get("rna_dir") or os.path.join(outdir, "RNA")
 drclass_dir = config.get("drclass_dir") or os.path.join(outdir, "DRclass")
 teffect_dir = config.get("teffect_dir") or os.path.join(outdir, "TransEffect")
 burden_dir = config.get("burden_dir") or os.path.join(dna_dir, "stability", "burden")
 
-# RNA counts/DE/function trees are genome-labelled (polygenomes layout):
-# the report covers the default genome's tree. The label is passed
-# explicitly by the subworkflow (node.py genome.default), so multi-genome
-# runs still resolve the intended RNA tree; Params.report.generate_report
-# .genome (subtitle) is only a fallback.
 genome_label = config.get("genome_label") or config.get("Params", {}).get("report", {}).get("generate_report", {}).get("genome") or "all"
 
-# 参数精确到 rule:generate_report 自己的参数挂 Params.report.generate_report.<key>
-# (无 module 级共享回退,读点写 config 全量路径字面链)。
 _formats = config.get("Params", {}).get("report", {}).get("generate_report", {}).get("formats") or ["png"]
 if isinstance(_formats, str):
     _formats = [_formats]
@@ -71,8 +54,6 @@ rule generate_report:
     output:
         report = outdir + "/DR_report.pptx",
         file_inventory = outdir + "/DR_report_files.xlsx",
-        # 报告自有图 figures/<name>.<fmt> 由脚本落盘，DAG 用文件清单
-        # manifest.tsv 锚定（no directory() outputs）
         figures_manifest = outdir + "/figures/manifest.tsv",
     log:
         logdir + "/DR_report.log"
@@ -166,7 +147,7 @@ rule generate_report:
                 f.write(" ".join([shlex.quote(str(x)) for x in cmd]) + "\n")
                 f.write("echo 'DR report generation completed successfully.'\n")
             shutil.copyfile(script_path, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

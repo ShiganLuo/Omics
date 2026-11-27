@@ -19,9 +19,6 @@ SERVER_DATABASE_DIR = {
     "lv_zheda": "/data/16T/Database"
 }
 
-# Genome reference key -> Dfam species alias for <alias>_te_lib.fa lookups
-# (libraries under <server_db>/Reference/famdb/, built with
-# modules/sv/bin/utils/famdb.py from dfam39_full.7.h5).
 GENOME_TE_SPECIES = {
     "GRCh38": "human",
     "GRCm39": "mouse",
@@ -30,25 +27,12 @@ GENOME_TE_SPECIES = {
     "Mmul_T2T": "rhesus",
 }
 
-# Genome reference key -> Ensembl VEP species/assembly names for the
-# burden module's TMB annotation (modules/burden/bin/vep_ann.py). Genomes
-# without an entry must set Params.burden.vep_species/vep_assembly
-# explicitly — never guess a species.
 GENOME_VEP_SPECIES = {
     "GRCh38": ("homo_sapiens", "GRCh38"),
     "GRCm39": ("mus_musculus", "GRCm39"),
     "Mmul_10": ("macaca_mulatta", "Mmul_10"),
 }
 
-# Genome reference key -> sex-chromosome contig names (X, Y) for
-# sex-inference and any sex-aware analysis (modules/sexcheck first
-# consumer). Naming is assembly-dependent: UCSC-style chrX/chrY
-# (GENCODE GRCm39/GRCh38), Ensembl bare X/Y (Mmul_10), NCBI accessions
-# (T2T assemblies: CM166267.1/CM166268.1, NC_133426.1/NC_133427.1 —
-# verified against the local FASTA headers 2026-11). Filled into
-# genome.references.<g>.sex_chroms when unset; genomes without an entry
-# fall back to the module's name sniffing (chrX/X, chrY/Y) — add an
-# entry here when a new assembly's sex contigs use neither convention.
 GENOME_SEX_CHROMS = {
     "GRCh38": ("chrX", "chrY"),
     "GRCm39": ("chrX", "chrY"),
@@ -58,11 +42,6 @@ GENOME_SEX_CHROMS = {
     "Mmul_T2T": ("NC_133426.1", "NC_133427.1"),
 }
 
-# Genome reference key -> RepeatMasker/Dfam species term for the sv.mei
-# Dfam classification path (Params.sv.mei.dfam_h5; the famdb.py export
-# term and RM -species search term, e.g. 'Mus musculus'). Filled into
-# Params.sv.mei.rm_species when unset — genomes without an entry must
-# set it explicitly, never guess a species (same policy as VEP).
 GENOME_RM_SPECIES = {
     "GRCh38": "Homo sapiens",
     "GRCm39": "Mus musculus",
@@ -71,11 +50,6 @@ GENOME_RM_SPECIES = {
     "Mmul_T2T": "Macaca mulatta",
 }
 
-# Genome reference key -> telogator2 non-human reference alias. telogator2
-# resolves `telogator-ref-<alias>.fa.gz` in its install; the alias MUST match
-# that filename. Filled into Params.telomere.telogator2.species when unset —
-# genomes without an entry must set it explicitly, never guess a species.
-# (verify aliases against the telogator2 install's non-human/ refs.)
 GENOME_TELOGATOR2_SPECIES = {
     "GRCh38": "human",
     "GRCm39": "mouse",
@@ -84,14 +58,7 @@ GENOME_TELOGATOR2_SPECIES = {
 }
 
 
-# MEI TE-bucket vocabularies live in the config templates
-# (Params.sv.mei.te_buckets keyed by genome reference key, like
-# genome.references) — node.py only selects the active genome's list.
-# Bucket schema and matching semantics are documented in
-# modules/sv/bin/mei_analysis.py above parse_te_buckets.
 
-# Genome reference key -> TE-bucket preset name (for the TE-lib sentinel
-# check below only).
 GENOME_TE_BUCKET_PRESET = {
     "GRCh38": "primate",
     "GRCm39": "mouse",
@@ -100,9 +67,6 @@ GENOME_TE_BUCKET_PRESET = {
     "Mmul_T2T": "primate",
 }
 
-# Preset -> sentinel family-name markers that a sane TE consensus library
-# MUST contain (see utils/famdb.py SENTINEL_SUBFAMILIES; mirrored here so
-# the check runs at config time without importing famdb).
 TE_LIB_SENTINELS = {
     "mouse": (["l1m", "l1mus"], ["b1"], ["b2"], ["iap"], ["etn", "mervl"]),
     "primate": (["l1p", "l1hs", "l1_"], ["alu"], ["sva"], ["erv", "ltr"]),
@@ -128,7 +92,7 @@ def _fill_sv_exp_specific_vep(datajson: Dict[str, Any], genome_name: str,
     vep_species, vep_assembly = GENOME_VEP_SPECIES.get(genome_name, (None, None))
     if vep_species is None:
         if custom_gtf:
-            return  # VEP --gtf mode: cache species/assembly are unused
+            return
         if not (es.get("species") and es.get("assembly")):
             raise ValueError(
                 f"genome '{genome_name}' has no GENOME_VEP_SPECIES entry in "
@@ -136,7 +100,7 @@ def _fill_sv_exp_specific_vep(datajson: Dict[str, Any], genome_name: str,
                 f"(Ensembl VEP names, e.g. 'mus_musculus'/'GRCm39') in the "
                 f"config JSON — never guess a species"
             )
-        return  # explicit config for an unlisted genome: keep it
+        return
     es.setdefault("species", vep_species)
     es.setdefault("assembly", vep_assembly)
 
@@ -224,16 +188,6 @@ def _fill_telomere_species(datajson: Dict[str, Any], workflow: str) -> None:
         f"(genome '{genome_key}')")
 
 
-# Genome reference key -> diploid chromosome count, the denominator of
-# read_density's "Avg telomere per arm" (= total_tel_bp / n_chrom_arms;
-# modules/telomere/length/README.md §3.3). Module default 40 is the mouse
-# value (20 chromosomes, diploid count); rhesus is 42 (20 autosome pairs + XY).
-# The same diploid count is the expected telomere-end count of a complete
-# haploid primary assembly (2 ends x haploid chromosomes = diploid count),
-# filled into Params.hifiasm.qc.expected_chrom_ends.
-# Filled into Params.telomere.read_density.n_chrom_arms when unset — genomes
-# without an entry must set it explicitly, never guess (same policy as
-# telogator2).
 GENOME_N_CHROM_ARMS = {
     "GRCh38": 46,
     "GRCm39": 40,
@@ -377,7 +331,6 @@ def _detect_current_server_db() -> str | None:
             return db_dir
     return None
 
-# [NAME=]chrom:start-end region row (thousands separators tolerated)
 _REGION_RE = re.compile(r"([^:]+):([\d,]+)-([\d,]+)")
 
 
@@ -486,9 +439,6 @@ def _register_regionplot(
     """
     if not _enabled(datajson, "regionplot"):
         return []
-    # 参数精确到 rule:Params.regionplot.regionplot.<key>(消费 rule regionplot;
-    # config 全量路径读取,无 module 级共享回退)。
-    # regions: BED rows or a [NAME=]chrom:start-end list
     regions_file = (datajson.get("Params", {}).get("regionplot", {})
                     .get("regionplot", {}).get("regions"))
     if not regions_file:
@@ -497,7 +447,6 @@ def _register_regionplot(
             "Params.regionplot.regionplot.regions (a BED of chrom/start/end[/name] "
             "rows or a list of [NAME=]chrom:start-end lines); set it in "
             "the workflow config JSON, then rerun.")
-    # group map: hand-filled config wins, else derive from meta group column
     group_dict = dict(datajson.get("Params", {}).get("regionplot", {})
                       .get("regionplot", {}).get("sample_group_dict") or {})
     for sid in samples:
@@ -505,18 +454,14 @@ def _register_regionplot(
             group = getattr(samples_info_dict.get(sid), "group", None)
             if group:
                 group_dict[sid] = group
-    # 写回精确到 rule:Params.regionplot.regionplot.sample_group_dict
     datajson.setdefault("Params", {}).setdefault("regionplot", {}).setdefault(
         "regionplot", {})["sample_group_dict"] = group_dict
-    # formats normalize (same expression as the module smk)
     formats = (datajson.get("Params", {}).get("regionplot", {})
                .get("regionplot", {}).get("formats") or ["png", "svg"])
     if isinstance(formats, str):
         formats = [formats]
     if not isinstance(formats, list) or not all(isinstance(f, str) for f in formats):
         raise ValueError(f"{workflow}: Params.regionplot.regionplot.formats must be a list of strings")
-    # panel names mirror the module's regions parsing (BED col4 or
-    # chrom_start_end; list NAME= prefix or the sanitized chr:start-end)
     panels: List[str] = []
     seen: Dict[str, int] = {}
     with open(regions_file) as fh:
@@ -605,9 +550,6 @@ def _register_fiberbrowser(
             "Params.fiberbrowser.loci (a BED of chrom/start/end[/name] rows "
             "or a list of [NAME=]chrom:start-end lines); set it in the "
             "workflow config JSON, then rerun.")
-    # group map: hand-filled config wins, else derive from meta group column
-    # (参数精确到 rule:Params.fiberbrowser.fiberbrowser.<key>;config 全量路径
-    # 读取,无 module 级共享回退)
     group_dict = dict(datajson.get("Params", {}).get("fiberbrowser", {})
                       .get("fiberbrowser", {}).get("sample_group_dict") or {})
     for sid in samples:
@@ -631,8 +573,6 @@ def _register_fiberbrowser(
         raise ValueError(
             f"{workflow}: Params.fiberbrowser.fiberbrowser.variants entries must be "
             f"'plain' or 'zoom', got {bad}")
-    # loci parse; names become output path components AND receipt arguments,
-    # so sanitize to a shell-safe charset and dedupe
     loci_map: Dict[str, str] = {}
     seen: Dict[str, int] = {}
     with open(loci_file) as fh:
@@ -674,8 +614,6 @@ def _register_fiberbrowser(
     if not loci_map:
         raise ValueError(
             f"{workflow}: Params.fiberbrowser.loci has no rows: {loci_file}")
-    # 写回精确到 rule:Params.fiberbrowser.fiberbrowser.<key>(模块 rule fiberbrowser
-    # 经 rule_param 读取,无 module 级共享回退)
     fiberbrowser = (datajson.setdefault("Params", {}).setdefault("fiberbrowser", {})
                     .setdefault("fiberbrowser", {}))
     fiberbrowser["loci_map"] = loci_map
@@ -805,7 +743,6 @@ def _resolve_genome_ref(
         try:
             normalized = resolve_genome(str(raw_default), workflow=workflow)
         except ValueError:
-            # Custom reference key (e.g. T2T_mhaESC_v1.5): use verbatim.
             normalized = str(raw_default)
         if normalized != str(raw_default):
             logger.info(
@@ -846,12 +783,6 @@ def _resolve_genome_ref(
             f"known entries: {sorted(references)}"
         )
 
-    # Auto-fill derived reference resources: a null fai_index next to an existing
-    # FASTA is filled with <fasta>.fai so the subworkflow's genome_index rule
-    # (samtools faidx) is scheduled when the index is missing. An explicit
-    # template/config value always wins; the fill only happens when the key
-    # is absent or null. (Legacy key 'fai' is no longer read: configs and
-    # subworkflows are unified on fai_index/dict_index.)
     fasta_path = ref.get("fasta")
     if fasta_path and not ref.get("fai_index"):
         ref["fai_index"] = f"{fasta_path}.fai"
@@ -860,8 +791,6 @@ def _resolve_genome_ref(
             f"(genome_index rule builds it if missing)"
         )
 
-    # Auto-fill sex-chromosome contig names from the genome key (modules/
-    # sexcheck + future sex-aware analyses); an explicit value wins.
     if not ref.get("sex_chroms"):
         mapped = GENOME_SEX_CHROMS.get(normalized)
         if mapped:
@@ -927,10 +856,6 @@ def _init_raw_json(
     tmp_dir = datajson.get("tmp_dir") or os.path.join(outdir, "tmp")
     if not datajson.get("tmp_dir"):
         os.makedirs(tmp_dir, exist_ok=True)
-    # Common fields for raw.json: ROOT_DIR, Params.workflow.{indir,outdir,
-    # logdir}, sample_params.raw_files, tmp_dir. 流程控制字段住 Params.workflow;
-    # 样本派生参数(随样本集变化)住一级字段 sample_params
-    # (docs/sample-params-split.md)。
     datajson["ROOT_DIR"] = root_dir
     wf = datajson.setdefault("Params", {}).setdefault("workflow", {})
     wf["indir"] = indir
@@ -940,10 +865,8 @@ def _init_raw_json(
     sp["raw_files"] = raw_files
     datajson["tmp_dir"] = tmp_dir
 
-    # --- server database path migration ---
     current_db = _detect_current_server_db()
     if current_db is not None:
-        # Build foreign dirs list, longest prefix first to avoid partial matches
         foreign_dirs = sorted(
             (d for d in SERVER_DATABASE_DIR.values() if d != current_db),
             key=len, reverse=True,
@@ -1015,17 +938,10 @@ def runCoCulture(
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     outfiles.append(f"{outdir}/disambiguate/disambiguate_qc.tsv")
-    # dual-genome co-culture: every sample is aligned against BOTH references
-    # (disambiguate later separates organism-specific reads), so the per-genome
-    # sample maps used by the polygenomes aligner cover all samples per genome
     _co_genomes = ("GRCh38", "GRCm39")
     datajson.setdefault("sample_params", {})["genome_paired_samples"] = {g: list(paired_samples) for g in _co_genomes}
     datajson.setdefault("sample_params", {})["genome_single_samples"] = {g: list(single_samples) for g in _co_genomes}
-    # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
-    # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
-    # QC summary module (modules/qc_summary): cross-sample metric table +
-    # HTML summary; always part of the delivered output set.
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
     datajson["outfiles"] = outfiles
@@ -1062,16 +978,9 @@ def runMERIP(
     for sample_id, sample_info in samples_info_dict.items():
         if sample_info.layout == "PE":
             paired_samples.append(sample_id)
-            # outfiles.append(f"{outdir}/cutadapt/{sample_id}/{sample_id}_1.fq.gz")
-            # outfiles.append(f"{outdir}/cutadapt/{sample_id}/{sample_id}_2.fq.gz")
-            # outfiles.append(f"{outdir}/hisat2/{sample_id}.bam")
-            # outfiles.append(f"{outdir}/igv/{sample_id}.bigwig")
             outfiles.append(f"{outdir}/igv/{sample_id}/{sample_id}.dedup.bam")
         elif sample_info.layout == "SE":
             single_samples.append(sample_id)
-            # outfiles.append(f"{outdir}/cutadapt/{sample_id}/{sample_id}.single.fq.gz")
-            # outfiles.append(f"{outdir}/hisat2/{sample_id}.bam")
-            # outfiles.append(f"{outdir}/igv/{sample_id}.bigwig")
             outfiles.append(f"{outdir}/igv/{sample_id}/{sample_id}.dedup.bam")
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
@@ -1090,11 +999,7 @@ def runMERIP(
     outfiles += _register_regionplot(datajson, samples_info_dict,
                                      ip_samples + input_samples + treated_ip_samples + treated_input_samples,
                                      outdir, "MERIP")
-    # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
-    # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
-    # QC summary module (modules/qc_summary): cross-sample metric table +
-    # HTML summary; always part of the delivered output set.
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
     datajson["outfiles"] = outfiles
@@ -1119,8 +1024,6 @@ def runCLIP(
     paired_samples = []
     single_samples = []
     wf = datajson.setdefault("Params", {}).setdefault("workflow", {})
-    # CLI --extra-args aligner=... lands at config top level and wins over
-    # Params.workflow.aligner; normalize into Params.workflow for raw.json.
     aligner = datajson.pop("aligner", None) or wf.get("aligner") or "star"
     wf["aligner"] = aligner
     for sample_id, sample_info in samples_info_dict.items():
@@ -1158,28 +1061,18 @@ def runCLIP(
     outfiles += _register_regionplot(datajson, samples_info_dict,
                                      paired_samples + single_samples,
                                      outdir, "CLIP")
-    # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
-    # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
-    # QC summary module (modules/qc_summary): cross-sample metric table +
-    # HTML summary; always part of the delivered output set.
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
     datajson["outfiles"] = outfiles
     datajson["sample_params"]["paired_samples"] = paired_samples
     datajson["sample_params"]["single_samples"] = single_samples
-    # parameters suggest by https://doi.org/10.1016/j.ymeth.2019.11.008
     datajson["Params"]["bamCoverage"]["offset"] = "-1"
     datajson["Params"]["bamCoverage"]["binSize"] = 1
-    # normalizeUsing 精确到 rule:bamCoverage/wig 各自子键
-    # (Params.bamCoverage.<rule>.normalizeUsing;未迁移的 binSize/offset/
-    # extendReads 仍是模块级扁平键)
     _bc = datajson["Params"].setdefault("bamCoverage", {})
     _bc.setdefault("bamCoverage", {})["normalizeUsing"] = "CPM"
     _bc.setdefault("wig", {})["normalizeUsing"] = "CPM"
     datajson["Params"]["bamCoverage"]["extendReads"] = 1
-    # star 参数精确到 rule:写入 star_align 子段(Params.star.star_align.<key>,
-    # 消费 rule star_align 经 rule_param 读取,无 module 级共享回退)
     _star_align = datajson["Params"].setdefault("star", {}).setdefault("star_align", {})
     _star_align["alignEndsType"] = "Extend5pOfRead1"
     _star_align["outFilterMismatchNoverReadLmax"] = 0.04
@@ -1219,12 +1112,8 @@ def runPacVar(
     enable_phase = _enabled(datajson, "phase")
     enable_repeat = _enabled(datajson, "repeat")
     enable_telomere = _enabled(datajson, "telomere")
-    # hifiasm 的唯一消费方是 telomere 模块(assembly_scan/tidk 读组装),
-    # enabled 未显式设置时跟随 telomere 开关
     _fill_hifiasm_enabled(datajson, "PacVar")
-    enable_eccdna = _enabled(datajson, "decoil")  # Decoil is the eccDNA reconstruction step
-    # sawfish CNV calling: 默认不开启(Params.sawfish.enabled 默认 false);
-    # 断点 SV 鉴定输出同样默认不开启(Params.sawfish.call_sv 默认 false)。
+    enable_eccdna = _enabled(datajson, "decoil")
     _sawfish_params = params.get("sawfish", {}) or {}
     enable_cnv = bool(_sawfish_params.get("enabled", False))
     cnv_call_sv = bool(_sawfish_params.get("call_sv", False))
@@ -1235,7 +1124,6 @@ def runPacVar(
                               custom_gtf=_genome_ref.get("custom_gtf"))
     for sample_id, sample_info in samples_info_dict.items():
         samples.append(sample_id)
-        # SNP calling
         if enable_snp:
             if snv_caller == "deepvariant":
                 outfiles.append(f"{outdir}/variation/germline_snv_indel/{sample_id}/{sample_id}.vcf.gz")
@@ -1243,15 +1131,12 @@ def runPacVar(
             elif snv_caller == "gatk4":
                 outfiles.append(f"{outdir}/variation/germline_snv_indel/{sample_id}/{sample_id}.filtered.vcf.gz")
                 outfiles.append(f"{outdir}/variation/germline_snv_indel/{sample_id}/{sample_id}.filtered.vcf.gz.csi")
-        # SV calling
         if enable_sv:
             outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz")
             outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz.csi")
-        # phasing
         if enable_phase and enable_snp and enable_sv:
             outfiles.append(f"{outdir}/variation/germline_snv_indel/{sample_id}/{sample_id}.phased.vcf.gz")
             outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.sv.phased.vcf.gz")
-        # repeat characterization
         if enable_repeat and _genome_ref.get("repeat_bed"):
             outfiles.append(f"{outdir}/repeat/trgt/genotype/{sample_id}/{sample_id}.trgt.vcf.gz")
             _trgt_fmts = (datajson.get("Params", {}).get("trgt", {})
@@ -1262,8 +1147,6 @@ def runPacVar(
                 f"{outdir}/repeat/trgt/plot/{sample_id}/{sample_id}.trgt.repeat",
                 _trgt_fmts)
 
-    # CNV calling (sawfish cohort-level joint-call; module wired in
-    # subworkflow/PacVar.smk). Default OFF — see Params.sawfish.enabled.
     if enable_cnv:
         outfiles.append(f"{outdir}/variation/germline_cnv/cnv/sawfish.cnv.vcf.gz")
         outfiles.append(f"{outdir}/variation/germline_cnv/cnv/sawfish.cnv.vcf.gz.csi")
@@ -1272,11 +1155,6 @@ def runPacVar(
             outfiles.append(f"{outdir}/variation/germline_cnv/cnv/sawfish.sv.vcf.gz")
             outfiles.append(f"{outdir}/variation/germline_cnv/cnv/sawfish.sv.vcf.gz.csi")
 
-    # eccDNA / ecDNA reconstruction via Decoil
-    # Decoil is reconstruction-only: SV VCF comes from pbsv upstream and the
-    # coverage bigwig from the subworkflow's `decoil_coverage` rule (see
-    # subworkflow/PacVar.smk). Only declare decoil's own reconstruction
-    # outputs here.
     genome_gtf = _genome_ref.get("gtf")
     if enable_eccdna and genome_gtf:
         for sample_id in samples:
@@ -1284,7 +1162,6 @@ def runPacVar(
             outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/reconstruct.ecDNA.bed")
             outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/reconstruct.ecDNA.filtered.bed")
             outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/summary.txt")
-            # Visualization: per-sample stats + interactive IGV HTML
             _decoil_plot_fmts = (datajson.get("Params", {}).get("decoil", {})
                                  .get("plot", {}).get("formats") or ["png"])
             if isinstance(_decoil_plot_fmts, str):
@@ -1302,9 +1179,6 @@ def runPacVar(
             outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/decoil_structure_genes.tsv")
             outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/igv_ecdna.html")
             outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/ucsc_track.txt")
-        # Cross-sample comparison (aggregated): decoil module writes these
-        # under {outdir}/eccdna/compare/ (rule decoil_compare), not
-        # {outdir}/eccdna/visualization/.
         _decoil_compare_fmts = (datajson.get("Params", {}).get("decoil", {})
                                 .get("compare", {}).get("formats") or ["png"])
         if isinstance(_decoil_compare_fmts, str):
@@ -1318,13 +1192,7 @@ def runPacVar(
             "Decoil requires a gene annotation GTF. Skipping eccDNA outfiles."
         )
 
-    # telomere & centromere analysis
     if enable_telomere:
-        # Which telomere-length methods to run (Params.telomere.method, list).
-        # The telomere module declares every rule unconditionally; this list
-        # decides which outputs (DAG leaves) are requested, so Snakemake runs
-        # only the selected methods (tool choice is a workflow concern, not the
-        # module's). Empty/absent => all four.
         _TEL_METHODS = ("telogator2", "assembly_scan", "read_density", "tidk")
         tel_methods = params.get("telomere", {}).get("method") or list(_TEL_METHODS)
         if isinstance(tel_methods, str):
@@ -1335,27 +1203,22 @@ def runPacVar(
                 f"PacVar: Params.telomere.method has unknown method(s) {_bad}; "
                 f"valid methods: {list(_TEL_METHODS)}."
             )
-        # figure formats (Params.telomere.formats), for multi-format plot outputs
         _tel_fmts = params.get("telomere", {}).get("formats") or ["png"]
         if isinstance(_tel_fmts, str):
             _tel_fmts = [_tel_fmts]
         for sample_id in samples:
-            # Telogator2 (per-chromosome-arm)
             if "telogator2" in tel_methods:
                 outfiles.append(f"{outdir}/telomere/length/telogator2/{sample_id}/tlens_by_allele.tsv")
                 outfiles.append(f"{outdir}/telomere/length/telogator2/{sample_id}/all_final_alleles.png")
                 outfiles.append(f"{outdir}/telomere/length/telogator2/{sample_id}/violin_atl.png")
-            # Approach A: Assembly contig end scanning
             if "assembly_scan" in tel_methods:
                 outfiles.append(f"{outdir}/telomere/length/assembly_scan/{sample_id}/{sample_id}_assembly_telomere_stats.txt")
                 for _f in _tel_fmts:
                     outfiles.append(f"{outdir}/telomere/length/assembly_scan/{sample_id}/{sample_id}_assembly_telomere_length.{_f}")
-            # Approach B: Read-level k-mer density
             if "read_density" in tel_methods:
                 outfiles.append(f"{outdir}/telomere/length/read_density/{sample_id}/{sample_id}_read_telomere_stats.txt")
                 for _f in _tel_fmts:
                     outfiles.append(f"{outdir}/telomere/length/read_density/{sample_id}/{sample_id}_read_telomere_content.{_f}")
-            # Approach C: tidk
             if "tidk" in tel_methods:
                 outfiles.append(f"{outdir}/telomere/length/tidk/{sample_id}/{sample_id}_tidk_telomeres.tsv")
                 for _f in _tel_fmts:
@@ -1370,26 +1233,17 @@ def runPacVar(
                         or {}).get("telomere_bed"))
             if _dq_bed:
                 outfiles.append(f"{outdir}/telomere/length/depth_qc/{sample_id}/{sample_id}_telomere_region_depth_stats.txt")
-            # composition + regions 子模块输出
             outfiles.append(f"{outdir}/telomere/composition/telomere_summary.tsv")
             outfiles.append(f"{outdir}/telomere/composition/telomere_composition.tsv")
             for _f in _tel_fmts:
                 outfiles.append(f"{outdir}/telomere/composition/telomere_length_violin.{_f}")
             if "assembly_scan" in tel_methods:
                 outfiles.append(f"{outdir}/telomere/regions/{sample_id}/{sample_id}.telomere.bed")
-            # Centromere (separate module; not gated by telomere method)
             outfiles.append(f"{outdir}/repeat/centromere/{sample_id}/{sample_id}.centromere_stats.txt")
 
-    # Assembly QC (modules/hifiasm rule hifiasm_qc); gated by
-    # Params.hifiasm.enabled (未设置时跟随 telomere) + Params.hifiasm.qc.enabled
     for sample_id in samples:
         _register_hifiasm_qc(outfiles, datajson, f"{outdir}/repeat/centromere", sample_id)
 
-    # SV comparison analysis (modules/sv): DESeq2-style design —
-    # "{control_group_name}_vs_{experimental_group_name}" maps to
-    # {control_group_name, experimental_group_name, control_samples,
-    # experimental_samples}. Sample names only: the sv rules resolve each
-    # sample's SV VCF from vcf_dir/vcf_suffix.
     sv_params = datajson.get("Params", {}).get("sv", {})
     _validate_te_lib(datajson, "PacVar")
     _fill_mei_rm_species(datajson, "PacVar")
@@ -1427,14 +1281,9 @@ def runPacVar(
             outfiles.append(f"{base}/{name}_merged.vcf")
             outfiles.append(f"{base}/{name}_only.vcf")
             outfiles.append(f"{base}/{name}_annotated.tab")
-            # TE enrichment (RepeatMasker subfamily test) + per-SV stats from
-            # sv_exp_specific — registered via the rules' marker files
-            # (directories are never declared as outputs, see modules.md)
             outfiles.append(f"{base}/repeatmasker/repeatmasker.done")
             outfiles.append(f"{base}/statistics/statistics.done")
             outfiles.append(f"{base}/circos/circos.done")
-            # MEI suite (sv_mei rule): classified insertions + 6-figure
-            # suite; gate via Params.sv.mei.enabled (default on)
             if (datajson.get("Params", {}).get("sv", {}).get("mei", {}) or {}).get("enabled", True):
                 outfiles.append(f"{base}/mei/mei.done")
             if sv_genes:
@@ -1442,8 +1291,6 @@ def runPacVar(
         outfiles.append(f"{sv_outdir}/sv_diff_analysis/sv_diff_analysis.done")
         if sv_oncoprint.get("cosmic_file"):
             outfiles.append(f"{sv_outdir}/sv_oncoprint/oncoprint_matrix.csv")
-        # SV-affected genes GO/KEGG (modules/function/sv_go; macaque-aware
-        # clusterProfiler route). Registered only when the gate is on.
         svgokegg_params = datajson.get("Params", {}).get("function", {}).get("sv_go_kegg", {}) or {}
         if svgokegg_params.get("enabled"):
             svgokegg_species = resolve_genome(_genome_name,"alias")
@@ -1459,8 +1306,6 @@ def runPacVar(
 
     gatk_tmp_dir = os.path.join(outdir, "tmp")
     os.makedirs(gatk_tmp_dir, exist_ok=True)
-    # tmp-dir 精确到 rule:镜像写入全部消费 rule 的子段
-    # (Params.gatk.<rule>.tmp-dir;无 module 级共享回退)
     _gatk = datajson["Params"].setdefault("gatk", {})
     for _grule in ("gatk_index", "addReadsGroup", "MarkDuplicates",
                    "collectHsMetrics", "BaseRecalibrator", "ApplyBQSR",
@@ -1472,11 +1317,7 @@ def runPacVar(
         _gatk.setdefault(_grule, {})["tmp-dir"] = gatk_tmp_dir
     datajson["sample_params"]["samples"] = samples
     outfiles += _register_regionplot(datajson, samples_info_dict, samples, outdir, "PacVar")
-    # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
-    # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
-    # QC summary module (modules/qc_summary): cross-sample metric table +
-    # HTML summary; always part of the delivered output set.
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
     datajson["outfiles"] = outfiles
@@ -1492,8 +1333,6 @@ def runMutation(
     ):
     root_dir = _init_raw_json(datajson, indir, outdir, raw_files, workflow="Mutation")
     _genome_ref = _resolve_genome_ref(datajson, samples_info_dict, "Mutation")
-    # Sequencing assay type -> CNVkit --seq-method (meta `assay` column wins over
-    # the config value; all samples must share one assay for a single cnvkit run).
     _ASSAY_TO_CNVKIT_METHOD = {
         "wgs": "wgs", "exome": "hybrid", "wes": "hybrid",
         "panel": "amplicon", "amplicon": "amplicon",
@@ -1525,9 +1364,6 @@ def runMutation(
     sample_somatic_vcf_dict = {}
     sample_group_dict = {}
     paired_design = []
-    # Exome assays get a capture-region BED for GATK -L and CNVkit --targets:
-    # an explicit genome.references.<g>.targets BED wins; otherwise derive it
-    # from markdup BAM coverage (upstream rule) and register the output.
     _ref_entry = datajson["genome"]["references"][datajson["genome"]["default"]]
     if _ref_entry.get("targets"):
         _targets = _ref_entry["targets"]
@@ -1548,8 +1384,6 @@ def runMutation(
         paired_design.append({"control": designPair.ctr_sample_id, "experimental": designPair.exp_sample_id})
 
     datajson["sample_params"]["paired_design"] = paired_design
-    # Strain-aware germline filtering (meta ``strain`` column -> per-pair strain
-    # map for gatk_somatic; empty when the column is absent/left blank).
     pair_strains = {}
     for designPair in designPairs:
         strain = getattr(samples_info_dict.get(designPair.exp_sample_id), "strain", None)
@@ -1558,10 +1392,6 @@ def runMutation(
     datajson["sample_params"]["pair_strains"] = pair_strains
     if pair_strains:
         logger.info(f"Mutation: strain-aware germline filtering enabled for pairs: {pair_strains}")
-    # CNVkit calling mode resolution (Params.cnvkit.mode; "auto" decides here
-    # from the design): matched normals in the design pairs -> paired; else a
-    # normal panel (sample_params.control_samples) -> pooled; else flat.
-    # An explicit mode wins over "auto"; impossible combos hard-error below.
     _cnv_cfg = datajson["Params"].setdefault("cnvkit", {})
     _paired_map = {
         rec["experimental"]: rec["control"]
@@ -1590,12 +1420,7 @@ def runMutation(
             "or provide a normal panel."
         )
     if _cnv_mode == "paired":
-        # Paired mode must not also build a pooled reference alongside the
-        # per-pair references (conflicting reference semantics).
         datajson["sample_params"]["control_samples"] = []
-    # 参数精确到 rule:resolve 结果(以及 meta assay 推导的 method)镜像写入
-    # rule 子段——modules/cnvkit 只读 Params.cnvkit.<rule>.mode/.method
-    # (rule_param,无 module 级回退),扁平键仅留作 node.py 自身门控/兼容。
     for _cnv_rule in ("cnvkit_reference", "cnvkit_batch", "cnvkit_paired"):
         _cnv_sub = _cnv_cfg.setdefault(_cnv_rule, {})
         _cnv_sub["mode"] = _cnv_mode
@@ -1631,16 +1456,9 @@ def runMutation(
         outfiles.append(f"{outdir}/stability/spectrum/somatic_spectrum.csv")
         outfiles.append(f"{outdir}/stability/spectrum/somatic_spectrum_per_sample.csv")
         outfiles.append(f"{outdir}/stability/spectrum/somatic_spectrum_sample_stats.csv")
-        # Signature analysis (modules/spectrum): refit against COSMIC and/or
-        # de novo NMF. Gated by Params.somatic_spectrum.signature.enabled
-        # (default off); mode selects which outputs are registered.
         _sig_cfg = datajson["Params"].get("somatic_spectrum", {}).get("signature", {}) or {}
         if _sig_cfg.get("enabled"):
             _sig_mode = str(_sig_cfg.get("mode", "both")).lower()
-            # De novo NMF sample-count guard: below signature.nmf_min_samples
-            # the rank is not resolvable (modules/spectrum/README.md,
-            # "de novo NMF 的样本量与突变负荷要求"); mode 'nmf' fails fast,
-            # 'both' degrades to refit. <= 0 disables the guard.
             _sig_mode = _nmf_sample_guard(
                 _sig_cfg, len(sample_somatic_vcf_dict), _sig_mode)
             if _sig_mode in ("refit", "both"):
@@ -1677,15 +1495,10 @@ def runMutation(
     
     all_samples = paired_samples + single_samples
     
-    # Hybrid-selection QC (modules/gatk collectHsMetrics): per-sample
-    # CollectHsMetrics on the markdup BAM over the capture region. Requires
-    # a targets BED/interval_list (exome/hybrid runs; node.py fills the
-    # reference entry above); WGS runs resolve _targets to None and skip.
     if _targets:
         for sample_id in all_samples:
             outfiles.append(f"{outdir}/common/4_markdup_bam/{sample_id}/{sample_id}.hs_metrics.txt")
     
-    # Per-module gates: Params.<module>.enabled (default true)
     if _enabled(datajson, "fragment_size"):
         outfiles.append(f"{outdir}/results/fragment_size/fragment/FragmentSize.txt")
         _frag_fmts = (datajson.get("Params", {}).get("fragment_size", {})
@@ -1696,9 +1509,6 @@ def runMutation(
                           _frag_fmts)
 
     if _enabled(datajson, "manta"):
-        # Matched-normal design pairs -> Manta somatic mode (somaticSV.vcf.gz),
-        # mirroring the somatic SNV (Mutect2) pair judgment above; paired
-        # samples are skipped from germline SV exactly like mutect2_samples.
         for designPair in designPairs:
             outfiles.append(f"{outdir}/variation/somatic_sv/{designPair.ctr_sample_id}_vs_{designPair.exp_sample_id}/results/variants/somaticSV.vcf.gz")
         for sample_id in all_samples:
@@ -1713,8 +1523,6 @@ def runMutation(
                 f"{outdir}/stability/msi/{designPair.exp_sample_id}/"
                 f"{designPair.exp_sample_id}_msi_pro.tsv")
         outfiles.append(f"{outdir}/stability/msi/msi_input.txt")
-        # formats 精确到 rule:Params.msi.msi_plot.formats(config 全量路径读取,
-        # 无 module 级共享回退)。
         _msi_fmts = (datajson.get("Params", {}).get("msi", {})
                      .get("msi_plot", {}).get("formats") or ["jpg"])
         if isinstance(_msi_fmts, str):
@@ -1722,9 +1530,6 @@ def runMutation(
         outfiles += _figs(f"{outdir}/stability/msi/msi_barplot", _msi_fmts)
 
     if _enabled(datajson, "cnvkit"):
-        # Mode-aware registration: paired -> per-pair tumors only (no pooled
-        # reference); pooled -> all samples + shared reference.cnn; flat ->
-        # all samples, no reference.
         if _cnv_mode == "paired":
             for sample_id in _paired_map:
                 outfiles.append(f"{outdir}/variation/cnv/{sample_id}/{sample_id}.cnr")
@@ -1736,13 +1541,9 @@ def runMutation(
             if _cnv_mode == "pooled":
                 outfiles.append(f"{outdir}/variation/cnv/reference/reference.cnn")
     
-    # Mutation burden (modules/burden): SNV/InDel TMB + SV + CNV burden for
-    # each tumor sample. The three sample -> file maps derive from the somatic
-    # and CNV outputs above (hand-filled Params.burden entries win); the CNV
-    # sample set follows the resolved CNVkit mode (paired -> tumors only).
     if _enabled(datajson, "burden"):
         burden_cfg = datajson["Params"].setdefault("burden", {})
-        snv_vcf_dict = dict(sample_somatic_vcf_dict)  # {tumor: somatic SNV VCF}
+        snv_vcf_dict = dict(sample_somatic_vcf_dict)
         sv_vcf_dict = {
             designPair.exp_sample_id:
                 f"{outdir}/variation/somatic_sv/{designPair.ctr_sample_id}_vs_{designPair.exp_sample_id}/results/variants/somaticSV.vcf.gz"
@@ -1761,10 +1562,6 @@ def runMutation(
                              ("sample_cnv_dict", cnv_dict)):
             if not burden_cfg.get(key):
                 burden_cfg[key] = derived
-        # VEP annotation settings (Params.burden.burden_snv_indel.annotate,
-        # default on;config 全量路径读取,无 module 级共享回退):
-        # species/assembly are derived from the genome; an explicit config
-        # value wins and an unmapped genome hard-errors instead of guessing.
         _burden_snvi = burden_cfg.setdefault("burden_snv_indel", {})
         if _burden_snvi.get("annotate", True):
             if not _burden_snvi.get("vep_species") \
@@ -1798,27 +1595,17 @@ def runMutation(
     datajson["Params"]["somatic_spectrum"]["sample_somatic_vcf_dict"] = sample_somatic_vcf_dict
     datajson["Params"]["somatic_spectrum"]["sample_group_dict"] = sample_group_dict
 
-    # QC summary module (modules/qc_summary): cross-sample metric table +
-    # HTML summary; always part of the delivered output set.
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
 
-    # Final PPT report + results workbook (modules/Mutation_report), gated
-    # by Params.report.enabled like the other report modules.
     if _enabled(datajson, "report"):
-        # 写回精确到 rule:Params.report.generate_report.date(与
-        # runPeakCalling/runRIPseq/runRNAseq 的写回同一键形)
         datajson["Params"].setdefault("report", {}).setdefault(
             "generate_report", {}).setdefault(
             "date", time.strftime("%Y-%m-%d", time.localtime()))
         outfiles.append(f"{outdir}/Mutation_report.pptx")
         outfiles.append(f"{outdir}/Mutation_report.xlsx")
-        # 报告自有图导出清单(报告模块规范:figures/<name>.<fmt> 条件产出,
-        # 以 manifest.tsv 锚定 DAG 与磁盘一致)
         outfiles.append(f"{outdir}/figures/manifest.tsv")
 
-    # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
-    # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
     datajson["outfiles"] = outfiles
     datajson["sample_params"]["paired_samples"] = paired_samples
@@ -1843,7 +1630,6 @@ def runKARRseq(
     for sample_id, sample_info in samples_info_dict.items():
         if sample_info.layout == "PE":
             paired_samples.append(sample_id)
-            # Final ligation pairs
             outfiles.append(f"{outdir}/chimeric/{sample_id}/{sample_id}.dedup.ligation.pairs.gz")
         elif sample_info.layout == "SE":
             single_samples.append(sample_id)
@@ -1853,11 +1639,7 @@ def runKARRseq(
 
     datajson["sample_params"]["paired_samples"] = paired_samples
     datajson["sample_params"]["single_samples"] = single_samples
-    # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
-    # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
-    # QC summary module (modules/qc_summary): cross-sample metric table +
-    # HTML summary; always part of the delivered output set.
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
     datajson["outfiles"] = outfiles
@@ -1901,7 +1683,6 @@ def runPeakCalling(
 
     paired_samples, single_samples = _classify_layouts(samples_info_dict)
 
-    # Auto-detect organism and set genome default (RNAseq pattern)
     organisms = set()
     for sample_id, sample_info in samples_info_dict.items():
         if sample_info.organism:
@@ -1918,10 +1699,8 @@ def runPeakCalling(
         logger.warning(f"Multiple organisms detected: {organisms}, using config default genome")
     datajson["Params"].setdefault("report", {}).setdefault("generate_report", {})["date"] = time.strftime("%Y-%m-%d", time.localtime())
 
-    # Heatmap samples: from computeMatrix.samples, fallback to all ip_samples
     cm_params = datajson.get("Params", {}).get("computeMatrix", {})
     cm_heatmap_samples = cm_params.get("samples", None) or ip_samples
-    # Heatmap output suffix based on regions mode
     cm_regions = cm_params.get("regions", "tss")
     if cm_regions == "tss":
         hm_suffix = "tss"
@@ -1931,23 +1710,17 @@ def runPeakCalling(
         hm_suffix = "per_gene" if cm_regions.get("per_gene") else "genes"
     else:
         hm_suffix = "heatmap"
-    # Gene names for per_gene mode
     cm_gene_names = cm_regions.get("genes", []) if isinstance(cm_regions, dict) else []
 
     if input_samples:
         for ip_sample in ip_samples:
             outfiles.append(f"{outdir}/QC/1_raw_fastqc/{ip_sample}/{ip_sample}.fastqc.raw.txt")
             outfiles.append(f"{outdir}/QC/2_trimmed_fastqc/{ip_sample}/{ip_sample}.fastqc.trimmed.txt")
-            # Step 5: AddReadsGroup + MarkDuplicates (GATK4)
             outfiles.append(f"{outdir}/common/4_markdup_bam/{ip_sample}/{ip_sample}.sorted_markdup.bam")
-            # Step 6: BigWig tracks
             outfiles.append(f"{outdir}/results/tracks/{ip_sample}/{ip_sample}.bigwig")
-            # Step 7: MACS3 peak calling
             outfiles.append(f"{outdir}/results/peaks/{ip_sample}/{ip_sample}_peaks.narrowPeak")
             outfiles.append(f"{outdir}/results/peaks/{ip_sample}/{ip_sample}_broad_peaks.broadPeak")
-            # Step 8: FRiP score
             outfiles.append(f"{outdir}/QC/3_frip_score/{ip_sample}/{ip_sample}.FRiP.txt")
-            # Step 9: deeptools enrichment heatmap
             if ip_sample in cm_heatmap_samples:
                 if hm_suffix == "per_gene" and cm_gene_names:
                     for gene_name in cm_gene_names:
@@ -1966,9 +1739,7 @@ def runPeakCalling(
                     outfiles += _figs(
                         f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{hm_suffix}_heatmap",
                         _hm_fmts)
-            # Step 10: HOMER annotation
             outfiles.append(f"{outdir}/results/annotation/{ip_sample}/{ip_sample}_peaks.annotatePeaks.txt")
-            # Step 11: Peak-TE overlap
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_te_subfamily_overlap.tsv")
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_peak_centric_te.tsv")
         _macs3_cutoff_fmts = (datajson.get("Params", {}).get("macs3", {})
@@ -1995,7 +1766,6 @@ def runPeakCalling(
             outfiles.append(f"{outdir}/results/peaks/{ip_sample}/{ip_sample}_peaks.narrowPeak")
             outfiles.append(f"{outdir}/results/peaks/{ip_sample}/{ip_sample}_broad_peaks.broadPeak")
             outfiles.append(f"{outdir}/QC/3_frip_score/{ip_sample}/{ip_sample}.FRiP.txt")
-            # Step 9: deeptools enrichment heatmap
             if ip_sample in cm_heatmap_samples:
                 if hm_suffix == "per_gene" and cm_gene_names:
                     for gene_name in cm_gene_names:
@@ -2014,9 +1784,7 @@ def runPeakCalling(
                     outfiles += _figs(
                         f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{hm_suffix}_heatmap",
                         _hm_fmts)
-            # Step 10: HOMER annotation
             outfiles.append(f"{outdir}/results/annotation/{ip_sample}/{ip_sample}_peaks.annotatePeaks.txt")
-            # Step 11: Peak-TE overlap
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_te_subfamily_overlap.tsv")
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_peak_centric_te.tsv")
     _pte_fmts = (datajson.get("Params", {}).get("peak_te_overlap", {})
@@ -2039,11 +1807,7 @@ def runPeakCalling(
     outfiles += _register_regionplot(datajson, samples_info_dict,
                                      ip_samples + input_samples,
                                      outdir, "PeakCalling")
-    # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
-    # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
-    # QC summary module (modules/qc_summary): cross-sample metric table +
-    # HTML summary; always part of the delivered output set.
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
     datajson["outfiles"] = outfiles
@@ -2087,7 +1851,6 @@ def runRIPseq(
 
     paired_samples, single_samples = _classify_layouts(samples_info_dict)
 
-    # Auto-detect organism and set genome default (RNAseq pattern)
     organisms = set()
     for sample_id, sample_info in samples_info_dict.items():
         if sample_info.organism:
@@ -2104,21 +1867,15 @@ def runRIPseq(
         logger.warning(f"Multiple organisms detected: {organisms}, using config default genome")
     datajson["Params"].setdefault("report", {}).setdefault("generate_report", {})["date"] = time.strftime("%Y-%m-%d", time.localtime())
 
-    # Heatmap samples: from computeMatrix.samples, fallback to all ip_samples
     cm_params = datajson.get("Params", {}).get("computeMatrix", {})
     cm_heatmap_samples = cm_params.get("samples", None) or ip_samples
-    # Heatmap output suffix based on regions mode
     cm_regions = cm_params.get("regions", "tss")
-    # Gene names for per_gene mode
     cm_gene_names = cm_regions.get("genes", []) if isinstance(cm_regions, dict) else []
     if cm_regions == "tss":
         hm_suffix = "tss"
     elif cm_regions == "peaks":
         hm_suffix = "peaks"
     elif isinstance(cm_regions, dict) and "genes" in cm_regions:
-        # Per-gene heatmap files are only registered when the gene list is
-        # non-empty (mirrors the deeptools module's HEATMAP_GENE_MODE gating);
-        # otherwise the module emits the combined {sample}_genes_heatmap.png.
         hm_suffix = "per_gene" if (cm_regions.get("per_gene") and cm_gene_names) else "genes"
     else:
         hm_suffix = "heatmap"
@@ -2127,16 +1884,11 @@ def runRIPseq(
         for ip_sample in ip_samples:
             outfiles.append(f"{outdir}/QC/1_raw_fastqc/{ip_sample}/{ip_sample}.fastqc.raw.txt")
             outfiles.append(f"{outdir}/QC/2_trimmed_fastqc/{ip_sample}/{ip_sample}.fastqc.trimmed.txt")
-            # Step 5: AddReadsGroup + MarkDuplicates (GATK4)
             outfiles.append(f"{outdir}/common/4_markdup_bam/{ip_sample}/{ip_sample}.sorted_markdup.bam")
-            # Step 6: BigWig tracks
             outfiles.append(f"{outdir}/results/tracks/{ip_sample}/{ip_sample}.bigwig")
-            # Step 7: MACS3 peak calling
             outfiles.append(f"{outdir}/results/peaks/{ip_sample}/{ip_sample}_peaks.narrowPeak")
             outfiles.append(f"{outdir}/results/peaks/{ip_sample}/{ip_sample}_broad_peaks.broadPeak")
-            # Step 8: FRiP score
             outfiles.append(f"{outdir}/QC/3_frip_score/{ip_sample}/{ip_sample}.FRiP.txt")
-            # Step 9: deeptools enrichment heatmap
             if ip_sample in cm_heatmap_samples:
                 if hm_suffix == "per_gene" and cm_gene_names:
                     for gene_name in cm_gene_names:
@@ -2155,9 +1907,7 @@ def runRIPseq(
                     outfiles += _figs(
                         f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{hm_suffix}_heatmap",
                         _hm_fmts)
-            # Step 10: HOMER annotation
             outfiles.append(f"{outdir}/results/annotation/{ip_sample}/{ip_sample}_peaks.annotatePeaks.txt")
-            # Step 11: Peak-TE overlap
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_te_subfamily_overlap.tsv")
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_peak_centric_te.tsv")
         _macs3_cutoff_fmts = (datajson.get("Params", {}).get("macs3", {})
@@ -2184,7 +1934,6 @@ def runRIPseq(
             outfiles.append(f"{outdir}/results/peaks/{ip_sample}/{ip_sample}_peaks.narrowPeak")
             outfiles.append(f"{outdir}/results/peaks/{ip_sample}/{ip_sample}_broad_peaks.broadPeak")
             outfiles.append(f"{outdir}/QC/3_frip_score/{ip_sample}/{ip_sample}.FRiP.txt")
-            # Step 9: deeptools enrichment heatmap
             if ip_sample in cm_heatmap_samples:
                 if hm_suffix == "per_gene" and cm_gene_names:
                     for gene_name in cm_gene_names:
@@ -2203,9 +1952,7 @@ def runRIPseq(
                     outfiles += _figs(
                         f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{hm_suffix}_heatmap",
                         _hm_fmts)
-            # Step 10: HOMER annotation
             outfiles.append(f"{outdir}/results/annotation/{ip_sample}/{ip_sample}_peaks.annotatePeaks.txt")
-            # Step 11: Peak-TE overlap
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_te_subfamily_overlap.tsv")
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_peak_centric_te.tsv")
     _pte_fmts = (datajson.get("Params", {}).get("peak_te_overlap", {})
@@ -2216,7 +1963,6 @@ def runRIPseq(
                       _pte_fmts)
     outfiles.append(f"{outdir}/results/tracks/ucsc_track.txt")
     outfiles.append(f"{outdir}/results/tracks/igv_track.html")
-    # Report (subworkflow.md: pptx + xlsx pair, gated by Params.report.enabled)
     if _enabled(datajson, "report"):
         outfiles.append(f"{outdir}/RIPseq_report.pptx")
         outfiles.append(f"{outdir}/RIPseq_report.xlsx")
@@ -2230,11 +1976,7 @@ def runRIPseq(
     outfiles += _register_regionplot(datajson, samples_info_dict,
                                      ip_samples + input_samples,
                                      outdir, "RIPseq")
-    # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
-    # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
-    # QC summary module (modules/qc_summary): cross-sample metric table +
-    # HTML summary; always part of the delivered output set.
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
     datajson["outfiles"] = outfiles
@@ -2268,10 +2010,6 @@ def runQuantMS(
     outfiles: List[str] = []
 
     quantification_method = datajson["Params"]["workflow"]["quantification_method"]
-    # Search engine follows the data type implied by the quantification method:
-    # DIA spectra need a DIA-capable engine (sage), DDA (tmt/lfq) defaults to
-    # comet. An explicit config engine wins, except comet-on-DIA which is
-    # corrected (a DDA engine on wide-window spectra yields garbage).
     search_engine = datajson["Params"]["search_engine"].get("engine")
     _method_default = "sage" if quantification_method == "dia" else "comet"
     if not search_engine:
@@ -2282,8 +2020,6 @@ def runQuantMS(
         search_engine = "sage"
     datajson["Params"]["search_engine"]["engine"] = search_engine
 
-    # DIA with DIA-NN replaces the whole DDA identification chain
-    # (search engine -> rescoring -> FDR -> protein inference -> quant).
     use_diann = (
         quantification_method == "dia"
         and (datajson.get("Params", {}).get("diann", {}) or {}).get("enabled", False)
@@ -2316,10 +2052,6 @@ def runQuantMS(
         outfiles.append(f"{outdir}/common/3_diann/diann_qc.tsv")
         outfiles.append(f"{outdir}/common/3_diann/diann_protein_matrix.tsv")
     elif quantification_method == "tmt":
-        # Per-plex protein tables + long abundance table. The merged mzTab
-        # is only produced when an experimental design is configured
-        # (FileMerger would collapse per-plex sample identity otherwise);
-        # the long abundance table is always produced (quantification.smk).
         if datajson.get("sample_params", {}).get("expdesign", ""):
             outfiles.append(f"{outdir}/common/7_quantification/tmt_quantification.mzTab")
         outfiles.append(f"{outdir}/common/7_quantification/tmt_protein_abundances.csv")
@@ -2335,8 +2067,6 @@ def runQuantMS(
             outfiles.append(f"{outdir}/common/7_quantification/dia_quantification.triqler.tsv")
 
     if not datajson.get("Params", {}).get("skip_post_msstats", False) and not use_diann:
-        # TMT MSstats needs a plex->channel design; without one there is
-        # nothing to convert (the long abundance table is the deliverable).
         if quantification_method == "tmt" and not datajson.get("sample_params", {}).get("expdesign", ""):
             pass
         else:
@@ -2363,7 +2093,6 @@ def runRNAseq(
     genome_single_samples = {}
     sample_groups = {}
     sample_contamination = {}
-    # read enabled flags from each module's own Params (default True)
     enable_te = _enabled(datajson, "TEtranscripts")
     enable_fusion = _enabled(datajson, "arriba")
     enable_variation = _enabled(datajson, "gatk_RNAseq")
@@ -2385,9 +2114,6 @@ def runRNAseq(
             outfiles += _figs(
                 f"{te_figures_dir}/manhattan/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}.manhattan",
                 _manhattan_fmts)
-            # locus boxplot / subfamily bar only run when their per-contrast
-            # family patterns are configured (Params.DESeq2.<rule>.families;
-            # rule 键 = 真实规则名,与 modules/DESeq2 读点一致)。
             for te_fig_rule, te_fig_dir in (("DESeq2_TElocal_locus_boxplot", "locus_box"),
                                             ("DESeq2_TElocal_subfamily_bar", "subfamily_bar")):
                 te_fig_families = (datajson.get("Params", {}).get("DESeq2", {}).get(te_fig_rule, {}) or {}).get("families", {}) or {}
@@ -2460,7 +2186,6 @@ def runRNAseq(
             raise ValueError(f"Failed to resolve organism {organism}: {e}")
         datajson["genome"]["default"] += organism
         datajson["Params"].setdefault("report", {}).setdefault("generate_report", {})["genome"] += organism
-        # species 精确到 rule:镜像写入 function_go_kegg/function_gsva 子键
         if organism in ["Homo sapiens", "human", "GRCh38"]:
             _fn_species = "human"
         elif organism in ["Mus musculus", "mouse", "GRCm39"]:
@@ -2497,10 +2222,7 @@ def runRNAseq(
             outfiles.append(f"{outdir}/counts/TEtranscripts/{organism}/{organism}_TElocal.tsv")
             outfiles.append(f"{outdir}/counts/TEtranscripts/{organism}/{organism}_TElocal_name.tsv")
 
-            # outfiles.append(f"{outdir}/counts/TEtranscripts/{organism}/{organism}_TElocal.tsv")
-        # featureCounts quantification
         outfiles.append(f"{outdir}/counts/featureCounts/{organism}/{organism}_featureCounts.tsv")
-        # GSVA enrichment analysis
         if datajson.get("Params", {}).get("function", {}).get(organism, {}).get("enabled", False):
             outfiles.append(f"{outdir}/function/{organism}/gsva/gsva_scores.tsv")
             _fn_gsva_fmts = (datajson.get("Params", {}).get("function", {})
@@ -2513,11 +2235,7 @@ def runRNAseq(
         if enable_report:
             outfiles.append(f"{outdir}/results/{organism}/RNAseq_report.pptx")
             outfiles.append(f"{outdir}/results/{organism}/figures/manifest.tsv")
-    # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
-    # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
-    # QC summary module (modules/qc_summary): cross-sample metric table +
-    # HTML summary; always part of the delivered output set.
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
     datajson["outfiles"] = outfiles
@@ -2542,8 +2260,6 @@ def runtRNAseq(
     The pipeline processes all samples together via a sample data sheet.
     """
     root_dir = _init_raw_json(datajson, indir, outdir, raw_files)
-    # data_dir 精确到 rule:Params.mimseq.mimseq_tRNAtools.data_dir(config
-    # 全量路径读取与写回,无 module 级共享回退)
     if not (datajson.get("Params", {}).get("mimseq", {})
             .get("mimseq_tRNAtools", {}) or {}).get("data_dir"):
         datajson.setdefault("Params", {}).setdefault("mimseq", {}).setdefault(
@@ -2628,11 +2344,7 @@ def runncRNAseq(
     outfiles.append(f"{outdir}/figures/manifest.tsv")
     outfiles += _register_regionplot(datajson, samples_info_dict,
                                      all_samples, outdir, "ncRNAseq")
-    # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
-    # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
-    # QC summary module (modules/qc_summary): cross-sample metric table +
-    # HTML summary; always part of the delivered output set.
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
     datajson["outfiles"] = outfiles
@@ -2657,8 +2369,6 @@ def runscRNAseq(
     datajson["sample_params"]["cellranger_input_dict"] = {k: v.__dict__ for k, v in cellranger_input_dict.items()}
     outfiles = []
     organisms = set()
-    # CLI --extra-args counters=/aligner= land at config top level and win
-    # over Params.workflow; normalize into Params.workflow for raw.json.
     _wf = datajson["Params"]["workflow"]
     counters = datajson.pop("counters", None) or _wf.get("counters") or ["scTE", "cellranger"]
     _wf["counters"] = counters
@@ -2699,13 +2409,7 @@ def runscRNAseq(
     datajson["sample_params"]["single_samples"] = single_samples
     datajson["sample_params"]["cellranger_dirs"] = cellranger_dirs
 
-    # compare sharing 已退役:比较设计唯一住 sample_params.design,
-    # pseudobulk 与 sccoda 各自经 common.smk::comparison_design 取
-    # pairwise / native 视图,不再有 Params 内的字符串/JSON 互通桥。
 
-    # teprofile compare sharing 同步退役:跨比较 TE 分数图在
-    # teprofile.smk 内直接取 sample_params.design 的 pairwise 视图。
-    # 比较设计:sample_params.design 是唯一对比定义源。
     cmp_design = datajson.get("sample_params", {}).get("design", {}) or {}
 
     def _tissue_has_design(t):
@@ -2739,18 +2443,15 @@ def runscRNAseq(
         else:
             raise ValueError(f"Unsupported aligner for scTE counter: {aligner}, must be star or cellranger")
     elif "cellranger" in counters:
-        # cellranger: keep defaults (min_genes=200, max_genes=6000, scrublet=True)
         datajson["Params"]["scanpy"]["cellranger"]["scanpy_qc"]["min_genes"] = 200
         datajson["Params"]["scanpy"]["cellranger"]["scanpy_qc"]["max_genes"] = 6000
         datajson["Params"]["scanpy"]["cellranger"]["scanpy_qc"]["scrublet"] = True
     else:
         raise ValueError(f"Unsupported counter type: {counters}, must be scTE or cellranger")
-    # Inject LLM config from environment variables (config takes priority over env)
     env_llm_method = os.environ.get("LLM_METHOD", None)
     env_llm_model = os.environ.get("LLM_MODEL", None)
     env_llm_api_key = os.environ.get("LLM_API_KEY", None)
     env_llm_base_url = os.environ.get("LLM_BASE_URL", None)
-    # Build tissue_samples for scanpy downstream
     tissue_samples = {}
     for sid in paired_samples + single_samples:
         tissue = getattr(samples_info_dict.get(sid), "tissue", None) or "unknown"
@@ -2761,51 +2462,22 @@ def runscRNAseq(
                 outfiles.append(f"{outdir}/common/5_combine_h5ad/{tissue}/{tissue}_{counter}_advanced.h5ad")
             else:
                 outfiles.append(f"{outdir}/common/5_combine_h5ad/{tissue}/{tissue}_{counter}_merged.h5ad")
-            # Pseudo-bulk DEG (PyDESeq2) — gated per counter by
-            # Params.scanpy.<counter>.scanpy_pseudobulk.enabled; consumes the
-            # scanpy_auto h5ad, so registering the report target pulls the
-            # qc→merge→auto chain into the DAG
             pb_cfg = ((datajson["Params"].get("scanpy", {}).get(counter, {}) or {})
                       .get("scanpy_pseudobulk", {}) or {})
-            # Register the report only for tissues owning at least one
-            # comparison in sample_params.design (the per-tissue rule
-            # derives its wire JSON from the same source).
             if pb_cfg.get("enabled") and _tissue_has_design(tissue):
                 outfiles.append(f"{outdir}/diff/pseudobulk/{tissue}/{counter}/pseudobulk_report.html")
-            # scCODA differential abundance (modules/sccoda) — gated per
-            # counter by Params.sccoda.<counter>.sccoda_run.enabled; consumes
-            # the scanpy_auto h5ad (obs: sample_id + cell_type), so
-            # registering the report target pulls the qc->merge->auto chain
-            # into the DAG. Tissue-presence gate reads sample_params.design
-            # (same source as the rule's native view).
             sc_cfg = ((datajson["Params"].get("sccoda", {}) or {}).get(counter, {})
                       or {}).get("sccoda_run", {}) or {}
             if sc_cfg.get("enabled") and _tissue_has_design(tissue):
                 outfiles.append(f"{outdir}/diff/abundance/{tissue}/{counter}/sccoda_report.html")
-            # Manual cluster-annotation overrides (scanpy_reannotate): an
-            # in-place label fix over the auto h5ad (auto.h5ad.bak keeps
-            # one generation). Register the marker file only for tissues
-            # with an override JSON configured (producer rule
-            # scanpy_reannotate's own cluster_annotations key).
             ca = ((datajson["Params"].get("scanpy", {}).get(counter, {}) or {})
                   .get("scanpy_reannotate", {}) or {}).get("cluster_annotations", {}) or {}
             if tissue in ca:
                 outfiles.append(f"{outdir}/common/5_combine_h5ad/{tissue}/{tissue}_{counter}_auto.h5ad.reannotated")
-    # tissue→样本映射是样本注册表,存 sample_params(purity 规范,见
-    # subworkflow/subworkflow.md);scanpy/sccoda 模块经接线取用。
     datajson["sample_params"]["tissue_samples"] = tissue_samples
-    # GO/KEGG enrichment over the pseudobulk tree (modules/function/
-    # pseudobulk_go): one sentinel target pulls the per-unit enrichment jobs
-    # behind the runtime discovery checkpoint. Gated by
-    # Params.function.pseudobulk_go.enabled.
     pbgo_cfg = (datajson["Params"].get("function", {}) or {}).get("pseudobulk_go", {}) or {}
     if pbgo_cfg.get("enabled"):
         outfiles.append(f"{outdir}/function/go_kegg/enrichment.done")
-    # TE-dominant cluster identification (modules/tedominant): one
-    # group-level run over all tissues, gated by
-    # Params.tedominant.enabled; consumes the combine-stage h5ad pair
-    # (registering the table + done marker pulls the qc->merge->auto
-    # chain for every tissue into the DAG).
     tedom_cfg = datajson["Params"].get("tedominant", {}) or {}
     if tedom_cfg.get("enabled"):
         outfiles.append(f"{outdir}/diff/figures_te/te_dominant_clusters.csv")
@@ -2814,9 +2486,6 @@ def runscRNAseq(
         for tissue in tissue_samples.keys():
             outfiles.append(f"{outdir}/diff/figures_te/cluster_burden_{tissue}.png")
             outfiles.append(f"{outdir}/diff/figures_te/umap_te_{tissue}.png")
-    # TE profile (modules/teprofile): three-layer TE expression
-    # characterization over the same h5ad pairs; gated by
-    # Params.teprofile.enabled.
     tep_cfg = datajson["Params"].get("teprofile", {}) or {}
     if tep_cfg.get("enabled"):
         outfiles.append(f"{outdir}/diff/te_profile/te_profile_baseline.csv")
@@ -2826,17 +2495,13 @@ def runscRNAseq(
             outfiles.append(f"{outdir}/diff/te_profile/baseline_te_fraction_{tissue}.png")
             outfiles.append(f"{outdir}/diff/te_profile/baseline_family_comp_{tissue}.png")
             outfiles.append(f"{outdir}/diff/te_profile/cluster_deviation_{tissue}.png")
-        # layer-3 remodeling outputs (same gate as the smk's remod_fig)
         if tep_cfg.get("groups") or tep_cfg.get("contrasts"):
             outfiles.append(f"{outdir}/diff/te_profile/te_profile_remodeling.csv")
             for tissue in tissue_samples.keys():
                 outfiles.append(f"{outdir}/diff/te_profile/remodeling_shift_{tissue}.png")
-        # cross-comparison TE fraction figure (pairwise view of
-        # sample_params.design; same gate as teprofile.smk)
         if any(_tissue_has_design(t) for t in tissue_samples):
             outfiles.append(f"{outdir}/diff/te_profile/te_fraction_cross_tissue.png")
             outfiles.append(f"{outdir}/diff/te_profile/te_fraction_compare_design.json")
-    # outfiles.append(f"{outdir}/scRNAseq_report.pptx")
     datajson["outfiles"] = outfiles
     return _write_raw_json(datajson, outdir)
 
@@ -2885,7 +2550,6 @@ def runFiberseq(
     samples = []
     genome_versions = set()
     default_ref = _resolve_genome_ref(datajson, samples_info_dict, "Fiberseq")
-    ### switch 
     enable_annotate = _enabled(datajson, "annotate")
     enable_motif = _enabled(datajson, "motif")
     enable_footprint = _enabled(datajson, "footprint")
@@ -2904,22 +2568,16 @@ def runFiberseq(
     want_motif = enable_motif or enable_footprint
     want_quant = enable_quant or enable_diff or enable_haplotype
     want_eccdna = _enabled(datajson, "decoil") and default_ref.get("gtf")
-    # sawfish CNV calling: 默认不开启(Params.sawfish.enabled 默认 false);
-    # 断点 SV 鉴定输出同样默认不开启(Params.sawfish.call_sv 默认 false)。
     _sawfish_params = datajson.get("Params", {}).get("sawfish", {}) or {}
     enable_cnv = bool(_sawfish_params.get("enabled", False))
     cnv_call_sv = bool(_sawfish_params.get("call_sv", False))
 
-    ### collect data
     for sample_id, sample_info in samples_info_dict.items():
         genome_versions.add(sample_info.organism)
         samples.append(sample_id)
-        # Step 1: prepare fiberseq BAM (predict-m6a + fire)
         outfiles.append(f"{outdir}/common/2_fiberseq_bam/{sample_id}/{sample_id}.fiberseq.fire.bam")
-        # Step 2: aligned BAM (pbmm2)
         outfiles.append(f"{outdir}/common/3_align_bam/{sample_id}/{sample_id}.fiberseq.fire.sorted.bam")
         outfiles.append(f"{outdir}/common/3_align_bam/{sample_id}/{sample_id}.fiberseq.fire.sorted.bai")
-        # Step 3: raw results
         outfiles.append(f"{outdir}/common/4_elements/{sample_id}/{sample_id}.m6a.bed.gz")
         outfiles.append(f"{outdir}/common/4_elements/{sample_id}/{sample_id}.nuc.bed.gz")
         outfiles.append(f"{outdir}/common/4_elements/{sample_id}/{sample_id}.msp.bed.gz")
@@ -2928,14 +2586,10 @@ def runFiberseq(
         outfiles.append(f"{outdir}/common/4_elements/{sample_id}/{sample_id}.fire_fdr_table.tsv")
         outfiles.append(f"{outdir}/common/4_elements/{sample_id}/{sample_id}.fire.bed.gz")
         outfiles.append(f"{outdir}/common/4_elements/{sample_id}/{sample_id}.qc.tsv")
-        # FIRE null artifacts (ft_call_peaks; header-only placeholders
-        # outside fdr mode)
         outfiles.append(f"{outdir}/common/4_elements/{sample_id}/{sample_id}.fibers.bed")
         outfiles.append(f"{outdir}/common/4_elements/{sample_id}/{sample_id}.fibers.shuffled.bed")
-        # coverage bigwig (deeptools bamCoverage; feeds trackDb/regionplot)
         outfiles.append(f"{outdir}/common/6_coverage_bw/{sample_id}/{sample_id}.coverage.bw")
 
-        # Step 4: downstream (gated by Params.*.enabled)
         if enable_annotate:
             outfiles.append(f"{outdir}/fiberseq_analysis/annotate/{sample_id}/{sample_id}.peaks_annotated.tsv")
             outfiles.append(f"{outdir}/fiberseq_analysis/annotate/{sample_id}/{sample_id}.peaks_summary.tsv")
@@ -2993,9 +2647,6 @@ def runFiberseq(
                 f"{outdir}/fiberseq_analysis/censat/{sample_id}/{sample_id}.censat_profile",
                 _censat_fmts)
 
-        # Telomere length analysis (modules/telomere); method-gated.
-        # NOTE: read_density on the aligned fire.bam is alignment-biased (module
-        # README §3.1/§3.4) — ideally run on the raw HiFi BAM for unbiased ATL.
         if enable_telomere:
             _TEL_METHODS = ("telogator2", "assembly_scan", "read_density", "tidk")
             _tel_methods = (datajson.get("Params", {}).get("telomere", {}).get("method")
@@ -3044,27 +2695,19 @@ def runFiberseq(
             if "assembly_scan" in _tel_methods:
                 outfiles.append(f"{outdir}/telomere/regions/{sample_id}/{sample_id}.telomere.bed")
 
-        # Assembly QC (modules/hifiasm rule hifiasm_qc); gated by
-        # Params.hifiasm.enabled (未设置时跟随 telomere) + Params.hifiasm.qc.enabled
         _register_hifiasm_qc(outfiles, datajson, f"{outdir}/assembly", sample_id)
 
-        # Step 5: haplotype chain
         if enable_haplotype:
             outfiles.append(f"{outdir}/variation/germline_snv_indel/{sample_id}/{sample_id}.vcf.gz")
             outfiles.append(f"{outdir}/variation/germline_snv_indel/{sample_id}/{sample_id}.vcf.gz.csi")
             outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.svsig.gz")
             outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz")
             outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz.csi")
-            # hiphase module writes to {outdir}/common/5_phased_bam (see
-            # subworkflow/Fiberseq.smk hiphase_config), NOT {var}/phased.
             outfiles.append(f"{outdir}/common/5_phased_bam/{sample_id}/{sample_id}.phased.bam")
             outfiles.append(f"{outdir}/common/5_phased_bam/{sample_id}/{sample_id}.phased.vcf.gz")
             outfiles.append(f"{outdir}/common/5_phased_bam/{sample_id}/{sample_id}.phased.vcf.gz.tbi")
             phased_dir = f"{outdir}/common/5_phased_bam"
             for hap in ("hap1", "hap2"):
-                # {hap}.bam/.bam.bai are intermediates (ft_split_hap output,
-                # wrapped by maybe_temp under Params.fibertools.keep_intermediates);
-                # not deliverables — see modules.md temp spec.
                 outfiles.append(f"{phased_dir}/{sample_id}/{sample_id}.{hap}.m6a.bed.gz")
                 outfiles.append(f"{phased_dir}/{sample_id}/{sample_id}.{hap}.nuc.bed.gz")
                 outfiles.append(f"{phased_dir}/{sample_id}/{sample_id}.{hap}.msp.bed.gz")
@@ -3073,17 +2716,11 @@ def runFiberseq(
             outfiles.append(f"{outdir}/fiberseq_analysis/haplotype/{sample_id}/{sample_id}.haplotype_diff.tsv")
             outfiles.append(f"{outdir}/fiberseq_analysis/haplotype/{sample_id}/{sample_id}.haplotype_summary.tsv")
 
-        # Step 6: eccDNA reconstruction (requires genome GTF) 
         if want_eccdna:
             outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/reconstruct.bed")
             outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/reconstruct.ecDNA.bed")
             outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/reconstruct.ecDNA.filtered.bed")
             outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/summary.txt")
-            # Visualization: per-sample stats + interactive IGV HTML
-            # Same key and fallback as modules/decoil/decoil.smk ("formats",
-            # plural, or ["png"]) so registered targets match rule outputs.
-            # Normalize + validate: a str default or dirty JSON must not leak
-            # through as a non-list ("for fmt in 'png'" iterates characters).
             formats = datajson.get("Params", {}).get("decoil", {}).get("structure", {}).get("formats") or ["png"]
             if isinstance(formats, str):
                 formats = [formats]
@@ -3095,9 +2732,6 @@ def runFiberseq(
             outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/decoil_structure_genes.tsv")
             outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/igv_ecdna.html")
             outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/ucsc_track.txt")
-            # Cross-sample comparison (aggregated): the decoil module writes
-            # these under {outdir}/compare/ (see modules/decoil/decoil.smk
-            # rule decoil_compare), NOT {outdir}/visualization/.
             _decoil_cmp_fmts = (datajson.get("Params", {}).get("decoil", {})
                                 .get("compare", {}).get("formats") or ["png"])
             if isinstance(_decoil_cmp_fmts, str):
@@ -3110,8 +2744,6 @@ def runFiberseq(
             outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz")
             outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz.csi")
 
-    # CNV calling (sawfish cohort-level joint-call; module wired in
-    # subworkflow/Fiberseq.smk). Default OFF — see Params.sawfish.enabled.
     if enable_cnv:
         outfiles.append(f"{outdir}/variation/germline_cnv/cnv/sawfish.cnv.vcf.gz")
         outfiles.append(f"{outdir}/variation/germline_cnv/cnv/sawfish.cnv.vcf.gz.csi")
@@ -3120,10 +2752,6 @@ def runFiberseq(
             outfiles.append(f"{outdir}/variation/germline_cnv/cnv/sawfish.sv.vcf.gz")
             outfiles.append(f"{outdir}/variation/germline_cnv/cnv/sawfish.sv.vcf.gz.csi")
 
-    # Comparison figure modules (not per-sample): telocen_norm (fig2) and
-    # epi_drift (fig9). Both are ON by default: without a configured two-group
-    # comparison (Params.<step>.groups) they are skipped with a warning; a
-    # PARTIAL groups config is a real error and raises.
     _run_compare = {}
     for _step in ("telocen_norm", "epi_drift"):
         if not _enabled(datajson, _step):
@@ -3166,11 +2794,6 @@ def runFiberseq(
     genome_version = next(iter(genome_versions))
     order_genome_version = datajson["genome"]["default"]
     if genome_version == "UNKNOWN":
-        # meta organism column is empty/unrecognized; the literal "UNKNOWN"
-        # must never reach Params.sv.exp_specific.species/assembly: vep_install
-        # would run with -s UNKNOWN and die with exit 255 "No matching
-        # species". Fall back to the config genome.default, which the
-        # reference table resolves.
         logger.warning(
             f"meta organism column is UNKNOWN; using genome.default from config.json "
             f"({order_genome_version}) for Params.sv.exp_specific instead of the literal UNKNOWN."
@@ -3181,7 +2804,6 @@ def runFiberseq(
             f"user defined genome versions in meta file ({genome_version}) do not match the genome version defined in config.json ({order_genome_version}) it may come from default value or command-line arguments. "
             f"Using the genome version from meta file ({genome_version}) for downstream analysis."
         )
-    ### inject outfiles
     sv_params = datajson.get("Params", {}).get("sv", {})
     _validate_te_lib(datajson, "Fiberseq")
     _fill_mei_rm_species(datajson, "Fiberseq")
@@ -3219,20 +2841,13 @@ def runFiberseq(
             outfiles.append(f"{base}/{name}_merged.vcf")
             outfiles.append(f"{base}/{name}_only.vcf")
             outfiles.append(f"{base}/{name}_annotated.tab")
-            # TE enrichment (RepeatMasker subfamily test) + per-SV stats from
-            # sv_exp_specific — registered via the rules' marker files
-            # (directories are never declared as outputs, see modules.md)
             outfiles.append(f"{base}/repeatmasker/repeatmasker.done")
             outfiles.append(f"{base}/statistics/statistics.done")
             outfiles.append(f"{base}/circos/circos.done")
-            # MEI suite (sv_mei rule): classified insertions + 6-figure
-            # suite; gate via Params.sv.mei.enabled (default on)
             if (datajson.get("Params", {}).get("sv", {}).get("mei", {}) or {}).get("enabled", True):
                 outfiles.append(f"{base}/mei/mei.done")
             if sv_genes:
                 outfiles.append(f"{base}/gene_model/gene_model.done")
-        # SV-affected genes GO/KEGG (modules/function/sv_go; macaque-aware
-        # clusterProfiler route). Registered only when the gate is on.
         svgokegg_params = datajson.get("Params", {}).get("function", {}).get("sv_go_kegg", {}) or {}
         if svgokegg_params.get("enabled"):
             svgokegg_species = resolve_genome(genome_version,"alias")
@@ -3249,33 +2864,17 @@ def runFiberseq(
         if sv_oncoprint.get("cosmic_file"):
             outfiles.append(f"{sv_outdir}/sv_oncoprint/oncoprint_matrix.csv")
 
-    # Cross-sample outputs
     if enable_quant or enable_diff:
         for metric in ("percent_accessible", "nuc_occupancy", "m6a_per_fiber", "fire_frac"):
             outfiles.append(f"{outdir}/fiberseq_analysis/quant/matrix/{metric}_matrix.tsv")
 
-    # Modification significance (modules/fiberseq/mods + sigtest): m6A/CpG
-    # per-fiber density over FIRE peaks, tested per contrast; significant
-    # regions land in a regionplot-ready BED under fiberseq_analysis/mods.
-    # Groups/contrasts come from the meta-derived group_pairs (same source
-    # sv uses) — the meta is the single source of grouping, no design file.
-    # single config name (no compat alias per repo convention: a rename that
-    # unifies a key ships no fallback read — regenerate raw.json instead)
     enable_mods = _enabled(datajson, "fiberseq_mods")
     if enable_mods:
         mods_params = (datajson.setdefault("Params", {}).get("fiberseq_mods")
                        or datajson["Params"].setdefault("fiberseq_mods", {}))
-        # 参数精确到 rule:mod_type/region_axis 是各 rule 独立键
-        # (Params.fiberseq_mods.<rule>.<key>;长表文件名由
-        # fiberseq_mods_longtable 产出,以其子键为锚;config 全量路径读取,
-        # 无旧扁平键/跨 rule 回退)
         mod_type = ((datajson.get("Params", {}).get("fiberseq_mods", {})
                      .get("fiberseq_mods_longtable", {}) or {})
                     .get("mod_type") or "m6a")
-        # region_axis is a discriminant object ({default, options}); the
-        # axis id selects the engine, the long-table schema, and which
-        # axis-specific params (min_fibers/loci_top_n vs metric/top_n)
-        # apply. Flat strings are NOT accepted (closed-set parse error).
         _ra = ((datajson.get("Params", {}).get("fiberseq_mods", {})
                 .get("fiberseq_mods_longtable", {}) or {})
                .get("region_axis") or {})
@@ -3293,8 +2892,6 @@ def runFiberseq(
                 f"options={sorted(_ra.get('options') or {})})")
         metric = axis_opts.get("metric", f"{mod_type}_per_fiber")
         if region_axis == "te":
-            # tested TE levels belong to sigtest (they choose its feature
-            # column); read there (config 全量路径,无旧扁平键回退)
             sigtest_params = datajson["Params"].setdefault("sigtest", {})
             te_levels = ([lv for lv in sigtest_params.get("te_levels", ["subfamily", "family"])
                           if lv in ("subfamily", "family")])
@@ -3307,27 +2904,18 @@ def runFiberseq(
         else:
             te_levels = []
             long_name = f"{metric}_long.tsv"
-        # grouping: meta design ONLY (group_pairs, same source sv uses)
         if not group_pairs:
             raise ValueError(
                 "Params.fiberseq_mods.enabled=true needs the meta "
                 "design/group columns filled (they drive group_pairs)."
             )
         mods_contrasts = _contrasts_from_group_pairs(group_pairs)
-        # TE axis: one sigtest contrast per (group pair x te level) named
-        # "<contrast>.<level>"; fire_peaks axis: bare contrast names.
         contrast_names = sorted(
             f"{c}.{lv}" if lv else c
             for c in mods_contrasts
             for lv in (te_levels or [None])
         )
-        # group -> sample lists for the module (long-table group column +
-        # top-loci group specs); parse-time expand needs the contrast list
-        # contrasts 是接线键(subworkflow 转发为模块顶层 contrasts),非 rule 参数
         mods_params["contrasts"] = contrast_names
-        # 写回精确到 rule:group_samples 消费于 fiberseq_mods_longtable 与
-        # fiberseq_mods_top_loci;groups_by_contrast 仅 top_loci 消费(其规则
-        # 只读自己的子键——多组设计否则每个 contrast 都回退"前两组")
         _group_samples = {
             g: samples for ctr in mods_contrasts.values() for g, samples in ctr.items()
         }
@@ -3340,9 +2928,6 @@ def runFiberseq(
             mods_params.setdefault(_mr, {})["group_samples"] = _group_samples
         mods_params.setdefault("fiberseq_mods_top_loci", {})["groups_by_contrast"] = _groups_by_contrast
         mods_base = f"{outdir}/fiberseq_analysis/mods"
-        # sigtest module wiring (subworkflow use rule): its input table is
-        # our long table; group pair per contrast comes from the same map,
-        # feature column per contrast from the level suffix
         sigtest_params = datajson["Params"].setdefault("sigtest", {})
         sigtest_params["sigtest_table"] = f"{mods_base}/{long_name}"
         sigtest_params["contrasts"] = contrast_names
@@ -3355,7 +2940,6 @@ def runFiberseq(
             sigtest_params["feature_col_by_contrast"] = {
                 f"{c}.{lv}": lv for c in mods_contrasts for lv in te_levels
             }
-        # sigtest plot formats ([] = no figure; absorbs the old no_plot)
         _st_plot = (sigtest_params.get("plot", {}) or {})
         _plot_fmts = _st_plot.get("formats")
         if _plot_fmts is None:
@@ -3363,24 +2947,15 @@ def runFiberseq(
         if isinstance(_plot_fmts, str):
             _plot_fmts = [_plot_fmts]
         outfiles.append(f"{mods_base}/{long_name}")
-        # sigtest subtree: significance tables/figures AND the mods
-        # postprocess products (significant_objects/top_loci) all live
-        # under sigtest/<contrast>/ — postprocess outputs are classified
-        # by their DATA (sigtest results), not by the producing module
         for contrast in contrast_names:
             sig_base = f"{outdir}/fiberseq_analysis/sigtest/{contrast}"
             outfiles.append(f"{sig_base}/significance_test.tsv")
             for fmt in _plot_fmts:
-                # per-format figures live under significance_bars/ +
-                # optional significance_bars_overview.{fmt}; all tracked
-                # by the done marker the rule declares
                 pass
             if _plot_fmts:
                 outfiles.append(f"{sig_base}/significance_bars.done")
             outfiles.append(f"{sig_base}/significant_objects.tsv")
             if region_axis != "te":
-                # BED only on the fire_peaks axis (coordinate features);
-                # TE features are family names -- no BED
                 outfiles.append(f"{sig_base}/significant_objects.bed")
             outfiles.append(f"{sig_base}/nonsignificant_objects.tsv")
             if region_axis == "te":
@@ -3388,16 +2963,12 @@ def runFiberseq(
                 outfiles.append(f"{sig_base}/top_loci.bed")
 
     if enable_diff:
-        # grouping: meta design ONLY (group_pairs) — same source mods uses
         if not group_pairs:
             raise ValueError(
                 "Params.diff.enabled=true needs the meta "
                 "design/group columns filled (they drive group_pairs)."
             )
         contrast_groups = _contrasts_from_group_pairs(group_pairs)
-        # contrast spec string for the engine (diff_accessibility --group-spec)
-        # group_spec 精确到 rule:写回 fiberseq_diff_run 子键(消费 rule 经
-        # rule_param 读取)
         datajson["Params"].setdefault("diff", {}).setdefault(
             "fiberseq_diff_run", {})["group_spec"] = ",".join(
             f"{c}:" + "|".join(f"{g}:{'+'.join(ss)}" for g, ss in gs.items())
@@ -3414,10 +2985,7 @@ def runFiberseq(
             outfiles.append(f"{base}/class_summary_{contrast}.tsv")
             outfiles.append(f"{base}/TEcount/{contrast}.TEcount_Gene.name.tsv")
 
-        # function 模块的对比视图(group 名排序定角色,匹配 diff_accessibility
-        # 约定)由 Fiberseq.smk 接线从 design 派生视图取。
 
-        # GO/KEGG + GSEA outputs from the shared function module
         if enable_function:
             for contrast in sorted(contrast_groups):
                 base = f"{outdir}/function/{contrast}"
@@ -3459,14 +3027,8 @@ def runFiberseq(
     datajson["sample_params"]["raw_files"] = raw_files
     outfiles += _register_regionplot(datajson, samples_info_dict, samples, outdir, "Fiberseq")
     outfiles += _register_fiberbrowser(datajson, samples_info_dict, samples, outdir, "Fiberseq")
-    # Fiber pattern clustering + report package (modules/fibercluster):
-    # per-setting done markers + report files; gated by Params.fibercluster.
     outfiles += _register_fibercluster(datajson, outdir, "Fiberseq")
-    # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
-    # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
-    # QC summary module (modules/qc_summary): cross-sample metric table +
-    # HTML summary; always part of the delivered output set.
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
     datajson["outfiles"] = outfiles
@@ -3510,27 +3072,19 @@ def runLRtranscriptome(
 
     for sample_id, sample_info in samples_info_dict.items():
         samples.append(sample_id)
-        # Alignment output
         outfiles.append(f"{outdir}/alignment/{sample_id}/{sample_id}.sorted.bam")
         outfiles.append(f"{outdir}/alignment/{sample_id}/{sample_id}.sorted.bam.bai")
-        # Assembly output
         outfiles.append(f"{outdir}/stringtie/raw/{sample_id}/{sample_id}.gtf")
 
-    # Merged transcriptome (across all samples)
     outfiles.append(f"{outdir}/stringtie/stringtie_merged.gtf")
 
-    # Quantification output
     if not skip_quant:
         for sample_id in samples:
             outfiles.append(f"{outdir}/quantification/{sample_id}/{sample_id}.gene_abund.tab")
             outfiles.append(f"{outdir}/quantification/{sample_id}/{sample_id}.quant.gtf")
 
     datajson["sample_params"]["samples"] = samples
-    # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
-    # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
-    # QC summary module (modules/qc_summary): cross-sample metric table +
-    # HTML summary; always part of the delivered output set.
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
     datajson["outfiles"] = outfiles
@@ -3592,7 +3146,6 @@ def runDR(
     _fill_organism_samples(datajson, samples_info_dict)
     _resolve_genome_ref(datajson, samples_info_dict, "DR")
 
-    # --- Chain routing by meta data_type (the ONLY routing axis) ---
     dna_samples: List[str] = []
     rna_samples: List[str] = []
     for sample_id, info in samples_info_dict.items():
@@ -3624,14 +3177,11 @@ def runDR(
     dna_single_samples: List[str] = []
     genome_paired_samples = {}
     genome_single_samples = {}
-    paired_design = []          # [{"control": normal_dna, "experimental": tumor_dna}]
+    paired_design = []
     pair_strains = {}
     drclass_samples = {}
     strain_vcfs = datajson.get("sample_params", {}).get("drclass_strain_vcfs", {})
 
-    # --- DNA design pairs (standard ctr_/exp_ semantics, Mutation parity) ---
-    # Both endpoints DNA -> matched normal/tumor somatic pair. Cross-type or
-    # RNA-only pairs are not chain-routing devices; cross-type ones are ignored.
     dna_set, rna_set = set(dna_samples), set(rna_samples)
     dna_design_pairs = []
     for designPair in designPairs:
@@ -3639,7 +3189,7 @@ def runDR(
         if ctr_id in dna_set and exp_id in dna_set:
             dna_design_pairs.append(designPair)
         elif ctr_id in rna_set and exp_id in rna_set:
-            continue  # RNA contrast pair; DE uses group_pairs below
+            continue
         else:
             logger.warning(
                 f"DR: ignoring mixed DNA/RNA design pair {ctr_id} vs {exp_id}; "
@@ -3667,12 +3217,9 @@ def runDR(
 
     dna_raw_staging = _raw_staging_root(dna_samples)
     rna_raw_staging = _raw_staging_root(rna_samples)
-    # Chain consumption: chain 1 reads indir (RNA root), chain 0 reads the
-    # dna_indir key (DNA root) — both rewritten here after staging.
     datajson["Params"]["workflow"]["indir"] = rna_raw_staging
     datajson["Params"]["workflow"]["dna_indir"] = dna_raw_staging
 
-    # --- DNA chain: verify staged fastq, classify layouts ---
     for key in dna_samples:
         dna_id = _disp(key)
         info = samples_info_dict[key]
@@ -3687,7 +3234,6 @@ def runDR(
             raise ValueError(f"DR: DNA fastq not staged for {dna_id} under {dna_raw_staging} "
                              f"(expected {staged}; meta must carry fastq_1/fastq_2 for DNA rows)")
 
-    # --- RNA chain sample grouping ---
     for key in rna_samples:
         rna_id = _disp(key)
         rna_info = samples_info_dict[key]
@@ -3699,11 +3245,6 @@ def runDR(
         else:
             raise ValueError(f"DR: unknown layout for RNA sample {rna_id}: {rna_info.layout}")
 
-    # --- RNA chain analysis products (RNAseq.smk parity) ---
-    # Counts / DE / enrichment / assembly / fusion / report / QC registration
-    # mirrored from runRNAseq, every path scoped under {outdir}/RNA. DE
-    # contrasts: RNA-only design group pairs. Function enrichment stays gated
-    # by Params.function.<organism>.enabled like runRNAseq.
     enable_te = _enabled(datajson, "TEtranscripts")
     enable_fusion = _enabled(datajson, "arriba")
     enable_deseq2 = _enabled(datajson, "DESeq2")
@@ -3725,7 +3266,6 @@ def runDR(
         logger.info("DR: no RNA DE contrasts (declare RNA-row comparisons in the "
                     "design JSON (--design)); DE/function pair outputs skipped")
 
-    # StringTie sample grouping from the RNA rows' group column
     _sample_groups = {}
     for sid in rna_samples:
         _g = (samples_info_dict[sid].group or "").strip()
@@ -3733,8 +3273,6 @@ def runDR(
             _sample_groups.setdefault(_g, []).append(_disp(sid))
     datajson["sample_params"]["sample_groups"] = _sample_groups
 
-    # XenofilteR host/contaminant map (runRNAseq parity; contaminant defaults
-    # to the host genome when the meta leaves contaminated_organism empty)
     _sample_contamination = {}
     for sid in rna_samples:
         _info = samples_info_dict[sid]
@@ -3744,7 +3282,6 @@ def runDR(
         }
     datajson["Params"].setdefault("XenofilteR", {})["sample_contamination"] = _sample_contamination
 
-    # per-contrast DE + function outputs
     for _org, _pairs in rna_group_pairs.items():
         for _pair_name in _pairs:
             if enable_deseq2 and enable_TEcount:
@@ -3757,8 +3294,6 @@ def runDR(
                 if isinstance(_m_fmts, str):
                     _m_fmts = [_m_fmts]
                 outfiles += _figs(f"{_te_dir}/manhattan/{_pair_name}.manhattan", _m_fmts)
-                # locus boxplot / subfamily bar only run when their per-contrast
-                # family patterns are configured (Params.DESeq2.<rule>.families)
                 for _te_fig_rule, _te_fig_dir in (("DESeq2_TElocal_locus_boxplot", "locus_box"),
                                                   ("DESeq2_TElocal_subfamily_bar", "subfamily_bar")):
                     _fam = (datajson.get("Params", {}).get("DESeq2", {}).get(_te_fig_rule, {}) or {}).get("families", {}) or {}
@@ -3788,8 +3323,6 @@ def runDR(
                 outfiles.append(f"{_pair_dir}/down_genes.txt")
                 outfiles.append(f"{_pair_dir}/GSEA/TEcount_Gene_GSEA.csv")
 
-    # per-sample RNA products (the variation VCF + BAM are registered with the
-    # DRclass map below as chain evidence)
     for key in rna_samples:
         sid = _disp(key)
         _org = samples_info_dict[key].organism
@@ -3798,10 +3331,7 @@ def runDR(
         if enable_fusion:
             outfiles.append(f"{outdir}/RNA/fusion/{_org}/{sid}/{sid}_passed_fusions.tsv")
 
-    # per-organism RNA products
     for _org in dict.fromkeys(samples_info_dict[sid].organism for sid in rna_samples):
-        # function species mirror runRNAseq (checked only when function is
-        # enabled for the organism; unsupported species hard-error like there)
         _fn_org = datajson["Params"].setdefault("function", {}).setdefault(_org, {})
         if _fn_org.get("enabled", False):
             if _org in ("Homo sapiens", "human", "GRCh38"):
@@ -3838,24 +3368,13 @@ def runDR(
         if enable_TElocal:
             outfiles.append(f"{outdir}/RNA/counts/TEtranscripts/{_org}/{_org}_TElocal.tsv")
             outfiles.append(f"{outdir}/RNA/counts/TEtranscripts/{_org}/{_org}_TElocal_name.tsv")
-        # gene expression quantification (always delivered)
         outfiles.append(f"{outdir}/RNA/counts/featureCounts/{_org}/{_org}_featureCounts.tsv")
 
-    # (RNA 链报告交付物由文件末尾的 DR_report 统一注册 —— 不再单独注册
-    #  RNAseq_report.pptx/manifest,也不再写回 Params.RNAseq_report 段。)
 
-    # Sex check + QC summary (modules/sexcheck, modules/qc_summary): mirrored
-    # from runRNAseq, registered unconditionally for the delivered output set.
     outfiles.append(f"{outdir}/RNA/QC/sexcheck/sexcheck.tsv")
     outfiles.append(f"{outdir}/RNA/QC/qc_summary/qc_summary.tsv")
     outfiles.append(f"{outdir}/RNA/QC/qc_summary/qc_summary.html")
 
-    # --- DRclass per-sample explicit file map (chain outputs) ---
-    # Evidence pairing rule: a DNA sample and a RNA sample sharing the same
-    # sample name (different data_type) are the two assays of one biological
-    # sample -> one DRclass pairing. Hand-filled sample_params.dr_pairs
-    # ({dna_name: rna_name}) overrides. Entries need a somatic VCF, so only
-    # somatic tumors of the DNA design pairs get classified.
     _paired_map = {
         rec["experimental"]: rec["control"]
         for rec in paired_design
@@ -3912,7 +3431,6 @@ def runDR(
             f"{outdir}/DRclass/{tumor_name}/{tumor_name}.dna_anchored.tsv",
             f"{outdir}/DRclass/{tumor_name}/{tumor_name}.rna_anchored.tsv",
         ]
-        # chain-1 RNA products (so the DAG builds them)
         outfiles += [rna_vcf, rna_bam]
 
     if dr_pairs and not drclass_samples:
@@ -3922,11 +3440,6 @@ def runDR(
             "DRclass chain and DRclass_summary.tsv are not registered for "
             "this run")
 
-    # --- chain-0 DNA products: full Mutation.smk analysis set ---
-    # Sequencing assay -> CNVkit --seq-method (Mutation parity; judged over the
-    # DNA rows only — RNA rows share the meta). The meta `assay` column wins
-    # over the config value; all DNA rows must share one assay. DNA is not
-    # assumed to be WES: an absent assay column keeps the config value as-is.
     _ref_entry = datajson["genome"]["references"][datajson["genome"]["default"]]
     _ASSAY_TO_CNVKIT_METHOD = {
         "wgs": "wgs", "exome": "hybrid", "wes": "hybrid",
@@ -3948,11 +3461,6 @@ def runDR(
             f"DR: unknown meta assay '{_dna_assays[0]}'; expected one of "
             f"{sorted(_ASSAY_TO_CNVKIT_METHOD)}"
         )
-    # Capture region (Mutation parity): an explicit genome.references.<g>.targets
-    # BED wins; exome/hybrid assays derive it from markdup BAM coverage
-    # (DR.smk derive_targets), registered here for GATK -L, CNVkit --targets
-    # and burden. wgs/amplicon assays and an absent assay column have no
-    # capture region (DNA is not assumed to be WES).
     if _ref_entry.get("targets"):
         _targets = _ref_entry["targets"]
     elif _dna_assay_method == "hybrid":
@@ -3963,8 +3471,6 @@ def runDR(
         _targets = None
         _ref_entry["targets"] = None
 
-    # Somatic (Mutect2) outputs per design pair + the sample -> file maps the
-    # spectrum/burden modules consume.
     sample_somatic_vcf_dict = {}
     sample_group_dict = {}
     for rec in paired_design:
@@ -3975,9 +3481,6 @@ def runDR(
         sample_group_dict[rec["experimental"]] = (
             getattr(dna_info.get(rec["experimental"]), "group", "") or "")
         outfiles.append(somatic_file)
-    # Germline (HaplotypeCaller) raw + filtered VCF for every DNA sample:
-    # raw is the DRclass anchor, filtered completes the Mutation germline
-    # analysis for delivery.
     for key in dna_samples:
         dna_id = _disp(key)
         outfiles.append(f"{outdir}/DNA/variation/germline_snv_indel/"
@@ -3985,17 +3488,12 @@ def runDR(
         outfiles.append(f"{outdir}/DNA/variation/germline_snv_indel/"
                         f"{dna_id}/{dna_id}.filtered.vcf.gz")
 
-    # Alignment QC (samtools flagstat) + hybrid-selection QC (CollectHsMetrics
-    # over the capture region; Mutation parity — also the qc_summary anchors).
     for key in dna_samples:
         dna_id = _disp(key)
         outfiles.append(f"{outdir}/DNA/common/3_sorted_bam/{dna_id}/{dna_id}_flagstat.txt")
         if _targets:
             outfiles.append(f"{outdir}/DNA/common/4_markdup_bam/{dna_id}/{dna_id}.hs_metrics.txt")
 
-    # Somatic mutation spectrum (modules/spectrum) — wired whenever design
-    # pairs exist; signature analysis follows Params.somatic_spectrum
-    # .signature.enabled (default off), mode selects which outputs register.
     if paired_design:
         _spectrum_fmts = (datajson.get("Params", {}).get("somatic_spectrum", {})
                           .get("plot", {}).get("formats") or ["png"])
@@ -4011,10 +3509,6 @@ def runDR(
         _sig_cfg = datajson["Params"].get("somatic_spectrum", {}).get("signature", {}) or {}
         if _sig_cfg.get("enabled"):
             _sig_mode = str(_sig_cfg.get("mode", "both")).lower()
-            # De novo NMF sample-count guard: below signature.nmf_min_samples
-            # the rank is not resolvable (modules/spectrum/README.md,
-            # "de novo NMF 的样本量与突变负荷要求"); mode 'nmf' fails fast,
-            # 'both' degrades to refit. <= 0 disables the guard.
             _sig_mode = _nmf_sample_guard(
                 _sig_cfg, len(sample_somatic_vcf_dict), _sig_mode)
             if _sig_mode in ("refit", "both"):
@@ -4049,7 +3543,6 @@ def runDR(
                     outfiles += _figs(f"{outdir}/DNA/stability/spectrum/{_b}",
                                       _sig_fmts)
 
-    # Fragment size (cfDNA) gate: Params.fragment_size.enabled.
     if _enabled(datajson, "fragment_size"):
         outfiles.append(f"{outdir}/DNA/results/fragment_size/fragment/FragmentSize.txt")
         _frag_fmts = (datajson.get("Params", {}).get("fragment_size", {})
@@ -4059,9 +3552,6 @@ def runDR(
         outfiles += _figs(f"{outdir}/DNA/results/fragment_size/fragment/FragmentSize",
                           _frag_fmts)
 
-    # Structural variants (Manta) gate: Params.manta.enabled. Matched-normal
-    # design pairs get somatic SV (mirroring the Mutect2 pair judgment);
-    # samples outside the pairs get germline SV.
     _pair_members = ({rec["control"] for rec in paired_design}
                      | {rec["experimental"] for rec in paired_design})
     if _enabled(datajson, "manta"):
@@ -4076,24 +3566,18 @@ def runDR(
                 continue
             outfiles.append(f"{outdir}/DNA/variation/germline_sv/{dna_id}/results/variants/candidateSV.vcf.gz")
 
-    # MSI (msisensorpro) gate: Params.msi.enabled, tumor of each design pair.
     if _enabled(datajson, "msi") and paired_design:
         for rec in paired_design:
             outfiles.append(
                 f"{outdir}/DNA/stability/msi/{rec['experimental']}/"
                 f"{rec['experimental']}_msi_pro.tsv")
         outfiles.append(f"{outdir}/DNA/stability/msi/msi_input.txt")
-        # formats 精确到 rule:Params.msi.msi_plot.formats(config 全量路径读取,
-        # 无 module 级共享回退)。
         _msi_fmts = (datajson.get("Params", {}).get("msi", {})
                      .get("msi_plot", {}).get("formats") or ["jpg"])
         if isinstance(_msi_fmts, str):
             _msi_fmts = [_msi_fmts]
         outfiles += _figs(f"{outdir}/DNA/stability/msi/msi_barplot", _msi_fmts)
 
-    # CNVkit gate: Params.cnvkit.enabled. The assay-resolved method computed
-    # with the targets gating above is applied here (Mutation parity; judged
-    # over the DNA rows only — RNA rows share the meta).
     _cnv_cfg = datajson["Params"].setdefault("cnvkit", {})
     if _dna_assays:
         configured = _cnv_cfg.get("method")
@@ -4103,10 +3587,6 @@ def runDR(
                 f"'{configured}' overridden to '{_dna_assay_method}'"
             )
         _cnv_cfg["method"] = _dna_assay_method
-    # Calling mode resolution (Mutation parity): matched normals in the
-    # design pairs -> paired; else a normal panel
-    # (sample_params.control_samples) -> pooled; else flat. An explicit
-    # mode wins over "auto"; impossible combos hard-error below.
     _cnv_mode = _cnv_cfg.get("mode") or "auto"
     if _cnv_mode == "auto":
         _cnv_mode = "paired" if _paired_map else (
@@ -4129,21 +3609,13 @@ def runDR(
             "or provide a normal panel."
         )
     if _cnv_mode == "paired":
-        # Paired mode must not also build a pooled reference alongside the
-        # per-pair references (conflicting reference semantics).
         datajson["sample_params"]["control_samples"] = []
-    # 参数精确到 rule:resolve 结果(以及 meta assay 推导的 method)镜像写入
-    # rule 子段——modules/cnvkit 只读 Params.cnvkit.<rule>.mode/.method
-    # (rule_param,无 module 级回退),扁平键仅留作 node.py 自身门控/兼容。
     for _cnv_rule in ("cnvkit_reference", "cnvkit_batch", "cnvkit_paired"):
         _cnv_sub = _cnv_cfg.setdefault(_cnv_rule, {})
         _cnv_sub["mode"] = _cnv_mode
         if _cnv_cfg.get("method"):
             _cnv_sub["method"] = _cnv_cfg["method"]
     if _enabled(datajson, "cnvkit"):
-        # Mode-aware registration: paired -> per-pair tumors only (no pooled
-        # reference); pooled -> all samples + shared reference.cnn; flat ->
-        # all samples, no reference.
         if _cnv_mode == "paired":
             for sample_id in _paired_map:
                 outfiles.append(f"{outdir}/DNA/variation/cnv/{sample_id}/{sample_id}.cnr")
@@ -4155,13 +3627,9 @@ def runDR(
             if _cnv_mode == "pooled":
                 outfiles.append(f"{outdir}/DNA/variation/cnv/reference/reference.cnn")
 
-    # Mutation burden (modules/burden): SNV/InDel TMB + SV + CNV burden for
-    # each tumor sample (Mutation parity). The three sample -> file maps
-    # derive from the somatic and CNV outputs above (hand-filled Params.burden
-    # entries win); the CNV sample set follows the resolved CNVkit mode.
     if _enabled(datajson, "burden"):
         burden_cfg = datajson["Params"].setdefault("burden", {})
-        snv_vcf_dict = dict(sample_somatic_vcf_dict)  # {tumor: somatic SNV VCF}
+        snv_vcf_dict = dict(sample_somatic_vcf_dict)
         sv_vcf_dict = {
             rec["experimental"]:
                 f"{outdir}/DNA/variation/somatic_sv/"
@@ -4182,10 +3650,6 @@ def runDR(
                              ("sample_cnv_dict", cnv_dict)):
             if not burden_cfg.get(key):
                 burden_cfg[key] = derived
-        # VEP annotation settings (Params.burden.burden_snv_indel.annotate,
-        # default on; config 全量路径读取,无 module 级共享回退):
-        # species/assembly are derived from the genome; an explicit config
-        # value wins and an unmapped genome hard-errors instead of guessing.
         _burden_snvi = burden_cfg.setdefault("burden_snv_indel", {})
         if _burden_snvi.get("annotate", True):
             if not _burden_snvi.get("vep_species") \
@@ -4219,23 +3683,12 @@ def runDR(
     datajson["Params"].setdefault("somatic_spectrum", {})["sample_somatic_vcf_dict"] = sample_somatic_vcf_dict
     datajson["Params"]["somatic_spectrum"]["sample_group_dict"] = sample_group_dict
 
-    # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
-    # coverage over the markdup BAMs (Mutation parity).
     outfiles.append(f"{outdir}/DNA/QC/sexcheck/sexcheck.tsv")
 
-    # QC summary module (modules/qc_summary): cross-sample metric table +
-    # HTML summary; always part of the delivered output set.
     outfiles.append(f"{outdir}/DNA/QC/qc_summary/qc_summary.tsv")
     outfiles.append(f"{outdir}/DNA/QC/qc_summary/qc_summary.html")
 
-    # Final PPT report + results workbook (modules/DR_report, DR 自有报告:
-    # DNA 链 + RNA 链 + burden/DRclass/TransEffect), gated by
-    # Params.report.enabled like the other report modules.
     if enable_report:
-        # 写回精确到 rule:Params.report.generate_report.{genome,date}
-        # (与 runMutation/runRNAseq 的写回同一键形;genome 是报告副标题,
-        # 也是 RNA 树标签的兜底 —— DR.smk 以 genome.default 显式传
-        # genome_label,多基因组运行不受拼接串影响)
         _dr_report_params = datajson["Params"].setdefault("report", {}).setdefault(
             "generate_report", {})
         if not _dr_report_params.get("genome"):
@@ -4245,19 +3698,11 @@ def runDR(
             _dr_report_params["date"] = time.strftime("%Y-%m-%d", time.localtime())
         outfiles.append(f"{outdir}/DR_report.pptx")
         outfiles.append(f"{outdir}/DR_report_files.xlsx")
-        # 报告自有图导出清单(报告模块规范:figures/<name>.<fmt> 条件产出,
-        # 以 manifest.tsv 锚定 DAG 与磁盘一致)
         outfiles.append(f"{outdir}/figures/manifest.tsv")
 
-    # O3 summary exists only when there are DRclass entries: with an empty
-    # samples table nothing may demand it (outputs decide the flow, TransEffect
-    # parity below) or rule all schedules a summary that can never run.
     if drclass_samples:
         outfiles.append(f"{outdir}/DRclass/DRclass_summary.tsv")
 
-    # --- TransEffect (转录效应分析, modules/TransEffect): DRclass O1 位点 +
-    # featureCounts 矩阵 + CNVkit 段 -> 转录效应表 + 图 (3.2.2.3 第四节)。
-    # Params.TransEffect.enabled 关闭则不注册(输出决定流程走向)。
     if _enabled(datajson, "TransEffect") and drclass_samples:
         teffect_cfg = datajson["Params"].setdefault("TransEffect", {})
         if not teffect_cfg.get("sample_group_dict"):
@@ -4313,8 +3758,6 @@ def runPopulation_genomics(
     analysis = datajson.get("Params", {}).get("analysis", {}) or {}
 
     datajson["sample_params"]["samples"] = list(samples_info_dict) or sorted(datajson["sample_params"].get("sample_bams") or {})
-    # sample_bams: explicit config entries win; empty slots fall back to the
-    # meta's per-sample BAM column.
     sample_bams = dict(datajson["sample_params"].get("sample_bams") or {})
     for sid, info in samples_info_dict.items():
         bam = getattr(info, "bam", None)
@@ -4327,8 +3770,6 @@ def runPopulation_genomics(
             f"Population_genomics: no BAM for sample(s) {missing}; fill "
             f"sample_params.sample_bams or record the meta 'bam' column"
         )
-    # populations: explicit config map wins; otherwise group samples by the
-    # meta's ``group`` column.
     populations = datajson["sample_params"].get("populations") or {}
     if not populations:
         by_group: Dict[str, List[str]] = {}
@@ -4339,7 +3780,6 @@ def runPopulation_genomics(
         populations = by_group
     datajson["sample_params"]["populations"] = populations
 
-    # outfiles mirror the fallback list in subworkflow/Population_genomics.smk
     pop_names = sorted(populations)
     pop_pairs = list(combinations(pop_names, 2))
     filtered_vcf = f"{outdir}/variants/filtered/population_snps.vcf.gz"
@@ -4392,8 +3832,6 @@ def runspatial_transcriptomics(
     advanced_enabled = (spatial_cfg.get("spatial_scanpy_advanced") or {}).get(
         "spatial_autocorrelation", True)
 
-    # outfiles mirror the fallback list in
-    # subworkflow/spatial_transcriptomics.smk
     outfiles = [
         f"{outdir}/spatial/qc/filtered.h5ad",
         f"{outdir}/spatial/qc/qc_metrics.tsv",

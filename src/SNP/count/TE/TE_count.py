@@ -16,7 +16,6 @@ def plot_heatmap_with_group_colors(
         show_group_labels: bool = True,
         cmap: str = "coolwarm",
 
-        # unified GridSpec weights
         y_colorbar_width: float = 1,
         heatmap_width: float = 50,
         right_cbar_width: float = 2,
@@ -24,15 +23,13 @@ def plot_heatmap_with_group_colors(
         heatmap_height: float = 50,
         x_colorbar_height: float = 0.6,
 
-        # ---- NEW ----
-        min_group_fraction_for_label: float = 0.03   # 小组不显示文字
+        min_group_fraction_for_label: float = 0.03
 ):
     """
     Only show text for large groups.
     Small groups appear as legend on the far right.
     """
 
-    # ---- 1. rename ----
     heatmap_data = heatmap_data.copy()
     heatmap_data.rename(index=row_rename_map, inplace=True)
     heatmap_data.rename(columns=column_rename_map, inplace=True)
@@ -40,32 +37,26 @@ def plot_heatmap_with_group_colors(
     col_order = [c for c in column_rename_map.values() if c in heatmap_data.columns]
     heatmap_data = heatmap_data.loc[:, col_order]
 
-    # ---- 2. group list ----
     row_groups = list(heatmap_data.index)
     n_rows = len(row_groups)
 
-    # ---- 3. 统计每个组行数 ----
     group_sizes = {}
     for g in row_groups:
         group_sizes[g] = group_sizes.get(g, 0) + 1
 
     total_n = float(n_rows)
 
-    # ---- 4. 按 group 大小降序排序 ----
     sorted_groups = sorted(group_sizes.keys(), key=lambda g: group_sizes[g], reverse=True)
 
-    # reorder rows
     ordered_index = []
     for g in sorted_groups:
         ordered_index.extend([idx for idx in heatmap_data.index if idx == g])
 
     heatmap_data = heatmap_data.loc[ordered_index, :]
 
-    # update row groups
     row_groups = list(heatmap_data.index)
     n_rows, n_cols = heatmap_data.shape
 
-    # ---- 5. define colors ----
     color_pool = [
         '#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231',
         '#911eb4', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe',
@@ -76,12 +67,10 @@ def plot_heatmap_with_group_colors(
     unique_row_groups = sorted_groups
     row_color_map = {g: color_pool[i % len(color_pool)] for i, g in enumerate(unique_row_groups)}
 
-    # col group colors
     uniq_col = list(dict.fromkeys(list(heatmap_data.columns)))
     palette = sns.color_palette("hls", len(uniq_col))
     col_color_map = {g: palette[i] for i, g in enumerate(uniq_col)}
 
-    # ---- 6. row group blocks ----
     blocks = []
     start = 0
     for i in range(1, n_rows):
@@ -90,11 +79,9 @@ def plot_heatmap_with_group_colors(
             start = i
     blocks.append((row_groups[-1], start, n_rows))
 
-    # ---- 6.1 识别大组、小组 ----
     big_groups = [g for g in sorted_groups if group_sizes[g] / total_n >= min_group_fraction_for_label]
     small_groups = [g for g in sorted_groups if g not in big_groups]
 
-    # ---- 7. GridSpec ----
     fig = plt.figure(figsize=(8, 16))
     gs = gridspec.GridSpec(
         2, 3,
@@ -116,7 +103,6 @@ def plot_heatmap_with_group_colors(
 
     vmin = np.percentile(heatmap_data.values, 5)
     vmax = np.percentile(heatmap_data.values, 95)
-    # ---- 8. heatmap ----
     im = ax_heat.imshow(
         heatmap_data.values, 
         aspect='auto', 
@@ -127,11 +113,9 @@ def plot_heatmap_with_group_colors(
     ax_heat.set_xticks([])
     ax_heat.set_yticks([])
 
-    # ---- 9. colorbar ----
     cbar = fig.colorbar(im, cax=ax_cbar)
     cbar.ax.text(0.5, 1.02, "log2(cpm+1)", ha='center', va='bottom', transform=cbar.ax.transAxes)
 
-    # ---- 10. y-axis color strip ----
     ax_ybar.set_xlim(0, 1)
     ax_ybar.set_ylim(0, n_rows)
     ax_ybar.invert_yaxis()
@@ -141,10 +125,9 @@ def plot_heatmap_with_group_colors(
             patches.Rectangle((0, s), 1, e - s, facecolor=row_color_map[g], edgecolor='none')
         )
 
-    # ---- 大 group：左侧显示文字 ----
     if show_group_labels:
         for g, s, e in blocks:
-            if g in big_groups:     # only large groups
+            if g in big_groups:
                 ax_ybar.text(
                     -0.1, (s + e) / 2, g,
                     ha="right", va="center", fontsize=8
@@ -152,7 +135,6 @@ def plot_heatmap_with_group_colors(
 
     ax_ybar.axis("off")
 
-    # ---- 11. x-axis color strip ----
     col_groups = list(heatmap_data.columns)
     ax_xbar.set_xlim(0, n_cols)
     ax_xbar.set_ylim(0, 1)
@@ -170,7 +152,6 @@ def plot_heatmap_with_group_colors(
 
     ax_xbar.axis("off")
 
-    # ---- 12. 小 group legend（最右边） ----
     if len(small_groups) > 0:
         handles = []
         labels = []
@@ -187,7 +168,6 @@ def plot_heatmap_with_group_colors(
             title_fontsize=9
         )
 
-    # ---- SAVE ----
     plt.savefig(outplot, dpi=300, bbox_inches='tight')
     plt.close(fig)
 
@@ -228,8 +208,6 @@ if __name__ == "__main__":
         "GSM4777758": "SL",
         "GSM4777759": "SL"
     }
-    # TE_heatmap("/disk5/luosg/Totipotent20251031/PRJNA663159/TEcount/mouse/allTEcount.cntTable",
-    #            sample_group)
     sample_group = {
         "GSM5924234":"prEpiSC",
         "GSM5924235":"prEpiSC",

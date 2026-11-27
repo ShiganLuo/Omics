@@ -1,30 +1,13 @@
 include: "../../common/common.smk"
 
-# GO/KEGG enrichment over the scRNAseq pseudobulk output tree
-# (layout-C sub-tool of modules/function; engine: bin/go-kegg.r).
-#
-# Input contract (Omics pseudobulk output):
-#   <root>/<tissue>/<counter>/deg_pseudobulk{,_gene,_te}/
-#       deg_<tissue>/<contrast>/<cell_type>/<contrast>_<cell_type>_DEG.csv
-#   (columns: gene, cell_type, comparison, baseMean, log2FC, lfcSE, stat,
-#    pval, pval_adj, significant)
-# Output (per unit): <outdir>/function/go_kegg/{counter}/{mode}/{tissue}/
-#   {contrast}/{cell_type}/go_up.csv, go_down.csv, kegg_up.csv, kegg_down.csv,
-#   go_back_to_back.<fmt>, kegg_back_to_back.<fmt>, up_genes.txt, down_genes.txt
 
 indir = config.get("indir") or "input"
 outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
 
-# 参数精确到 rule:参数挂在消费它的 rule 名下(原 pseudobulk_go 嵌套组名拍平
-# 为 rule 名,叶子名作 key;无 module 级共享回退,读点写 config 全量路径字面链)。
-# root 喂 function_pseudobulk_go_index(unit 发现)与 function_pseudobulk_go
-# (DEG 输入)两个 rule → 每 rule 一个读点;modes 只喂发现 rule。
 pb_index_root = config.get("Params", {}).get("function", {}).get("function_pseudobulk_go_index", {}).get("root", indir) or indir
 pb_modes = config.get("Params", {}).get("function", {}).get("function_pseudobulk_go_index", {}).get("modes", ["gene"]) or ["gene"]
 pb_root = config.get("Params", {}).get("function", {}).get("function_pseudobulk_go", {}).get("root", indir) or indir
-# ① parse 期读入 + 规范化(str 收成单元素 list;合法值由 schema 声明)。
-# formats 为 parse 期变量(output 不能是函数,格式列表必须是模块级变量)。
 pb_formats = config.get("Params", {}).get("function", {}).get("function_pseudobulk_go", {}).get("formats") or ["png"]
 if isinstance(pb_formats, str):
     pb_formats = [pb_formats]
@@ -35,11 +18,6 @@ _MODE_DIRS = {
     "te": "deg_pseudobulk_te",
 }
 
-# Unit discovery is a RUNTIME checkpoint: in workflow runs the tree only
-# exists after scanpy_pseudobulk, so the parse-time glob of a standalone run
-# cannot be used. scan_unit_lines() re-implements the same match at
-# checkpoint time. `prerequisites` = the per-(tissue, counter) pseudobulk
-# report htmls (ordering edge; empty for standalone runs on an existing tree).
 prerequisites = config.get("prerequisites") or []
 import glob as _glob  # noqa: E402
 
@@ -120,7 +98,6 @@ rule function_pseudobulk_go:
         go_down=_go_out("go_down.csv"),
         kegg_up=_go_out("kegg_up.csv"),
         kegg_down=_go_out("kegg_down.csv"),
-        # ② 按格式展开:每种格式一个输出文件(base 不带扩展名)
         go_plot=[_go_out("go_back_to_back." + fmt) for fmt in pb_formats],
         kegg_plot=[_go_out("kegg_back_to_back." + fmt) for fmt in pb_formats],
         up_genes=_go_out("up_genes.txt"),
@@ -141,7 +118,7 @@ rule function_pseudobulk_go:
         lfc_cut=config.get("Params", {}).get("function", {}).get("function_pseudobulk_go", {}).get("lfc_cut", 1),
         p_cut=config.get("Params", {}).get("function", {}).get("function_pseudobulk_go", {}).get("p_cut", 0.05),
         top=config.get("Params", {}).get("function", {}).get("function_pseudobulk_go", {}).get("top", 10),
-        formats=pb_formats,   # ③ 转发
+        formats=pb_formats,
     run:
         log_path = str(log)
         open(log_path, "a").close()
@@ -151,8 +128,6 @@ rule function_pseudobulk_go:
             rule_logger.info(
                 f"Start GO/KEGG enrichment for {wildcards.mode}/{wildcards.tissue}/"
                 f"{wildcards.contrast}/{wildcards.cell_type} at {current_time}")
-            # Species is wired from config, never guessed (wrong species silently
-            # produces plausible-looking nonsense).
             if params.species not in ("human", "mouse", "macaque"):
                 raise RuntimeError(
                     "Params.function.function_pseudobulk_go.species must be one of "
@@ -179,8 +154,6 @@ rule function_pseudobulk_go:
             ]
             for fmt in params.formats:
                 cmd += ["--format", str(fmt)]
-            # dual-write receipts: timestamped copy in RECEIPT_DIR (flat pool),
-            # plain copy beside the results
             script = receipt_script(f"function_pseudobulk_go_{wildcards.counter}_{wildcards.mode}_"
                 f"{wildcards.tissue}_{wildcards.contrast}_"
                 f"{wildcards.cell_type}_{current_time}.sh")
@@ -198,7 +171,7 @@ rule function_pseudobulk_go:
                         f'{wildcards.cell_type} at {current_time} completed '
                         f'successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

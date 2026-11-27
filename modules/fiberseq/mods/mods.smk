@@ -3,30 +3,6 @@ include: "../../common/common.smk"
 import json  # noqa: E402  (not in common.smk; group_samples -> engine CLI JSON)
 
 
-# ---------------------------------------------------------------------------
-# mods: prepare the modification long table (m6A/CpG per fiber over FIRE
-# peaks or TE loci) for the sigtest module, then postprocess sigtest's
-# results (significant objects split; TE-axis top-loci BED for regionplot).
-#
-# The sigtest module itself is a SEPARATE module consumed via subworkflow
-# `use rule` — cross-module contract is files only (modules.md 模块不得
-# 引用外部脚本): our long table -> sigtest's table input; sigtest's
-# significance_test.tsv -> our split/top-loci inputs (sigtest_dir config).
-#
-# region_axis=te switches the region axis to transposable elements:
-# per-locus quantification over a RepeatMasker TE BED (genome.repeat_bed,
-# col4 subfamily / col7 family / col8 class); the long table carries ALL
-# annotation levels, sigtest runs once per Params.sigtest.te_levels entry
-# (its feature column picks the level), and a per-significant-group
-# top-loci BED (browsing shortlist for regionplot — the family-level
-# p-value is the only statistical assertion; loci are ranked, not tested).
-#
-# Upstream contract (subworkflow passes):
-#   indir            = elements dir (common/4_elements) — {sample}.m6a.bed.gz,
-#                      .cpg.bed.gz, .msp.bed.gz, .fire_peaks.bed
-#   te_bed           = sorted-or-not TE BED (te mode; sorted copy cached in tmp)
-# Group-level module: no {sample_id} wildcard, logdir gets {logdir}/group.
-# ---------------------------------------------------------------------------
 
 indir = config.get("indir", "common/4_elements")
 outdir = config.get("outdir", "fiberseq_analysis/mods")
@@ -35,36 +11,23 @@ samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 
 
-# 参数精确到 rule(2026-11 规范):参数挂在消费它的 rule 名下,读
-# Params.fiberseq_mods.<rule_name>.<key>,无 module 级共享回退(config 全量
-# 路径内联读取)。region_axis/mod_type/group_samples/groups_by_contrast 被
-# longtable/split/top_loci/result 共享 → 各 rule 独立键。output/log 文件名里的
-# te_{mod_type}/metric 由 longtable 产出、split/top_loci/result 拼回同一路径,
-# 各 rule 的配置需保持一致(未配置时走同一内置默认,行为不变)。
-# 指令串联所需的派生值(output/log/threads 指令无法调用函数)每 rule 一个
-# parse 期变量;配置形状由 schema(run.py)与 node.py 保证,模块只校验输入文件。
 
 
-# ---- 每 rule 一个 parse 期变量(互不共享)----
-# fiberseq_mods_longtable
 region_axis_longtable = config.get("Params", {}).get("fiberseq_mods", {}).get("fiberseq_mods_longtable", {}).get("region_axis") or {}
 te_axis_longtable = region_axis_longtable.get("default", "fire_peaks") == "te"
 mod_type_longtable = config.get("Params", {}).get("fiberseq_mods", {}).get("fiberseq_mods_longtable", {}).get("mod_type", "m6a")
 metric_longtable = region_axis_longtable.get("options", {}).get("fire_peaks", {}).get("metric", f"{mod_type_longtable}_per_fiber")
-# fiberseq_mods_split
 region_axis_split = config.get("Params", {}).get("fiberseq_mods", {}).get("fiberseq_mods_split", {}).get("region_axis") or {}
 te_axis_split = region_axis_split.get("default", "fire_peaks") == "te"
-# fiberseq_mods_top_loci
 region_axis_top_loci = config.get("Params", {}).get("fiberseq_mods", {}).get("fiberseq_mods_top_loci", {}).get("region_axis") or {}
 te_axis_top_loci = region_axis_top_loci.get("default", "fire_peaks") == "te"
 mod_type_top_loci = config.get("Params", {}).get("fiberseq_mods", {}).get("fiberseq_mods_top_loci", {}).get("mod_type", "m6a")
-# fiberseq_mods_result
 region_axis_result = config.get("Params", {}).get("fiberseq_mods", {}).get("fiberseq_mods_result", {}).get("region_axis") or {}
 te_axis_result = region_axis_result.get("default", "fire_peaks") == "te"
 mod_type_result = config.get("Params", {}).get("fiberseq_mods", {}).get("fiberseq_mods_result", {}).get("mod_type", "m6a")
 metric_result = region_axis_result.get("options", {}).get("fire_peaks", {}).get("metric", f"{mod_type_result}_per_fiber")
 
-sigtest_outdir = config.get("sigtest_dir") or os.path.join(outdir, "sigtest")  # sigtest 模块的输出根(subworkflow 接线);split/top_loci 的产物与它的表同目录
+sigtest_outdir = config.get("sigtest_dir") or os.path.join(outdir, "sigtest")
 sigtest_contrasts = [str(c) for c in (config.get("contrasts") or [])]
 
 
@@ -121,7 +84,6 @@ rule fiberseq_mods_longtable:
         script = (ROOT_DIR + "/modules/fiberseq/mods/bin/te_modification.py" if te_axis_longtable
                   else ROOT_DIR + "/modules/fiberseq/mods/bin/extract_modification_longtable.py"),
         metric = metric_longtable,
-        # <- Params.fiberseq_mods.fiberseq_mods_longtable.group_samples (node.py 从 meta 设计派生)
         group_samples = config.get("Params", {}).get("fiberseq_mods", {}).get("fiberseq_mods_longtable", {}).get("group_samples", {}),
         is_te = te_axis_longtable,
         mod_type = mod_type_longtable,
@@ -138,7 +100,7 @@ rule fiberseq_mods_longtable:
             sample_outdir = os.path.dirname(str(output.longtable))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"fiberseq_mods_longtable_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, "fiberseq_mods_longtable.sh")
             if params.is_te:
                 cmd = [
@@ -176,7 +138,7 @@ rule fiberseq_mods_longtable:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f'echo "fiberseq_mods_longtable at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -201,8 +163,6 @@ rule fiberseq_mods_split:
         sig = _sigtest_tsv,
     output:
         sig_tsv = sigtest_outdir + "/{contrast}/significant_objects.tsv",
-        # BED 只在 fire_peaks 轴声明(feature id = chrom:start-end|name 可解析成坐标);
-        # TE 轴 feature 是 subfamily/family 名,无坐标,BED 恒为空表头 -> 不产出
         sig_bed = ([] if te_axis_split
                    else [sigtest_outdir + "/{contrast}/significant_objects.bed"]),
         rest_tsv = sigtest_outdir + "/{contrast}/nonsignificant_objects.tsv",
@@ -220,7 +180,6 @@ rule fiberseq_mods_split:
         sif("../fiberseq.yaml", "fiberseq_mods_split")
     params:
         split_script = ROOT_DIR + "/modules/fiberseq/mods/bin/split_significant.py",
-        # <- Params.fiberseq_mods.fiberseq_mods_split.region_axis.options.fire_peaks.top_n
         top_n = int(region_axis_split.get("options", {}).get("fire_peaks", {}).get("top_n", 0)),
     run:
         log_path = str(log)
@@ -232,7 +191,7 @@ rule fiberseq_mods_split:
             sample_outdir = os.path.dirname(str(output.sig_tsv))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"fiberseq_mods_split_{wildcards.contrast}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"fiberseq_mods_split_{wildcards.contrast}.sh")
             cmd = [
                 "python", params.split_script,
@@ -249,7 +208,7 @@ rule fiberseq_mods_split:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f'echo "fiberseq_mods_split for {wildcards.contrast} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -285,19 +244,15 @@ rule fiberseq_mods_top_loci:
         sif("../fiberseq.yaml", "fiberseq_mods_top_loci")
     params:
         top_loci_script = ROOT_DIR + "/modules/fiberseq/mods/bin/te_top_loci.py",
-        # <- Params.fiberseq_mods.fiberseq_mods_top_loci.group_samples (node.py 从 meta 设计派生)
         group_samples = config.get("Params", {}).get("fiberseq_mods", {}).get("fiberseq_mods_top_loci", {}).get("group_samples", {}),
         grp_by_contrast = config.get("Params", {}).get("fiberseq_mods", {}).get("fiberseq_mods_top_loci", {}).get("groups_by_contrast", {}),
         groups = config.get("Params", {}).get("fiberseq_mods", {}).get("fiberseq_mods_top_loci", {}).get("groups", []),
         mod_type = mod_type_top_loci,
-        # <- Params.fiberseq_mods.fiberseq_mods_top_loci.region_axis.options.te.min_fibers
         min_fibers = int(region_axis_top_loci.get("options", {}).get("te", {}).get("min_fibers", 3)),
-        # <- Params.fiberseq_mods.fiberseq_mods_top_loci.region_axis.options.te.loci_top_n
         loci_top_n = int(region_axis_top_loci.get("options", {}).get("te", {}).get("loci_top_n", 5)),
         is_te = te_axis_top_loci,
     run:
         if not params.is_te:
-            # fire_peaks axis declares empty outputs; nothing to rank
             for out in list(output.tsv) + list(output.bed):
                 open(str(out), "w").close()
         else:
@@ -310,11 +265,8 @@ rule fiberseq_mods_top_loci:
                 sample_outdir = os.path.dirname(str(output.tsv[0]))
                 os.makedirs(sample_outdir, exist_ok=True)
                 script = receipt_script(f"fiberseq_mods_top_loci_{wildcards.contrast}_{current_time}.sh")
-                os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+                os.makedirs(os.path.dirname(script), exist_ok=True)
                 plain_script = os.path.join(sample_outdir, f"fiberseq_mods_top_loci_{wildcards.contrast}.sh")
-                # the two compared groups for this contrast (node.py
-                # groups_by_contrast -> global groups -> all groups), their
-                # sample lists picked from group_samples
                 grp_pair = (params.grp_by_contrast.get(str(wildcards.contrast))
                             or params.groups or list(params.group_samples))[:2]
                 grp_spec = json.dumps({g: params.group_samples[g] for g in grp_pair})
@@ -335,7 +287,7 @@ rule fiberseq_mods_top_loci:
                     f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                     f.write(f'echo "fiberseq_mods_top_loci for {wildcards.contrast} completed successfully"\n')
                 shutil.copyfile(script, plain_script)
-                if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                if SCRIPT_ONLY:
                     script_only_touch(output)
                 else:
                     shell(f"bash {plain_script} >> {log_path} 2>&1")

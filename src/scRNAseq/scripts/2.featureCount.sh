@@ -7,6 +7,5 @@ output=/home/lsg/Data/glioblastoma/output/featureCounts
 mapfile -t arr < ${star}
 for i in {0..2};do
 
-    # echo "$scTE -i ${arr[${i}]} -o  ${sample[${i}]} -p 20 -x ${hg38} --min_counts 1 --min_genes 1 -CB CB -UMI UB"
     echo "$featureCounts -t exon -g gene_id -a ${gtf} -o ${output}/${sample[${i}]} ${arr[${i}]}"
 done | parallel -j 3

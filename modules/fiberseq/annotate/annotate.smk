@@ -45,7 +45,6 @@ rule fiberseq_annotate_run:
         sif("../fiberseq.yaml", "fiberseq_annotate_run")
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/fire_annotate.py",
-        # 参数精确到 rule:Params.fiberseq_annotate.fiberseq_annotate_run.<key>(config 全量路径读取)
         tss_flank = config.get("Params", {}).get("fiberseq_annotate", {}).get("fiberseq_annotate_run", {}).get("tss_flank", 1000),
         repeat_frac = config.get("Params", {}).get("fiberseq_annotate", {}).get("fiberseq_annotate_run", {}).get("repeat_frac", 0.25),
     run:
@@ -58,10 +57,7 @@ rule fiberseq_annotate_run:
             sample_outdir = os.path.dirname(str(output.annotated))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"fiberseq_annotate_run_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
-            # timestamped copy stays in log/cmd as history; the outdir copy
-            # (no timestamp, overwritten each run) documents the current command
-            # next to the results it produced
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"fiberseq_annotate_run_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.script,
@@ -81,7 +77,7 @@ rule fiberseq_annotate_run:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "fiberseq_annotate_run for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

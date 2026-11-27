@@ -42,7 +42,7 @@ def main() -> None:
                    help="keep only hits whose repeat class/family contains this (empty = keep all)")
     args = p.parse_args()
 
-    hits = []  # (chrom, start, end, class)
+    hits = []
     with open(args.rm_out) as fh:
         in_table = False
         for line in fh:
@@ -63,15 +63,14 @@ def main() -> None:
                 continue
             chrom = f[4]
             cls = classify(f[9], args.major_pattern, args.minor_pattern)
-            if start > end:  # minus strand entries are still query coords
+            if start > end:
                 start, end = end, start
-            hits.append((chrom, start - 1, end, cls))  # to BED 0-based
+            hits.append((chrom, start - 1, end, cls))
 
     with open(args.hits_out, "w") as out:
         for chrom, start, end, cls in hits:
             out.write(f"{chrom}\t{start}\t{end}\t{cls}\t.\t.\n")
 
-    # cluster per (chrom, class)
     by_key = defaultdict(list)
     for chrom, start, end, cls in hits:
         by_key[(chrom, cls)].append((start, end))

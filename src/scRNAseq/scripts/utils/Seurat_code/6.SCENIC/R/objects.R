@@ -1,8 +1,6 @@
 #' @include utilities.R
 NULL
 
-# setOldClass("pins_board_folder")
-# setClassUnion("pins_board", c("pins_board_folder", NULL))
 
 #' @title Hephaestus class
 #' @slot ... Other slots from
@@ -46,7 +44,6 @@ create_hephaestus <- function(counts = NULL,
                               outdir = "./",
                               ...) {
   metadata <- as.data.frame(metadata)
-  # 1. Create from counts
   if (!is.null(counts) && is.null(metadata)) {
     seurat_obj <-
       CreateSeuratObject(
@@ -63,17 +60,13 @@ create_hephaestus <- function(counts = NULL,
         ...
       )
   } else if (is.null(counts) && !is.null(metadata)) {
-    # Create from metadata
-    # check sample,group,r1 and r2 column name
     requred_colnames <- c("sample", "group", "input_r1")
     if (!all(requred_colnames %in% colnames(metadata))) {
       stop("The colnames of the metadata: sample, group, input_r1, input_r2")
     }
-    # check r1, r2 file
     hp_check_file(c(metadata$input_r1, metadata$input_r2))
     counts <- data.frame(row.names = metadata$sample)
     counts <- as.data.frame(t(counts))
-    # create board
     x <-
       c(
         "input_r1",
@@ -87,7 +80,6 @@ create_hephaestus <- function(counts = NULL,
     board <- metadata[, x]
     rownames(board) <- metadata$sample
     metadata <- metadata[, !(colnames(metadata) %in% x)]
-    # create
     rownames(metadata) <- metadata$sample
     seurat_obj <-
       suppressWarnings(

@@ -45,7 +45,7 @@ rule bowtie2_index:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             rule_logger.info(f"Start bowtie2 index at {current_time}")
             script = receipt_script(f"bowtie2_index_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = f"{outdir}/index/bowtie2_index.sh"
             cmd = [params.bowtie2_build,
                     "--threads", str(threads),
@@ -57,7 +57,7 @@ rule bowtie2_index:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "bowtie2 index was successfully completed !"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -79,12 +79,10 @@ def get_alignment_input(wildcards):
     return: A list of input file paths for the STAR alignment step.
     """
     logger.info(f"[get_alignment_input] called with wildcards: {wildcards}")
-    # 构造可能的输入路径
     paired_r1 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_1.fq.gz"
     paired_r2 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_2.fq.gz"
     single = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.single.fq.gz"
 
-    # 检查文件实际存在情况
     if wildcards.sample_id in paired_samples:
         logger.info(f"双端测序：{[paired_r1, paired_r2]}")
         return [paired_r1, paired_r2]
@@ -115,8 +113,6 @@ rule bowtie2_align_paired:
         fastq2 = indir + "/{sample_id}/{sample_id}_2.fq.gz",
         index = get_bowtie2_index
     output:
-        # temp 规范(modules.md):bam/unmapped 为中间产物,受 keep_intermediates
-        # 字段控制(缺省 True=保留);metrics 是 QC 证据,永不包裹
         bam = maybe_temp(outdir + "/{sample_id}/{sample_id}.bam", "bowtie2"),
         metrics = outdir + "/{sample_id}/{sample_id}_bowtie2_metrics.txt",
         unmapped1 = maybe_temp(outdir + "/{sample_id}/{sample_id}_unmapped_1.fq.gz", "bowtie2"),
@@ -146,7 +142,7 @@ rule bowtie2_align_paired:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             sample_outdir = os.path.dirname(str(output.bam))
             script = receipt_script(f"bowtie2_align_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = f"{sample_outdir}/bowtie2_align.sh"
             cmd1 = [params.bowtie2,
                     "-x", params.index_prefix,
@@ -169,7 +165,7 @@ rule bowtie2_align_paired:
                 f.write(success_echo + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -210,7 +206,7 @@ rule bowtie2_align_single:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             sample_outdir = os.path.dirname(str(output.bam))
             script = receipt_script(f"bowtie2_align_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = f"{sample_outdir}/bowtie2_align.sh"
             cmd1 = [params.bowtie2,
                     "-x", params.index_prefix,
@@ -230,7 +226,7 @@ rule bowtie2_align_single:
                 f.write(success_echo + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

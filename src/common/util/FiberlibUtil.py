@@ -72,7 +72,7 @@ def read_bed(path: str) -> List[BedRecord]:
             try:
                 start, end = int(f[1]), int(f[2])
             except ValueError:
-                continue  # skip header lines (e.g. TSV headers in .bed files)
+                continue
             chrom = f[0]
             name = f[3] if len(f) > 3 else "."
             score = float(f[4]) if len(f) > 4 and f[4] not in (".", "") else 0.0
@@ -344,11 +344,6 @@ def block_signal(
         return np.zeros(0, dtype=np.int64)
     diff = np.zeros(length + 1, dtype=np.int64)
     if uniq_fibers:
-        # Union per fiber NAME across ALL passed records (e.g. the msp+nuc
-        # concatenation of track: one fiber's MSP and nucleosome blocks must
-        # merge into a single coverage contribution). Merging happens per
-        # fiber and emits straight into the difference array -- the only
-        # state is the window-local span list of the current fiber.
         per_fiber: Dict[str, List[Tuple[int, int]]] = {}
         for r in records:
             if r.chrom != chrom:

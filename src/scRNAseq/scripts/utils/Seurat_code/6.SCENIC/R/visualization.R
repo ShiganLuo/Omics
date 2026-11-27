@@ -32,7 +32,6 @@ theme_cat <- function(base_size = 8,
                       ...) {
   theme(
     aspect.ratio = aspect_ratio,
-    # Axis
     axis.title = element_text(
       size = base_size,
       face = "plain",
@@ -49,7 +48,6 @@ theme_cat <- function(base_size = 8,
       lineend = "square",
       colour = "black"
     ),
-    # Panel
     panel.background = element_blank(),
     panel.grid = element_blank(),
     panel.border = element_rect(
@@ -57,7 +55,6 @@ theme_cat <- function(base_size = 8,
       fill = NA,
       colour = "black"
     ),
-    # Legend
     legend.background = element_blank(),
     legend.title = element_text(
       size = base_size,
@@ -72,7 +69,6 @@ theme_cat <- function(base_size = 8,
     legend.key = element_blank(),
     legend.key.height = unit(base_size, "pt"),
     legend.key.width = unit(base_size, "pt"),
-    # Plot
     plot.background = element_blank(),
     plot.title = element_text(
       size = base_size,
@@ -87,7 +83,6 @@ theme_cat <- function(base_size = 8,
       face = "plain",
       colour = "black"
     ),
-    # Facetting
     strip.background = element_blank(),
     strip.text = element_text(
       size = base_size,

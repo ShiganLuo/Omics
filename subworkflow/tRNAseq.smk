@@ -11,7 +11,6 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 sample_data = config.get("sample_params", {}).get("sample_data", "")
 trimmer = config.get('Params', {}).get('workflow', {}).get('trimmer') or "trim_galore"
 
-# Genome reference resolution — nested default + references pattern
 genome = config.get("genome", {}).get("default")
 genome_ref = config.get("genome", {}).get("references", {}).get(genome, {}) if genome else {}
 
@@ -32,8 +31,6 @@ fumitools_config = {
         "fumitools": config.get("Procedure", {}).get("fumitools")
     },
     "Params": {
-        # 参数精确到 rule:整段透传(Params.fumitools.<rule>.<key>,rule 子段
-        # 透明传递;模块内置默认同原转发默认)
         "fumitools": config.get("Params", {}).get("fumitools", {}),
     }
 }
@@ -44,7 +41,6 @@ module fumitools:
 use rule fumitools_copy_umi from fumitools as tRNAseq_fumitools_copy_umi
 use rule fumitools_copy_umi_single from fumitools as tRNAseq_fumitools_copy_umi_single
 
-# --- trimmer 选择 (UMI 流程,trimmomatic 模块不支持 UMI mode): cutadapt / trim_galore ---
 trimmed_dir = f"{outdir}/fastq/trimmed_fastq"
 if trimmer == "cutadapt":
     cutadapt_config = {
@@ -60,7 +56,6 @@ if trimmer == "cutadapt":
             "cutadapt": config.get('Procedure',{}).get('cutadapt')
         },
         "Params": {
-            # 参数精确到 rule:Params.cutadapt.<rule>.<key>(模块读点)
             "cutadapt": config.get('Params',{}).get("cutadapt", {}),
         }
     }
@@ -87,7 +82,6 @@ else:
             "trim_galore": config.get('Procedure',{}).get('trim_galore')
         },
         "Params": {
-            # 参数精确到 rule:Params.trim_galore.<rule>.<key>(模块读点)
             "trim_galore": config.get('Params',{}).get("trim_galore", {}),
         }
     }
@@ -98,7 +92,6 @@ else:
     use rule trimming_Paired from trim_galore as tRNAseq_trim_galore_Paired
     use rule trimming_Single from trim_galore as tRNAseq_trim_galore_Single
 
-# Module config dict
 mimseq_config = {
     "resources": config.get("resources", {}),
     "indir": trimmed_dir,
@@ -110,8 +103,6 @@ mimseq_config = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
-    # data_dir 精确到 rule:Params.mimseq.mimseq_tRNAtools.data_dir(config
-    # 全量路径读取,无旧扁平键回退;顶层 data_dir 仍是接线键,透传给模块顶层)
     "data_dir": ((config.get("Params", {}).get("mimseq", {}) or {}).get("mimseq_tRNAtools", {}) or {}).get("data_dir") or "",
     "Procedure": {
     },

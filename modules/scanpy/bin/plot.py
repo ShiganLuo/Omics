@@ -30,14 +30,9 @@ logger = setup_logger(__name__)
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
-# ---------------------------------------------------------------------------
-# Default style
-# ---------------------------------------------------------------------------
 sc.set_figure_params(dpi=80, facecolor="white", frameon=False)
 
 
@@ -64,9 +59,6 @@ class ScanpyPlotter:
         self.image_formats = image_formats
         os.makedirs(plot_dir, exist_ok=True)
 
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
     def _save_fig(self, fig, directory: str, base: str) -> None:
         """Save *fig* as ``<directory>/<base>.<fmt>`` for every format."""
         for fmt in self.image_formats:
@@ -96,21 +88,14 @@ class ScanpyPlotter:
             legend_fontsize=legend_fontsize,
             legend_fontoutline=legend_fontoutline,
         )
-        # scanpy's frameon=True draws the full box; keep it minimal but
-        # WITH ticks and tick labels
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
-        # scanpy 1.11 clears the tick locator (empty FixedLocator) even
-        # under frameon=True — restore real numeric ticks
         import matplotlib.ticker as _mt
         ax.xaxis.set_major_locator(_mt.MaxNLocator(6))
         ax.yaxis.set_major_locator(_mt.MaxNLocator(6))
         ax.set_xlabel("UMAP1")
         ax.set_ylabel("UMAP2")
 
-    # ------------------------------------------------------------------
-    # QC
-    # ------------------------------------------------------------------
     def plot_qc(
         self,
         adata: AnnData,
@@ -136,19 +121,16 @@ class ScanpyPlotter:
             mt_col: Column in ``adata.obs`` for mitochondrial fraction
                 (default ``"pct_counts_mt"``).
         """
-        # 1. Total counts distribution
         fig, ax = plt.subplots(figsize=(8, 4))
         sns.histplot(adata_before.obs[counts_col], bins=100, kde=False, ax=ax)
         ax.set_title("Total Counts Distribution")
         self._save("qc_total_counts_distribution")
 
-        # 2. Violin: mt%
         fig, ax = plt.subplots(figsize=(4, 6))
         sc.pl.violin(adata_before, mt_col, show=False, ax=ax)
         ax.set_title(f"% Mitochondrial Counts ({mt_col})")
         self._save("qc_pct_counts_mt_violin")
 
-        # Compute unified axis limits for before/after comparison
         all_counts = np.concatenate([adata_before.obs[counts_col].values,
                                      adata.obs[counts_col].values])  # type: ignore[arg-type]
         all_genes = np.concatenate([adata_before.obs[genes_col].values,
@@ -163,7 +145,6 @@ class ScanpyPlotter:
         x_lim = (x_min - x_margin, x_max + x_margin)
         y_lim = (y_min - y_margin, y_max + y_margin)
 
-        # 3+4. Scatter: before vs after side by side
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
         plt.subplots_adjust(wspace=0.35)
 
@@ -180,7 +161,6 @@ class ScanpyPlotter:
                 if old_cbar is not None:
                     old_cbar.remove()
 
-        # Single colorbar on the right edge
         from mpl_toolkits.axes_grid1 import make_axes_locatable
         divider = make_axes_locatable(ax2)
         cax = divider.append_axes("right", size="5%", pad=0.1)
@@ -191,9 +171,6 @@ class ScanpyPlotter:
 
         logger.info("QC plots saved to %s", self.plot_dir)
 
-    # ------------------------------------------------------------------
-    # Merge
-    # ------------------------------------------------------------------
     def plot_merge(self, adata: AnnData, sample_key: str = "sample_id") -> None:
         """Post-merge overview: per-sample cell counts bar chart.
 
@@ -217,12 +194,6 @@ class ScanpyPlotter:
 
         logger.info("Merge plots saved to %s", self.plot_dir)
 
-    # ------------------------------------------------------------------
-    # Cluster
-    # ------------------------------------------------------------------
-    # ------------------------------------------------------------------
-    # HVG
-    # ------------------------------------------------------------------
     def plot_hvg(
         self,
         adata: AnnData,
@@ -258,7 +229,6 @@ class ScanpyPlotter:
 
         fig, axes = plt.subplots(1, 2, figsize=(14, 6))
 
-        # --- Left: mean vs normalized dispersion scatter ---
         ax = axes[0]
         ax.scatter(means[~hvg_mask], disp_norm[~hvg_mask],
                    c="lightgrey", s=2, alpha=0.3, label="Non-HVG",
@@ -267,7 +237,6 @@ class ScanpyPlotter:
                    c="steelblue", s=4, alpha=0.7, label="HVG",
                    rasterized=True)
 
-        # Threshold line at the dispersion cutoff
         hvg_dispersions = np.sort(disp_norm[hvg_mask])[::-1]
         actual_n = min(n_top_genes, len(hvg_dispersions))
         if actual_n > 0:
@@ -283,7 +252,6 @@ class ScanpyPlotter:
         )
         ax.legend(fontsize=8, loc="upper right")
 
-        # --- Right: sorted dispersion elbow plot ---
         ax = axes[1]
         valid_mask = np.isfinite(disp_norm)
         sorted_disp = np.sort(disp_norm[valid_mask])[::-1]
@@ -308,9 +276,6 @@ class ScanpyPlotter:
         self._save("cluster_highly_variable_genes")
         logger.info("HVG plot saved to %s", self.plot_dir)
 
-    # ------------------------------------------------------------------
-    # Cluster
-    # ------------------------------------------------------------------
     def plot_cluster(
         self,
         adata: AnnData,
@@ -348,9 +313,6 @@ class ScanpyPlotter:
 
         logger.info("Cluster plots saved to %s", self.plot_dir)
 
-    # ------------------------------------------------------------------
-    # Per-iteration snapshot (auto mode)
-    # ------------------------------------------------------------------
     def plot_iteration_snapshot(
         self,
         adata: AnnData,
@@ -397,14 +359,12 @@ class ScanpyPlotter:
         flagged_clusters = [str(c) for c in (flagged_clusters or [])]
         flagged_labels = flagged_labels or {}
 
-        # 1. Cluster UMAP
         fig, ax = plt.subplots(figsize=(8, 6))
         self._umap(adata, cluster_key, ax=ax,
                    title=f"Iteration {iteration} — {cluster_key} clusters",
                    legend_loc="on data", legend_fontsize=10)
         self._save_to(iter_dir, "umap_leiden")
 
-        # 2. Cell type annotation UMAP
         if annotation_col in adata.obs.columns:
             fig, ax = plt.subplots(figsize=(10, 6))
             self._umap(adata, annotation_col, ax=ax,
@@ -413,7 +373,6 @@ class ScanpyPlotter:
                        legend_fontoutline=1)
             self._save_to(iter_dir, "umap_cell_type")
 
-        # 3. Flagged clusters highlighted (always drawn — clean rounds too)
         coords = adata.obsm["X_umap"]
         fig, ax = plt.subplots(figsize=(8, 6))
         ax.scatter(coords[:, 0], coords[:, 1], s=2, c="lightgray",
@@ -435,7 +394,6 @@ class ScanpyPlotter:
         ax.set_yticks([])
         self._save_to(iter_dir, "umap_flagged")
 
-        # 4. QC violins per cluster with threshold lines (flagged in red)
         qc_metrics = [
             ("total_counts", min_counts, "min_counts"),
             ("n_genes_by_counts", min_genes, "min_genes"),
@@ -479,9 +437,6 @@ class ScanpyPlotter:
         self._save_fig(plt.gcf(), directory, base)
         plt.close("all")
 
-    # ------------------------------------------------------------------
-    # PCA variance
-    # ------------------------------------------------------------------
     def plot_pca_variance(
         self,
         adata: AnnData,
@@ -527,7 +482,6 @@ class ScanpyPlotter:
 
         x = np.arange(1, n_pcs_total + 1)
 
-        # --- Scree plot with PC labels ---
         ax_left.scatter(x, variance_ratio, s=20, c="steelblue", zorder=3)
         ax_left.plot(x, variance_ratio, linewidth=0.8, alpha=0.4, c="steelblue")
 
@@ -544,9 +498,8 @@ class ScanpyPlotter:
         ax_left.set_ylabel("variance ratio")
         ax_left.set_title("variance ratio")
 
-        # --- Right: relative change rate + stability ---
         if has_diag:
-            delta = detect_diag["delta"]       # now relative change
+            delta = detect_diag["delta"]
             threshold = detect_diag["threshold"]
             std_threshold = detect_diag.get("std_threshold", 0.03)
             elbow_pc = detect_diag["elbow_pc"]
@@ -566,7 +519,6 @@ class ScanpyPlotter:
                              alpha=0.7,
                              label=f"rel threshold ({threshold*100:.0f}%)")
 
-            # Mark elbow point
             if 2 <= elbow_pc <= len(delta) + 1:
                 ax_right.plot(elbow_pc, delta[elbow_pc - 2] * 100, "ro",
                               markersize=8, zorder=5,
@@ -581,9 +533,6 @@ class ScanpyPlotter:
         self._save("cluster_pca_variance_ratio")
         logger.info("PCA variance plot saved to %s", self.plot_dir)
 
-    # ------------------------------------------------------------------
-    # Batch correction
-    # ------------------------------------------------------------------
     def plot_batch(
         self,
         adata: AnnData,
@@ -609,21 +558,18 @@ class ScanpyPlotter:
         title_suffix = method.upper()
         has_sample = sample_key in adata.obs.columns
 
-        # 1. UMAP — sample (batch effect)
         if has_sample:
             fig, ax = plt.subplots(figsize=(8, 6))
             self._umap(adata, sample_key, ax=ax,
                        title=f"After {title_suffix} — Samples")
             self._save(f"batch_umap_{sample_key}")
 
-        # 2. UMAP — cluster
         fig, ax = plt.subplots(figsize=(8, 6))
         self._umap(adata, cluster_key, ax=ax,
                    title=f"After {title_suffix} — {cluster_key}",
                    legend_loc="on data", legend_fontsize=10)
         self._save(f"batch_umap_{cluster_key}")
 
-        # 3. Side-by-side comparison
         if has_sample:
             fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
             plt.subplots_adjust(wspace=0.4)
@@ -634,9 +580,6 @@ class ScanpyPlotter:
 
         logger.info("Batch correction plots saved to %s", self.plot_dir)
 
-    # ------------------------------------------------------------------
-    # Annotation
-    # ------------------------------------------------------------------
     def plot_annotate(
         self,
         adata: AnnData,
@@ -671,7 +614,6 @@ class ScanpyPlotter:
         if annotation_keys is None:
             annotation_keys = []
 
-        # 1. Marker dotplot (from marker file)
         if marker_file and annotate_group:
             marker_dict = self._load_marker_dict(marker_file, adata)
             if marker_dict:
@@ -681,7 +623,6 @@ class ScanpyPlotter:
                 )
                 self._save("annotate_marker_dotplot")
 
-        # 2. Rank genes groups overview
         if has_rank_genes:
             sc.pl.rank_genes_groups(adata, n_genes=5, show=False)
             self._save("annotate_rank_genes_groups")
@@ -689,7 +630,6 @@ class ScanpyPlotter:
             sc.pl.rank_genes_groups_dotplot(adata, n_genes=3, show=False)
             self._save("annotate_deg_dotplot")
 
-        # 3. UMAP — each annotation column
         for col in annotation_keys:
             if col in adata.obs.columns:
                 fig, ax = plt.subplots(figsize=(10, 6))
@@ -697,7 +637,6 @@ class ScanpyPlotter:
                            legend_fontsize=9, legend_fontoutline=1)
                 self._save(f"annotate_umap_{col}")
 
-        # 4. Confidence score
         if score_col in adata.obs.columns:
             fig, ax = plt.subplots(figsize=(8, 6))
             self._umap(adata, score_col, ax=ax,
@@ -706,9 +645,6 @@ class ScanpyPlotter:
 
         logger.info("Annotation plots saved to %s", self.plot_dir)
 
-    # ------------------------------------------------------------------
-    # Marker expression on UMAP (post-annotation)
-    # ------------------------------------------------------------------
     def plot_markers(
         self,
         adata: AnnData,
@@ -770,14 +706,10 @@ class ScanpyPlotter:
             Total number of unique markers actually plotted.
         """
         marker_dir = os.path.join(self.plot_dir, "marker")
-        # Remove stale marker plots from previous runs: files are keyed by
-        # cell_type labels, which can change between runs (LLM-driven naming),
-        # so old PNGs would otherwise linger alongside the new ones.
         if os.path.isdir(marker_dir):
             shutil.rmtree(marker_dir)
         os.makedirs(marker_dir, exist_ok=True)
 
-        # Use raw for expression values
         if adata.raw is not None:
             adata_raw = adata.raw.to_adata()
             adata_raw.obsm = adata.obsm
@@ -788,14 +720,12 @@ class ScanpyPlotter:
         all_genes = set(adata_raw.var_names)
         umap = adata.obsm["X_umap"]
 
-        # Compute cluster centroids
         centroids: Dict[str, np.ndarray] = {}
         for cid in sorted(annotations.keys(), key=lambda x: (0, int(x)) if str(x).isdigit() else (1, str(x))):
             mask = adata.obs[cluster_key] == cid
             if mask.sum() > 0:
                 centroids[cid] = umap[mask.values].mean(axis=0)
 
-        # Group clusters by cell type
         ct_to_clusters: Dict[str, List[str]] = {}
         for cid in sorted(annotations.keys(), key=lambda x: (0, int(x)) if str(x).isdigit() else (1, str(x))):
             ct = annotations[cid]["cell_type"]
@@ -807,12 +737,6 @@ class ScanpyPlotter:
                 return x.toarray().flatten()
             return np.asarray(x).flatten()
 
-        # ── Cluster palette helpers ──────────────────────────────────────
-        # `adata.uns[f"{cluster_key}_colors"]` is the canonical palette written
-        # by scanpy when ``sc.pl.umap(..., color=cluster_key)`` is first
-        # invoked.  We reuse it for the "Cluster ref" subplot so the colours
-        # match the main UMAP.  Falls back to matplotlib's tab20 cycle when
-        # the palette is missing or shorter than the number of clusters.
         _tab_palette = tuple(
             plt.get_cmap("tab20")(i) for i in range(20)
         )
@@ -887,25 +811,17 @@ class ScanpyPlotter:
                               facecolor="white", alpha=0.0, edgecolor="none"),
                 )
 
-        # Case-insensitive supplement lookup: cell-type labels are
-        # LLM-generated and drift run to run, so exact-name matching on a
-        # user-curated supplement would silently drop entries.
         supp_lookup: Dict[str, Dict[str, List[str]]] = {}
         for _k, _v in (supplement_map or {}).items():
             supp_lookup[_k.lower()] = _v
         used_supp_keys: set = set()
 
-        # ── Per-cell-type marker panels ──
         total_unique_markers = 0
         seen_genes: set = set()
-        all_top_markers: List[str] = []   # one top marker per cell type
+        all_top_markers: List[str] = []
         all_top_cts: List[str] = []
 
         for ct, cluster_ids in ct_to_clusters.items():
-            # Canonical (literature) markers first: they verify the cell
-            # type identity and are far more specific than the per-cluster
-            # evidence genes. Fall back to the key_markers union (DEG-derived)
-            # when no canonical set is known for this cell type.
             markers: List[str] = []
             seen_ct_genes: set = set()
             gene_role: Dict[str, str] = {}
@@ -938,11 +854,6 @@ class ScanpyPlotter:
                             markers.append(g)
                             seen_ct_genes.add(g)
 
-            # User-curated discriminating markers (display-level only):
-            # positive genes extend the identity signature; negative genes
-            # are expected ABSENT in this cell type — plotted as contrast
-            # against confusable sibling types so the panel reads as a
-            # combination-marker test instead of a shared-ECM wash.
             supp = supp_lookup.get(ct.lower()) if supp_lookup else None
             if supp:
                 used_supp_keys.add(ct.lower())
@@ -973,9 +884,8 @@ class ScanpyPlotter:
             if not markers:
                 continue
 
-            # Subplot grid: markers + 1 UMAP reference, up to 5 cols
             n = len(markers)
-            total_panels = n + 1  # +1 for UMAP cluster reference
+            total_panels = n + 1
             ncols = min(5, total_panels)
             nrows = (total_panels + ncols - 1) // ncols
             fig, axes = plt.subplots(nrows, ncols,
@@ -992,8 +902,6 @@ class ScanpyPlotter:
                     c=expr[sort_idx], cmap="Reds", s=3,
                     alpha=0.7, edgecolors="none",
                 )
-                # Redraw target cells larger on the same colour scale: at
-                # n_obs ~ 1e4 a 20-cell target is a 1-px smear otherwise.
                 t_mask = adata.obs[cluster_key].astype(str) \
                     .isin(cluster_ids).values
                 t_idx = sort_idx[t_mask[sort_idx]]
@@ -1014,10 +922,6 @@ class ScanpyPlotter:
                 plt.colorbar(sm, ax=ax, fraction=0.046, pad=0.04,
                              label="expression")
 
-            # Last subplot: UMAP cluster reference — colour each cluster with
-            # the same palette as the main UMAP (adata.uns[leiden_colors]).
-            # Falling back to tab10 cycle keeps things readable if the colours
-            # weren't stored.
             ax_ref = axes_flat[n]
             ax_ref.scatter(umap[:, 0], umap[:, 1], c="#e0e0e0",
                            s=2, alpha=0.3, edgecolors="none")
@@ -1049,11 +953,9 @@ class ScanpyPlotter:
             ax_ref.legend(loc="best", fontsize=7, framealpha=0.8,
                           labelcolor="black")
 
-            # Hide unused axes
             for j in range(total_panels, len(axes_flat)):
                 axes_flat[j].set_visible(False)
 
-            # Title: cell type + cluster ids + marker provenance
             cid_str = ", ".join(f"C{c}" for c in cluster_ids)
             fig.suptitle(f"{ct}  [{cid_str}]  — {marker_source}",
                          fontsize=14, fontweight="bold", y=1.02)
@@ -1066,7 +968,6 @@ class ScanpyPlotter:
                     seen_genes.add(g)
                     total_unique_markers += 1
 
-            # Collect top marker for combined panel (canonical first)
             top_pool: List[str] = []
             _canon_top = list((canonical_map or {}).get(ct) or [])
             if _canon_top:
@@ -1083,7 +984,6 @@ class ScanpyPlotter:
                     all_top_cts.append(ct)
                     break
 
-        # ── Combined panel: one top marker per cell type ──
         if all_top_markers:
             n = len(all_top_markers)
             ncols = min(5, n)
@@ -1103,7 +1003,6 @@ class ScanpyPlotter:
                     c=expr[sort_idx], cmap="Reds", s=2,
                     alpha=0.7, edgecolors="none",
                 )
-                # Highlight all clusters for this cell type
                 cids = ct_to_clusters[ct]
                 _annotate_centroids(ax, cids)
                 cid_str = ",".join(cids)
@@ -1119,11 +1018,8 @@ class ScanpyPlotter:
             plt.tight_layout()
             self._save_fig(fig, marker_dir, "all_cell_types_top_marker")
 
-        # ── Dotplot grouped by cell_type ──
-        # Use ALL markers, grouped by cell type label
         dotplot_markers: List[str] = []
         seen_dotplot: set = set()
-        # Build ordered cell type labels for groupby
         type_count: Dict[str, int] = {}
         for ann in annotations.values():
             type_count[ann["cell_type"]] = type_count.get(ann["cell_type"], 0) + 1
@@ -1155,7 +1051,6 @@ class ScanpyPlotter:
             self._save_fig(plt.gcf(), marker_dir, "marker_dotplot")
             plt.close("all")
 
-        # Clean up temporary columns from adata.obs
         for col in ("_marker_ct_label", "_marker_cell_type_label"):
             if col in adata.obs.columns:
                 adata.obs.drop(columns=[col], inplace=True)
@@ -1171,9 +1066,6 @@ class ScanpyPlotter:
                      marker_dir, total_unique_markers, len(ct_to_clusters))
         return total_unique_markers
 
-    # ------------------------------------------------------------------
-    # Advanced (trajectory / CNV)
-    # ------------------------------------------------------------------
     def plot_evidence(
         self,
         adata: AnnData,
@@ -1239,8 +1131,6 @@ class ScanpyPlotter:
                 continue
             safe_ct = ct.replace("/", "_").replace(" ", "_")
 
-            # Per-cluster mean / pct per gene (single matrix pass; the same
-            # numbers feed the TSV so figure and table cannot disagree).
             mat = src[:, genes].X
             means = np.zeros((len(clusters), len(genes)))
             pcts = np.zeros((len(clusters), len(genes)))
@@ -1265,8 +1155,6 @@ class ScanpyPlotter:
                         "mean_expr": round(means[yi, xi], 4),
                         "pct_expr": round(pcts[yi, xi], 4),
                     })
-            # Colour: each gene (column) scaled 0-1 across clusters, so a row
-            # of dots reads as a relative comparison for that gene.
             span = means.max(axis=0) - means.min(axis=0)
             span[span == 0] = 1.0
             scaled = (means - means.min(axis=0)) / span
@@ -1277,7 +1165,6 @@ class ScanpyPlotter:
             fig, ax = plt.subplots(
                 figsize=(0.85 * n_genes + 3.0, 0.32 * n_cl + 2.0))
 
-            # Row banding: target cluster highlighted, others alternating.
             for yi, cl in enumerate(clusters):
                 if cl in target:
                     ax.axhspan(yi - 0.5, yi + 0.5, color="#fdeecf", zorder=0)
@@ -1300,16 +1187,13 @@ class ScanpyPlotter:
                 if cl in target:
                     tick.set_fontweight("bold")
                     tick.set_color("#b3261e")
-            ax.set_ylim(n_cl - 0.5, -0.5)   # cluster 0 on top
+            ax.set_ylim(n_cl - 0.5, -0.5)
             ax.set_xlim(-0.6, n_genes - 0.4)
             for spine in ax.spines.values():
                 spine.set_visible(False)
             ax.tick_params(length=0)
 
-            # Gene-group separator + horizontal section headers (no vertical
-            # text anywhere; the old scanpy var_group labels collided with
-            # the title).
-            trans = ax.get_xaxis_transform()  # x=data, y=axes
+            trans = ax.get_xaxis_transform()
             if neg and pos:
                 ax.axvline(len(neg) - 0.5, color="#b0b0b0", lw=1, zorder=1)
             if neg:
@@ -1427,18 +1311,11 @@ class ScanpyPlotter:
             logger.warning("No scorable programs for %s; skipping pack", cell_type)
             return
 
-        # Combined score = min(z) across programs = AND logic: a cell must
-        # score high on EVERY program. A plain mean over the union is OR
-        # logic (one loud program dominates) and cannot single out a
-        # combination-defined identity.
         z_cols = [scores[p] for p in scores]
         zmat = np.vstack([np.asarray(adata.obs[c].values, dtype=float)
                           for c in z_cols])
         adata.obs["_z_combined"] = zmat.min(axis=0)
 
-        # Negative control: identical pipeline over a size-matched random
-        # gene set (seed 42). If the "signature" were just high-expression
-        # regions glowing, the control panel would light up the same way.
         rng = np.random.RandomState(42)
         pool = [g for g in src.var_names if g not in set(union)]
         ctrl_genes = [str(g) for g in rng.choice(
@@ -1473,8 +1350,6 @@ class ScanpyPlotter:
                 if not mask.sum():
                     continue
                 pts = umap[mask]
-                # Convex-hull outline marks the cluster region itself —
-                # expression colours alone leave the target unidentifiable.
                 if len(pts) >= 3:
                     try:
                         from scipy.spatial import ConvexHull
@@ -1485,8 +1360,6 @@ class ScanpyPlotter:
                             lw=1.6, zorder=4))
                     except Exception:
                         pass
-                # Label ABOVE the blob with a light box; a heavy box over
-                # the centroid used to obscure cells ("C6 has no colour").
                 top_y = float(pts[:, 1].max())
                 ax.annotate(
                     f"C{cid}", (float(pts[:, 0].mean()), top_y),
@@ -1515,8 +1388,6 @@ class ScanpyPlotter:
         self._save_fig(fig, evid_dir, safe_ct)
         logger.info("Signature pack: %s", os.path.join(evid_dir, safe_ct))
 
-        # Co-expression stats: per cluster, % positive in >=1 marker of each
-        # program and in the pairwise intersections.
         if table_dir and len(prog_genes) >= 2:
             labels = adata.obs[cluster_key].astype(str)
             pos: Dict[str, np.ndarray] = {}
@@ -1541,8 +1412,6 @@ class ScanpyPlotter:
                         both = pos[names[i]] & pos[names[j]]
                         row[f"pct_{names[i]}+_{names[j]}+"] = round(
                             float(both[mask].mean()), 4)
-                # Per-cluster mean z scores make the AND-score claim
-                # checkable without reading colour scales.
                 for sname, scol in list(scores.items()) + [
                         ("combined", "_z_combined"), ("control", "_z_ctrl")]:
                     row[f"mean_z_{sname}"] = round(
@@ -1590,7 +1459,6 @@ class ScanpyPlotter:
         """
         color = annotation_key or cluster_key
 
-        # --- Trajectory ---
         if trajectory and "X_diffmap" in adata.obsm:
             fig, ax = plt.subplots(figsize=(8, 6))
             sc.pl.diffmap(adata, color=color, components=["2, 3"],
@@ -1604,7 +1472,6 @@ class ScanpyPlotter:
                               title="Pseudotime")
                 self._save("advanced_pseudotime")
 
-        # --- CNV ---
         if cnv:
             self._plot_cnv(adata, annotation_key=annotation_key,
                            cluster_key=cluster_key)
@@ -1633,12 +1500,10 @@ class ScanpyPlotter:
 
         groupby = annotation_key or cluster_key
 
-        # 1. Chromosome heatmap by annotation
         if groupby:
             cnv.pl.chromosome_heatmap(adata, groupby=groupby, show=False)
             self._save("advanced_cnv_heatmap")
 
-        # 2. CNV clustering + UMAP panels
         cnv.tl.pca(adata)
         cnv.pp.neighbors(adata)
         cnv.tl.leiden(adata)
@@ -1658,14 +1523,10 @@ class ScanpyPlotter:
         fig.suptitle("CNV Analysis", fontsize=14, y=0.98)
         self._save("advanced_cnv_umap")
 
-        # 3. CNV heatmap by cnv_leiden
         cnv.pl.chromosome_heatmap(adata, groupby="cnv_leiden",
                                   dendrogram=True, show=False)
         self._save("advanced_cnv_heatmap_leiden")
 
-    # ------------------------------------------------------------------
-    # Differential expression
-    # ------------------------------------------------------------------
     def plot_de(
         self,
         adata: AnnData,
@@ -1686,15 +1547,12 @@ class ScanpyPlotter:
             volcano_group: Specific group category to plot in the volcano.
                 None uses the first category in ``adata.obs[group]``.
         """
-        # 1. Rank genes groups overview
         sc.pl.rank_genes_groups(adata, n_genes=10, show=False)
         self._save("de_rank_genes_groups")
 
-        # 2. Rank genes groups dotplot
         sc.pl.rank_genes_groups_dotplot(adata, n_genes=5, show=False)
         self._save("de_rank_genes_dotplot")
 
-        # 3. Volcano plot
         vg = volcano_group
         if vg is None:
             try:
@@ -1736,7 +1594,6 @@ class ScanpyPlotter:
         ax.scatter(df.loc[sig, "logfoldchanges"], df.loc[sig, "-log10pval"],
                    c="red", s=10, alpha=0.7, label="Significant")
 
-        # Label top 10 most significant genes
         top = df.loc[sig].sort_values(pval_col).head(10)
         for _, row in top.iterrows():
             ax.annotate(
@@ -1754,9 +1611,6 @@ class ScanpyPlotter:
         ax.axvline(1, ls="--", color="grey", alpha=0.5)
         self._save(f"de_volcano_{group}")
 
-    # ------------------------------------------------------------------
-    # Utilities
-    # ------------------------------------------------------------------
     @staticmethod
     def _load_marker_dict(marker_file: str, adata: AnnData) -> Dict[str, List[str]]:
         """Parse marker TSV into {cell_type: [gene, ...]} (genes present in adata).

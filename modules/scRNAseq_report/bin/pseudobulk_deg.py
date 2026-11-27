@@ -25,8 +25,6 @@ warnings.filterwarnings("ignore")
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
@@ -85,7 +83,6 @@ def run_deg(
     cell_type: str,
 ) -> pd.DataFrame:
     """Run PyDESeq2 for sample1 vs sample2 using pseudo-replicates."""
-    # Filter to the two samples' replicates
     mask = meta_df["condition"].isin([sample1, sample2])
     sub_counts = counts_df.loc[mask]
     sub_meta = meta_df.loc[mask]
@@ -93,12 +90,10 @@ def run_deg(
     if sub_counts.shape[0] < 4:
         return pd.DataFrame()
 
-    # Drop genes with zero counts
     sub_counts = sub_counts.loc[:, sub_counts.sum(axis=0) > 0]
     if sub_counts.shape[1] == 0:
         return pd.DataFrame()
 
-    # PyDESeq2
     dds = DeseqDataSet(
         counts=sub_counts.astype(int),
         metadata=sub_meta,
@@ -106,7 +101,6 @@ def run_deg(
     )
     dds.deseq2()
 
-    # Results
     contrast = ["condition", sample2, sample1]
     stat_res = DeseqStats(dds, contrast=contrast)
     stat_res.summary()
@@ -140,33 +134,27 @@ def plot_volcano(df: pd.DataFrame, title: str, out_base: Path,
     df = df.copy()
     df["neg_log10p"] = -np.log10(df["padj"].clip(lower=1e-300))
 
-    # Classify
     sig_up = (df["padj"] < 0.05) & (df["log2FoldChange"] > 1)
     sig_down = (df["padj"] < 0.05) & (df["log2FoldChange"] < -1)
     ns = ~(sig_up | sig_down)
 
-    # Plot NS
     ax.scatter(
         df.loc[ns, "log2FoldChange"], df.loc[ns, "neg_log10p"],
         c="#CCCCCC", s=6, alpha=0.4, linewidths=0, rasterized=True,
     )
-    # Plot sig up
     ax.scatter(
         df.loc[sig_up, "log2FoldChange"], df.loc[sig_up, "neg_log10p"],
         c="#D62728", s=10, alpha=0.6, linewidths=0, rasterized=True,
     )
-    # Plot sig down
     ax.scatter(
         df.loc[sig_down, "log2FoldChange"], df.loc[sig_down, "neg_log10p"],
         c="#1F77B4", s=10, alpha=0.6, linewidths=0, rasterized=True,
     )
 
-    # Reference lines
     ax.axhline(-np.log10(0.05), ls="--", c="#888888", lw=0.6, zorder=0)
     ax.axvline(-1, ls="--", c="#888888", lw=0.6, zorder=0)
     ax.axvline(1, ls="--", c="#888888", lw=0.6, zorder=0)
 
-    # Label top N up / down genes with auto-repulsion
     from adjustText import adjust_text
 
     texts = []
@@ -193,12 +181,10 @@ def plot_volcano(df: pd.DataFrame, title: str, out_base: Path,
             expand=(1.2, 1.4), max_move=None,
         )
 
-    # Count
     n_up = sig_up.sum()
     n_down = sig_down.sum()
     n_ns = ns.sum()
 
-    # Legend
     from matplotlib.lines import Line2D
     handles = [
         Line2D([0], [0], marker="o", color="w", markerfacecolor="#D62728",
@@ -293,9 +279,7 @@ def main():
                 print(f"    SKIP (<2 samples with >={args.min_cells} cells)")
                 continue
 
-            # Pseudobulk with pseudo-replicates
             pb_counts, pb_meta = pseudobulk_with_replicates(adata_ct)
-            # Keep only valid samples
             keep_mask = pb_meta["condition"].isin(valid_samples)
             pb_counts = pb_counts.loc[keep_mask]
             pb_meta = pb_meta.loc[keep_mask]
@@ -318,14 +302,12 @@ def main():
                     print("EMPTY")
                     continue
 
-                # Save TSV
                 tsv_path = comp_dir / f"{ct}_{comp_name}_deg.tsv"
                 res.to_csv(tsv_path, sep="\t", index=False)
 
                 sig = res[(res["padj"] < 0.05) & (res["log2FoldChange"].abs() > 1)]
                 print(f"sig={len(sig)}")
 
-                # Volcano
                 out_base = comp_dir / f"{ct}_{comp_name}_volcano"
                 title = f"{ct} — {comp_name} ({counter})"
                 plot_volcano(res, title, out_base, args.top_n, image_formats)

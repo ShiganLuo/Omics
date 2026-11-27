@@ -47,16 +47,13 @@ def detect_delimiter(
 
         counter = Counter(counts)
 
-        # 最常见列数
         dominant_cols, freq = counter.most_common(1)[0]
 
         ratio = freq / len(counts)
 
-        # 至少产生2列
         if dominant_cols <= 1:
             continue
 
-        # 综合评分
         score = ratio * dominant_cols
 
         if score > best_score:
@@ -73,7 +70,6 @@ def detect_delimiter(
         return best_delim
 
 
-    # whitespace
     counts = [
         len(re.split(r"\s+", line.strip()))
         for line in lines

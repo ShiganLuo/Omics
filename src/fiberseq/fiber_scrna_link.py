@@ -78,7 +78,7 @@ def te_expression_per_celltype(h5ad_path: str, level: str = "family",
     mask = var["gene_type"].astype(str) == "TE"
     key_col = {"family": "family_id", "class": "class_id",
                "subfamily": None}.get(level)
-    if key_col is None:  # subfamily = var index
+    if key_col is None:
         keys = pd.Index([str(v) for v in var.index])
     else:
         keys = var[key_col].astype(str)
@@ -92,7 +92,6 @@ def te_expression_per_celltype(h5ad_path: str, level: str = "family",
     grouped = df.groupby(cell_types, observed=True)
     for ct, block in grouped:
         sub = block.loc[:, keys.index]
-        # aggregate features -> key (sum counts), then log1p mean per cell
         agg = sub.T.groupby(keys.values).sum().T
         out[ct] = np.log1p(agg.mean(axis=0))
     table = pd.DataFrame(out)
@@ -109,7 +108,6 @@ def gene_expression_per_celltype(h5ad_path: str, top_n: int = 5000) -> pd.DataFr
     genes = [str(v) for v in var.index]
     df = pd.DataFrame(np.asarray(X), index=[str(c) for c in a.obs_names],
                       columns=genes)
-    # cap to genes with any signal
     keep = df.columns[(df > 0).sum(axis=0) > df.shape[0] * 0.01]
     df = df[keep]
     cell_types = a.obs["cell_type"].astype(str).values
@@ -156,7 +154,7 @@ def promoter_msp_coverage(msp_path: str, gtf_path: str, flank: int = 1000,
             if len(f) < 3 or f[0] not in tss:
                 continue
             s, e = int(f[1]), int(f[2])
-            if len(f) > 11:  # BED12: use blocks
+            if len(f) > 11:
                 sizes = [int(x) for x in f[10].split(",") if x]
                 starts = [int(x) for x in f[11].split(",") if x]
                 blocks = [(s + b, s + b + sz) for b, sz in zip(starts, sizes)]
@@ -260,7 +258,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return 2
     args.outdir.mkdir(parents=True, exist_ok=True)
 
-    # ---- TE layer
     fiber = fiber_te_metrics(args.te_metrics, args.fiber_sample)
     key = {"class": "class", "family": "family", "subfamily": "subfamily"}[args.te_level]
     rna = te_expression_per_celltype(args.h5ad, level=args.te_level)
@@ -273,7 +270,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         plot_scatter(fiber, rna, key, "msp_frac", args.outdir, args.formats)
     logger.info(f"TE layer: {len(assoc)} associations")
 
-    # ---- gene promoter layer (optional)
     if args.gtf and args.msp:
         prom = promoter_msp_coverage(args.msp, args.gtf, args.promoter_flank)
         gex = gene_expression_per_celltype(args.h5ad)

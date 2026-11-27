@@ -53,7 +53,6 @@ def open_text(path):
     return open(path, "r", encoding="utf-8")
 
 
-# ---------------- analyze ----------------
 
 def load_counts(path, samples):
     """featureCounts 矩阵 -> gene extents + counts(仅取配置样本列)."""
@@ -206,7 +205,6 @@ def cnv_analysis(genes, expressed, cnv_dir, samples, groups, sex_chroms):
         segments[s] = segs
         others = [t for t in members[groups[s]] if t != s]
         by_class = {"gain": [], "loss": [], "neutral": []}
-        # 染色体三分类: 常染色体(^(chr)?数字+$) / 性染色体(sex_chroms) / 未定位支架
         auto_alt = sum(1 for c, st, en, cn in segs
                        if cn != 2 and re.match(r"^(chr)?\d+$", c))
         unplaced_alt = sum(1 for c, st, en, cn in segs
@@ -288,7 +286,6 @@ def cmd_analyze(args):
                         if totals[s]) >= args.min_expressed}
     rna_sites, var_genes = read_drclass_tables(args.drclass_dir, samples, gene_names, by_chrom)
 
-    # 项1: RNA 支持位点(D1R1+D1R2)
     rows1 = []
     for r in rna_sites:
         rows1.append([groups[r["sample"]], r["sample"], r["chrom"], r["pos"], r["ref"],
@@ -301,7 +298,6 @@ def cmd_analyze(args):
                "dna_AD", "dna_DP", "rna_AF", "rna_AD", "rna_DP", "rna_filter",
                "gene", "pass_vaf_ratio_filter"], rows1)
 
-    # 项2: RNA/DNA VAF 比值
     rows2 = [[r[0], r[1], r[2], r[3], r[4], r[5], r[14], r[7], r[10],
               round(r[10] / r[7], 4) if r[7] else "NA"]
              for r in rows1 if r[15] == "yes"]
@@ -309,7 +305,6 @@ def cmd_analyze(args):
               ["group", "sample", "chrom", "pos", "ref", "alt", "gene", "dna_AF",
                "rna_AF", "rna_dna_ratio"], rows2)
 
-    # 项6: 变异基因 Δ' + 随机 null
     carried = {s: set(var_genes[s]) & expressed for s in samples}
     events, notes = within_group_deltas(genes, expressed, carried, samples, groups)
     null = random_null_deltas(genes, expressed, carried, samples, groups,
@@ -321,7 +316,6 @@ def cmd_analyze(args):
     write_tsv(os.path.join(args.outdir, "variant_gene_delta.tsv"),
               ["group", "sample", "gene", "set", "rep", "delta_prime"], rows6)
 
-    # 项5: CNV 剂量一致性
     segments, summary5 = cnv_analysis(genes, expressed, args.cnv_dir, samples,
                                       groups, sex_chroms)
     write_tsv(os.path.join(args.outdir, "cnv_dosage_summary.tsv"),
@@ -333,7 +327,6 @@ def cmd_analyze(args):
     write_tsv(os.path.join(args.outdir, "cnv_segments.tsv"),
               ["sample", "chrom", "start", "end", "cn"], seg_rows)
 
-    # P5: 稳定性程序基因 ∩ 变异基因
     prog_rows, prog_note = program_overlap(var_genes, samples, args.gmt, gene_sets,
                                            genes, gene_names)
     if prog_rows is not None:
@@ -392,7 +385,6 @@ def cmd_analyze(args):
     print(f"analyze -> {args.outdir}")
 
 
-# ---------------- figures ----------------
 
 def cmd_figures(args):
     import matplotlib
@@ -413,7 +405,6 @@ def cmd_figures(args):
     palette = ["#2166ac", "#b2182b", "#1b7837", "#762a83", "#e08214", "#4d4d4d"]
     GC = {g: palette[i % len(palette)] for i, g in enumerate(groups)}
 
-    # fig 1: RNA 支持位点 rna_AF vs dna_AF + VAF ratio
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7.4, 3.2))
     gene_pts = {}
     for r in rna_sites:
@@ -429,7 +420,6 @@ def cmd_figures(args):
                     facecolor=GC[r["group"]] if dp >= 10 else "white",
                     edgecolor=GC[r["group"]], zorder=3)
     fig.canvas.draw()
-    # 数据点显示坐标(标注避让用)
     pts_disp = [ax1.transData.transform((float(r["dna_AF"]), float(r["rna_AF"])))
                 for r in rna_sites]
 
@@ -451,7 +441,7 @@ def cmd_figures(args):
                     ([f"{n_smp} samples"] if n_smp > 1 else [])
             suffix = " (" + ", ".join(parts) + ")"
         xy = (float(r["dna_AF"]), float(r["rna_AF"]))
-        for dx, dy, ha in offs:  # 逐候选偏移试放,首个不压点/不压字的位置生效
+        for dx, dy, ha in offs:
             t = ax1.annotate(gene.split(",")[0] + suffix, xy, fontsize=5.5,
                              ha=ha, xytext=(dx, dy),
                              textcoords="offset points", zorder=5)
@@ -491,7 +481,6 @@ def cmd_figures(args):
     fig.savefig(os.path.join(outdir, "fig_rna_support_vaf.png"), dpi=300)
     plt.close(fig)
 
-    # fig 2: variant-gene delta' vs random null
     d = read_tsv("variant_gene_delta.tsv")
     if d:
         vd, nd = {}, {}
@@ -531,7 +520,6 @@ def cmd_figures(args):
         fig.savefig(os.path.join(outdir, "fig_variant_gene_delta.png"), dpi=300)
         plt.close(fig)
 
-    # fig 3: CNV overview
     segs = read_tsv("cnv_segments.tsv")
     if segs:
         smp_order = sorted({r["sample"] for r in segs})
@@ -567,7 +555,6 @@ def cmd_figures(args):
         fig.savefig(os.path.join(outdir, "fig_cnv_overview.png"), dpi=300)
         plt.close(fig)
 
-    # fig 4: program overlap
     pov = None
     if os.path.exists(os.path.join(outdir, "program_overlap.tsv")):
         pov = read_tsv("program_overlap.tsv")

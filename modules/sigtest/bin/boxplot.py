@@ -104,19 +104,16 @@ def plot_comparison(
     >>> result = prepare_data("RNAseq.tsv")
     >>> fig = plot_comparison(result, save_path="comparison.png")
     """
-    # Configure Chinese font
     selected_font = configure_chinese_font()
     if verbose and selected_font:
         logger.info(f"Using Chinese font: {selected_font}")
 
-    # Extract data from result
     group1_name = result['group1_name']
     group2_name = result['group2_name']
     group1_data = result['group1_data']
     group2_data = result['group2_data']
     comparison = result['comparison']
 
-    # Set style
     sns.set_style("whitegrid")
     apply_font_after_style(selected_font)
     plt.rcParams['font.size'] = 12
@@ -125,14 +122,11 @@ def plot_comparison(
     plt.rcParams['xtick.labelsize'] = 12
     plt.rcParams['ytick.labelsize'] = 12
 
-    # Create figure
     fig, ax = plt.subplots(figsize=figsize)
 
-    # Prepare data for plotting
     data_to_plot = [group1_data, group2_data]
     positions = [1, 2]
 
-    # Create box plot
     bp = ax.boxplot(
         data_to_plot,
         positions=positions,
@@ -146,17 +140,14 @@ def plot_comparison(
         flierprops={"marker": "o", "markerfacecolor": "gray", "markersize": 6, "alpha": 0.5}
     )
 
-    # Color the boxes
     for patch, color in zip(bp['boxes'], palette):
         patch.set_facecolor(color)
         patch.set_alpha(0.7)
         patch.set_edgecolor("black")
         patch.set_linewidth(1.5)
 
-    # Add individual data points if requested
     if show_points:
         for i, (data, pos, color) in enumerate(zip(data_to_plot, positions, palette)):
-            # Add jitter to x-coordinates
             jitter = np.random.uniform(-0.15, 0.15, size=len(data))
             ax.scatter(
                 np.full_like(data, pos) + jitter,
@@ -169,7 +160,6 @@ def plot_comparison(
                 zorder=5
             )
 
-    # Set x-axis labels with explicit font properties
     from matplotlib.font_manager import FontProperties
     if selected_font:
         font_prop = FontProperties(family=selected_font, size=12)
@@ -184,20 +174,16 @@ def plot_comparison(
     ax.set_xticklabels([f"{group1_name}\n(n={len(group1_data)})", f"{group2_name}\n(n={len(group2_data)})"],
                        fontproperties=font_prop)
 
-    # Set axis labels
     ax.set_xlabel(xlabel, fontproperties=font_prop_bold)
     ax.set_ylabel(ylabel, fontproperties=font_prop_bold)
     ax.set_title(title, fontproperties=font_prop_title, pad=20)
 
-    # Add statistics annotation if requested
     if show_stats:
-        # Get statistical results
         p_value = comparison['p_value']
         significant = comparison['significant']
         effect_size = comparison['effect_size']
         effect_interp = comparison['effect_size_interpretation']
 
-        # Determine significance stars
         if p_value < 0.001:
             sig_stars = "***"
         elif p_value < 0.01:
@@ -207,36 +193,28 @@ def plot_comparison(
         else:
             sig_stars = "ns"
 
-        # Calculate position for annotation
         y_max = max(max(group1_data), max(group2_data))
         y_min = min(min(group1_data), min(group2_data))
         y_range = y_max - y_min
 
-        # Position the bracket
         bracket_y = y_max + y_range * 0.15
         star_y = bracket_y + y_range * 0.05
 
-        # Draw bracket
         ax.plot([1, 1, 2, 2], [bracket_y, bracket_y + y_range * 0.02, bracket_y + y_range * 0.02, bracket_y],
                 color='black', linewidth=1.5)
 
-        # Add significance stars
         ax.text(1.5, star_y, sig_stars, ha='center', va='bottom', fontsize=16, fontweight='bold')
 
-        # Add p-value text
         p_text = f"p = {p_value:.4f}" if p_value >= 0.001 else f"p < 0.001"
         ax.text(1.5, star_y - y_range * 0.08, p_text, ha='center', va='top', fontsize=11, style='italic')
 
-        # Add effect size info - use axes transform for better positioning
         effect_text = f"{comparison['effect_size_name']}: {effect_size:.2f} ({effect_interp})"
         ax.text(0.98, 0.98, effect_text, transform=ax.transAxes, fontsize=10, 
                 color='gray', ha='right', va='top', style='italic')
 
-        # Add test name - use axes transform for better positioning
         test_text = f"Test: {comparison['test_name']}"
         ax.text(0.02, 0.02, test_text, transform=ax.transAxes, fontsize=9, color='gray', style='italic')
 
-    # Add mean and SD annotations
     for i, (data, pos, name) in enumerate(zip(data_to_plot, positions, [group1_name, group2_name])):
         mean_val = np.mean(data)
         std_val = np.std(data, ddof=1)
@@ -251,21 +229,16 @@ def plot_comparison(
             bbox=dict(boxstyle='round,pad=0.3', facecolor='white', edgecolor='gray', alpha=0.8)
         )
 
-    # Adjust y-axis limits to make room for annotation
     ax.set_ylim(y_min - y_range * 0.1, y_max + y_range * 0.35)
 
-    # Add grid
     ax.yaxis.grid(True, linestyle='--', alpha=0.7)
     ax.set_axisbelow(True)
 
-    # Remove top and right spines
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 
-    # Tight layout
     plt.tight_layout()
 
-    # Save if path provided
     if save_path:
         plt.savefig(save_path, dpi=dpi, bbox_inches='tight', facecolor='white')
         if verbose:

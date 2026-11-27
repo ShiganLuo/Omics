@@ -112,7 +112,6 @@ def build_config(args: argparse.Namespace) -> Dict:
         sys.exit("--sample and --bw must have the same count")
 
     tracks: List[Dict] = []
-    # Reference annotation tracks first (loaded from the workflow igv config)
     for track in base.get("tracks", []):
         tracks.append(track)
 

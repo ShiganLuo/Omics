@@ -3,8 +3,6 @@ include: "../../../common/common.smk"
 indir = config.get("indir") or "input"
 outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
-# 参数精确到 rule:javaOptions/tmp-dir 按 rule 独立配置(Params.gatk.<rule_name>
-# .javaOptions/.tmp-dir),无 module 级共享。
 
 def get_input_somaticMutect2(wildcards):
     """
@@ -71,7 +69,7 @@ rule somaticMutect2:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start somaticMutect2 for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} genome {wildcards.genome} at {current_time}")
             script = receipt_script(f"mutect2_{wildcards.normal_sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"{wildcards.genome}/mutect2-vcf/{wildcards.normal_sample_id}_vs_{wildcards.experimental_sample_id}/mutect2.sh")
             cmd = [
                 params.gatk, "Mutect2",
@@ -90,7 +88,7 @@ rule somaticMutect2:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "somaticMutect2 for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} on genome {wildcards.genome} successfully completed!"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

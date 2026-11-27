@@ -13,10 +13,6 @@ qc_h5ad = outdir + "/spatial/qc/filtered.h5ad"
 cluster_h5ad = outdir + "/spatial/cluster/clustered.h5ad"
 advanced_h5ad = outdir + "/spatial/advanced/spatial_autocorrelation.h5ad"
 
-# 参数精确到 rule:Params.spatial.<rule_name>.<key>(config 全量路径读取;
-# 原 Params.spatial 平铺 key 与 advanced 子段均挂到消费 rule 名下,无共享回退:
-# min_genes 等 → spatial_scanpy_qc;n_pcs/resolution 等 → spatial_scanpy_cluster;
-# spatial_autocorrelation 开关 → spatial_scanpy_advanced)。
 
 if not input_h5ad and not visium_h5:
     raise ValueError("spatial transcriptomics requires input_h5ad or visium_h5")
@@ -41,7 +37,6 @@ rule spatial_scanpy_qc:
     container:
         sif("spatial_scanpy.yaml", "spatial_scanpy_qc")
     params:
-        # 参数精确到 rule:Params.spatial.spatial_scanpy_qc.<key>
         command=lambda wc: [
             python,
             os.path.join(ROOT_DIR, "modules", "spatial_scanpy", "bin", "spatial_transcriptomics.py"),
@@ -62,7 +57,7 @@ rule spatial_scanpy_qc:
             with open(command_script,"w") as handle:
                 handle.write("#!/usr/bin/env bash\nset -euo pipefail\n"+" ".join(shlex.quote(str(x)) for x in params.command)+"\necho \"script completed successfully\"\n")
             shutil.copyfile(command_script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {shlex.quote(plain_script)} >> {shlex.quote(log_path)} 2>&1")
@@ -84,7 +79,6 @@ rule spatial_scanpy_cluster:
     container:
         sif("spatial_scanpy.yaml", "spatial_scanpy_cluster")
     params:
-        # 参数精确到 rule:Params.spatial.spatial_scanpy_cluster.<key>
         command=lambda wc: [
             python,
             os.path.join(ROOT_DIR, "modules", "spatial_scanpy", "bin", "spatial_transcriptomics.py"),
@@ -103,7 +97,7 @@ rule spatial_scanpy_cluster:
             os.makedirs(os.path.dirname(log_path),exist_ok=True);os.makedirs(os.path.dirname(output.h5ad),exist_ok=True);stamp=time.strftime("%Y%m%d_%H%M%S",time.localtime());command_script = receipt_script(f"spatial_cluster_{stamp}.sh");plain_script=os.path.join(os.path.dirname(output.h5ad), f"spatial_cluster.sh")
             with open(command_script,"w") as handle: handle.write("#!/usr/bin/env bash\nset -euo pipefail\n"+" ".join(shlex.quote(str(x)) for x in params.command)+"\necho \"script completed successfully\"\n")
             shutil.copyfile(command_script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {shlex.quote(plain_script)} >> {shlex.quote(log_path)} 2>&1")
@@ -111,8 +105,6 @@ rule spatial_scanpy_cluster:
             rule_logger.error(f"spatial clustering failed: {exc}")
             raise RuntimeError(f"spatial clustering failed: {exc}, see {log_path} for details.")
 
-# 参数精确到 rule:开关挂在 spatial_scanpy_advanced 名下(原 advanced 子段),
-# parse 期决定该 rule 是否定义。
 if config.get("Params", {}).get("spatial", {}).get("spatial_scanpy_advanced", {}).get("spatial_autocorrelation", True):
     rule spatial_scanpy_advanced:
         input: h5ad=cluster_h5ad
@@ -137,7 +129,7 @@ if config.get("Params", {}).get("spatial", {}).get("spatial_scanpy_advanced", {}
                 os.makedirs(os.path.dirname(log_path),exist_ok=True);os.makedirs(os.path.dirname(output.h5ad),exist_ok=True);stamp=time.strftime("%Y%m%d_%H%M%S",time.localtime());command_script = receipt_script(f"spatial_advanced_{stamp}.sh");plain_script=os.path.join(os.path.dirname(output.h5ad), f"spatial_advanced.sh")
                 with open(command_script,"w") as handle: handle.write("#!/usr/bin/env bash\nset -euo pipefail\n"+" ".join(shlex.quote(str(x)) for x in params.command)+"\necho \"script completed successfully\"\n")
                 shutil.copyfile(command_script, plain_script)
-                if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                if SCRIPT_ONLY:
                     script_only_touch(output)
                 else:
                     shell(f"bash {shlex.quote(plain_script)} >> {shlex.quote(log_path)} 2>&1")

@@ -58,7 +58,7 @@ rule XenofilteR:
             sample_outdir = os.path.dirname(str(output.csvIn))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"XenofilteR_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"XenofilteR.sh")
             cmd1 = [
                 "echo", f"{input.host_bam},{input.contaminant_bam}", ">", output.csvIn
@@ -80,18 +80,10 @@ rule XenofilteR:
             cmd5 = [
                 "touch", output.csvIn
             ]
-            # 硬链而非软链:host_bam 是 star_align 的 temp 输出(keep_intermediates=False
-            # 时),本 job 一结束即被删除,软链会把坏链留给下游 addReadsGroup
-            # (input.size_mb 调度期 stat 抛 broken symlink,实测 hFibroblast2 3 次
-            # 尝试全挂)。硬链让产物自立:temp 名删除后 inode 仍存活,且下游只读
-            # 不写,零副本成本。ln -f 先移除旧目的(重跑时残留的坏链/旧链接);
-            # 跨文件系统回退复制。
             cmd6 = [
                 "ln", "-f", input.host_bam, output.outBam, "||",
                 "cp", "--remove-destination", input.host_bam, output.outBam
             ]
-            # 复制而非软链:host_bai 是 temp,本 job 结束后即删,软链会让
-            # 下游拿到空链接;--remove-destination 防重跑时写穿旧目的。
             cmd7 = [
                 "cp", "--remove-destination", input.host_bai, output.outBai
             ]
@@ -111,7 +103,7 @@ rule XenofilteR:
                     f.write(" ".join(cmd4) + "\n")
                 f.write(f"echo 'XenofilteR completed successfully for sample {wildcards.sample_id}'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

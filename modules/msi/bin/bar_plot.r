@@ -62,17 +62,15 @@ bar <- function(vec, out_base,
     labels <- names(vec)
     max_label_len <- ifelse(length(labels) > 0, max(nchar(labels)), 5)
 
-    # Scale device to fit labels: width grows with sample count, height with label length.
     width_mm <- max(base_width_mm, width_per_sample * n)
     height_mm <- max(base_height_mm, 80 + height_per_label * max_label_len)
-    # device helpers take inches (mm -> in), same physical size as the old mm call
     width_in <- width_mm / 25.4
     height_in <- height_mm / 25.4
 
     for (fmt in formats) {
         outfile <- sprintf("%s.%s", out_base, fmt)
         open_device(outfile, fmt, width_in, height_in, res = 300)
-        bottom_mar <- max(5, 2 + max_label_len * 0.3)  # add margin if labels are long
+        bottom_mar <- max(5, 2 + max_label_len * 0.3)
         par(mar = c(bottom_mar, 4, 2, 1))
         colors <- grDevices::rainbow(max(3, n))[seq_len(n)]
             barplot(vec, col = colors, xlab = "", ylab = ylab, cex.lab = 1.1, border = NA,
@@ -113,8 +111,6 @@ if (sys.nframe() == 0) {
 
     vec <- df[[args$score_col]]
     names(vec) <- df[[args$sample_col]]
-    # -o is the output prefix without extension; drop a trailing known image
-    # extension so legacy full-filename invocations (-o out.jpg) keep working
     out_base <- sub("\\.(png|pdf|svg|ps|eps|tif|tiff|jpg|jpeg)$", "", args$output)
     formats <- if (is.null(args$formats)) "jpg" else as.character(unlist(args$formats))
     bar(vec, out_base = out_base, formats = formats, xlab = args$xlab, ylab = args$ylab)

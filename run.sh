@@ -1,49 +1,10 @@
 #!/bin/bash
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# --conda-prefix  /home/luosg/Database/env \
-# --use-conda
-# --snakemake-args \
-# --sdm apptainer \
-# --singularity-args '--bind /home/luosg/Database,/home/luosg/Data/genomeStability,/tmp'
 
-# python ${SCRIPT_DIR}/run.py \
-#     -m /data/16T/luosg/data/meta_RNAseq_Totipotency.tsv \
-#     -w RNAseq \
-#     -o /data/16T/luosg/output/Totipotency \
-#     -t 48 \
-#     --log /data/16T/luosg/log/RNAseq_Totipotency.log \
-#     --sdm \
-#     --dry-run
 
-# python ${SCRIPT_DIR}/run.py \
-#     -m /data/pub/zhousha/20260207_Exome/data/RNAseq/meta_input.csv \
-#     -w RNAseq \
-#     -o /data/pub/zhousha/20260207_Exome/output \
-#     -t 48 \
-#     --log /data/pub/zhousha/20260207_Exome/log/exome_paired_RNAseq.log \
-#     --sdm \
-#     --rerun-triggers mtime
-        # --forcerun function_gsva
 
-# python ${SCRIPT_DIR}/run.py \
-#     -m /home/luosg/Data/genomeStability/data/Rn7sk/meta_input.tsv \
-#     -w ncRNAseq \
-#     -o /home/luosg/Data/genomeStability/output/Rn7sk \
-#     -t 48 \
-#     --log /home/luosg/Data/genomeStability/log/ncRNAseq_Rn7sk.log \
-#     --Params.workflow.aligner star \
-#     --sdm
 
-# python ${SCRIPT_DIR}/run.py \
-#     -m /data/16T/luosg/data/meta_Exome_Totipotency.tsv \
-#     -w Mutation \
-#     -o /data/16T/luosg/output/Totipotency \
-#     -t 48 \
-#     --log /data/16T/luosg/log/Exome_Totipotency.log \
-#     --sdm \
-#     --rerun-triggers mtime \
-#     --forcerun somatic_spectrum somatic_signature_refit somatic_signature_nmf
 
 python ${SCRIPT_DIR}/run.py \
     -m /data/16T/luosg/data/meta_DR_Totipotency.tsv \
@@ -53,92 +14,11 @@ python ${SCRIPT_DIR}/run.py \
     --sdm \
     --rerun-triggers mtime
 
-# python ${SCRIPT_DIR}/run.py \
-#     -m /data/pub/zhousha/20260207_Exome/data/tRNA/meta.tsv \
-#     -w tRNAseq \
-#     -o /data/pub/zhousha/20260207_Exome/output \
-#     -t 48 \
-#     --log /data/pub/zhousha/20260207_Exome/log/tRNAseq.log \
-#     --conda-prefix /data/pub/zhousha/env/mutation_0.1 \
-#     --genome.fasta /data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa \
-#     --rerun-triggers mtime \
-#     --Params.cutadapt.match_read_wildcards True \
-#     --Params.cutadapt.cut 16 \
-#     --Params.cutadapt.trimmed_only True \
-#     --Params.cutadapt.adapter_r1 AAAAAAAACAAAAAAAAAA AAAA$ AAA$ AA$ A$ \
-#     --Params.cutadapt.minimum_length 50 \
-#     --Params.cutadapt.maximum_length 110 \
 
 
-# python ${SCRIPT_DIR}/run.py \
-#     -m /data/pub/zhousha/20260207_Exome/data/PacBio/samplesheet.csv \
-#     -w PacVar \
-#     -o /data/pub/zhousha/20260207_Exome/output \
-#     -t 48 \
-#     --log /data/pub/zhousha/20260207_Exome/log/PacVar.log \
-#     --rerun-trigger mtime \
-#     --sdm apptainer \
-#     --dry-run
-
-# python ${SCRIPT_DIR}/run.py \
-#     -m /data/16T/luosg/data/meta_PXDO53575.tsv \
-#     -w QuantMS \
-#     -o /data/16T/luosg/output/PXDO53575 \
-#     -t 48 \
-#     --log /data/16T/luosg/log/PXDO53575.log \
-#     --sdm \
-#     --rerun-triggers mtime \
-#     --Params.workflow.quantification_method tmt \
-#     --genome.default GRCh38 \
-#     --dry-run
-
-# python ${SCRIPT_DIR}/run.py \
-#     -m /home/luosg/Data/genomeStability/data/Rnp/meta_input.tsv \
-#     -w PeakCalling \
-#     -o /home/luosg/Data/genomeStability/output/Rnp \
-#     -t 48 \
-#     --log /home/luosg/Data/genomeStability/log/PeakCalling.log \
-#     --sdm \
-#     --dry-run
-
-# python ${SCRIPT_DIR}/run.py \
-#     -m /data/16T/luosg/data/meta_scRNAseq_luancao.tsv \
-#     -w scRNAseq \
-#     -o /data/16T/luosg/output/luanchao_mulatta \
-#     -t 48 \
-#     --log /data/16T/luosg/log/mulatta_scRNAseq.log \
-#     --sdm \
-#     --counters scTE cellranger \
-#     --aligner cellranger \
-#     --rerun-triggers mtime \
-#     --Params.scanpy.scTE.pseudobulk.compare ovaries:luanchao-21310-10XSC3:luanchao-11238-10XSC3=youth_vs_aged \
-#         Uterus:zigong-21310-10XSC3:ZIGONG-21224-10XSC3=Sham_vs_OVX \
-#         Uterus:zigong-11238-10XSC3:zigong-1411200-10XSC3=Non-OVX_vs_Ovariectomy \
-#         Uterus:zigong-1411200-10XSC3:zigong-2200671-10XSC3=OVX_vs_OVX+OT \
-        # --dry-run
-#     --forcerun scanpy_auto
-        # scanpy_auto:tissue=Uterus,counter=scTE \
-        # scanpy_auto:tissue=Uterus,counter=cellranger
 
 
-# python ${SCRIPT_DIR}/run.py \
-#   -m /data/16T/luosg/data/meta_Fiberseq_Totipotency.tsv \
-#   -w Fiberseq \
-#   -o /data/16T/luosg/output/Totipotency \
-#   --log /data/16T/luosg/log/Totipotency_Fiberseq.log \
-#   --sdm apptainer \
-#   -t 24 \
-#   --rerun-triggers mtime \
-#   --genome.default T2T_mhaESC_v1.5 \
-#   --dry-run
 
-# python ${SCRIPT_DIR}/run.py \
-#   -m /data/16T/luosg/data/meta_Fiberseq_luanchao.tsv \
-#   -w Fiberseq \
-#   -o /data/16T/luosg/output/luanchao_mulatta \
-#   --log /data/16T/luosg/log/luanchao_Fiberseq.log \
-#   --sdm apptainer \
-#   -t 48 \
-#   --rerun-triggers mtime \
-#   --genome.default Mmul_T2T
-##########################
+
+
+

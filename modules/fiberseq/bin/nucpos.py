@@ -34,8 +34,6 @@ from src.common.util.FiberlibUtil import ChromSweep, read_bed, write_tsv  # noqa
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
@@ -127,8 +125,6 @@ def run(args: argparse.Namespace) -> int:
 
     max_slots = max(args.upstream_nucs, args.downstream_nucs)
     max_reach = (max_slots + 1) * 300
-    # Stream the nucleosome BED against anchor windows (whole-file read_bed
-    # OOMs on real samples).
     sweep = ChromSweep(
         [str(args.nuc)],
         [(a["chrom"], max(0, a["center"] - max_reach), a["center"] + max_reach)

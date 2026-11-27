@@ -47,7 +47,6 @@ hp_run_cellphonedb <- function(x,
     mouse <-
       biomaRt::useMart("ensembl", dataset = "mmusculus_gene_ensembl", host = host)
 
-    # Basic function to convert mouse to human gene names
     mouse_genes <- rownames(normalize_data)
     genesV2 <- biomaRt::getLDS(
       attributes = c("mgi_symbol"),
@@ -63,7 +62,6 @@ hp_run_cellphonedb <- function(x,
       data.frame(gene = rownames(normalize_data),
                  normalize_data,
                  check.names = F)
-    # 转小鼠基因名为人类基因名
     sp1_counts$Gene <-
       genesV2[match(sp1_counts$gene, genesV2[, 1]), 2]
     sp1_counts <- subset(sp1_counts, Gene != 'NA')
@@ -79,19 +77,6 @@ hp_run_cellphonedb <- function(x,
   metadata_path <- file.path(outdir, "metadata.tsv")
   if (!file.exists(metadata_path)) {
     data.table::fwrite(normalize_data, normalize_data_path, sep = "\t")
-    # normalize_data <- x@assays$RNA@data
-    # writeMM(normalize_data, file = file.path(normalize_data_path,
-    #                                          "matrix.mtx"))
-    # write(
-    #   x = rownames(normalize_data),
-    #   file = file.path(normalize_data_path,
-    #                    "features.tsv")
-    # )
-    # write(
-    #   x = colnames(normalize_data),
-    #   file = file.path(normalize_data_path,
-    #                    "barcodes.tsv")
-    # )
     if (!("cell_type" %in% colnames(x@meta.data))) {
       x$cell_type <- Idents(x)
     }
@@ -170,7 +155,6 @@ hp_run_celltypist <-
 
     tic("Run CellTypist")
     log_info("Run CellTypist...")
-    # celltypist --update-models
     if (is.null(outdir)) {
       outdir <- tempdir()
     } else {
@@ -181,7 +165,6 @@ hp_run_celltypist <-
       if (!file.exists(input_data)) {
         counts <- x@assays$RNA@counts |>
           as.data.frame()
-        # write.csv(counts, input_data, quote = FALSE)
         fwrite(
           x = counts,
           file = input_data,
@@ -298,9 +281,7 @@ hp_run_pyscenic <-
     auc_mtx_fname <- file.path(outdir, "auc_mtx.csv")
     tfs_target_fname <- file.path(outdir, "tfs_targer.tsv")
     auc_g_mtx_fname <- file.path(outdir, "auc_g_mtx.csv")
-    # pre-processing
     if (!is.null(features)) {
-      # x <- x[features,]
       tfs <- read.table(tfs_fname)[, 1]
       filtered_tfs <- intersect(tfs, features)
       tfs_fname <- file.path(outdir, "tfs.txt")
@@ -328,7 +309,6 @@ hp_run_pyscenic <-
       )
       toc()
     }
-    # grn
     if (!file.exists(module_fname)) {
       log_info("Derive co-expression modules from expression matrix...")
       tic("Run grn")
@@ -349,7 +329,6 @@ hp_run_pyscenic <-
       )
       toc()
     }
-    # ctx
     if (!file.exists(signatures_fname)) {
       log_info(
         "Find enriched motifs for a gene signature and optionally prune targets from this signature based on cis-regulatory cues..."
@@ -376,7 +355,6 @@ hp_run_pyscenic <-
       )
       toc()
     }
-    # aucell
     if (!file.exists(auc_mtx_fname)) {
       log_info("Quantify activity of gene signatures across single cells...")
       tic("Run aucell")
@@ -396,7 +374,6 @@ hp_run_pyscenic <-
       toc()
     }
 
-    # tfs_target
     if (!file.exists(tfs_target_fname)) {
       signatures <-
         clusterProfiler::read.gmt(signatures_fname)
@@ -420,7 +397,6 @@ hp_run_pyscenic <-
     } else {
       signatures <- read.csv(tfs_target_fname)
     }
-    # auc_g_mtx
     if (!file.exists(auc_g_mtx_fname)) {
       auc_mtx <-
         read.csv(auc_mtx_fname,
@@ -555,25 +531,19 @@ hp_calculate_cell_proportion <-
            cluster = "cell_type",
            sample = "sample",
            additional_cols = NULL) {
-    # Check if input is a Seurat object or a metadata table
     if (inherits(x, what = "Seurat")) {
       metadata <- x@meta.data
     } else {
       metadata <- x
     }
 
-    # Check that the required columns are present in the metadata table
     stopifnot(all(c(cluster, sample) %in% colnames(metadata)))
 
-    # Subset the metadata table to the required columns
     metadata <- metadata[, c(sample, cluster, additional_cols)]
 
-    # Get the unique sample names
     samples <- unique(metadata[[sample]])
 
-    # Calculate cell proportions for each sample
     cell_props <- purrr::map_dfr(samples, function(x) {
-      # Subset the metadata table to the current sample
       cell_types <- metadata |>
         dplyr::filter(!!dplyr::sym(sample) == x) |>
         dplyr::pull({
@@ -582,13 +552,11 @@ hp_calculate_cell_proportion <-
           }
         })
 
-      # Calculate the cell proportions for the current sample and round to 2 digits
       prop <-
         round(prop.table(table(cell_types)) * 100, digits = 2) |>
         as.data.frame()
       prop$sample <- x
 
-      # Add additional columns to the output if specified
       if (!is.null(additional_cols)) {
         prop_additional <- metadata |>
           filter(!!sym(sample) == x) |>
@@ -603,11 +571,9 @@ hp_calculate_cell_proportion <-
       return(prop)
     })
 
-    # Rename columns of the output data frame
     colnames(cell_props) <-
       c(additional_cols, "cluster", "proportion", "sample")
 
-    # Return the output data frame
     return(cell_props)
   }
 
@@ -737,23 +703,18 @@ hp_calculate_odds_ratio <-
 #' @export
 hp_calculate_association <-
   function(count_matrix, min_row_sum = 0) {
-    # Subset rows with row sums greater than or equal to min_row_sum
     count_matrix <-
       count_matrix[rowSums(count_matrix) >= min_row_sum, , drop = FALSE]
 
-    # Calculate column and row sums
     col_sums <- colSums(count_matrix)
     row_sums <- rowSums(count_matrix)
 
-    # Convert count_matrix to data.frame and set rownames as a separate column
     count_df <- as.data.frame(count_matrix)
     setDT(count_df, keep.rownames = TRUE)
 
-    # Melt count_df to long format
     count_melt <- melt(count_df, id.vars = "rn")
     colnames(count_melt) <- c("rid", "cid", "count")
 
-    # Calculate Fisher's exact test for each row/col combination
     count_melt_ext <-
       as.data.table(ldply(seq_len(nrow(count_melt)), function(i) {
         this_row <- count_melt$rid[i]
@@ -778,14 +739,11 @@ hp_calculate_association <-
         )
       }))
 
-    # Merge count_melt_ext with original count_melt
     count_melt_ext <-
       merge(count_melt, count_melt_ext, by = c("rid", "cid"))
 
-    # Adjust p-values using Benjamini-Hochberg method
     count_melt_ext[, adj_p_value := p.adjust(p_value, "BH")]
 
-    # Return final data.table
     return(count_melt_ext)
   }
 
@@ -877,21 +835,3 @@ hp_calculate_rogue <-
     return(rogue)
   }
 
-##### From raw count matrices to high-quality cellular data --------------------
-# 1. Filtering low-quality cells and noise correction
-# SoupX
-# Cellbender
-# scDblFinder
-# 2. Normalization and variance stabilization
-# 3. Removing confounding sources of variation
-# 4. Selecting informative features and reducing dimensionality
-#### From clusters to cell identities ------------------------------------------
-# 1. From single cells to clusters
-# 2. Mapping cell clusters to cell identities
-# 3. From discrete states to continuous processes
-#### Revealing mechanisms ------------------------------------------------------
-# 1. Differential gene expression analysis
-# 2. Gene set enrichment analysis
-# 3. Deciphering changes in cell composition
-# 4. Inferring perturbation effects
-# 5. Communication events across cells

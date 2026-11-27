@@ -6,8 +6,6 @@ logdir = config.get("logdir", "log")
 logdir_combine = config.get("logdir_combine", "log/combine")
 genome_paired_samples = config.get('genome_paired_samples', {})
 genome_single_samples = config.get('genome_single_samples', {})
-# temp 规范(modules.md):本模块的中间文件用 maybe_temp(path, "<key>") 包裹,
-# 是否标 temp 由 Params.<key>.keep_intermediates 决定(缺省 True=兜底保留)。
 
 
 def get_input_for_hisat2_index(wildcards):
@@ -54,7 +52,7 @@ rule hisat2_index:
             sample_outdir = os.path.dirname(params.prefix)
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"hisat2_index_{wildcards.genome}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"hisat2_index.sh")
 
             cmd = [
@@ -66,7 +64,7 @@ rule hisat2_index:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'hisat2_index for genome {wildcards.genome} completed'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -141,7 +139,7 @@ rule hisat2_align:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             sample_outdir = os.path.dirname(output.outfile)
             script = receipt_script(f"hisat2_align_{wildcards.genome}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = f"{sample_outdir}/hisat2_align.sh"
             cmd1 = [
                 f"{params.hisat2}",
@@ -165,7 +163,7 @@ rule hisat2_align:
                 f.write(" ".join(cmd) +"\n")
                 f.write(f"echo 'hisat_align for {wildcards.sample_id} was completed successfully at {current_time}'")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

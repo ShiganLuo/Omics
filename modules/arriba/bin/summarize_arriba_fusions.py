@@ -31,7 +31,6 @@ from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 logger = setup_logger(__name__, logging.INFO)
 
-# ── Constants ──────────────────────────────────────────────────────────────────
 
 FUSION_COLUMNS = [
     "gene1", "gene2", "strand1", "strand2", "breakpoint1", "breakpoint2",
@@ -47,7 +46,6 @@ FUSION_COLUMNS = [
 CONFIDENCE_ORDER = {"high": 0, "medium": 1, "low": 2}
 
 
-# ── Helper functions ───────────────────────────────────────────────────────────
 
 def parse_fusion_tsv(filepath: str) -> List[Dict[str, str]]:
     """Parse an Arriba TSV output file into a list of dicts.
@@ -106,7 +104,6 @@ def short_fusion_label(gene1: str, gene2: str) -> str:
     return f"{shorten(gene1)}--{shorten(gene2)}"
 
 
-# ── Sample discovery / resolution ──────────────────────────────────────────────
 
 def discover_samples(indir: str) -> Dict[str, Tuple[str, Optional[str]]]:
     """Find sample directories containing passed_fusions.tsv.
@@ -159,7 +156,6 @@ def resolve_samples(
     return samples
 
 
-# ── Analysis functions ─────────────────────────────────────────────────────────
 
 def per_sample_stats(rows: List[Dict[str, str]]) -> Dict[str, object]:
     """Compute per-sample summary statistics."""
@@ -168,11 +164,9 @@ def per_sample_stats(rows: List[Dict[str, str]]) -> Dict[str, object]:
     conf_counts = Counter(r["confidence"] for r in rows)
     frame_counts = Counter(r["reading_frame"] for r in rows)
 
-    # supporting reads distribution
     supports = [estimate_support(r) for r in rows]
     avg_support = sum(supports) / total if total else 0
 
-    # unique gene pairs
     gene_pairs = set(canonical_fusion_key(r["gene1"], r["gene2"]) for r in rows)
 
     return {
@@ -206,7 +200,6 @@ def collect_high_confidence(rows: List[Dict[str, str]], sample_id: str) -> List[
                 "filters": r["filters"],
             }
             results.append(entry)
-    # sort by confidence then support
     results.sort(key=lambda x: (CONFIDENCE_ORDER.get(x["confidence"], 9), -x["total_support"]))
     return results
 
@@ -263,7 +256,6 @@ def find_inframe_fusions(all_sample_fusions: Dict[str, List[Dict[str, str]]]) ->
     return inframe
 
 
-# ── TSV output ─────────────────────────────────────────────────────────────────
 
 def write_tsv(rows: List[Dict], filepath: str) -> None:
     """Write a list of dicts to a TSV file."""
@@ -278,7 +270,6 @@ def write_tsv(rows: List[Dict], filepath: str) -> None:
     logger.info(f"  Wrote {len(rows)} rows -> {filepath}")
 
 
-# ── HTML report ────────────────────────────────────────────────────────────────
 
 def _html_table(headers: List[str], rows: List[List[str]], max_rows: int = 200) -> str:
     """Build an HTML table string."""
@@ -308,7 +299,6 @@ def generate_html_report(
     outpath: str,
 ) -> None:
     """Generate a self-contained HTML summary report."""
-    # ── Per-sample summary table
     sample_headers = [
         "Sample", "Passed Fusions", "Unique Gene Pairs",
         "High", "Medium", "Low",
@@ -329,7 +319,6 @@ def generate_html_report(
             str(s["max_supporting_reads"]),
         ])
 
-    # ── Fusion type distribution
     all_types: Counter = Counter()
     for s in per_sample.values():
         for t, c in s["type_counts"].items():
@@ -337,7 +326,6 @@ def generate_html_report(
     type_headers = ["Fusion Type", "Total Count"]
     type_rows = [[t, str(c)] for t, c in all_types.most_common()]
 
-    # ── High-confidence table
     hc_headers = [
         "Sample", "Gene1", "Gene2", "Type", "Confidence",
         "Reading Frame", "Split Reads", "Discordant", "Total Support",
@@ -353,7 +341,6 @@ def generate_html_report(
         for r in high_conf
     ]
 
-    # ── Recurrent table
     rec_headers = ["Fusion", "N Samples", "Samples", "Type", "Confidence", "Reading Frame"]
     rec_rows = [
         [r["fusion"], str(r["n_samples"]), r["samples"],
@@ -361,7 +348,6 @@ def generate_html_report(
         for r in recurrent
     ]
 
-    # ── In-frame table
     if_headers = [
         "Sample", "Gene1", "Gene2", "Type", "Confidence",
         "Total Support", "Retained Domains", "Breakpoint1", "Breakpoint2",
@@ -375,7 +361,6 @@ def generate_html_report(
         for r in inframe
     ]
 
-    # ── Figure conclusions
     conclusions = generate_figure_conclusions(per_sample, recurrent, inframe)
     sections_data = [
         ("融合检测概览 / Fusion Detection Overview", [
@@ -483,7 +468,6 @@ def generate_html_report(
     logger.info(f"  HTML report -> {outpath}")
 
 
-# ── Figure generation ──────────────────────────────────────────────────────────
 
 def _setup_matplotlib(fmt: str):
     """Configure matplotlib for headless rendering; return (plt, Figure, ...)."""
@@ -491,11 +475,9 @@ def _setup_matplotlib(fmt: str):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    # Format-specific DPI
     dpi_map = {"png": 300, "tiff": 300, "jpg": 300, "jpeg": 300}
     dpi = dpi_map.get(fmt, 300)
 
-    # Global style
     plt.rcParams.update({
         "font.family": "sans-serif",
         "font.size": 10,
@@ -516,7 +498,6 @@ def _save_fig(plt, fig, outpath: str) -> None:
     logger.info(f"  Figure -> {outpath}")
 
 
-# Color palettes
 CONF_COLORS = {"high": "#27ae60", "medium": "#f39c12", "low": "#95a5a6"}
 TYPE_PALETTE = [
     "#3498db", "#e74c3c", "#2ecc71", "#9b59b6", "#f39c12",
@@ -543,7 +524,6 @@ def plot_per_sample_counts(
     bottoms = [h + m for h, m in zip(high_vals, med_vals)]
     ax.bar(x, low_vals, w, bottom=bottoms, label="Low", color=CONF_COLORS["low"], edgecolor="white", linewidth=0.5)
 
-    # Value labels on top
     totals = [h + m + l for h, m, l in zip(high_vals, med_vals, low_vals)]
     for i, t in enumerate(totals):
         ax.text(i, t + 0.5, str(t), ha="center", va="bottom", fontsize=9, fontweight="bold")
@@ -569,7 +549,6 @@ def plot_fusion_type_distribution(
         for t, c in s["type_counts"].items():
             all_types[t] += c
 
-    # Aggregate rare types into 'Other'
     threshold = max(3, sum(all_types.values()) * 0.02)
     main_types = Counter()
     other_count = 0
@@ -594,7 +573,6 @@ def plot_fusion_type_distribution(
     ax.set_xlabel("Total Count (all samples)")
     ax.set_title("Fusion Type Distribution")
 
-    # Value labels
     for bar, v in zip(bars, values):
         ax.text(bar.get_width() + 0.3, bar.get_y() + bar.get_height() / 2,
                 str(v), va="center", fontsize=9)
@@ -610,14 +588,12 @@ def plot_type_by_sample(
     """Fig 3: Stacked bar chart of major fusion types per sample."""
     samples = sorted(per_sample)
 
-    # Collect top types across all samples
     all_types: Counter = Counter()
     for s in per_sample.values():
         for t, c in s["type_counts"].items():
             all_types[t] += c
     top_types = [t for t, _ in all_types.most_common(6)]
 
-    # Build matrix
     data = {t: [] for t in top_types}
     other_vals = []
     for s in samples:
@@ -695,13 +671,11 @@ def plot_recurrent_heatmap(
         logger.info("  Skipping recurrent heatmap (no recurrent fusions)")
         return
 
-    # Show top N recurrent fusions
     max_display = min(30, len(recurrent))
     top = recurrent[:max_display]
     fusion_labels = [r["fusion"] for r in top]
     samples = sorted(all_samples)
 
-    # Build presence matrix
     matrix = []
     for r in top:
         present = set(r["samples"].split(","))
@@ -711,7 +685,6 @@ def plot_recurrent_heatmap(
     fig_h = max(4, len(fusion_labels) * 0.35 + 1.5)
     fig, ax = plt_mod.subplots(figsize=(max(6, len(samples) * 1.0 + 2), fig_h))
 
-    # Custom colormap: white for absent, teal for present
     from matplotlib.colors import ListedColormap
     cmap = ListedColormap(["#f0f0f0", "#1abc9c"])
 
@@ -724,13 +697,11 @@ def plot_recurrent_heatmap(
     ax.set_xlabel("Sample")
     ax.set_title(f"Recurrent Fusions (top {max_display} of {len(recurrent)} total)")
 
-    # Grid lines
     ax.set_xticks([x - 0.5 for x in range(1, len(samples))], minor=True)
     ax.set_yticks([y - 0.5 for y in range(1, len(fusion_labels))], minor=True)
     ax.grid(which="minor", color="white", linewidth=1.5)
     ax.tick_params(which="minor", length=0)
 
-    # Annotate cells with n_samples info
     for yi, r in enumerate(top):
         for xi, s in enumerate(samples):
             if s in set(r["samples"].split(",")):
@@ -766,7 +737,6 @@ def plot_inframe_support(
         ax.text(bar.get_width() + 0.3, bar.get_y() + bar.get_height() / 2,
                 str(v), va="center", fontsize=8)
 
-    # Legend for confidence colors
     from matplotlib.patches import Patch
     legend_elements = [
         Patch(facecolor=CONF_COLORS["medium"], label="Medium"),
@@ -801,7 +771,6 @@ def generate_figures(
         plot_inframe_support(inframe, fig_dir, fmt, plt)
 
 
-# ── Console summary ────────────────────────────────────────────────────────────
 
 def print_console_summary(
     per_sample: Dict[str, Dict],
@@ -866,7 +835,6 @@ def print_console_summary(
     print()
 
 
-# ── Figure conclusions ─────────────────────────────────────────────────────────
 
 def generate_figure_conclusions(
     per_sample: Dict[str, Dict],
@@ -877,7 +845,6 @@ def generate_figure_conclusions(
     conclusions: List[str] = []
     samples = sorted(per_sample)
 
-    # ── Fig 1: per-sample counts by confidence
     totals = {s: per_sample[s]["total_fusions"] for s in samples}
     max_s = max(totals, key=lambda k: totals[k])
     min_s = min(totals, key=lambda k: totals[k])
@@ -891,7 +858,6 @@ def generate_figure_conclusions(
         f"低置信度占比普遍较高, 提示大量融合事件为技术噪声或重复序列导致的假阳性."
     )
 
-    # ── Fig 2: fusion type distribution
     all_types: Counter = Counter()
     for s in per_sample.values():
         for t, c in s["type_counts"].items():
@@ -905,7 +871,6 @@ def generate_figure_conclusions(
         f"多为基因组结构变异或read-through转录产物, 不一定产生功能性嵌合蛋白."
     )
 
-    # ── Fig 3: type by sample
     per_sample_type_variation = []
     for s in samples:
         tc = per_sample[s]["type_counts"]
@@ -916,7 +881,6 @@ def generate_figure_conclusions(
         f"TLSCS-3/TLSCS-4 的 translocation 占比高于其他样本, 可能与样本特性相关."
     )
 
-    # ── Fig 4: reading frame
     total_inframe = sum(
         per_sample[s]["reading_frame_counts"].get("in-frame", 0) for s in samples
     )
@@ -934,7 +898,6 @@ def generate_figure_conclusions(
         f"in-frame 融合比例低, 多数融合破坏读框, 不太可能翻译为功能性蛋白."
     )
 
-    # ── Fig 5: recurrent heatmap
     n_all = sum(1 for r in recurrent if r["n_samples"] == len(samples))
     n_multi = sum(1 for r in recurrent if r["n_samples"] >= 3)
     conclusions.append(
@@ -944,7 +907,6 @@ def generate_figure_conclusions(
         f"或共有的read-through事件, 而非样本特异性的体细胞融合."
     )
 
-    # ── Fig 6: in-frame support
     if inframe:
         top_if = inframe[0]
         top_genes = canonical_fusion_key(top_if["gene1"], top_if["gene2"])
@@ -991,10 +953,7 @@ def print_figure_conclusions(
     print()
 
 
-# ── Main ───────────────────────────────────────────────────────────────────────
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
@@ -1007,7 +966,6 @@ def main() -> None:
                "jpg, jpeg, pgf, raw, rgba (matplotlib savefig set)",
     )
 
-    # ── Input: mutually exclusive (--indir  vs  -p/-d)
     input_group = parser.add_mutually_exclusive_group(required=True)
     input_group.add_argument(
         "--indir",
@@ -1037,7 +995,6 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    # Validate formats
     fmts = [f.lower().lstrip(".") for f in args.format]
     for f in fmts:
         if f not in VALID_FORMATS:
@@ -1045,7 +1002,6 @@ def main() -> None:
                 f"Unsupported format '{f}'. Choose from: {', '.join(VALID_FORMATS)}"
             )
 
-    # Resolve samples from the chosen input method
     if args.indir:
         samples = discover_samples(args.indir)
         if not samples:
@@ -1065,7 +1021,6 @@ def main() -> None:
 
     os.makedirs(args.outdir, exist_ok=True)
 
-    # Parse all samples
     all_sample_fusions: Dict[str, List[Dict[str, str]]] = {}
     per_sample_stats_map: Dict[str, Dict] = {}
     all_high_conf: List[Dict[str, str]] = []
@@ -1077,16 +1032,13 @@ def main() -> None:
         all_high_conf.extend(collect_high_confidence(rows, sample_id))
         logger.info(f"  {sample_id}: {len(rows)} passed fusions")
 
-    # Cross-sample analyses
     recurrent = find_recurrent_fusions(all_sample_fusions)
     inframe = find_inframe_fusions(all_sample_fusions)
 
-    # Write TSV outputs
     write_tsv(all_high_conf, os.path.join(args.outdir, "high_medium_confidence_fusions.tsv"))
     write_tsv(recurrent, os.path.join(args.outdir, "recurrent_fusions.tsv"))
     write_tsv(inframe, os.path.join(args.outdir, "inframe_fusions.tsv"))
 
-    # Write per-sample summary TSV
     summary_rows = []
     for sid in sorted(per_sample_stats_map):
         s = per_sample_stats_map[sid]
@@ -1105,22 +1057,18 @@ def main() -> None:
         })
     write_tsv(summary_rows, os.path.join(args.outdir, "per_sample_summary.tsv"))
 
-    # HTML report
     generate_html_report(
         per_sample_stats_map, all_high_conf, recurrent, inframe,
         os.path.join(args.outdir, "arriba_fusion_report.html"),
     )
 
-    # Figures (optional — requires matplotlib)
     try:
         generate_figures(per_sample_stats_map, recurrent, inframe, args.outdir, fmts)
     except ImportError as exc:
         logger.warning(f"Skipping figures: {exc}. Install matplotlib to enable plotting.")
 
-    # Console output
     print_console_summary(per_sample_stats_map, all_high_conf, recurrent, inframe)
 
-    # Figure conclusions
     print_figure_conclusions(per_sample_stats_map, recurrent, inframe)
 
     logger.info("Done.")

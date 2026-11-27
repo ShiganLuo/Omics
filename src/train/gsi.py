@@ -31,10 +31,8 @@ def compute_gsi_mean_zscore(df_resid: pd.DataFrame, gsi_genes: list, min_std: fl
     genes = filter_genes_for_matrix(df_resid, gsi_genes, min_std=min_std)
     if len(genes) == 0:
         raise ValueError("No GSI genes found with sufficient variance.")
-    # compute z per gene across samples (axis=1 since rows=genes)
-    # using ddof=0 behavior via scipy/zscore default: here use pandas:
     z = df_resid.loc[genes].apply(lambda x: (x - x.mean()) / (x.std(ddof=0) + 1e-9), axis=1)
-    gsi = z.mean(axis=0)  # mean over genes -> series indexed by samples
+    gsi = z.mean(axis=0)
     return gsi
 
 # 方法 B：PCA PC1（对基因做可选标准化）
@@ -45,9 +43,8 @@ def compute_gsi_pca_pc1(df_resid: pd.DataFrame, gsi_genes: list, min_std: float 
     genes = filter_genes_for_matrix(df_resid, gsi_genes, min_std=min_std)
     if len(genes) == 0:
         raise ValueError("No GSI genes found with sufficient variance.")
-    mat = df_resid.loc[genes].T  # samples x genes for sklearn
+    mat = df_resid.loc[genes].T
     if scale_genes:
-        # Standardize columns (genes)
         mat = (mat - mat.mean(axis=0)) / (mat.std(axis=0) + 1e-9)
     pca = PCA(n_components=1, random_state=0)
     pc1 = pca.fit_transform(mat)[:, 0]
@@ -67,15 +64,9 @@ def compute_gsi_ssgsea(df_log2: pd.DataFrame, gene_set: list, sample_axis='colum
     except Exception as e:
         raise ImportError("gseapy not installed. pip install gseapy") from e
 
-    # prepare gmt-like dict for gseapy
-    # gseapy expects samples x genes in DataFrame, and gene names as index
-    # gseapy.ssgsea requires a dict of gene sets or gmt file.
     gs_dict = {"GSI": gene_set}
-    # gseapy.ssgsea wants DataFrame: samples x genes
-    data = df_log2.T  # samples x genes
-    # run
+    data = df_log2.T
     res = gp.ssgsea(data=data, gene_sets=gs_dict, sample_norm_method='rank', outdir=None, verbose=False)
-    # result is DataFrame: gene_set x sample
     scores = res.res2d.loc["GSI"]
     return pd.Series(scores, index=data.index)
 
@@ -87,7 +78,6 @@ def build_and_compare_gsi(df_resid: pd.DataFrame, gsi_genes: list, min_std: floa
     """
     gsi_mean = compute_gsi_mean_zscore(df_resid, gsi_genes, min_std=min_std)
     pc1, var_explained = compute_gsi_pca_pc1(df_resid, gsi_genes, min_std=min_std, scale_genes=scale_genes)
-    # align sign so that PC1 correlates positively with mean_zscore
     corr = pc1.corr(gsi_mean)
     if corr < 0:
         pc1 = -pc1
@@ -96,14 +86,10 @@ def build_and_compare_gsi(df_resid: pd.DataFrame, gsi_genes: list, min_std: floa
     return res, corr, var_explained
 
 if __name__ == "__main__":
-    # 读取残差矩阵
     df_resid = pd.read_csv("residual.tsv", index_col=0, sep="\t")
-    # 读取 GSI gene list（示例：从 gmt）
     gsi_dict = read_gmt("/home/luosg/Data/genomeStability/data/final.gmt")
-    # 假设 final.gmt 中有一个条目 'GSI' 或你手动合并感兴趣的基因
-    gsi_genes = list({g for genes in gsi_dict.values() for g in genes})  # 所有不重复基因，或换成某个 pathway
+    gsi_genes = list({g for genes in gsi_dict.values() for g in genes})
 
-    # 计算并比较
     res_df, corr_val, var_exp = build_and_compare_gsi(df_resid, gsi_genes, min_std=1e-6, scale_genes=True)
     print("PC1 vs mean_zscore corr:", corr_val)
     print("PC1 variance explained:", var_exp)

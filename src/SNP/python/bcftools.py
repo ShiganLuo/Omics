@@ -60,12 +60,10 @@ def bcftools_supplement(meta: str,
             intersect_vcf = os.path.join(study_outdir, f"{cond_name}_intersect.vcf.gz")
             
             if len(vcf_list) == 1:
-                # 单样本，直接复制并索引
                 subprocess.run(["cp", vcf_list[0], intersect_vcf], check=True)
                 subprocess.run(["tabix", "-p", "vcf", intersect_vcf], check=True)
             else:
                 tmp_vcf = intersect_vcf.replace(".vcf.gz", ".tmp.vcf")
-                # suppress stdout/stderr 提示信息
                 with open(os.devnull, "w") as FNULL:
                     cmd = ["bcftools", "isec", f"-n=+{len(vcf_list)}", "-w1"] + vcf_list + ["-O", "v", "-o", tmp_vcf]
                     subprocess.run(cmd, stdout=FNULL, stderr=FNULL, check=True)

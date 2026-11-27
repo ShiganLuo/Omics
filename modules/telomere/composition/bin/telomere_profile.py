@@ -35,7 +35,7 @@ _SRC_DIR = _BIN_DIR.parent.parent.parent.parent
 if str(_SRC_DIR) not in sys.path:
     sys.path.insert(0, str(_SRC_DIR))
 from src.common.util.LogUtil import setup_logger  # noqa: E402
-def write_tsv(path, header, rows):  # inlined (modules.md #0 self-contained)
+def write_tsv(path, header, rows):
     with open(path, "w") as fh:
         fh.write("\t".join(header) + "\n")
         for r in rows:
@@ -74,9 +74,8 @@ def tel_windows(seq: str) -> List[Tuple[int, int]]:
     cheaply.
     """
     hits: List[Tuple[int, int]] = []
-    edge = min(len(seq), 30000)  # telomeres never exceed this in mouse
+    edge = min(len(seq), 30000)
     tel_motifs = {CANONICAL, *VARIANTS}
-    # cheap prefilter: any 3 canonical/variant motifs anywhere near the ends
     head, tail = seq[:edge].upper(), seq[-edge:].upper()
     if sum(head.count(m) for m in tel_motifs) + sum(tail.count(m) for m in tel_motifs) < 3:
         return hits
@@ -263,7 +262,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     write_tsv(str(args.outdir / "telomere_summary.tsv"), sheader,
               [[r.get(c, "") for c in sheader] for r in summary])
 
-    # composition per sample side table
     comp_rows = []
     for r in summary:
         for motif in [CANONICAL] + VARIANTS:

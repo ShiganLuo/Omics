@@ -31,7 +31,6 @@ raw2mzml_config = {
     }
 }
 
-# Import modules
 module raw2mzml:
     snakefile: "../modules/openms/raw2mzml/raw2mzml.smk"
     config: raw2mzml_config
@@ -93,12 +92,6 @@ module search_engine:
 use rule * from search_engine as QuantMS_*
 logger.info(f"search_engine_config: {search_engine_config}")
 
-# MSFragger (FragPipe) alternative search engine — paper method (PXD053575).
-# Uses the TARGET protein FASTA: Philosopher/its params derive decoys as
-# needed; the module's msfragger_idxml bridges pepXML -> idXML so the rest
-# of the chain (rescoring/FDR/inference/quant) is unchanged. Selected with
-# Params.search_engine.engine = "msfragger"; rules are imported
-# unconditionally and only run when node.py registers their outputs.
 msfragger_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -117,10 +110,6 @@ msfragger_config = {
     },
     "genome": {
         "search_fasta": (
-            # concatenated target+decoy search DB, same one the Comet path
-            # uses ('DECOY_' prefix keeps downstream target/decoy handling
-            # identical). For the paper-faithful DB (contam + rev_ decoys)
-            # run the philosopher module standalone.
             f"{decoy_database_config['outdir']}/genome_decoy.fasta"
         )
     },
@@ -145,9 +134,6 @@ psm_rescoring_config = {
         "percolator": config.get("Procedure", {}).get("percolator")
     },
     "Params": {
-        # 参数精确到 rule:引擎选择是 psm_rescoring 的 rule 键
-        # (Params.psm_rescoring.search_engine),用 node.py 解析后的
-        # Params.search_engine.engine 覆盖
         "psm_rescoring": {
             **(config.get("Params", {}).get("psm_rescoring", {}) or {}),
             "search_engine": (config.get("Params", {}).get("search_engine", {}).get("engine")
@@ -235,15 +221,11 @@ quantification_config = {
         "file_merger": config.get("Procedure", {}).get("file_merger"),
     },
     "Params": {
-        # 参数精确到 rule:整段透传(rule 子段在段内透明传递);triqler/decoy
-        # 开关按 rule 独立键挂根级 rule 子段
-        # (Params.quantification_lfq/dia.<key>),旧扁平开关仅留作 node.py 门控
         "protein_quant": config.get("Params", {}).get("protein_quant", {}),
         "tmt": config.get("Params", {}).get("tmt", {}),
         "protein_fdr": config.get("Params", {}).get("protein_fdr", {}),
         "quantification_lfq": config.get("Params", {}).get("quantification_lfq", {}),
         "quantification_dia": config.get("Params", {}).get("quantification_dia", {}),
-        # temp spec (modules.md): TMT chain intermediates under Params.quantification.keep_intermediates
         "quantification": {
             "keep_intermediates": config.get("Params", {}).get("quantification", {}).get("keep_intermediates", True)
         },
@@ -282,10 +264,6 @@ module msstats:
 use rule * from msstats as QuantMS_*
 logger.info(f"msstats_config: {msstats_config}")
 
-# ============================================================
-# DIA-NN (quantification_method == "dia" with Params.diann.enabled):
-# replaces the DDA identification chain; node.py registers its outputs
-# ============================================================
 diann_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,

@@ -42,7 +42,6 @@ from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.util import Inches, Pt
 import openpyxl
 
-# ── Chinese font support for matplotlib ──────────────────────────────────
 for _font_name in ["WenQuanYi Micro Hei", "WenQuanYi Zen Hei", "Noto Sans CJK SC",
                    "SimHei", "Microsoft YaHei", "Arial Unicode MS"]:
     try:
@@ -53,7 +52,6 @@ for _font_name in ["WenQuanYi Micro Hei", "WenQuanYi Zen Hei", "Noto Sans CJK SC
     except Exception:
         continue
 
-# ── Constants ────────────────────────────────────────────────────────────
 SLIDE_W = 10.0
 SLIDE_H = 5.625
 HEADER_H = 0.65
@@ -78,18 +76,12 @@ C_BG = RGBColor(0xF6, 0xF8, 0xFB)
 C_WHITE = RGBColor(0xFF, 0xFF, 0xFF)
 C_LIGHT = RGBColor(0xE2, 0xE8, 0xF0)
 
-# ── Report figure export (报告图导出, report modules 规范) ─────────────────
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
-# 报告自有图除嵌入 PPTX 外,还作为独立交付物写到 <report_dir>/figures/
-# <name>.<fmt>(每种请求格式一个文件);manifest.tsv 逐行列出
-# name<TAB>filename,让 DAG 在不逐一声明条件图的情况下保持诚实。
-FIG_DIR = ""  # set in main(): <report_dir>/figures
+FIG_DIR = ""
 _FIG_MANIFEST: List[Tuple[str, str]] = []
 
 
@@ -133,7 +125,6 @@ def write_fig_manifest() -> str:
     return path
 
 
-# ── Plot colors (hex strings for matplotlib) ─────────────────────────────
 P_7SL = "#065A82"
 P_U1 = "#1C7293"
 P_CORAL = "#E76F51"
@@ -255,9 +246,6 @@ def _filter_none(values: List[Optional[Any]]) -> List[Any]:
     return [v for v in values if v is not None]
 
 
-# ══════════════════════════════════════════════════════════════════════════
-# Data collection
-# ══════════════════════════════════════════════════════════════════════════
 
 def count_fastq_reads(path: str) -> Optional[int]:
     """Count reads in a FASTQ file, supporting symbolic links. Returns None if file is missing."""
@@ -386,17 +374,14 @@ def collect_sample_data(analysis_dir: str, samples: List[str], aligner: str = "s
 
     for s in samples:
         d: dict = {"sample": s}
-        # 1. Raw FASTQ
         raw_r1 = os.path.join(analysis_dir, "common", "1_raw_fastq", s, f"{s}_1.fq.gz")
         raw_r2 = os.path.join(analysis_dir, "common", "1_raw_fastq", s, f"{s}_2.fq.gz")
         d["raw_reads"] = _safe_add(count_fastq_reads(raw_r1), count_fastq_reads(raw_r2))
 
-        # 2. Dedup reads (jla-demultiplexer output)
         dedup_r1 = os.path.join(analysis_dir, "common", "2_trimmed_dedup_fastq", "final_trimmed_fastq", s, f"{s}_1.fq.gz")
         dedup_r2 = os.path.join(analysis_dir, "common", "2_trimmed_dedup_fastq", "final_trimmed_fastq", s, f"{s}_2.fq.gz")
         d["dedup_reads"] = _safe_add(count_fastq_reads(dedup_r1), count_fastq_reads(dedup_r2))
 
-        # 3. Trimming stats & Trimmed reads
         trim_stat_r1 = os.path.join(analysis_dir, "common", "2_trimmed_dedup_fastq", "final_trimmed_fastq", s, "trimming_statistics_1.txt")
         d.update(parse_trimming_stats(trim_stat_r1))
 
@@ -404,17 +389,14 @@ def collect_sample_data(analysis_dir: str, samples: List[str], aligner: str = "s
         trimmed_r2 = os.path.join(analysis_dir, "common", "2_trimmed_dedup_fastq", "final_trimmed_fastq", s, f"{s}_2.fq.gz")
         d["trimmed_reads"] = _safe_add(count_fastq_reads(trimmed_r1), count_fastq_reads(trimmed_r2))
 
-        # 4. Alignment log
         if has_3pass:
             star_log = os.path.join(analysis_dir, "common", "3_raw_bam", s, "star.Log.final.out")
         elif aligner == "star":
             star_log = os.path.join(analysis_dir, "common", "3_raw_bam", s, "star.Log.final.out")
         else:
-            # hisat2: look for hisat2 summary log
             star_log = os.path.join(analysis_dir, "common", "3_raw_bam", s, f"{s}.hisat2_summary.txt")
         d.update(parse_star_log(star_log))
 
-        # 5. Final BAM reads
         d["final_bam_reads"] = None
         if has_per_gene:
             final_bam_file = os.path.join(analysis_dir, "common", "4_per_gene_bam", s, f"{s}.bam")
@@ -431,7 +413,6 @@ def collect_sample_data(analysis_dir: str, samples: List[str], aligner: str = "s
             except Exception:
                 pass
 
-        # 6. Gene manifest (only star_3pass_gene)
         if has_per_gene:
             manifest_path = os.path.join(analysis_dir, "common", "4_per_gene_bam", s, "genes.tsv")
             manifest = load_gene_manifest(manifest_path)
@@ -451,7 +432,6 @@ def collect_sample_data(analysis_dir: str, samples: List[str], aligner: str = "s
             d["top_gene"] = None
             d["top_gene_reads"] = None
 
-        # 7. Tail CSV
         if has_tailer:
             if has_per_gene:
                 tail_csv = os.path.join(analysis_dir, "common", "4_per_gene_bam", s, f"{s}_tail.csv")
@@ -464,11 +444,9 @@ def collect_sample_data(analysis_dir: str, samples: List[str], aligner: str = "s
             d["total_tail_reads"] = int(tail_df["Count"].sum())
             d["with_tail"] = int(tail_df.loc[tail_df["Tail_Length"] > 0, "Count"].sum())
             d["without_tail"] = d["total_tail_reads"] - d["with_tail"]
-            # End position distribution
             d["upstream"] = int(tail_df.loc[tail_df["End_Position"] < 0, "Count"].sum())
             d["at_end"] = int(tail_df.loc[tail_df["End_Position"] == 0, "Count"].sum())
             d["downstream"] = int(tail_df.loc[tail_df["End_Position"] > 0, "Count"].sum())
-            # Tail length distribution (for reads with tail)
             tail_with = tail_df[tail_df["Tail_Length"] > 0].copy()
             d["tail_lengths"] = tail_with["Tail_Length"].tolist()
             d["tail_counts"] = tail_with["Count"].tolist()
@@ -486,7 +464,6 @@ def collect_sample_data(analysis_dir: str, samples: List[str], aligner: str = "s
     return results
 
 
-# Module-level group/short-name maps, populated in main() from CLI args.
 _SAMPLE_GROUPS: Dict[str, str] = {}
 _SHORT_NAMES: Dict[str, str] = {}
 
@@ -507,9 +484,6 @@ def infer_group(sample: str) -> str:
     return "Other"
 
 
-# ══════════════════════════════════════════════════════════════════════════
-# PPT helpers
-# ══════════════════════════════════════════════════════════════════════════
 
 class TempImageStore:
     """Stores temporary plot images, copying to optional static dir if specified.
@@ -537,7 +511,6 @@ class TempImageStore:
         raster = save_fig(fig, stem, self.image_formats, dpi=DPI)
         plt.close(fig)
         if "png" not in self.image_formats:
-            # tempfile fallback from save_fig — clean it up after embedding
             self.paths.append(raster)
         if self.img_dir:
             dest = os.path.join(self.img_dir, f"{stem}.png")
@@ -620,7 +593,6 @@ def _table(slide, left, top, width, height, data, font_size=10):
     for r, row in enumerate(data):
         for c, value in enumerate(row):
             cell = tbl.cell(r, c)
-            # Make sure None translates to an empty string in table
             cell.text = str(value) if value is not None else ""
             cell.vertical_anchor = MSO_ANCHOR.MIDDLE
             if r == 0:
@@ -651,9 +623,6 @@ def _short_name(sample: str) -> str:
     return sample.replace("IP_srp54_control_", "")
 
 
-# ══════════════════════════════════════════════════════════════════════════
-# Chart generators
-# ══════════════════════════════════════════════════════════════════════════
 
 def plot_read_flow(samples_data: list[dict], img_store: TempImageStore) -> str:
     """Generate Read Flow bar chart across raw/dedup/trim/STAR levels."""
@@ -675,7 +644,6 @@ def plot_read_flow(samples_data: list[dict], img_store: TempImageStore) -> str:
     ax.set_axisbelow(True)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
-    # Group separator
     for i in range(1, len(groups)):
         if groups[i] != groups[i-1]:
             ax.axvline(x=i - 0.5, color="#999999", linewidth=1, linestyle="--", alpha=0.5)
@@ -712,7 +680,6 @@ def plot_star_mapping(samples_data: list[dict], img_store: TempImageStore) -> st
     """Generate STAR final alignment stats and mapping ratio breakdown chart."""
     names = [_short_name(d["sample"]) for d in samples_data]
     fig, axes = plt.subplots(1, 2, figsize=(9, 4.0))
-    # Left: final_bam_reads
     ax = axes[0]
     x = np.arange(len(names))
     ax.bar(x, _clean_list([d.get("final_bam_reads") for d in samples_data]), 0.5, color=P_7SL, label="Total mapped")
@@ -724,7 +691,6 @@ def plot_star_mapping(samples_data: list[dict], img_store: TempImageStore) -> st
     ax.set_axisbelow(True)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
-    # Right: mapping breakdown
     ax = axes[1]
     unique = _clean_list([d.get("unique") for d in samples_data])
     multi = _clean_list([d.get("multi") for d in samples_data])
@@ -757,14 +723,11 @@ def plot_gene_assignments(
     This guarantees that every stacked-bar series has exactly the same number
     of values as the corresponding sample labels.
     """
-    # Store:
-    #   groups_data[group][gene][sample] = assigned_records
     groups_data: dict[str, dict[str, dict[str, int]]] = defaultdict(
         lambda: defaultdict(dict)
     )
     sample_labels: dict[str, list[str]] = defaultdict(list)
 
-    # Keep the original sample IDs in each group so that the order is explicit.
     group_samples: dict[str, list[str]] = defaultdict(list)
 
     for d in samples_data:
@@ -785,7 +748,6 @@ def plot_gene_assignments(
         manifest = load_gene_manifest(manifest_path)
 
         if manifest.empty or "assigned_records" not in manifest.columns:
-            # No valid manifest: keep an explicit empty marker for this sample.
             groups_data[group]["(none)"][sample] = 0
             continue
 
@@ -827,24 +789,17 @@ def plot_gene_assignments(
 
         bottom = np.zeros(n_samples, dtype=float)
 
-        # Sort genes by total assigned reads within this group.
         sorted_genes = sorted(
             gene_data.items(),
             key=lambda x: -sum(x[1].values()),
         )
 
         for i, (gene, sample_counts) in enumerate(sorted_genes):
-            # IMPORTANT:
-            # Construct values strictly according to `samples` order.
-            #
-            # Missing gene/sample combinations are explicitly represented as 0.
             vals = np.array(
                 [sample_counts.get(sample, 0) for sample in samples],
                 dtype=float,
             )
 
-            # Defensive check: x, vals and bottom must always have
-            # exactly the same length.
             if len(vals) != n_samples:
                 raise RuntimeError(
                     f"Internal data alignment error for group={group!r}, "
@@ -920,7 +875,6 @@ def plot_tail_summary(samples_data: list[dict], img_store: TempImageStore) -> st
     for i in range(1, len(groups)):
         if groups[i] != groups[i-1]:
             ax.axvline(x=i - 0.5, color="#999999", linewidth=1, linestyle="--", alpha=0.5)
-    # Percentage labels
     for i, d in enumerate(samples_data):
         total = d.get("total_tail_reads") or 0
         if total > 0:
@@ -995,9 +949,6 @@ def plot_end_position(samples_data: list[dict], img_store: TempImageStore) -> st
     return img_store.save_fig(fig, "end_position")
 
 
-# ══════════════════════════════════════════════════════════════════════════
-# Slide builders
-# ══════════════════════════════════════════════════════════════════════════
 
 def build_title_slide(prs: Presentation, title: str, subtitle: str, date: str, pipeline_text: str, lang: str):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
@@ -1137,7 +1088,6 @@ def build_gene_slide(prs: Presentation, samples_data: list[dict], analysis_dir: 
     _header(slide, t("gene_assignment", lang))
     img = plot_gene_assignments(samples_data, analysis_dir, img_store)
     _add_picture(slide, img, 0.3, 0.82, 9.1, 2.8)
-    # Data table
     rows = [[t("sample", lang), t("genes", lang), t("total_assigned", lang), t("top_gene", lang), t("top_reads", lang)]]
     for d in samples_data:
         rows.append([_short_name(d["sample"]), d.get("n_genes"), d.get("total_assigned"), d.get("top_gene"), d.get("top_gene_reads")])
@@ -1162,7 +1112,6 @@ def build_tail_length_slide(prs: Presentation, samples_data: list[dict], img_sto
     _header(slide, t("tail_length", lang))
     img = plot_tail_length(samples_data, img_store)
     _add_picture(slide, img, 0.5, 0.9, 9.0, 3.5)
-    # Summary
     groups_data: dict[str, dict] = defaultdict(lambda: {"total": 0, "with_tail": 0})
     for d in samples_data:
         g = infer_group(d["sample"])
@@ -1214,7 +1163,6 @@ def build_conclusion_slide(prs: Presentation, samples_data: list[dict], lang: st
     if not bullets:
         bullets.append("报告已生成。" if lang == "zh" else "Report generated.")
     _bullets(slide, 0.9, 1.45, 8.2, 2.35, bullets, font_size=15, color=C_WHITE)
-    # Stat cards
     cards = [
         (t("sample", lang), str(len(samples_data))),
         (t("total_assigned", lang), str(total_assigned)),
@@ -1246,9 +1194,6 @@ def build_conclusion_slide(prs: Presentation, samples_data: list[dict], lang: st
     band.line.fill.background()
 
 
-# ══════════════════════════════════════════════════════════════════════════
-# Excel file inventory
-# ══════════════════════════════════════════════════════════════════════════
 
 def write_file_inventory(output_path: str, analysis_dir: str, samples: List[str],
                          paired_samples: List[str], single_samples: List[str],
@@ -1273,7 +1218,6 @@ def write_file_inventory(output_path: str, analysis_dir: str, samples: List[str]
     ws.column_dimensions["B"].width = 18
     ws.column_dimensions["C"].width = 60
 
-    # Sample stats sheet
     ws_stats = wb.create_sheet("Sample_Stats")
     stat_cols = [
             "sample", "raw_reads", "dedup_reads", "trimmed_reads",
@@ -1288,11 +1232,9 @@ def write_file_inventory(output_path: str, analysis_dir: str, samples: List[str]
             "with_tail", "without_tail", "upstream", "at_end", "downstream"
         ]
     
-    # Write Header
     ws_stats.append(stat_cols)
     
-    # Write Data Rows
-    for r_idx, d in enumerate(samples_data, start=2): # Header is row 1
+    for r_idx, d in enumerate(samples_data, start=2):
         for c_idx, c in enumerate(stat_cols, start=1):
             val = d.get(c)
             cell = ws_stats.cell(row=r_idx, column=c_idx)
@@ -1300,7 +1242,6 @@ def write_file_inventory(output_path: str, analysis_dir: str, samples: List[str]
             if val is None:
                 cell.value = ""
             elif c.endswith("_pct") and isinstance(val, (int, float)):
-                # Store pure float divided by 100 and apply openpyxl percentage formatting
                 cell.value = val / 100.0
                 cell.number_format = '0.00%'
             else:
@@ -1309,7 +1250,6 @@ def write_file_inventory(output_path: str, analysis_dir: str, samples: List[str]
     for i, col in enumerate(stat_cols, 1):
         ws_stats.column_dimensions[openpyxl.utils.get_column_letter(i)].width = min(max(len(col) + 2, 12), 30)
 
-    # Per-sample gene manifests
     for d in samples_data:
         manifest_path = os.path.join(analysis_dir, "common", "4_per_gene_bam", d["sample"], "genes.tsv")
         df = pd.read_csv(manifest_path, sep="\t") if os.path.isfile(manifest_path) else pd.DataFrame()
@@ -1322,7 +1262,6 @@ def write_file_inventory(output_path: str, analysis_dir: str, samples: List[str]
         for _, row in df.iterrows():
             ws_gene.append([str(row[col]) if pd.notna(row[col]) else "" for col in df.columns])
 
-    # Per-sample tail CSVs
     for d in samples_data:
         tail_path = os.path.join(analysis_dir, "common", "4_per_gene_bam", d["sample"], f"{d['sample']}_tail.csv")
         df = pd.read_csv(tail_path, skipinitialspace=True) if os.path.isfile(tail_path) else pd.DataFrame()
@@ -1340,9 +1279,6 @@ def write_file_inventory(output_path: str, analysis_dir: str, samples: List[str]
     wb.save(output_path)
 
 
-# ══════════════════════════════════════════════════════════════════════════
-# Main
-# ══════════════════════════════════════════════════════════════════════════
 
 def main():
     ap = argparse.ArgumentParser(description="Generate ncRNAseq PPT report")
@@ -1381,13 +1317,11 @@ def main():
 
     samples = args.samples
     if not samples:
-        # Auto-detect from 4_per_gene_bam
         pg_dir = os.path.join(analysis_dir, "common", "4_per_gene_bam")
         if os.path.isdir(pg_dir):
             samples = sorted([d for d in os.listdir(pg_dir)
                               if os.path.isdir(os.path.join(pg_dir, d))])
     if not samples:
-        # Fallback: 3_raw_bam
         bam_dir = os.path.join(analysis_dir, "common", "3_raw_bam")
         if os.path.isdir(bam_dir):
             samples = sorted([d for d in os.listdir(bam_dir)
@@ -1398,7 +1332,6 @@ def main():
     if not samples_data:
         print("WARNING: No sample data collected", file=sys.stderr)
 
-    # Determine which sections have data
     has_gene_data = any(d.get("n_genes") is not None for d in samples_data)
     has_tail_data = any(d.get("total_tail_reads") is not None for d in samples_data)
 

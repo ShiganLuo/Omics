@@ -30,12 +30,6 @@ log_msg <- function(level = c("INFO","WARN","ERROR"), ..., quit = FALSE) {
   if (quit) stop(msg, call. = FALSE)
 }
 
-## =========================
-## Multi-format figure output (modules.md #9)
-## =========================
-## ggsave derives the device from the file extension, so writing every
-## requested format is a plain loop over "{out_base}.{fmt}". pgf/raw/rgba
-## are matplotlib-only and fail fast here (R ggsave device set).
 VALID_FORMATS <- c("png", "pdf", "svg", "ps", "eps", "tif", "tiff",
                    "jpg", "jpeg")
 
@@ -180,7 +174,6 @@ wrap_plot_labels <- function(labels, width = 42) {
   vapply(
     labels,
     function(label) {
-      # Remove literal backslash-n sequences before adding real line breaks.
       label <- gsub("\\\\n", " ", label, fixed = FALSE)
       paste(strwrap(label, width = width), collapse = newline)
     },
@@ -196,7 +189,6 @@ plot_back_to_back <- function(
   out_base,
   formats = "png"
 ) {
-  # Early return if no results
   if (nrow(up_df) == 0 && nrow(down_df) == 0) {
     p <- ggplot() +
       annotate("text", x = 0, y = 0, label = "No enriched terms", size = 6) +
@@ -207,7 +199,6 @@ plot_back_to_back <- function(
     return(invisible(NULL))
   }
 
-  # Process each direction independently (one may be empty)
   parts <- list()
   if (nrow(up_df) > 0 && "pvalue" %in% colnames(up_df)) {
     parts$up <- up_df %>%
@@ -234,7 +225,6 @@ plot_back_to_back <- function(
     return(invisible(NULL))
   }
 
-  # KEGG appends the organism to every Description. Keep it out of each label.
   df$Description <- clean_pathway_description(df$Description)
   df$plot_label <- wrap_plot_labels(df$Description)
   n_labels <- length(unique(df$plot_label))
@@ -264,7 +254,6 @@ plot_back_to_back <- function(
       plot.margin = margin(10, 24, 10, 10)
     )
 
-  # Keep enough width for the numeric panel after allocating space to labels.
   save_ggsave_formats(p, out_base, formats, width = 12, height = plot_height,
                       bg = "white")
 }
@@ -285,7 +274,6 @@ run_pipeline <- function(
   formats = "png"
 ) {
   dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
-  # fail fast on bad formats before any enrichment work starts
   validate_formats(formats)
 
   log_msg("INFO", "Defining Up / Down genes ...")
@@ -305,9 +293,6 @@ run_pipeline <- function(
     log_msg("WARN", "No significant genes; emitting empty GO/KEGG outputs.")
   }
 
-  # Outputs are written on EVERY path (including zero significant genes):
-  # downstream rules declare them and a silent skip fails the DAG with
-  # MissingOutputException. Empty enrichments render as "No enriched terms".
   writeLines(genes$up, file.path(outdir, "up_genes.txt"))
   writeLines(genes$down, file.path(outdir, "down_genes.txt"))
 
@@ -331,9 +316,6 @@ run_pipeline <- function(
   }
 }
 
-## =========================
-## CLI
-## =========================
 parser <- ArgumentParser(description = "GO and KEGG enrichment analysis for DESeq2 results")
 
 parser$add_argument("-i", "--input", required = TRUE, type = "character",
@@ -360,14 +342,9 @@ parser$add_argument("--format", action = "append", dest = "formats", type = "cha
                     help = "Output image format (png/pdf/svg/ps/eps/tif/tiff/jpg/jpeg; repeatable). Default: png")
 args <- parser$parse_args()
 
-## One format per --format flag; default keeps the historical png output.
-## Fail fast on pgf/raw/rgba etc. before any heavy computation runs.
 formats <- if (is.null(args$formats)) "png" else unlist(args$formats)
 validate_formats(formats)
 
-## =========================
-## Main
-## =========================
 log_msg("INFO", "Input:", args$input)
 log_msg("INFO", "Outdir:", args$outdir)
 log_msg("INFO", "Species:", args$species)

@@ -13,7 +13,6 @@ def parse_star_log(log_file):
             if "|" not in line:
                 continue
             key, value = [x.strip() for x in line.split("|")]
-            # 去掉多余空格，转数字
             value_clean = value.replace("%","").replace(",","")
             try:
                 if "." in value_clean:
@@ -42,7 +41,6 @@ def batch_star_qc(base_dir):
         all_qc.append(qc)
 
     df = pd.DataFrame(all_qc)
-    # 可按 total reads 排序
     df = df.sort_values("Number of input reads", ascending=False)
     return df
 

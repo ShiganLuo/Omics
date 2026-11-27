@@ -51,7 +51,6 @@ def run_bedtools_coverage(bed_file, bam_file, bedtools="bedtools"):
     import tempfile as _tempfile
     tmp_bam = _tempfile.mktemp(suffix=".bam")
     try:
-        # Step 1: filter duplicates with samtools
         samtools_cmd = ["samtools", "view", "-b", "-F", "1024", "-o", tmp_bam, bam_file]
         logger.info(f"Running: {' '.join(samtools_cmd)}")
         r = subprocess.run(samtools_cmd, capture_output=True, text=True)
@@ -59,7 +58,6 @@ def run_bedtools_coverage(bed_file, bam_file, bedtools="bedtools"):
             logger.error(f"samtools filter failed: {r.stderr}")
             return {}
 
-        # Step 2: count reads with bedtools coverage
         bedtools_cmd = [
             bedtools, "coverage",
             "-a", bed_file,
@@ -101,7 +99,6 @@ def main():
     total_peaks = count_peaks(args.peak)
     logger.info(f"Total peaks: {total_peaks}")
 
-    # Step 1: bedtools intersect -wa -wb
     cmd = [
         args.bedtools, "intersect",
         "-a", args.peak,
@@ -114,14 +111,12 @@ def main():
         logger.error(f"bedtools intersect failed: {result.stderr}")
         sys.exit(1)
 
-    # Write overlap BED
     with open(args.overlap_bed, "w") as f:
         f.write(result.stdout)
 
-    # Step 2: Parse overlaps and collect subfamily locus data
-    subfamily_loci = []   # (sample_id, subfamily, te_class, te_length, overlap_start, overlap_end, overlap_frac)
-    subfamily_peak_ids = defaultdict(set)  # subfamily -> set of unique peak_ids
-    overlap_regions = []  # (chrom, start, end) for bedtools coverage
+    subfamily_loci = []
+    subfamily_peak_ids = defaultdict(set)
+    overlap_regions = []
 
     for line in result.stdout.strip().split("\n"):
         if not line:
@@ -162,12 +157,10 @@ def main():
         subfamily_peak_ids[te_subfamily].add(peak_id)
         overlap_regions.append((gtf_chrom, overlap_start, overlap_end))
 
-    # Step 3: Count reads in overlap regions from IP and Input BAMs
-    ip_read_counts = {}  # (chrom, start, end) -> count
+    ip_read_counts = {}
     input_read_counts = {}
 
     if args.ip_bam and args.input_bam:
-        # Write overlap regions as temporary BED for bedtools coverage
         tmpdir = tempfile.mkdtemp()
         regions_bed = os.path.join(tmpdir, "overlap_regions.bed")
         with open(regions_bed, "w") as f:
@@ -178,13 +171,11 @@ def main():
         ip_read_counts = run_bedtools_coverage(regions_bed, args.ip_bam, args.bedtools)
         input_read_counts = run_bedtools_coverage(regions_bed, args.input_bam, args.bedtools)
 
-        # Cleanup
         os.unlink(regions_bed)
         os.rmdir(tmpdir)
     else:
         logger.info("No BAM files provided, skipping read counting")
 
-    # Step 4: Write subfamily locus-level TSV with TE class and read counts
     with open(args.subfamily_tsv, "w") as f:
         header = "sample_id\tte_subfamily\tte_class\tte_length\tinterval_overlap_frac\toverlap_peak_count"
         if ip_read_counts:

@@ -7,13 +7,11 @@ outfiles = config.get("outfiles", [])
 ROOT_DIR = config.get("ROOT_DIR","")
 paired_samples = config.get("sample_params", {}).get("paired_samples", [])
 single_samples = config.get("sample_params", {}).get("single_samples", [])
-#exomePeak
 ip_samples = config.get("sample_params", {}).get("ip_samples", [])
 input_samples = config.get("sample_params", {}).get("input_samples", [])
 treated_ip_samples = config.get("sample_params", {}).get("treated_ip_samples", [])
 treated_input_samples = config.get("sample_params", {}).get("treated_input_samples", [])
 
-# Genome reference resolution — nested default + references pattern
 genome = config.get("genome", {}).get("default")
 genome_ref = config.get("genome", {}).get("references", {}).get(genome, {}) if genome else {}
 
@@ -53,10 +51,6 @@ hisat2_config = {
             "hisat2": config.get('Procedure',{}).get('hisat2')
         },
         "Params": {
-            # temp 规范(modules.md):hisat2 中间产物(bam/splice.txt)受
-            # keep_intermediates 字段控制;透传用户实例段 Params.hisat2,缺省
-            # True=保留。MERIP 模板定 false(hisat2 bam 是中间文件,交付物是
-            # igv/{s}/{s}.dedup.bam,由未包裹的 samtools_dedup 产出,永不误删)
             "hisat2": {
                 "keep_intermediates": config.get('Params',{}).get('hisat2',{}).get('keep_intermediates', True)
             }
@@ -87,8 +81,6 @@ igv_config = {
             "bamCoverage": config.get('Procedure',{}).get('bamCoverage')
         },
         "Params": {
-            # 参数精确到 rule:整段透传(normalizeUsing 在 bamCoverage/wig 各自
-            # rule 子键;未迁移的 binSize/offset 仍是模块级扁平键)
             "bamCoverage": config.get('Params',{}).get('bamCoverage', {}),
         }
     }
@@ -99,11 +91,6 @@ logger.info(f"igv_config: {igv_config}")
 use rule samtools_dedup from igv as MERIP_dedup
 use rule wig from igv as MERIP_wig
 
-# ============================================
-# Sex check (coverage on sex chromosomes)
-# ============================================
-# Wired unconditionally over the alignment BAMs; node.py registers the
-# sexcheck outputs (subworkflow.md QC wiring).
 sexcheck_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -124,7 +111,6 @@ sexcheck_config = {
         "sex_chroms": (config.get("genome", {}) or {}).get("references", {})
             .get(config.get("genome", {}).get("default"), {})
             .get("sex_chroms"),
-        # RNA-mode marker lookup (XIST / Y-linked genes) reads the annotation
         "gtf": (config.get("genome", {}) or {}).get("references", {})
             .get(config.get("genome", {}).get("default"), {})
             .get("gtf")
@@ -140,12 +126,6 @@ logger.info(f"sexcheck_config: {sexcheck_config}")
 use rule sexcheck_idxstats from sexcheck as MERIP_sexcheck_idxstats
 use rule sexcheck from sexcheck as MERIP_sexcheck
 
-# ============================================
-# QC Summary (cross-sample metric aggregation)
-# ============================================
-# Wired unconditionally; node.py registers the qc_summary outputs (see
-# subworkflow.md QC wiring spec). Only stages with qc_summary parsers are
-# declared; unregistered stages stay best-effort scans.
 qc_summary_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -167,11 +147,6 @@ module qc_summary:
 logger.info(f"qc_summary_config: {qc_summary_config}")
 use rule qc_summary from qc_summary as MERIP_qc_summary
 
-# ============================================================
-# Region-focused multi-sample track stacking plots (modules/regionplot)
-#   Consumes this workflow's bigwigs; gated by Params.regionplot in
-#   node.py (subworkflow wiring is unconditional per repo convention).
-# ============================================================
 regionplot_params = config.get("Params", {}).get("regionplot", {})
 regionplot_config = {
     "ROOT_DIR": ROOT_DIR,

@@ -46,8 +46,6 @@ rule diann_run:
     container:
         sif("diann.yaml", "diann_run")
     params:
-        # 参数精确到 rule:config 全量路径读取(Params.diann.diann_run.<key>,
-        # 工具名 Params.Procedure.diann_run.diann;无 module 级共享回退)。
         diann = config.get("Procedure", {}).get("diann") or "diann",
         qvalue = config.get("Params", {}).get("diann", {}).get("diann_run", {}).get("qvalue", 0.01),
         matrix_qvalue = config.get("Params", {}).get("diann", {}).get("diann_run", {}).get("matrix_qvalue", 0.01),
@@ -74,7 +72,7 @@ rule diann_run:
             group_outdir = outdir
             os.makedirs(group_outdir, exist_ok=True)
             script = receipt_script(f"diann_run_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(group_outdir, f"diann_run.sh")
             cmd = [
                 params.diann,
@@ -110,7 +108,7 @@ rule diann_run:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "diann_run at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -148,7 +146,7 @@ rule diann_summary:
             rule_logger.info(f"Start DIA-NN summary at {current_time}")
             os.makedirs(outdir, exist_ok=True)
             script = receipt_script(f"diann_summary_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"diann_summary.sh")
             cmd = [
                 "python", params.script,
@@ -162,7 +160,7 @@ rule diann_summary:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "diann_summary at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

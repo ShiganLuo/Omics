@@ -48,8 +48,6 @@ GROUP_LABEL = {"ctrl_specific": "youth-specific", "exp_specific": "aged-specific
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
@@ -135,15 +133,13 @@ def main():
         if not os.path.exists(p):
             sys.exit(f"FATAL: missing input {p}")
     fams = [f.strip() for f in args.families.split(",") if f.strip()]
-    top3 = [f for f in fams if f != "SVA"][:3]  # SVA: usually too few events
-    if len(top3) < 3:  # fall back to raw order if families were removed
+    top3 = [f for f in fams if f != "SVA"][:3]
+    if len(top3) < 3:
         top3 = fams[:3]
 
     ev = pd.read_csv(events, sep="\t", keep_default_na=False)
     hits = parse_out(rm_out)
 
-    # ---- map insN ids: i-th event row with ins_len>=min_len (VCF record order)
-    # = ins{i} ----
     n_fa = 0
     with open(rm_fa) as fh:
         for line in fh:
@@ -155,7 +151,6 @@ def main():
     sub["ins_id"] = [f"ins{i}" for i in range(len(sub))]
     print(f"[ok] joined {len(sub)} classified events to ins.fa ids")
 
-    # ---- per-insertion divergence ----
     rows, mism = [], 0
     for _, r in sub.iterrows():
         hs = hits.get(r["ins_id"], [])
@@ -194,7 +189,6 @@ def main():
     sub[keep].to_csv(os.path.join(outdir, "te_divergence_per_ins.tsv"),
                      sep="\t", index=False)
 
-    # ---- stats by family x group ----
     try:
         from scipy.stats import mannwhitneyu, ks_2samp
         HAVE_SCIPY = True
@@ -233,7 +227,6 @@ def main():
     stat = pd.DataFrame(stat_rows)
     stat.to_csv(os.path.join(outdir, "te_age_by_group.tsv"), sep="\t", index=False)
 
-    # ---- subfamily table ----
     sf = (sub[sub["w_div"].notna()]
           .groupby(["te_repeat", "family", "group"])
           .agg(n=("id", "size"), median_div=("w_div", "median"),
@@ -241,7 +234,6 @@ def main():
     sf = sf.sort_values(["family", "n"], ascending=[True, False])
     sf.to_csv(os.path.join(outdir, "te_age_subfamily.tsv"), sep="\t", index=False)
 
-    # ---- full-length L1 ----
     fl_cols = ["chrom", "pos", "id", "group", "te_repeat", "ins_len", "w_div",
                "jc_div", "mu1.0e-9_age_myr"]
     fl = sub[(sub["family"] == "L1") & (sub["svlen"] >= 6000) &
@@ -249,11 +241,9 @@ def main():
                                               if "polyA" in sub.columns else [])]
     fl.to_csv(os.path.join(outdir, "te_full_length_L1_age.tsv"), sep="\t", index=False)
 
-    # ================= figures =================
     colors = {"ctrl_specific": "#4C72B0", "exp_specific": "#C44E52",
               "shared": "#55A868"}
 
-    # fig1: divergence histograms per family per group + young zoom
     fig, axes = plt.subplots(2, len(top3), figsize=(5 * len(top3), 8),
                              squeeze=False)
     for c, fam in enumerate(top3):
@@ -277,7 +267,6 @@ def main():
                     dpi=150)
     plt.close(fig)
 
-    # fig2: age landscape: div bins x family, stacked by group, fraction
     bins = [(0, 0.5), (0.5, 1), (1, 2), (2, 5), (5, 10), (10, 20), (20, 100)]
     labels = ["<0.5", "0.5-1", "1-2", "2-5", "5-10", "10-20", ">20"]
     fig, axes = plt.subplots(1, len(top3), figsize=(5 * len(top3), 4.5),
@@ -302,7 +291,6 @@ def main():
         fig.savefig(os.path.join(outdir, f"te_age_landscape.{fmt}"), dpi=150)
     plt.close(fig)
 
-    # fig3: boxplots of divergence by group per family (all analyzed fams)
     fig, ax = plt.subplots(figsize=(9, 5))
     data, ticks = [], []
     for fam in fams:
@@ -328,7 +316,6 @@ def main():
                     dpi=150)
     plt.close(fig)
 
-    # fig4: full-length L1 divergence
     fig, ax = plt.subplots(figsize=(8, 5))
     data, ticks = [], []
     for g in ["ctrl_specific", "exp_specific", "shared"]:
@@ -347,7 +334,6 @@ def main():
                     dpi=150)
     plt.close(fig)
 
-    # ---- markdown digest report ----
     grp = stat[stat["group"].isin(["youth-specific", "aged-specific", "shared"])]
     lines = ["# TE insertion age (divergence-from-consensus) report", "",
              f"- mei dir: `{mei}`", f"- insertions dated: {len(sub)}",
@@ -368,7 +354,6 @@ def main():
     with open(os.path.join(outdir, "te_age_report.md"), "w") as fh:
         fh.write("\n".join(lines) + "\n")
 
-    # ---- console digest ----
     print("\n=== median divergence (age proxy) by family x group ===")
     print(grp.to_string(index=False))
     print(f"\nfull-length L1 with div: n={len(fl)}, "

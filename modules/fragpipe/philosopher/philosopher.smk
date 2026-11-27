@@ -6,14 +6,12 @@ logdir = config.get("logdir", "logs")
 samples = config.get("samples", [])
 search_fasta = config.get("genome", {}).get("search_fasta", "")
 
-# Get parameters
 phil_params = config.get("Params", {}).get("philosopher", {})
 pep_fdr = phil_params.get("pep_fdr", 0.01)
 prot_fdr = phil_params.get("prot_fdr", 0.01)
 ion_fdr = phil_params.get("ion_fdr", 0.01)
 picked = phil_params.get("picked", True)
 
-# Get executables
 philosopher = config.get("Procedure", {}).get("philosopher") or "philosopher"
 
 rule philosopher_database:
@@ -45,10 +43,8 @@ rule philosopher_database:
             db_dir = os.path.join(outdir, "database")
             os.makedirs(db_dir, exist_ok=True)
             script = receipt_script(f"philosopher_database_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(db_dir, f"philosopher_database.sh")
-            # Philosopher writes a dated '<date>-decoys-contam-<name>.fas';
-            # rename to a stable output so reruns stay mtime-stable.
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(f"cd {shlex.quote(db_dir)}\n")
@@ -59,7 +55,7 @@ rule philosopher_database:
                 f.write(f"mv \"$gen\" {shlex.quote(str(output.db))}\n")
                 f.write(f"echo 'Philosopher database build completed at {current_time}'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -109,14 +105,12 @@ rule philosopher_filter:
                 except OSError:
                     shutil.copy(str(input.pepxml), local_pepxml)
             script = receipt_script(f"philosopher_filter_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"philosopher_filter.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(f"cd {shlex.quote(sample_outdir)}\n")
                 f.write(f"{shlex.quote(str(params.philosopher))} workspace --init\n")
-                # --annotate rebuilds the per-workspace .meta/db.bin the
-                # protein-level filtering reads.
                 f.write(f"{shlex.quote(str(params.philosopher))} database --annotate {shlex.quote(str(input.db))}\n")
                 f.write(f"{shlex.quote(str(params.philosopher))} peptideprophet --database {shlex.quote(str(input.db))} "
                         f"--decoy rev_ --nonparam --expectscore --accmass --decoyprobs "
@@ -134,7 +128,7 @@ rule philosopher_filter:
                 f.write(f"{shlex.quote(str(params.philosopher))} report\n")
                 f.write(f"echo 'Philosopher validation/filter for {wildcards.sample_id} completed at {current_time}'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

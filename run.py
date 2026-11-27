@@ -76,7 +76,7 @@ def _detect_total_mem_mb(default_mb: int = 470000) -> int:
         with open("/sys/fs/cgroup/memory.max") as fh:
             v = fh.read().strip()
         if v != "max":
-            total_mb = int(v) // (1024 * 1024)  # bytes -> MB
+            total_mb = int(v) // (1024 * 1024)
             if total_mb > 0:
                 return int(total_mb * 0.90)
     except (OSError, ValueError):
@@ -85,17 +85,14 @@ def _detect_total_mem_mb(default_mb: int = 470000) -> int:
         with open("/proc/meminfo") as fh:
             for line in fh:
                 if line.startswith("MemTotal:"):
-                    total_mb = int(line.split()[1]) // 1024  # kB -> MB
+                    total_mb = int(line.split()[1]) // 1024
                     return int(total_mb * 0.90)
     except (OSError, ValueError, IndexError):
         pass
     return default_mb
 
 
-# ---------------------------------------------------------------------------
-# Host awareness / budget splitting (方案 A: resource-balancing-proposal.md)
-# ---------------------------------------------------------------------------
-MIN_MEM_SHARE_MB = 8000   # floor for a per-workflow budget share (方案 A 第 3 点)
+MIN_MEM_SHARE_MB = 8000
 
 
 def detect_host_profile() -> Dict[str, Any]:
@@ -286,8 +283,6 @@ def parse_args() -> argparse.Namespace:
         help='additional arguments forwarded to snakemake; place them after this flag'
     )
 
-    # 支持 --key=value、--key value、--key v1 v2 v3 三种形式的额外参数
-    # 多值参数在碰到下一个 --key 或到达末尾时停止收集
     args, unknown = parser.parse_known_args()
     extra_args: Dict[str, Any] = {}
     i = 0
@@ -341,7 +336,6 @@ def _collect_bind_paths(config_path: str) -> List[str]:
 
     def _walk(obj: Any) -> None:
         if is_path_like(obj) and os.path.exists(obj):
-            # Resolve to absolute path; use as-is if not exists (don't resolve symlinks)
             p = _os.path.abspath(obj.strip())
             if _os.path.isfile(p):
                 dirs.add(_os.path.dirname(p))
@@ -356,7 +350,6 @@ def _collect_bind_paths(config_path: str) -> List[str]:
 
     _walk(cfg)
 
-    # Collapse: remove any directory that is a child of another in the set
     result = set(dirs)
     for d in list(dirs):
         for other in dirs:
@@ -388,10 +381,8 @@ def _merge_singularity_args(
             if path and path not in bind_paths:
                 bind_paths.append(path)
 
-    # Paths collected from config.
     add_bind_paths(json_bind_paths)
 
-    # Bind tmp_dir to /tmp inside container, or fall back to host /tmp.
     if tmp_dir:
         add_bind_paths([f"{tmp_dir}:/tmp"])
     else:
@@ -404,7 +395,6 @@ def _merge_singularity_args(
             else None
         )
 
-    # Find an existing --bind argument.
     match = re.search(
         r"(?:^|\s)--bind(?:=|\s+)([^\s]+)",
         singularity_args,
@@ -413,10 +403,8 @@ def _merge_singularity_args(
     if match:
         user_bind = match.group(1)
 
-        # Add user-defined paths.
         add_bind_paths(user_bind.split(","))
 
-        # Replace only the existing --bind argument.
         merged_bind = "--bind " + ",".join(bind_paths)
 
         start, end = match.span()
@@ -426,7 +414,6 @@ def _merge_singularity_args(
             + singularity_args[end:]
         )
     else:
-        # User supplied other singularity arguments but no --bind.
         singularity_args = (
             singularity_args.rstrip()
             + " --bind "
@@ -476,7 +463,6 @@ def build_snakemake_cmd(root_dir: str, smk: str, input_json: str, threads: int,
         List[str]: Complete snakemake command as a list of arguments.
     """
     snakemake_args = snakemake_args or []
-    # Determine container backend: explicit --sdm flag, or legacy --snakemake-args --sdm
     use_singularity = sdm is not None or _detect_singularity(snakemake_args)
 
     cmd = [
@@ -495,8 +481,6 @@ def build_snakemake_cmd(root_dir: str, smk: str, input_json: str, threads: int,
     if restart_times:
         cmd += ["--restart-times", str(restart_times)]
     if os.environ.get("OMICS_SCRIPT_ONLY", "") == "1":
-        # 测试/--script-only 模式:run 块只落盘 shell 回执不执行工具,
-        # conda/apptainer 环境构建纯属浪费(实测建环境远慢于回执生成),跳过后端。
         pass
     elif not use_singularity:
         cmd += [
@@ -512,7 +496,6 @@ def build_snakemake_cmd(root_dir: str, smk: str, input_json: str, threads: int,
 
         json_bind_paths = _collect_bind_paths(input_json)
 
-        # Read tmp_dir from config; default to {outdir}/tmp
         with open(input_json, "r", encoding="utf-8") as _f:
             _cfg = json.load(_f)
         tmp_dir = _cfg.get("tmp_dir")
@@ -539,30 +522,8 @@ def build_snakemake_cmd(root_dir: str, smk: str, input_json: str, threads: int,
     if unlock:
         cmd.append("--unlock")
     if forcerun or forcerun_downstream:
-        # File paths and plain rule names → POSITIONAL targets + --forcerun.
-        # Positional targets scope the DAG exactly like --until (targets and
-        # their upstream, stop after them) but avoid two snakemake defects of
-        # the --until translation this replaces:
-        #   * --until deadlocks ("BUG: Out of jobs ready to be started") when
-        #     the until set contains both a rule and its dependent (e.g.
-        #     somatic_spectrum feeding the signature rules): dag.finish()
-        #     never decrements the readiness counter of dependents of an
-        #     until job (snakemake issue #823);
-        #   * --until REPLACES the target set (dag.set_until_jobs), silently
-        #     dropping --target-jobs wildcard expansions from a mixed
-        #     forcerun list.
-        # forcerun_downstream additionally continues THROUGH the dependents:
-        # positional target `all` keeps the whole workflow in the DAG (also
-        # needed because --target-jobs would otherwise replace the default
-        # target set), and downstream jobs then re-run automatically with
-        # "Input files updated by another job" as the forced jobs rewrite
-        # their outputs. When both lists are given, every target is forced
-        # and the whole-workflow scope wins.
-        # Positional targets must lead argv: the --forcerun/--target-jobs
-        # options take nargs='+' and would swallow trailing positionals.
         forced = list(forcerun or []) + list(forcerun_downstream or [])
         plain_targets = [t for t in forced if not (":" in t and "=" in t)]
-        # Wildcard specs (rule:wildcard=value) → --target-jobs + --force
         wildcard_targets = [t for t in forced if ":" in t and "=" in t]
         if forcerun_downstream:
             cmd[1:1] = ["all"]
@@ -601,18 +562,15 @@ def _prefix_forcerun_targets(targets: List[str], wf_name: str) -> List[str]:
     """
     prefixed: List[str] = []
     for t in targets:
-        # File paths — pass through as-is
         if "/" in t:
             prefixed.append(t)
             continue
-        # Wildcard syntax (rule:wildcard=value) — prefix rule part only
         if ":" in t and "=" in t:
             rule_part, wildcards = t.split(":", 1)
             if not rule_part.startswith(f"{wf_name}_"):
                 rule_part = f"{wf_name}_{rule_part}"
             prefixed.append(f"{rule_part}:{wildcards}")
             continue
-        # Plain rule name — standard prefix logic
         if ":" in t:
             rule_part, rest = t.split(":", 1)
             rest = ":" + rest
@@ -667,10 +625,6 @@ def _expand_wildcard_rule_targets(
     if not targets:
         return targets
 
-    # Collect config axes once. Prefer the generated raw.json (input_json):
-    # the in-memory workflow_config is the config/scRNAseq.json TEMPLATE,
-    # whose tissue_samples is empty — run<Workflow>() fills the real
-    # tissue -> samples mapping into raw.json.
     tissues: List[str] = []
     counters: List[str] = []
     cfg: Dict[str, Any] = dict(workflow_config or {})
@@ -695,12 +649,10 @@ def _expand_wildcard_rule_targets(
 
     expanded: List[str] = []
     for t in targets:
-        # Only bare rule names are expansion candidates.
         if ":" in t or "=" in t or "/" in t:
             expanded.append(t)
             continue
         rule = t
-        # A target that exists on disk is a file target — leave it alone.
         if os.path.exists(t):
             expanded.append(t)
             continue
@@ -711,8 +663,6 @@ def _expand_wildcard_rule_targets(
         elif rule.endswith("_qc") and "scanpy" in rule:
             needs = ["sample_id", "counter"]
         else:
-            # Unknown rule: leave as-is (snakemake handles wildcard-free
-            # rules fine; wildcarded ones keep the old behaviour + warning).
             expanded.append(t)
             continue
 
@@ -753,7 +703,6 @@ def _expand_wildcard_rule_targets(
                 wf_name, rule, tissues or "[]", counters or "[]",
             )
 
-    # Dedupe, preserving order.
     seen = set()
     deduped = []
     for t in expanded:
@@ -785,9 +734,6 @@ WORKFLOW_DISPATCH = {
 }
 
 
-# ============================================================
-# Test path generation
-# ============================================================
 
 
 def touch_test_inputs(meta_path: str) -> int:
@@ -833,7 +779,7 @@ def _cleanup_script_only_placeholders(outdir: str) -> None:
     for p in paths:
         try:
             if os.path.isdir(p):
-                os.rmdir(p)  # 占位目录必为空,非空不动
+                os.rmdir(p)
             elif os.path.isfile(p):
                 os.remove(p)
             removed += 1
@@ -856,23 +802,16 @@ def setup_test_args(args: argparse.Namespace, root_dir: str) -> argparse.Namespa
 
     TEST_DIR = os.path.join(root_dir, "assests", "test")
 
-    # "all" 展开为全部已注册流程(与 setup_normal_args 一致)
     if args.workflow_name and "all" in args.workflow_name:
         args.workflow_name = list(WORKFLOW_DISPATCH)
 
-    # MODE 分叉:dag = 只构建 DAG;shell = 执行 run 块只落盘回执不执行工具
-    # (见 modules.md「测试模式」);--forceall 每次全量重新生成回执,保证跨
-    # 版本对照的回执集合完整。
     if args.test == "shell":
         args.dry_run = False
         os.environ["OMICS_SCRIPT_ONLY"] = "1"
         args.snakemake_args = list(args.snakemake_args or []) + ["--forceall", "--keep-going"]
-    else:  # dag
+    else:
         args.dry_run = True
 
-    # Output OUTSIDE the repo (user requirement): explicit --output-dir/test
-    # when given, otherwise a fresh system temp dir. Never {cwd}/test — the
-    # repo tree must stay untouched by test runs.
     if args.output_dir:
         args.output_dir = os.path.join(args.output_dir, "test")
     else:
@@ -885,16 +824,12 @@ def setup_test_args(args: argparse.Namespace, root_dir: str) -> argparse.Namespa
     args.log = os.path.join(args.output_dir, "test.log")
     os.makedirs(args.output_dir, exist_ok=True)
 
-    # Build per-workflow meta map dynamically
     args._test_meta_map = {}
     for wf in args.workflow_name:
         meta_path = os.path.join(TEST_DIR, f"meta_{wf}.tsv")
         if os.path.isfile(meta_path):
             args._test_meta_map[wf] = meta_path
             continue
-        # No plain meta_{wf}.tsv: fall back to numbered variants
-        # (meta_{wf}_1.tsv, meta_{wf}_2.tsv, ...). Single variant used as-is;
-        # multiple variants collected under "wf:variant" pseudo-keys.
         variants = sorted(
             glob.glob(os.path.join(TEST_DIR, f"meta_{wf}_*.tsv")))
         if not variants:
@@ -911,10 +846,8 @@ def setup_test_args(args: argparse.Namespace, root_dir: str) -> argparse.Namespa
             + ", ".join(os.path.basename(v) for v in variants)
             + f" (default: {os.path.basename(variants[0])})")
 
-    args.meta = None  # will be resolved per-workflow via _get_meta()
+    args.meta = None
 
-    # 测试模式自动为 meta 引用的输入创建占位空文件(见 touch_test_inputs);
-    # meta 记载的路径是唯一依据,缺什么补什么,不进 git。
     total_placeholders = 0
     for meta_path in set(args._test_meta_map.values()):
         if meta_path and os.path.isfile(meta_path):
@@ -922,7 +855,6 @@ def setup_test_args(args: argparse.Namespace, root_dir: str) -> argparse.Namespa
     if total_placeholders:
         logger.info(f"test input placeholders created: {total_placeholders}")
 
-    # Store schema validator and test data for per-workflow path injection
     test_data = os.path.join(TEST_DIR, "data")
     GENOME = "GRCm39"
     schema_validator = SchemaValidator()
@@ -930,7 +862,6 @@ def setup_test_args(args: argparse.Namespace, root_dir: str) -> argparse.Namespa
     args._test_base_paths = schema_validator.generate_test_paths(test_data, GENOME)
     args._test_genome = GENOME
 
-    # Local conda-prefix (avoid permission issues)
     args.conda_prefix = os.path.join(args.output_dir, ".conda")
     os.makedirs(args.conda_prefix, exist_ok=True)
 
@@ -950,7 +881,6 @@ def setup_normal_args(args: argparse.Namespace) -> argparse.Namespace:
     if not args.output_dir:
         logger.info("Error: -o/--output_dir is required (unless --test is used)")
         exit(1)
-    # Determine container backend: explicit --sdm flag, or legacy --snakemake-args --sdm
     use_singularity = args.sdm is not None or _detect_singularity(args.snakemake_args)
     if not use_singularity and not args.conda_prefix:
         logger.info("Error: --conda-prefix is required when not using --sdm apptainer")
@@ -973,7 +903,6 @@ def print_test_summary(test_results: Dict[str, Tuple[bool, str]]) -> None:
     logger.info(f"\n  Passed: {len(passed)}, Failed: {len(failed)}, Total: {len(test_results)}")
     if failed:
         logger.error(f"  Failed workflows: {', '.join(failed)}")
-        # 不在此 exit:--test all 还要链模块 sweep,统一在末尾汇总退出
 
 
 _TMP_CACHE_DIRS = (".cache", ".config", ".keras", ".parallel", ".RepeatMaskerCache")
@@ -1098,9 +1027,7 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
                 val_str = str(val)
                 if os.path.isabs(val_str) and os.path.exists(val_str):
                     continue
-                # 相对路径：拼上 test_data_dir
                 candidate = os.path.join(test_data_dir, val_str)
-                # 绝对路径但不存在：尝试提取 fastq/ 之后的相对部分
                 if os.path.isabs(val_str) and not os.path.exists(candidate):
                     for marker in ("fastq/", ".fq.gz", ".bam"):
                         idx = val_str.find(marker)
@@ -1118,14 +1045,8 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
             return tmp
         return meta_path
 
-    # Use first workflow's output dir for metadata (or a shared parent if multi)
     ref_outdir = os.path.join(args.output_dir, workflow_names[0])
     abs_ref_outdir = os.path.abspath(ref_outdir)
-    # 运行日志落盘:snakemake 子进程报错文本(MissingOutputException 等)只经
-    # stderr 流,进不了 .snakemake/log;CmdUtil 失败时把捕获的 STDERR dump 到
-    # logger。挂 root logger 的 FileHandler 可同时收 run.py(LogUtil setup_logger
-    # propagate=True)与 CmdUtil(裸 getLogger,默认 propagate)的全部记录。
-    # 时间戳+pid 防同秒并发撞名(见 receipt_script 同类问题)。
     run_log_dir = os.path.join(abs_ref_outdir, "log")
     os.makedirs(run_log_dir, exist_ok=True)
     run_log_path = os.path.join(
@@ -1151,16 +1072,14 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
         metadataUtil = MetadataUtils(outdir=abs_ref_outdir, fastq_dir=first_meta, workflow=workflow_names[0], design=design)
     samples_info_dict, sample_pairs, group_pairs, raw_fastq_dir, raw_files, cellranger_input_dict = metadataUtil.run()
 
-    # Thread allocation: user-specified total threads split across workflows
     threads_per_workflow = max(1, args.threads // n_workflows)
     if n_workflows > 1:
         logger.info(f"Parallel mode: {n_workflows} workflows, "
                     f"{args.threads} total threads -> {threads_per_workflow} per workflow")
 
-    # Prepare each workflow
-    test_results: Dict[str, Tuple[bool, str]] = {}  # wf_name -> (passed: bool, error: str)
-    smk_cmds: list[tuple[list[str], str]] = []  # (cmd, cwd) pairs
-    pending: List[Dict[str, Any]] = []  # per-workflow build records (cmd built after budget split)
+    test_results: Dict[str, Tuple[bool, str]] = {}
+    smk_cmds: list[tuple[list[str], str]] = []
+    pending: List[Dict[str, Any]] = []
     for wf_name in workflow_names:
         abs_outdir = os.path.abspath(os.path.join(args.output_dir, wf_name))
         os.makedirs(abs_outdir, exist_ok=True)
@@ -1168,7 +1087,6 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
         wf_design = design
 
         try:
-            # In test mode, reload metadata per workflow (different meta files)
             if args._test_meta_map:
                 wf_meta = _get_meta(wf_name)
                 if wf_meta and os.path.isfile(wf_meta):
@@ -1182,7 +1100,6 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
             model_json = os.path.join(root_dir, f"config/{wf_name}.json")
             workflow_config = _load_model_json(model_json)
 
-            # Schema-aware type casting for extra_args
             if args.schema_validate and args.extra_args:
                 sv = SchemaValidator()
                 sv._schema_dir = os.path.join(root_dir, "config")
@@ -1197,9 +1114,8 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
                         )
                     args.extra_args = casted
                 except FileNotFoundError:
-                    pass  # 无 schema 时 fallback 到原有行为
+                    pass
 
-            # In test mode, inject test paths for ALL path-like fields in config
             if hasattr(args, '_test_base_paths'):
                 test_data = os.path.join(os.path.join(root_dir, "assests", "test"), "data")
                 base_paths = args._test_base_paths
@@ -1217,7 +1133,7 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
                     for name in ("smallrna", "rRNA", "access", "repeat", "decoy"):
                         if name in key:
                             f = ref / name
-                            f.touch(exist_ok=True)  # fixture must exist or DAG breaks
+                            f.touch(exist_ok=True)
                             return str(f)
                     if key == "assembly_dir":
                         asm_root = Path(test_data) / "telomere" / "asm"
@@ -1239,15 +1155,9 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
                         d.mkdir(parents=True, exist_ok=True)
                         return str(d / genome)
                     g = ref / genome
-                    g.touch(exist_ok=True)  # fixture must exist or DAG breaks
+                    g.touch(exist_ok=True)
                     return str(g)
 
-                # Schema awareness for the injection below: a field the
-                # workflow schema declares as a container (dict/list) is
-                # never a bare path. Filling such fields with a path STRING
-                # produced invalid configs that crashed dict-suffixed param
-                # lambdas (e.g. scanpy marker_supplement/cluster_annotations
-                # .get(tissue)) as soon as their rule entered the test DAG.
                 wf_schema: Dict[str, Any] = {}
                 try:
                     sv_inject = SchemaValidator()
@@ -1300,8 +1210,6 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
                 for key_tuple, v in dot_args.items():
                     dict_set_by_path(workflow_config, list(key_tuple), v)
 
-            # --design 装载:design JSON 是实验对比设计唯一入口,落
-            # sample_params.design(GUI 录入 / 手写 design JSON;模板占位空)。
             if wf_design is not None:
                 workflow_config.setdefault("sample_params", {})["design"] = wf_design
             elif getattr(metadataUtil, "column_design", None) and not (
@@ -1309,9 +1217,6 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
                 workflow_config.setdefault("sample_params", {})["design"] = \
                     metadataUtil.column_design
 
-            # --test mode defaults for scRNAseq required CLI axes (counters /
-            # aligner live in Params.workflow, not filled by CLI in test
-            # runs): test runs must not fail on their absence.
             if getattr(args, '_test_meta_map', None) and wf_name == "scRNAseq":
                 _wf = workflow_config.setdefault("Params", {}).setdefault("workflow", {})
                 _wf.setdefault("counters", ["scTE", "cellranger"])
@@ -1325,14 +1230,6 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
                 raw_fastq_dir, abs_outdir, _get_meta(wf_name), raw_files, cellranger_input_dict
             )
 
-            # Auto-prefix forcerun targets with workflow name if not already
-            # prefixed (_prefix_forcerun_targets: file paths pass through,
-            # rule:wildcard=value prefixes the rule part only, plain rule
-            # names get the workflow prefix). Rules with wildcards are
-            # additionally EXPANDED into rule:wildcard=value targets (see
-            # _expand_wildcard_rule_targets below), because snakemake's
-            # bare-rule --forcerun/--until cannot pull jobs whose outputs
-            # already exist ("Nothing to be done").
             forcerun_targets: Optional[List[str]] = None
             if args.forcerun:
                 forcerun_targets = _expand_wildcard_rule_targets(
@@ -1362,11 +1259,6 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
             else:
                 raise
 
-    # ---- 资源预算切分(方案 A 第 3 点)------------------------------------
-    # 每个 snakemake 进程只拿自己那份预算(此前每进程都拿全量,N 个工作流并发
-    # 时内存超卖,P7);份额按各工作流输入字节加权,取不到输入大小时均分。
-    # resource_caps 与命令行 --resources mem_mb 必须是同一个数:common.smk 的
-    # rule_res clamp 据此保证单作业声明值永远 <= 进程预算(P3)。
     run_started = time.time()
     weights = [p["input_bytes"] for p in pending]
     mem_shares = _split_mem_budget(args.mem_mb, weights)
@@ -1422,12 +1314,7 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
             ],
         }
 
-    # Execute snakemake commands
     if args._test_meta_map:
-        # Test mode: run each workflow, catch errors. PASS 判据:回执脚本落盘
-        # 即达成测试模式目的;snakemake 9 对「run 块跳过执行、产物不落盘」
-        # 逐一报 MissingOutputException——属预期行为,全部失败均为该类时豁免;
-        # 其余失败仍记 FAIL。
         import re as _re
 
         def _missing_outputs_only(exc: Exception) -> bool:
@@ -1486,8 +1373,6 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
             for wf in exec_status:
                 exec_status[wf] = "ok"
         except BaseException as exc:
-            # 人为中断(SIGINT/SIGTERM)与真实失败分开标记:run_summary 里记
-            # "interrupted",不要伪装成 workflow 失败。
             interrupted = isinstance(exc, (KeyboardInterrupt, SignalExit))
             for wf in exec_status:
                 if exec_status[wf] == "not-run":
@@ -1551,15 +1436,8 @@ def _build_execution_callback(args: argparse.Namespace,
 if __name__ == "__main__":
     args = parse_args()
 
-    # Execution callback: report the terminal state to the BI platform
-    # exactly once (ExecutionCallback guards the once-semantics); callback
-    # failures never change the exit path below.
     callback = _build_execution_callback(args, logger)
 
-    # ---- 信号处理(瘦处理器 + 统一退出路径)----------------------------
-    # 处理器只做两件事:第一次信号转成异常,由 __main__ 的 except 统一收尾
-    # (子进程清扫 → summary → 横幅 → callback → 退出码);第二次信号强制
-    # 退出(用户等不及优雅收尾时的逃生口)。kill/打印逻辑只存在于收尾路径。
     _signal_state = {"received": False}
 
     def _force_exit(signum):
@@ -1573,10 +1451,6 @@ if __name__ == "__main__":
         raise SignalExit(signum)
 
     def _on_sigint(signum, frame):
-        # 显式接管 SIGINT:非交互 shell 以 & 后台启动时 SIGINT 会被继承为
-        # SIG_IGN(Python 不装默认处理器),kill -INT/Ctrl+C 静默无效,程序照常
-        # 跑完——看起来像"终止了却正常退出"。装上自己的处理器后,无论何种启动
-        # 方式,中断都统一走 KeyboardInterrupt 路径。
         if _signal_state["received"]:
             _force_exit(signum)
         _signal_state["received"] = True
@@ -1590,7 +1464,6 @@ if __name__ == "__main__":
         args.host_profile = host_profile
         if args.threads is None:
             cpus = host_profile["cpus"]
-            # 90% 份额,但至少给系统留 1 核(cpus-1 封顶),且最少 1 线程
             args.threads = max(1, min(int(cpus * 0.9), cpus - 1))
             logger.info("cores auto: %d (host %s, cpus=%d)",
                         args.threads, host_profile["hostname"], host_profile["cpus"])
@@ -1598,12 +1471,10 @@ if __name__ == "__main__":
             args.mem_mb = host_profile["mem_mb"]
         ROOT_DIR = os.path.dirname(__file__)
 
-        # Warn if --touch and --dry-run are both specified
         if args.touch and args.dry_run:
             logger.warning("--touch 和 --dry-run 同时指定，--dry-run 会阻止 --touch 生效，将忽略 --touch")
             args.touch = False
 
-        # Configure args based on mode
         if args.test is not None:
             setup_test_args(args, ROOT_DIR)
         else:
@@ -1629,8 +1500,6 @@ if __name__ == "__main__":
                           exit_code=code)
         raise
     except (KeyboardInterrupt, SignalExit) as exc:
-        # 统一中断退出路径(run.py 唯一收尾出口):横幅 → 子进程兜底清扫 →
-        # callback → 退出码(SIGINT=130,其余=128+signum)。
         signum = getattr(exc, "signum", signal.SIGINT)
         sig_name = signal.Signals(signum).name
         exit_code = 128 + signum
@@ -1638,7 +1507,7 @@ if __name__ == "__main__":
         logger.error("run.py INTERRUPTED by %s — this is NOT a normal "
                      "completion; exit code %d", sig_name, exit_code)
         logger.error("=" * 70)
-        terminate_all_children(force=True)  # 兜底:残留子进程立即 SIGKILL
+        terminate_all_children(force=True)
         if callback is not None:
             callback.send("CANCELLED", message=f"interrupted ({sig_name})",
                           exit_code=exit_code)

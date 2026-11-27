@@ -19,7 +19,6 @@ def fragment_hist(inlist: List[str], outfile: str) -> None:
             for line in f:
                 if not line.startswith("IS"):
                     continue
-                # IS, insert size, pairs total, inward oriented pairs, outward oriented pairs, other pairs
                 fields = line.strip().split("\t")
                 IS, N = fields[1], fields[3]
                 records.append((sample_id, int(IS), int(N)))

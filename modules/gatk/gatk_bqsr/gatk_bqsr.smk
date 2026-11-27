@@ -6,8 +6,6 @@ logdir = config.get("logdir") or "log"
 fasta = config.get("reference", {}).get("fasta")
 interval = config.get("reference", {}).get("interval")
 known_sites = config.get("reference", {}).get("known_sites", [])
-# 参数精确到 rule:javaOptions/tmp-dir 按 rule 独立配置(Params.gatk.<rule_name>
-# .javaOptions/.tmp-dir),无 module 级共享。
 
 rule BaseRecalibrator:
     input:
@@ -43,7 +41,7 @@ rule BaseRecalibrator:
             rule_logger.info(f"Start BaseRecalibrator for sample {wildcards.sample_id} at {current_time}")
             os.makedirs(os.path.dirname(str(output.table)), exist_ok=True)
             script = receipt_script(f"BaseRecalibrator_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/BaseRecalibrator.sh")
             os.makedirs(os.path.dirname(plain_script), exist_ok=True)
             cmd = [
@@ -65,7 +63,7 @@ rule BaseRecalibrator:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'BaseRecalibrator completed successfully for sample {wildcards.sample_id}'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -107,7 +105,7 @@ rule ApplyBQSR:
             rule_logger.info(f"Start ApplyBQSR for sample {wildcards.sample_id} at {current_time}")
             os.makedirs(os.path.dirname(str(output.bam)), exist_ok=True)
             script = receipt_script(f"ApplyBQSR_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/ApplyBQSR.sh")
             os.makedirs(os.path.dirname(plain_script), exist_ok=True)
             cmd = [
@@ -127,7 +125,7 @@ rule ApplyBQSR:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'ApplyBQSR completed successfully for sample {wildcards.sample_id}'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

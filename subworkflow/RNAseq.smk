@@ -20,13 +20,12 @@ genomes = set(genome_paired_samples.keys()).union(set(genome_single_samples.keys
 logger.info(f"indir: {indir}, outdir: {outdir}, logdir: {logdir}, genomes: {genomes}, aligner_TEtranscripts: {aligner_TEtranscripts}, trimmer: {trimmer}")
 genome_samples = {}
 for genome, samples in genome_paired_samples.items():
-    genome_samples[genome] = list(samples)  # copy: never mutate config's own lists
+    genome_samples[genome] = list(samples)
 for genome, samples in genome_single_samples.items():
     if genome in genome_samples:
         genome_samples[genome].extend(samples)
     else:
         genome_samples[genome] = list(samples)
-# for mixed samples,XenofilteR
 genome_paired_samples_mixed = {}
 genome_single_samples_mixed = {}
 paired_samples = {sample for samples in genome_paired_samples.values() for sample in samples}
@@ -72,7 +71,6 @@ if trimmer == "cutadapt":
                 "cutadapt": config.get('Procedure',{}).get('cutadapt')
             },
             "Params": {
-                # 参数精确到 rule:Params.cutadapt.<rule>.<key>(模块读点)
                 "cutadapt": config.get('Params',{}).get("cutadapt", {}),
             },
             "resources": config.get("resources", {}),
@@ -96,8 +94,6 @@ elif trimmer == "trimmomatic":
                 "trimmomatic": config.get('Procedure',{}).get('trimmomatic')
             },
             "Params": {
-                # 参数精确到 rule:整段透传(adapter_pe 挂 trimmomatic_Paired,
-                # adapter_se 挂 trimmomatic_Single 各自 rule 子键)
                 "trimmomatic": config.get('Params',{}).get("trimmomatic", {}),
             },
             "resources": config.get("resources", {}),
@@ -122,7 +118,6 @@ else:
                 "trim_galore": config.get('Procedure',{}).get('trim_galore')
             },
             "Params": {
-                # 参数精确到 rule:Params.trim_galore.<rule>.<key>(模块读点)
                 "trim_galore": config.get('Params',{}).get("trim_galore", {}),
             },
             "resources": config.get("resources", {}),
@@ -183,9 +178,6 @@ elif aligner_TEtranscripts == 'star':
                 "star": config.get('Procedure',{}).get('star')
             },
             "Params": {
-                # 参数精确到 rule:Params.star.star_align.<key>(源读
-                # STAR_TEtranscripts.star_align 新键,config 全量路径读取,
-                # 无旧扁平键回退),缺省值保持原转发默认
                 "star": {
                     "keep_intermediates": config.get('Params', {}).get('STAR_TEtranscripts', {}).get('keep_intermediates', True),
                     "star_align": {
@@ -206,7 +198,6 @@ elif aligner_TEtranscripts == 'star':
 else:
     raise ValueError(f"Unsupported aligner_TEtranscripts: {aligner_TEtranscripts}")
 
-### gene and TE expression quantification using TEtranscripts
 TEtranscripts_config = {
         "indir": star_config_for_TEtranscripts["outdir"] if aligner_TEtranscripts == 'star' else hisat2_config_for_TEtranscripts["outdir"],
         "Params": {
@@ -262,7 +253,6 @@ module star_for_featureCounts:
 logger.debug(f"star_config: {star_config_for_featureCounts}")
 use rule star_align from star_for_featureCounts as RNAseq_star_align_for_featureCounts
 
-### gene expression quantification using featureCounts (for GSVA downstream)
 featureCounts_config = {
     "indir": star_config_for_featureCounts["outdir"],
     "Params": {
@@ -292,7 +282,6 @@ use rule featureCounts_single_noMultiple from featureCounts as RNAseq_featureCou
 use rule featureCounts_merge from featureCounts as RNAseq_featureCounts_merge
 use rule featureCounts_result from featureCounts as RNAseq_featureCounts_result
 
-### differential expression analysis using DESeq2
 DESeq2_config = {
         "indir": TEtranscripts_config["outdir"],
         "outdir":  f"{outdir}/diff_expression",
@@ -320,7 +309,6 @@ use rule DESeq2_TElocal_manhattan from DESeq2 as RNAseq_DESeq2_TElocal_manhattan
 use rule DESeq2_TElocal_locus_boxplot from DESeq2 as RNAseq_DESeq2_TElocal_locus_boxplot
 use rule DESeq2_TElocal_subfamily_bar from DESeq2 as RNAseq_DESeq2_TElocal_subfamily_bar
 
-### functional enrichment analysis using function module
 function_config = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -344,7 +332,6 @@ use rule function_go_kegg from function as RNAseq_function_go_kegg
 use rule function_gsea from function as RNAseq_function_gsea
 use rule function_gsva from function as RNAseq_function_gsva
 
-### transcript assembly using StringTie
 
 hisat2_config_for_StringTie = {
     "ROOT_DIR": ROOT_DIR,
@@ -387,8 +374,6 @@ StringTie_config = {
         "OUTDIR_ROOT": outdir,
         "sample_groups": config.get("sample_params", {}).get("sample_groups"),
         "Params": {
-            # wholesale section so formats (and future keys) reach the module;
-            # StringTie.smk reads Params.StringTie.formats
             "StringTie": config.get("Params", {}).get("StringTie", {}),
         },
         "genome": config.get('genome',{}),
@@ -403,7 +388,6 @@ module StringTie:
 use rule * from StringTie as RNAseq_*
 logger.debug(f"StringTie_config: {StringTie_config}")
 
-### fusion analysis using STAR-Fusion and Arriba
 rmrRNA_config = {
     "indir": trimmed_fastq_dir,
     "outdir":  f"{outdir}/genome",
@@ -470,8 +454,6 @@ star_config_for_fusion = {
         "STAR": config.get('Procedure',{}).get('STAR')
     },
     "Params": {
-        # 参数精确到 rule:Params.star.star_align.<key>(源读 STAR_fusion.star_align
-        # 新键,config 全量路径读取,无旧扁平键回退),缺省值保持原转发默认
         "star": {
             "keep_intermediates": config.get('Params', {}).get('STAR_fusion', {}).get('keep_intermediates', True),
             "star_align": {
@@ -545,7 +527,6 @@ arriba_config = {
                 "d": config.get('Params',{}).get('arriba',{}).get('d'),
                 "E": config.get('Params',{}).get('arriba',{}).get('E'),
                 "p": config.get('Params',{}).get('arriba',{}).get('p'),
-                # figure formats (arriba.smk reads Params.arriba.formats)
                 "formats": config.get('Params',{}).get('arriba',{}).get('formats')
             }
         },
@@ -587,7 +568,6 @@ module star_for_SNP:
 logger.debug(f"star_config: {star_config_for_SNP}")
 use rule star_align from star_for_SNP as RNAseq_star_align_for_SNP
 
-### RNA SNP calling using GATK
 XenofilteR_config = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -662,7 +642,6 @@ module gatk_RNAseq:
 use rule * from gatk_RNAseq as RNAseq_SNP_*
 logger.debug(f"gatk_RNAseq_config: {gatk_RNAseq_config}")
 
-### report generation using RNAseq_report module
 
 RNAseq_report_config = {
     "ROOT_DIR": ROOT_DIR,
@@ -678,8 +657,6 @@ RNAseq_report_config = {
     "Params": {
         "report": config.get("Params", {}).get("report", {}),
         "DESeq2": config.get("Params", {}).get("DESeq2", {}),
-        # 生产者 formats 段直通(modules.md #9):report 模块 input 在 parse 期
-        # 按上游 formats 做 raster-first 变体解析
         "StringTie": config.get("Params", {}).get("StringTie", {}),
         "arriba": config.get("Params", {}).get("arriba", {}),
         "function": config.get("Params", {}).get("function", {}),
@@ -692,12 +669,6 @@ module RNAseq_report:
 logger.debug(f"RNAseq_report_config: {RNAseq_report_config}")
 use rule generate_report from RNAseq_report as RNAseq_generate_report
 
-# ============================================
-# Sex check (coverage on sex chromosomes)
-# ============================================
-# Wired unconditionally over the polygenomes markdup BAMs; per-genome
-# sample/sample->BAM dict values reference the upstream config outdir
-# (path knowledge written once). node.py registers the sexcheck output.
 sexcheck_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -720,18 +691,15 @@ sexcheck_config = {
         "samtools": config.get("Procedure", {}).get("samtools")
     },
     "genome": {
-        # multi-genome workflow: per-genome sex contigs {genome: [x, y]}
         "sex_chroms_map": {
             g: (refs.get("sex_chroms") or [None, None])[:2]
             for g, refs in (config.get("genome", {}) or {}).get("references", {}).items()
         },
-        # RNA-mode marker lookup per genome {genome: gtf}
         "gtf_map": {
             g: refs.get("gtf")
             for g, refs in (config.get("genome", {}) or {}).get("references", {}).items()
             if refs.get("gtf")
         },
-        # per-sample genome assignment (pure sample_id keys)
         "samples": {
             s: g
             for g in list(genome_paired_samples) + list(genome_single_samples)
@@ -749,12 +717,6 @@ logger.info(f"sexcheck_config: {sexcheck_config}")
 use rule sexcheck_idxstats from sexcheck as RNAseq_sexcheck_idxstats
 use rule sexcheck from sexcheck as RNAseq_sexcheck
 
-# ============================================
-# QC Summary (cross-sample metric aggregation)
-# ============================================
-# Wired unconditionally; node.py registers the qc_summary outputs (see
-# subworkflow.md QC wiring spec). Only stages with qc_summary parsers are
-# declared; unregistered stages stay best-effort scans.
 qc_summary_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -771,7 +733,6 @@ qc_summary_config = {
         "sexcheck": "sexcheck.tsv",
     },
 }
-# trimming QC: stage key follows the selected trimmer (RNA 侧 discovery-only)
 if trimmer == "cutadapt":
     qc_summary_config["qc_dirs"]["cutadapt"] = trimmed_fastq_dir
 elif trimmer == "trimmomatic":

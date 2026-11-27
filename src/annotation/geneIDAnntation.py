@@ -12,7 +12,6 @@ logging.basicConfig(
 
 
 def geneIDAnnotation(gtf_path: Union[str, Path]) -> pd.DataFrame:
-	# usecols=[8] skips parsing/type-inferring the 8 unused cols (~1.6x faster than full read)
 	gtf = pd.read_csv(
 		gtf_path,
 		sep="	",
@@ -58,7 +57,6 @@ def teBed(gtf_path: Union[str, Path]) -> pd.DataFrame:
 		names=["chrom", "source", "feature", "start", "end", "score", "strand", "frame", "attribute"]
 	)
 
-	# filter-first: extract gene_id once and dropna, so the next 2 extracts run on a smaller subset (~1.6x faster than extracting all three then dropping)
 	gtf["gene_id"] = gtf["attribute"].str.extract(r'gene_id\s*"(.*?)"')
 	gtf = gtf.dropna(subset=["gene_id"])
 	gtf["family_id"] = gtf["attribute"].str.extract(r'family_id\s*"(.*?)"')
@@ -71,12 +69,6 @@ def teBed(gtf_path: Union[str, Path]) -> pd.DataFrame:
 
 
 if __name__ == '__main__':
-	# gtf =  "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/gencode.vM36.primary_assembly.annotation.gtf"
-	# outfile = "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/geneIDAnnotation.csv"
-	# gtf = "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.116.gtf"
-	# outfile = "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/geneIDAnnotation.csv"
-	# df = geneIDAnnotation(gtf)
-	# df.to_csv(outfile, sep="\t", index=False, header=True)
 	te_gtf = "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf"
 	te_outfile = "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.bed"
 	te_df = teBed(te_gtf)

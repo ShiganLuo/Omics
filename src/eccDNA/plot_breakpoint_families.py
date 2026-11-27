@@ -25,9 +25,6 @@ import matplotlib.patheffects as pe
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 
-# ---------------------------------------------------------------------------
-# 数据加载
-# ---------------------------------------------------------------------------
 
 def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     """Parse and validate command-line arguments for the plotting workflow.
@@ -144,7 +141,6 @@ def load_genes(gtf_path: Optional[str]) -> List[tuple]:
             if not gene_id:
                 continue
 
-            # GTF is 1-based inclusive; convert to BED-compatible coordinates.
             start0, end0 = int(start) - 1, int(end)
             item = records.setdefault(gene_id, {
                 "name": attrs.get("gene_name", gene_id),
@@ -166,7 +162,6 @@ def load_genes(gtf_path: Optional[str]) -> List[tuple]:
             elif feature in {"UTR", "five_prime_UTR", "three_prime_UTR"}:
                 item["utrs"].append((start0, end0))
 
-    # Keep names unique because plotting lane assignments use the name as a key.
     name_counts: Dict[str, int] = defaultdict(int)
     for item in records.values():
         name_counts[item["name"]] += 1
@@ -185,9 +180,6 @@ def load_genes(gtf_path: Optional[str]) -> List[tuple]:
     return genes
 
 
-# ---------------------------------------------------------------------------
-# 家族聚类
-# ---------------------------------------------------------------------------
 
 def edge_set(frags: List[Tuple[str, int, int]]) -> Set[Tuple[str, int]]:
     """Extract the unique endpoints of all fragment intervals.
@@ -274,9 +266,6 @@ def group_families(circles: Dict[Tuple[str, str], List[Tuple[str, int, int]]], t
     return sorted(fams.values(), key=lambda m: (-len(m), min(m)))
 
 
-# ---------------------------------------------------------------------------
-# 布局计算(纯函数)
-# ---------------------------------------------------------------------------
 
 def adjust_color_saturation(color: Any, saturation: float) -> str:
     """Scale a color's HSV saturation while preserving its hue and value.
@@ -509,9 +498,6 @@ def plan_family(members: List[Tuple[str, str]], circles: Dict[Tuple[str, str], L
                 ylim=(-(gene_band + 0.2), len(members) + head))
 
 
-# ---------------------------------------------------------------------------
-# 绘制(每个视觉层一个函数)
-# ---------------------------------------------------------------------------
 
 def draw_tracks(ax: Any, layout: Dict[str, Any], circles: Dict[Tuple[str, str], List[Tuple[str, int, int]]], sample_colors: Dict[str, str]) -> None:
     """Draw one horizontal fragment track for each circle in a family.
@@ -660,12 +646,10 @@ def draw_gene_models(ax: Any, layout: Dict[str, Any], track_to_genes: float, bar
                     s2, e2 = mp - min_w / 2, mp + min_w / 2
                 ex_c.append((s2, e2, block_start, block_end))
         ex_c.sort()
-        # Connect exons only when they lie in the same uninterrupted fragment block.
         for left, right in zip(ex_c, ex_c[1:]):
             if left[2:] == right[2:]:
                 ax.plot([left[1], right[0]], [mid, mid],
                         color=col, lw=0.6, zorder=2)
-        # Do not fabricate an exon when the GTF has no exon annotation.
         for s2, e2, _, _ in ex_c:
             ax.add_patch(Rectangle((s2, mid - bar_height / 2), e2 - s2, bar_height,
                                    facecolor=col, edgecolor="white",
@@ -678,7 +662,6 @@ def draw_gene_models(ax: Any, layout: Dict[str, Any], track_to_genes: float, bar
                 ax.add_patch(Rectangle((s2, mid - bar_height / 4), e2 - s2, bar_height / 2,
                                        facecolor="#cfd8dc", edgecolor="none",
                                        zorder=4))
-        # Draw the strand arrow only if the true 3' end remains inside a fragment.
         true_three_prime = (entry[10] if strand == "+" else entry[9]) if entry and len(entry) > 10 else (ge if strand == "+" else gs)
         if any(block_start <= true_three_prime <= block_end
                for block_start, block_end in visible_blocks):
@@ -775,9 +758,6 @@ def style_axes(ax: Any, x_min: float, x_max: float) -> None:
     ax.ticklabel_format(axis="x", style="plain")
 
 
-# ---------------------------------------------------------------------------
-# 总控:计算布局 → 分配空间 → 调用各绘制函数
-# ---------------------------------------------------------------------------
 
 def plot(
     families: List[List[Tuple[str, str]]],
@@ -849,7 +829,6 @@ def plot(
     if not 0.0 <= color_saturation <= 1.0:
         raise ValueError("color_saturation must be between 0 and 1")
 
-    # pass 1:所有家族的布局一次性算完(纯计算)
     layouts = []
     for fi, members in enumerate(families, 1):
         sorted_members = sorted(members)
@@ -858,8 +837,6 @@ def plot(
         family_chrom = family_fragments[0][0]
         family_lo = min(fragment[1] for fragment in family_fragments)
         family_hi = max(fragment[2] for fragment in family_fragments)
-        # Merge the family's actual fragment intervals. Gene models may only be
-        # drawn inside these blocks, not across internal breakpoint gaps.
         fragment_intervals = sorted(
             (start, end) for chrom, start, end in family_fragments
             if chrom == family_chrom
@@ -920,7 +897,6 @@ def plot(
         span = m["n_tracks"] + 0.2 + m["gene_band"] + head_span
         m["row_weight"] = span
     height_ratios = [m["row_weight"] for m in layouts]
-    # Reserve physical space between panels for the lower x ticks and the next header.
     fig_h = (sum(height_ratios) * scale_inches_per_unit
              + n_fam * row_gap_inches)
     fig, axes = plt.subplots(n_fam, 1, figsize=(figure_width_inches, fig_h),
@@ -929,7 +905,6 @@ def plot(
                                           "hspace": 0.30,
                                           "bottom": 0.06, "top": 0.99})
 
-    # Assign a distinct colormap entry to every sample, without a fixed sample list.
     sample_names = list(dict.fromkeys(samples))
     sample_cmap = plt.get_cmap("Set2", max(1, len(sample_names)))
     sample_colors = {
@@ -937,7 +912,6 @@ def plot(
         for i, name in enumerate(sample_names)
     }
 
-    # pass 2:绘制
     for fi, (ax, layout) in enumerate(zip(axes[:, 0], layouts), 1):
         ax.set_ylim(*layout["ylim"])
         ax.set_xlim(layout["lo"] - layout["pad"] * 2,

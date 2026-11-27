@@ -19,7 +19,6 @@ def plot_enrichment(df:pd.DataFrame,outpng:str, top_n:int=15):
     top_n : int, optional
         Number of top repeats to display, ranked by odds ratio. Default is 15.
     """
-    # 过滤掉 Odds Ratio 为 inf 的项以便绘图，或给它们一个固定最大值
     plot_df = df.replace([np.inf, -np.inf], np.nan).dropna(subset=['odds_ratio']).copy()
     plot_df = plot_df.sort_values('odds_ratio', ascending=False).head(top_n)
     
@@ -31,7 +30,6 @@ def plot_enrichment(df:pd.DataFrame,outpng:str, top_n:int=15):
         palette='viridis'
     )
     
-    # 添加一条 OR=1 的参考线
     plt.axvline(x=1, color='red', linestyle='--')
     plt.title(f'Top {top_n} Enriched Repeats in PlaB Group (max_div=3)', fontsize=14)
     plt.xlabel('Odds Ratio (Enrichment)', fontsize=12)

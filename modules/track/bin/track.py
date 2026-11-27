@@ -276,7 +276,6 @@ def _build_igv_tracks(track_files: Sequence[str], output_dir: str) -> List[Dict]
 
 def _strip_condition_suffix(name: str) -> str:
     """Strip common ChIP-seq condition suffixes (IP, Input, etc.) to get the base group name."""
-    # Match suffixes like IP, Input, IP_rep1, Input_rep1, _IP, _Input, etc.
     m = re.match(r"^(.+?)(?:_?(?:IP|Input|IP[_-]?rep\d+|Input[_-]?rep\d+))$", name, re.IGNORECASE)
     if m:
         return m.group(1)
@@ -307,9 +306,6 @@ def _build_grouped_track_manifest(tracks: Sequence[Dict]) -> List[Dict]:
             }
         )
 
-    # When every track has unknown strand (e.g. ChIP-seq single-bigwig mode),
-    # re-group by stripping condition suffixes (IP/Input) so related samples
-    # share a group instead of each being its own group.
     if all_unknown and len(grouped) > 1:
         regrouped: Dict[str, Dict] = {}
         for track in tracks:
@@ -317,7 +313,6 @@ def _build_grouped_track_manifest(tracks: Sequence[Dict]) -> List[Dict]:
             base_group = _strip_condition_suffix(track_name)
             identity = _parse_track_identity(track_name)
             track_record = None
-            # Find the existing track record
             for g in grouped.values():
                 for s in g["samples"].values():
                     for t in s["tracks"]:
@@ -466,9 +461,6 @@ def igvjs_track_format(
 
     normalized_base_tracks = browser_config.get("tracks", [])
     eager_base_tracks, deferred_base_tracks = _split_eager_and_deferred_tracks(normalized_base_tracks)
-    # Load both eager and deferred (e.g. GTF) base tracks into the browser by default
-    # so reference/annotation tracks are visible on initial load. Assign a high
-    # order for reference tracks so they appear below sample tracks.
     REFERENCE_TRACK_ORDER_BASE = 1000000
     for idx, t in enumerate(deferred_base_tracks):
         if isinstance(t, dict) and t.get("order") is None:

@@ -43,7 +43,6 @@ rule demultiplex_trim_dedup:
             outdir_sample = os.path.dirname(str(output.r1))
             os.makedirs(outdir_sample, exist_ok=True)
 
-            # Decompress gzipped FASTQ to temporary files (jla-trim requires uncompressed)
             tmp_r1 = os.path.join(outdir_sample, f"{wildcards.sample_id}_1.tmp.fq")
             tmp_r2 = os.path.join(outdir_sample, f"{wildcards.sample_id}_2.tmp.fq")
 
@@ -54,26 +53,23 @@ rule demultiplex_trim_dedup:
 
             rule_logger.info(f"Decompressed FASTQ files")
 
-            # Run jla-trim: trims randommer+AG from read1 3' end, removes PCR duplicates
             cmd = f"jla-trim -r1 {tmp_r1} -r2 {tmp_r2} -r {params.ranmer_len} -maxHam {params.max_ham} >> {log_path} 2>&1"
             rule_logger.info(f"Running: {cmd}")
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(cmd)
-            # jla-trim outputs {input}.trimmed.fastq - rename and compress
             trimmed_r1 = tmp_r1 + ".trimmed.fastq"
             trimmed_r2 = tmp_r2 + ".trimmed.fastq"
 
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"gzip -c {trimmed_r1} > {output.r1}")
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"gzip -c {trimmed_r2} > {output.r2}")
-            # Cleanup temporary files
             for f in [tmp_r1, tmp_r2, trimmed_r1, trimmed_r2]:
                 if os.path.exists(f):
                     os.remove(f)

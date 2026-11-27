@@ -10,22 +10,20 @@ prefix=outdir+"/analysis/plink/population_snps"
 def run_plink(rule_name, log_path, output_path, commands):
     os.makedirs(os.path.dirname(log_path),exist_ok=True); os.makedirs(os.path.dirname(output_path),exist_ok=True)
     script = receipt_script(f"{rule_name}_{time.strftime('%Y%m%d_%H%M%S')}.sh")
-    os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+    os.makedirs(os.path.dirname(script), exist_ok=True)
     plain_script=os.path.join(os.path.dirname(output_path), f"{rule_name}.sh")
     with open(log_path, "a") as log_handle: log_handle.write("")
     with open(script,"w") as handle:
         handle.write("#!/usr/bin/env bash\nset -euo pipefail\n")
         for command in commands: handle.write(" ".join(str(x) for x in command)+"\n")
     shutil.copyfile(script, plain_script)
-    if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+    if SCRIPT_ONLY:
         script_only_touch(output)
     else:
         shell(f"bash {plain_script} >> {log_path} 2>&1")
 rule plink2_population_pgen:
     input: vcf=vcf, tbi=vcf+".tbi"
     output:
-        # intermediate: consumed by plink2_population_bed/plink2_population_pca
-        # (registered outputs are .eigenvec/.eigenval), Params.plink2_population.keep_intermediates
         pgen=maybe_temp(prefix+".pgen", "plink2_population"), pvar=maybe_temp(prefix+".pvar", "plink2_population"), psam=maybe_temp(prefix+".psam", "plink2_population")
     log: logdir+"/analysis/plink2_population_pgen.log"
     benchmark: logdir+"/analysis/plink2_population_pgen.benchmark.tsv",
@@ -89,12 +87,12 @@ if config.get("Params", {}).get("analysis", {}).get("gwas",False):
             if params.covar_names: cmd += ["--covar-name",params.covar_names]
             cmd += ["--glm","hide-covar","allow-no-covars","--out",params.gwas_prefix]
             script = receipt_script(f"plink2_population_gwas_{time.strftime('%Y%m%d_%H%M%S')}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script=os.path.join(os.path.dirname(str(output.done)), "plink2_population_gwas.sh")
             with open(str(log),"w") as h: h.write("")
             with open(script,"w") as h: h.write("#!/usr/bin/env bash\nset -euo pipefail\n"+" ".join(str(x) for x in cmd)+"\ntouch "+str(output.done)+"\necho \"plink2 completed successfully\"\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log} 2>&1")

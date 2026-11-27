@@ -115,7 +115,7 @@ def main():
 
     marker_list = [(g, n) for g, names in MARKERS.items() for n in names]
     marker_list += [(cat, n) for cat, genes in LINEAGE.items() for n in genes]
-    cat_bounds = []          # y indices where a new category starts
+    cat_bounds = []
     seen = set()
     for i, (g, _) in enumerate(marker_list):
         if g not in seen:
@@ -124,7 +124,6 @@ def main():
     y_labels = [f"{n} ({g})" for g, n in marker_list]
 
     fig, ax = plt.subplots(figsize=(13, 11))
-    # 无背景、无边框:白底 + 四边 spines 全隐(刻度标签保留)
     fig.patch.set_facecolor("white")
     ax.set_facecolor("white")
     ax.spines[:].set_visible(False)
@@ -187,7 +186,6 @@ def main():
              f"(not {ov_ct.lower()} in ovaries / not {ut_ct.lower()} in Uterus)",
              ha="center", va="bottom", fontsize=9.5)
     fig.tight_layout(rect=(0, 0.085, 0.80, 1))
-    # right-side legends, dot-size column centered on the colorbar axis
     xc = 0.87
     sm = mcm.ScalarMappable(cmap="RdYlBu_r", norm=Normalize(0, 1.8))
     cb_ax = fig.add_axes((xc - 0.009, 0.30, 0.018, 0.28))
@@ -197,7 +195,6 @@ def main():
     s_ax.axis("off")
     s_ax.set_xlim(0, 1)
     s_ax.set_ylim(0, 1)
-    # title centered over the whole block (dots + % labels), not just the dots
     s_ax.text(0.62, 1.04, "% expressing", ha="center", va="bottom", fontsize=9)
     for y, p in zip((0.82, 0.58, 0.34, 0.10), (100, 75, 50, 25)):
         s_ax.scatter([0.5], [y], s=p * 2.5 + 5, c="#999999",

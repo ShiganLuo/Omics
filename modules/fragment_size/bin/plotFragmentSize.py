@@ -9,8 +9,6 @@ from typing import List, Optional
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
@@ -43,10 +41,8 @@ def plot_fragment_size(input_file: str, out_base: str,
             df[col] = df[col] / total
         ax.plot(df.index, df[col], label=col)
     
-    # Add vertical line at highlight_size
     ax.axvline(x=highlight_size, color='r', linestyle='--', alpha=0.7, label=str(highlight_size))
     
-    # Add tick for highlight_size
     current_xticks = ax.get_xticks()
     new_xticks = np.append(current_xticks, highlight_size)
     ax.set_xticks(new_xticks)

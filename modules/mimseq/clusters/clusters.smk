@@ -4,8 +4,6 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 
-# 参数精确到 rule:config 全量路径读取 Params.mimseq.mimseq_clusters.<key>
-# (无 module 级共享回退)。
 
 rule mimseq_clusters:
     """Split isodecoders and perform cluster deconvolution."""
@@ -54,7 +52,7 @@ rule mimseq_clusters:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

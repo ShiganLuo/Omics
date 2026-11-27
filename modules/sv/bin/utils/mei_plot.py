@@ -50,8 +50,6 @@ logger = logging.getLogger("mei_plot")
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
@@ -65,18 +63,14 @@ plt.rcParams.update({
     "axes.spines.right": False,
 })
 
-# default group vocabulary; overridden in main() from --ctrl-name/--exp-name
-# so custom designs (serum_vs_KSR) get readable labels instead of ctrl/exp.
 GROUP_ORDER = ["ctrl_specific", "exp_specific", "shared"]
-GROUP_BASE = None  # (ctrl, exp) set at runtime
+GROUP_BASE = None
 GROUP_LABEL = {"ctrl_specific": "ctrl-specific",
                "exp_specific": "exp-specific",
                "shared": "shared"}
 GROUP_COLOR = {"ctrl_specific": "#4A72B7", "exp_specific": "#D73027",
                "shared": "#7F7F7F"}
 
-# Fallback bucket vocabulary for mei dirs produced before te_buckets was
-# recorded in mei_summary.json (plot-only; analysis always writes its own).
 FAM_ORDER = ["Alu", "L1", "SVA", "LTR", "DNA", "microsatellite", "other",
              "unclassified", "short_unclassified"]
 FAM_COLOR = {"Alu": "#E08214", "L1": "#4A72B7", "SVA": "#8E44AD",
@@ -86,8 +80,6 @@ FAM_COLOR = {"Alu": "#E08214", "L1": "#4A72B7", "SVA": "#8E44AD",
              "short_unclassified": "#D5D8DC"}
 FAM_DISPLAY = {"microsatellite": "microsatellite"}
 
-# Real group names from the workflow config (Params.sv.comparisons.<key>),
-# injected via --ctrl-name/--exp-name. Falls back to generic labels.
 GROUP_NAMES = {"ctrl": "ctrl", "exp": "exp"}
 
 
@@ -166,9 +158,6 @@ def fig1_family_by_group(df, out, fams=None):
         _empty_state(fig, out)
         return
 
-    # left: grouped bars — every profile bucket keeps its slot; EVERY bar
-    # is labelled with its count (zero-count groups get a gray "0" at the
-    # axis floor, so zero is explicit, not ambiguous)
     ax = axes[0]
     x = np.arange(len(fams))
     w = 0.8 / max(len(groups), 1)
@@ -197,7 +186,6 @@ def fig1_family_by_group(df, out, fams=None):
     ax.set_yscale("log")
     ax.set_ylim(0.5, None)
 
-    # right: totals per group (same family subset as panel A)
     sub = df[df.family.isin(fams)]
     tot = [int((sub.group == g).sum()) for g in groups]
     axes[1].bar(range(len(groups)), tot,
@@ -214,10 +202,6 @@ def fig1_family_by_group(df, out, fams=None):
     if tot:
         axes[1].set_ylim(0, max(tot) * 1.18)
 
-    # geometry is final NOW: fit the legend band against the real axes
-    # width, then the title pad-measured above it; a second tight_layout
-    # reserves room for the padded title so it cannot clip at the figure
-    # edge; value labels are de-collided only after that
     fig.tight_layout()
     leg, leg_h = legend_above(ax, ncol=max(len(groups), 1))
     ax.set_title("A  TE family x group (log scale)",
@@ -285,7 +269,7 @@ def fig3_context(df, out, fams=None):
             pos = y + 0.4 - ci * h
             ax.barh(pos, vals, height=h * 0.92, color=ctx_colors[c])
             for fi, v in enumerate(vals):
-                if v > 0:  # label every bar with its count
+                if v > 0:
                     ax.text(v * 1.18, pos[fi], f"{int(v):,}", va="center",
                             ha="left", fontsize=7.5, color="#333333")
         ax.set_xscale("log")
@@ -328,8 +312,6 @@ def fig4_te_region(df, out, fams=None):
         ax.bar(pos, vals, width=w * 0.92,
                color=GROUP_COLOR[g], label=group_label(g))
         for xi, v in zip(pos, vals):
-            # "0" not "0.0" for zero bars: three adjacent decimal zeros
-            # read as one fused string at this font size
             lab = "0" if v == 0 else f"{v:.1f}"
             vtexts.append(ax.text(xi, v, lab, ha="center",
                                   va="bottom", fontsize=7,
@@ -340,12 +322,8 @@ def fig4_te_region(df, out, fams=None):
     ax.set_xticklabels(labels, rotation=rot, ha=ha,
                        rotation_mode="anchor", fontsize=8.5)
     ax.set_ylabel("% insertions inside reference TE region")
-    # axis grows with the data instead of a fixed 0-105 that wastes 90%
-    # of the panel when ratios are single-digit
     ymax = max([v for v in (float(t.get_text() or 0) for t in vtexts)] or [0.0])
     ax.set_ylim(0, max(ymax, 5.0) * 1.25)
-    # geometry final -> legend band fit against real width -> title above
-    # (second tight_layout reserves the padded title's room; no clipping)
     fig.tight_layout()
     leg, leg_h = legend_above(ax, ncol=max(len(groups), 1))
     ax.set_title("TE-into-TE vs unique-site insertions",
@@ -362,8 +340,6 @@ def fig5_full_length_l1(df, out, fl_file):
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.8))
     groups = [g for g in GROUP_ORDER if (fl.group == g).any()]
     if not groups:
-        # zero candidates: emit the figure in an explicit empty state so the
-        # stage never dies on degenerate data (skill: every declared output)
         for ax in axes:
             ax.text(0.5, 0.5, "no full-length L1 candidates",
                     ha="center", va="center", fontsize=11, color="#7F8C8D")
@@ -397,9 +373,6 @@ def fig5_full_length_l1(df, out, fl_file):
 
 
 def fig6_polya_tsd(df, out, fams=None):
-    # Fingerprints (polyA/TSD) are hallmarks of L1-mediated retrotransposition
-    # — only retrotransposon MEI families carry the mechanism (profile flag
-    # retro_fingerprint). LTR/DNA transpose by other mechanisms.
     fams = fams or [f for f in ["Alu", "L1", "SVA"]
                     if (df["family"] == f).any()]
     sub = df[df.family.isin(fams)].copy()
@@ -484,10 +457,6 @@ def fig7_diff_volcano(diff_tsv: str, out: str,
                c=np.where(up[sig], "#D73027", "#4A72B7"),
                edgecolors="black", linewidths=0.6, zorder=4,
                label="p < 0.05")
-    # labels: top 5 per side (ctrl-/exp-enriched) by the joint score
-    # |log2FC| * -log10(p) — a "double-high" rule that skips points
-    # extreme in only one dimension (huge n with tiny effect, or huge
-    # effect backed by ~no evidence)
     score = x.abs() * y
     labels = []
     for sel in (x < 0, x >= 0):
@@ -515,7 +484,7 @@ def html_report(meidir: str, title: str, figs, df, summary, out_html):
     te_names = [b.get("name") for b in prof
                 if isinstance(b, dict) and b.get("name")
                 and not b.get("catch_all") and b.get("name") != "microsatellite"]
-    if not te_names:  # pre-profile mei dir
+    if not te_names:
         te_names = [f for f in ["Alu", "L1", "SVA", "LTR", "DNA", "B1",
                                 "B2/ID", "IAP/ETn"]
                     if f in set(df["family"].dropna())]
@@ -591,27 +560,6 @@ def _relabeled(group, ctrl, exp):
     return group
 
 
-# ---------------------------------------------------------------------------
-# Layout engine: compose first, then de-collide with measured geometry.
-#
-# Problem being solved (2026-11): one-off per-figure placements (legend
-# bbox_to_anchor, fixed y headroom) broke whenever the data changed — long
-# branch names pushed the fig1 legend into its title, unrotated fig4 tick
-# labels fused into "DNAMicrosatellite…", zero markers crowded the axis
-# floor while real bars went unlabeled. The fix is generic and measured,
-# not per-dataset:
-#
-#   fit_ticks             pick tick rotation from rendered label widths
-#   legend_above          park a legend in its own band above the axes,
-#                         then place the title pad-measured above THAT
-#   stack_value_labels    column-detect overlapping value labels and
-#                         stack them with pixel-measured separation
-#   raise_ylim_for_labels grow the y headroom until stacked labels fit
-#   text_collisions       report any remaining text-text intersections
-#
-# All measurements use the real Agg renderer (pixel truth, no estimates),
-# so the figures adapt to any branch names, tick counts or value ranges.
-# ---------------------------------------------------------------------------
 
 def _renderer(fig):
     fig.canvas.draw()
@@ -663,7 +611,7 @@ def fit_ticks(ax, labels, fontsize=8.5):
 def _raise_px(t, dy_px):
     """Move Text t up by dy_px, preserving its coordinate system."""
     pos = t.get_position()
-    if len(pos) == 3:  # offset-text 3-tuple: move the plain part only
+    if len(pos) == 3:
         pos = pos[:2]
     tr = t.get_transform()
     x, y = tr.transform(pos)
@@ -685,7 +633,7 @@ def stack_value_labels(fig, texts, pad_px=2.5, rounds=4):
         rend = _renderer(fig)
         items = [(t, _bbox(t, rend)) for t in texts
                  if t.get_visible() and t.get_text()]
-        items.sort(key=lambda p: p[1].y0)  # bottom-up
+        items.sort(key=lambda p: p[1].y0)
         moved = 0
         for i in range(len(items)):
             for j in range(i + 1, len(items)):
@@ -746,7 +694,7 @@ def legend_above(ax, ncol=None, fontsize=9, **kw):
         if n == 1 or not ax_w_pt or w_pt <= ax_w_pt * 0.98:
             break
         n -= 1
-        leg.remove()  # detach the too-wide legend from the artist tree
+        leg.remove()
     rend = _renderer(fig)
     h_pt = _bbox(leg, rend).height * 72.0 / fig.dpi
     return leg, h_pt
@@ -814,14 +762,11 @@ def main():
     d = args.mei_dir
     df = pd.read_csv(os.path.join(d, "mei_events.tsv"), sep="\t",
                      dtype={"tsd": str, "in_te_region": str})
-    # empty-string columns survive a TSV round-trip as NaN -> 'nan' strings;
-    # normalize before any != '' test (fig4/fig6 read these columns)
     for col in ("tsd", "in_te_region", "context"):
         if col in df:
             df[col] = _clean_str(df[col])
     with open(os.path.join(d, "mei_summary.json")) as fh:
         summary = json.load(fh)
-    # branch names: CLI wins, else fall back to what mei_analysis recorded
     branches = summary.get("branches") or {}
     ctrl = args.ctrl_name or branches.get("control") or "ctrl"
     exp = args.exp_name or branches.get("experiment") or "exp"
@@ -829,8 +774,6 @@ def main():
         GROUP_NAMES["ctrl"] = args.ctrl_name
     if args.exp_name:
         GROUP_NAMES["exp"] = args.exp_name
-    # relabel the group column (ctrl_specific -> <ctrl>_specific) and keep the
-    # default GROUP_ORDER/GROUP_LABEL machinery working on the new prefixes
     global GROUP_ORDER
     df["group"] = df["group"].apply(lambda g: _relabeled(g, ctrl, exp))
     GROUP_ORDER = [f"{ctrl}_specific", f"{exp}_specific", "shared"]
@@ -841,7 +784,6 @@ def main():
 
     figs = []
     slots, fp_fams = bucket_vocab(summary, df)
-    # one out_base per figure; out_base + '.' + fmt per requested format
     jobs = [
         ("mei_family_by_group",
          lambda f: fig1_family_by_group(df, f, fams=slots)),
@@ -860,8 +802,6 @@ def main():
          lambda f: fig7_diff_volcano(os.path.join(d, "mei_diff.tsv"), f,
                                      ctrl, exp)),
     ]
-    # the HTML report embeds PNG rasters: use the produced .png variant when
-    # png is requested, else render temporary raster copies for embedding
     if "png" in image_formats:
         embed_dir = d
     else:

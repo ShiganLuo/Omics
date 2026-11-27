@@ -5,20 +5,12 @@ indir = config.get("indir", "data/fasta")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
 protein_fasta = config.get("genome", {}).get("protein_fasta")
-# NOTE: the existence check lives in the rule's input function, not at parse
-# time — a workflow that supplies its own genome.decoy_fasta never schedules
-# this rule and must not crash at parse.
 
-# Get parameters
-# 参数精确到 rule(2026-11 规范):config 全量路径字面链
-# Params.decoy_database.decoy_database.<key>,无 module 级共享回退。
 
 rule decoy_database:
     input:
         protein_fasta = lambda wildcards: _require(protein_fasta, "genome.protein_fasta", "decoy_database")
     output:
-        # intermediate: consumed by search_engine/quantification/msfragger
-        # (node.py registers no decoy fasta), Params.decoy_database.keep_intermediates
         decoy_fasta = maybe_temp(outdir + "/genome_decoy.fasta", "decoy_database")
     log:
         logdir + "/decoy_database/decoy_database.log"
@@ -45,7 +37,6 @@ rule decoy_database:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start decoy database generation at {current_time}")
-            # Guard: a nucleic-acid FASTA here silently yields zero PSMs later.
             seen = set()
             with open(input.protein_fasta) as fh:
                 for line in fh:
@@ -64,7 +55,7 @@ rule decoy_database:
                     f"'genome.protein_fasta' to the protein database."
                 )
             script = receipt_script(f"decoy_database_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"decoy_database.sh")
             cmd = [
                 params.openms,
@@ -81,7 +72,7 @@ rule decoy_database:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'Decoy database generation for {input.protein_fasta} was completed successfully'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

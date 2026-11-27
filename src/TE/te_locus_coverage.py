@@ -78,7 +78,7 @@ except ImportError as exc:  # pragma: no cover - environment dependent
         "Install it into the current environment (no auto-install)."
     )
 
-PlotFormat = str  # any matplotlib savefig format: png, pdf, svg, ...
+PlotFormat = str
 
 GENE_NAME_RE = re.compile(r'gene_id "([^"]*)"')
 FAMILY_ID_RE = re.compile(r'family_id "([^"]*)"')
@@ -524,7 +524,7 @@ def plan_feature_layout(
     rects: List[Tuple[int, float, float]] = []
     lane_ends: List[float] = []
     label_candidates: List[Tuple[float, float, str]] = []
-    char_pt = label_fontsize * 0.72  # verified text-width factor
+    char_pt = label_fontsize * 0.72
 
     for row in overlap.sort_values(["start", "end"]).itertuples(index=False):
         x0 = max(float(row.start) - 1.0, float(start0))
@@ -545,7 +545,6 @@ def plan_feature_layout(
         half_width = len(str(row.name)) * char_pt * data_per_pt / 2.0 * 1.15
         label_candidates.append((center_x, half_width, str(row.name)))
 
-    # greedy row packing of labels (row 0 = topmost)
     rows_end: List[float] = []
     placed: List[Tuple[float, float, str, int]] = []
     for center_x, half_width, text in sorted(label_candidates, key=lambda item: item[0]):
@@ -678,8 +677,7 @@ def plot_locus_coverage(
         overlap = pd.DataFrame(columns=["chrom", "start", "end", "name", "family", "class"])
     show_features = not overlap.empty
 
-    # ---- layout planning (before any drawing) ----
-    axes_width_pt = figsize[0] * 72.0 * 0.77  # conservative default-margin estimate
+    axes_width_pt = figsize[0] * 72.0 * 0.77
     data_per_pt = (end0 - start0) / max(axes_width_pt, 1.0)
     if show_features:
         rects, labels = plan_feature_layout(
@@ -742,7 +740,6 @@ def plot_locus_coverage(
         ax.set_xlim(start0, end0)
         ax.tick_params(axis="x", labelbottom=False, length=2)
 
-    # ---- feature lane: rectangles only, dedicated axes ----
     ax_feat: Any = None
     ax_lab: Any = None
     if show_features:
@@ -771,7 +768,6 @@ def plot_locus_coverage(
                 color="#333333", clip_on=True, zorder=3,
             )
 
-    # ---- coordinate axis on the bottom-most axes ----
     bottom_ax = axes[-1] if ax_lab is None else ax_lab
     tick_positions = np.linspace(start0, end0, 5)
     if end0 - start0 >= 2000:

@@ -6,8 +6,6 @@
 ## log=$3 should log path
 ## dest=$4 should be output dir
 function ENAdownload(){
-    #parllel子进程可能访问不到外部变量
-    # key=~/miniconda3/envs/RNA-SNP/etc/asperaweb_id_dsa.openssh
     local id=$1
     local type=$2
     local log=$3
@@ -53,7 +51,7 @@ function ENAdownload(){
         echo ${file_path[@]}
     else
         echo -e "The format of the sra Number is incorrect. Please check.\nIt must be an 11-digit, 10-digit, or 9-digit number starting with SRR."
-        exit 1  # 终止整个脚本执行，并返回状态码 1
+        exit 1
     fi
 
     
@@ -85,6 +83,5 @@ function ENAdownload(){
         echo "请输入正确的建库类型, PAIRED or SINGLE"
     fi
 }
-# 导出函数
 export -f ENAdownload
 

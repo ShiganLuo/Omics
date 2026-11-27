@@ -11,13 +11,12 @@ def plot_heatmap_with_group_colors(
         outplot:str,
         row_rename_map: dict,
         column_rename_map: dict,
-        show_group_labels:bool = True,   # 是否显示分组文字
+        show_group_labels:bool = True,
         title:str = "Heatmap of Positions",
         xlabel:str = "Positions",
         colorbar_width:float = 0.02,
         x_annotation_height:float = 0.2
 ):
-    ### data preprocessing
     heatmap_data.rename(index=row_rename_map, inplace=True)
     heatmap_data.rename(columns=column_rename_map, inplace=True)
     heatmap_data = heatmap_data.sort_index()
@@ -40,8 +39,6 @@ def plot_heatmap_with_group_colors(
     n_rows = heatmap_data.shape[0]
     fig = plt.figure(figsize=(7, 11))
     gs = gridspec.GridSpec(2, 2, width_ratios=[colorbar_width, 1],height_ratios = [1,x_annotation_height],wspace=0,hspace=0.3)
-    # ---------------------
-    # 颜色条
     ax_bar = fig.add_subplot(gs[0, 0])
     group_positions = {}
     for idx, group in enumerate(heatmap_data.index):
@@ -51,12 +48,11 @@ def plot_heatmap_with_group_colors(
         if group not in group_positions:
             group_positions[group] = []
         group_positions[group].append(idx)
-    # 添加分组标签
     if show_group_labels:
         for group, positions in group_positions.items():
             mid_idx = positions[len(positions)//2]
             ax_bar.text(
-                0, mid_idx + 0.5, group,  # 文字在颜色条左边
+                0, mid_idx + 0.5, group,
                 ha='right', va='center',
                 fontsize=8
             )
@@ -64,10 +60,7 @@ def plot_heatmap_with_group_colors(
     ax_bar.set_ylim(0, n_rows)
     ax_bar.invert_yaxis()
     ax_bar.axis('off')
-    # ---------------------
 
-    # ---------------------
-    # 热图
     ax_heat = fig.add_subplot(gs[0, 1])
     sns.heatmap(
         heatmap_data,
@@ -77,25 +70,22 @@ def plot_heatmap_with_group_colors(
     )
     for label in ax_heat.get_xticklabels():
         label.set_rotation(60)
-        label.set_fontsize(8)   # ★ 设置大小
+        label.set_fontsize(8)
         label.set_ha('center')
-    ax_heat.set_yticks([])  # 去掉 y 轴
+    ax_heat.set_yticks([])
     ax_heat.set_ylabel('')
     ax_heat.set_xlabel(xlabel)
     ax_heat.set_title(title)
     cbar = ax_heat.collections[0].colorbar
     cbar.ax.text(
-        0.5, 1.02,  # x=0.5 colorbar 中心, y=1.05 颜色条上方
+        0.5, 1.02,
         'ES',
         ha='center', va='bottom',
         rotation=0, fontsize=8,
         transform=cbar.ax.transAxes
     )
-    # ---------------------
 
-    # ---------------------
-    # 在热图下方添加 x 轴分组图例
-    ax_legend = fig.add_subplot(gs[1, :]) # 下方图例，与热图同列
+    ax_legend = fig.add_subplot(gs[1, :])
     ax_legend.axis('off')
     short_names = list(heatmap_data.columns)
     pathway_rename_map = {v:k for k,v in column_rename_map.items()}
@@ -105,7 +95,7 @@ def plot_heatmap_with_group_colors(
         if abbr in pathway_rename_map
     ]
 
-    max_chars_per_row = 60  # 每行最大字符数
+    max_chars_per_row = 60
     rows = []
     current_row = []
     current_len = 0
@@ -113,34 +103,30 @@ def plot_heatmap_with_group_colors(
     for text in legend_texts:
         text_len = len(text)
         if current_len + text_len > max_chars_per_row and current_row:
-            # 当前行满了，换行
             rows.append(current_row)
             current_row = [text]
             current_len = text_len
         else:
             current_row.append(text)
-            current_len += text_len + 2  # 预留间隔
+            current_len += text_len + 2
     if current_row:
         rows.append(current_row)
     n_rows = len(rows)
-    # 绘制文字，左对齐
     for row_idx, row in enumerate(rows):
-        x_pos = 0  # 每行从左边开始
+        x_pos = 0
         y_pos = n_rows - row_idx
         for text in row:
             ax_legend.text(
                 x_pos, y_pos,
                 text,
-                ha='left', va='center',  # 左对齐
+                ha='left', va='center',
                 rotation=0,
                 fontsize=8
             )
-            x_pos += len(text) + 2  # 累加下一个文字起始位置
+            x_pos += len(text) + 2
 
-    # 设置坐标范围，让文字显示完整
     ax_legend.set_xlim(0, max_chars_per_row)
     ax_legend.set_ylim(0, len(rows))
-    # ---------------------
     plt.savefig(outplot, dpi=300)
     plt.close()
 

@@ -8,8 +8,6 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 sample_snv_vcf_dict = config.get("sample_snv_vcf_dict") or {}
 sample_sv_vcf_dict = config.get("sample_sv_vcf_dict") or {}
 sample_cnv_dict = config.get("sample_cnv_dict") or {}
-# 参数精确到 rule:Params.burden.<rule_name>.<key> — burden_snv_indel /
-# burden_cnv 各自配置(无 module 级共享回退),config 全量路径读取。
 _annotate_burden_snv_indel = config.get("Params", {}).get("burden", {}).get("burden_snv_indel", {}).get("annotate", True)
 targets_bed = config.get("genome", {}).get("targets") or None
 gtf = config.get("genome", {}).get("gtf") or None
@@ -68,7 +66,7 @@ rule burden_snv_indel:
             sample_outdir = os.path.dirname(str(output.tsv))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"burden_snv_indel_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"burden_snv_indel_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.script, "snv-indel",
@@ -102,7 +100,7 @@ rule burden_snv_indel:
                 f.write(f'echo "burden snv-indel for {wildcards.sample_id} completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -143,7 +141,7 @@ rule burden_sv:
             sample_outdir = os.path.dirname(str(output.tsv))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"burden_sv_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"burden_sv_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.script, "sv",
@@ -163,7 +161,7 @@ rule burden_sv:
                 f.write(f'echo "burden sv for {wildcards.sample_id} completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -205,7 +203,7 @@ rule burden_cnv:
             sample_outdir = os.path.dirname(str(output.tsv))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"burden_cnv_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"burden_cnv_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.script, "cnv",
@@ -226,7 +224,7 @@ rule burden_cnv:
                 f.write(f'echo "burden cnv for {wildcards.sample_id} completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -266,9 +264,8 @@ rule burden_aggregate:
             rule_logger.info(f"Start burden aggregate at {current_time}")
             os.makedirs(os.path.dirname(str(output.summary)), exist_ok=True)
             script = receipt_script(f"burden_aggregate_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(os.path.dirname(str(output.summary)), "burden_aggregate.sh")
-            # One flag carries every value per table type (nargs-style option).
             cmd = ["python", params.script, "aggregate", "-o", str(output.summary), "-w"]
             if input.snv_tsvs:
                 cmd += ["-n"] + [str(p) for p in input.snv_tsvs]
@@ -287,7 +284,7 @@ rule burden_aggregate:
                 f.write('echo "burden aggregate completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

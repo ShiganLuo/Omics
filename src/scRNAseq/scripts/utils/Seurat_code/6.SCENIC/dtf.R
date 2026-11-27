@@ -14,7 +14,6 @@ tf_to_keep3 <- MDD_TFS$tf
 tf_to_keep4 <- PTSD_TFS$tf
 tf_to_keep5 <- SZ_TFS$tf
 
-# 取并集
 union_tfs01 <- union(tf_to_keep0, tf_to_keep1)
 union_tfs02 <- union(tf_to_keep0, tf_to_keep2)
 union_tfs03 <- union(tf_to_keep0, tf_to_keep3)
@@ -26,15 +25,11 @@ scRNA1<-readRDS("~/brain/SCENIC/by_group/sub/scRNAsub_ASD.rds")#读取rds文件
 scRNA_filtered0 <- subset(scRNA0, features = union_tfs01)
 scRNA_filtered1 <- subset(scRNA1, features = union_tfs01)
  
-# 加载Seurat包
 library(Seurat)
 
-# 假设scRNA_filtered0和scRNA_filtered1都是Seurat对象
-# 使用Seurat的`merge`函数来合并这两个对象
 
 combined_seurat <- merge(scRNA_filtered0, scRNA_filtered1)
 
-# 查看合并后的对象
 print(combined_seurat)
 
 saveRDS(combined_seurat,"ASDVSCON.rds")
@@ -44,17 +39,12 @@ seurat.obj<-combined_seurat
 table(seurat.obj$group)#查看疾病与正常分组(IVL,Normal)
 table(seurat.obj$cell_type)#查看细胞类型分组()
 
-#### 寻找差异基因 ----
-# 将细胞类型及刺激状态作为分组
 Idents(seurat.obj) <- "group"
 
-# 查看当前分组
 table(Idents(seurat.obj))
 
-#使用FindMarkers函数寻找差异表达基因
 DefaultAssay(seurat.obj) <- "RNA"
 
-##_____________________________________________________________________________________________
 
 markers <- FindMarkers(seurat.obj,
                        ident.1 = "ASD",
@@ -65,8 +55,6 @@ markers <- FindMarkers(seurat.obj,
 
 markers$celltype <- "ASDVSCON"
 markers$gene <- rownames(markers)
-#### 保存结果 ----
-# 差异基因
 write.table(
   markers,
   file = "~/brain/SCENIC/by_group/downsrtream_analysis/VS/DEG/ASDVSCON_deg.txt",
@@ -75,19 +63,13 @@ write.table(
   row.names = F
 )
 
-##————————————————————————火山图——————————————————————————————————————————————————————————————————————————————————————————————
-#### 导入包 ----
 library(ggplot2)
 library(ggpubr)
 library(ggrepel)
 library(ggrastr)
 library(dplyr)
 
-#### 导入数据 ----
-##markers <- read.table("~/brain/差异/output/deg/ASDVSCON_deg.txt", sep = ",", header = T)
 
-#### 定义差异基因 ----
-# 设置阈值
 logFC.cutoff <- 0.25
 pvalue.cutoff <- 0.05
 
@@ -103,7 +85,6 @@ table(markers$change)
 Volcano_data <- na.omit(markers)
 Volcano_data$logP <- -log10(Volcano_data$p_val)
 
-# 输入关注的基因
 genes <- c("APOE")#####
 
 Volcano_data$label <- ""
@@ -163,8 +144,6 @@ Volcano_paired <-
 
 Volcano_paired
 
-#### 保存结果 ----
-# 保存图片
 ggsave(
   "~/brain/SCENIC/by_group/downsrtream_analysis/VS/DEG/ASDVSCON_volcano.pdf",
   plot = Volcano_paired,
@@ -173,7 +152,6 @@ ggsave(
   dpi = 600
 )
 
-# 保存上调基因
 write.table(
   Volcano_data[Volcano_data$change=="UP",],
   file = "~/brain/SCENIC/by_group/downsrtream_analysis/VS/DEG/ASDVSCON_up_deg.csv",
@@ -182,7 +160,6 @@ write.table(
   row.names = F
 )
 
-# 保存下调基因
 write.table(
   Volcano_data[Volcano_data$change=="DOWN",],
   file = "~/brain/SCENIC/by_group/downsrtream_analysis/VS/DEG/ASDVSCON_down_deg.csv",
@@ -191,7 +168,6 @@ write.table(
   row.names = F
 )
 
-####——————————————————————————————————————————————————————————————————————————————————————————————————————————————————
 setwd("/home/chenzh/brain/SCENIC/by_group/downsrtream_analysis/VS")
 
 CON_TFS<- read.table("~/brain/SCENIC/by_group/CON/tfs_targer.tsv", header=T, sep=",")
@@ -208,7 +184,6 @@ tf_to_keep3 <- MDD_TFS$tf
 tf_to_keep4 <- PTSD_TFS$tf
 tf_to_keep5 <- SZ_TFS$tf
 
-# 取并集
 union_tfs01 <- union(tf_to_keep0, tf_to_keep1)
 union_tfs02 <- union(tf_to_keep0, tf_to_keep2)
 union_tfs03 <- union(tf_to_keep0, tf_to_keep3)
@@ -220,15 +195,11 @@ scRNA2<-readRDS("~/brain/SCENIC/by_group/sub/scRNAsub_BD.rds")#读取rds文件
 scRNA_filtered0 <- subset(scRNA0, features = union_tfs02)
 scRNA_filtered2 <- subset(scRNA2, features = union_tfs02)
 
-# 加载Seurat包
 library(Seurat)
 
-# 假设scRNA_filtered0和scRNA_filtered1都是Seurat对象
-# 使用Seurat的`merge`函数来合并这两个对象
 
 combined_seurat <- merge(scRNA_filtered0, scRNA_filtered2)
 
-# 查看合并后的对象
 print(combined_seurat)
 
 saveRDS(combined_seurat,"BDVSCON.rds")
@@ -238,17 +209,12 @@ seurat.obj<-combined_seurat
 table(seurat.obj$group)#查看疾病与正常分组(IVL,Normal)
 table(seurat.obj$cell_type)#查看细胞类型分组()
 
-#### 寻找差异基因 ----
-# 将细胞类型及刺激状态作为分组
 Idents(seurat.obj) <- "group"
 
-# 查看当前分组
 table(Idents(seurat.obj))
 
-#使用FindMarkers函数寻找差异表达基因
 DefaultAssay(seurat.obj) <- "RNA"
 
-##_____________________________________________________________________________________________
 
 markers <- FindMarkers(seurat.obj,
                        ident.1 = "BD",
@@ -259,8 +225,6 @@ markers <- FindMarkers(seurat.obj,
 
 markers$celltype <- "BDVSCON"
 markers$gene <- rownames(markers)
-#### 保存结果 ----
-# 差异基因
 write.table(
   markers,
   file = "~/brain/SCENIC/by_group/downsrtream_analysis/VS/DEG/BDVSCON_deg.txt",
@@ -269,19 +233,13 @@ write.table(
   row.names = F
 )
 
-##————————————————————————火山图——————————————————————————————————————————————————————————————————————————————————————————————
-#### 导入包 ----
 library(ggplot2)
 library(ggpubr)
 library(ggrepel)
 library(ggrastr)
 library(dplyr)
 
-#### 导入数据 ----
-##markers <- read.table("~/brain/差异/output/deg/ASDVSCON_deg.txt", sep = ",", header = T)
 
-#### 定义差异基因 ----
-# 设置阈值
 logFC.cutoff <- 0.25
 pvalue.cutoff <- 0.05
 
@@ -297,7 +255,6 @@ table(markers$change)
 Volcano_data <- na.omit(markers)
 Volcano_data$logP <- -log10(Volcano_data$p_val)
 
-# 输入关注的基因
 genes <- c("APOE")#####
 
 Volcano_data$label <- ""
@@ -357,8 +314,6 @@ Volcano_paired <-
 
 Volcano_paired
 
-#### 保存结果 ----
-# 保存图片
 ggsave(
   "~/brain/SCENIC/by_group/downsrtream_analysis/VS/DEG/BDVSCON_volcano.pdf",
   plot = Volcano_paired,
@@ -367,7 +322,6 @@ ggsave(
   dpi = 600
 )
 
-# 保存上调基因
 write.table(
   Volcano_data[Volcano_data$change=="UP",],
   file = "~/brain/SCENIC/by_group/downsrtream_analysis/VS/DEG/BDVSCON_up_deg.csv",
@@ -376,7 +330,6 @@ write.table(
   row.names = F
 )
 
-# 保存下调基因
 write.table(
   Volcano_data[Volcano_data$change=="DOWN",],
   file = "~/brain/SCENIC/by_group/downsrtream_analysis/VS/DEG/BDVSCON_down_deg.csv",
@@ -385,8 +338,6 @@ write.table(
   row.names = F
 )
 
-####——————————————————————————————————————————————————————————————————————————————————————————————————————————————————
-####——————————————————————————————————————————————————————————————————————————————————————————————————————————————————
 setwd("/home/chenzh/brain/SCENIC/by_group/downsrtream_analysis/VS")
 
 CON_TFS<- read.table("~/brain/SCENIC/by_group/CON/tfs_targer.tsv", header=T, sep=",")
@@ -403,7 +354,6 @@ tf_to_keep3 <- MDD_TFS$tf
 tf_to_keep4 <- PTSD_TFS$tf
 tf_to_keep5 <- SZ_TFS$tf
 
-# 取并集
 union_tfs01 <- union(tf_to_keep0, tf_to_keep1)
 union_tfs02 <- union(tf_to_keep0, tf_to_keep2)
 union_tfs03 <- union(tf_to_keep0, tf_to_keep3)
@@ -415,15 +365,11 @@ scRNA3<-readRDS("~/brain/SCENIC/by_group/sub/scRNAsub_MDD.rds")#读取rds文件
 scRNA_filtered0 <- subset(scRNA0, features = union_tfs03)
 scRNA_filtered3 <- subset(scRNA3, features = union_tfs03)
 
-# 加载Seurat包
 library(Seurat)
 
-# 假设scRNA_filtered0和scRNA_filtered1都是Seurat对象
-# 使用Seurat的`merge`函数来合并这两个对象
 
 combined_seurat <- merge(scRNA_filtered0, scRNA_filtered3)
 
-# 查看合并后的对象
 print(combined_seurat)
 
 saveRDS(combined_seurat,"MDDVSCON.rds")
@@ -433,17 +379,12 @@ seurat.obj<-combined_seurat
 table(seurat.obj$group)#查看疾病与正常分组(IVL,Normal)
 table(seurat.obj$cell_type)#查看细胞类型分组()
 
-#### 寻找差异基因 ----
-# 将细胞类型及刺激状态作为分组
 Idents(seurat.obj) <- "group"
 
-# 查看当前分组
 table(Idents(seurat.obj))
 
-#使用FindMarkers函数寻找差异表达基因
 DefaultAssay(seurat.obj) <- "RNA"
 
-##_____________________________________________________________________________________________
 
 markers <- FindMarkers(seurat.obj,
                        ident.1 = "MDD",
@@ -454,8 +395,6 @@ markers <- FindMarkers(seurat.obj,
 
 markers$celltype <- "MDDVSCON"
 markers$gene <- rownames(markers)
-#### 保存结果 ----
-# 差异基因
 write.table(
   markers,
   file = "~/brain/SCENIC/by_group/downsrtream_analysis/VS/DEG/MDDVSCON_deg.txt",
@@ -464,19 +403,13 @@ write.table(
   row.names = F
 )
 
-##————————————————————————火山图——————————————————————————————————————————————————————————————————————————————————————————————
-#### 导入包 ----
 library(ggplot2)
 library(ggpubr)
 library(ggrepel)
 library(ggrastr)
 library(dplyr)
 
-#### 导入数据 ----
-##markers <- read.table("~/brain/差异/output/deg/ASDVSCON_deg.txt", sep = ",", header = T)
 
-#### 定义差异基因 ----
-# 设置阈值
 logFC.cutoff <- 0.25
 pvalue.cutoff <- 0.05
 
@@ -492,7 +425,6 @@ table(markers$change)
 Volcano_data <- na.omit(markers)
 Volcano_data$logP <- -log10(Volcano_data$p_val)
 
-# 输入关注的基因
 genes <- c("APOE")#####
 
 Volcano_data$label <- ""
@@ -552,8 +484,6 @@ Volcano_paired <-
 
 Volcano_paired
 
-#### 保存结果 ----
-# 保存图片
 ggsave(
   "~/brain/SCENIC/by_group/downsrtream_analysis/VS/DEG/MDDVSCON_volcano.pdf",
   plot = Volcano_paired,
@@ -562,7 +492,6 @@ ggsave(
   dpi = 600
 )
 
-# 保存上调基因
 write.table(
   Volcano_data[Volcano_data$change=="UP",],
   file = "~/brain/SCENIC/by_group/downsrtream_analysis/VS/DEG/MDDVSCON_up_deg.csv",
@@ -571,7 +500,6 @@ write.table(
   row.names = F
 )
 
-# 保存下调基因
 write.table(
   Volcano_data[Volcano_data$change=="DOWN",],
   file = "~/brain/SCENIC/by_group/downsrtream_analysis/VS/DEG/MDDVSCON_down_deg.csv",
@@ -580,8 +508,6 @@ write.table(
   row.names = F
 )
 
-####——————————————————————————————————————————————————————————————————————————————————————————————————————————————————
-####——————————————————————————————————————————————————————————————————————————————————————————————————————————————————
 setwd("/home/chenzh/brain/SCENIC/by_group/downsrtream_analysis/VS")
 
 CON_TFS<- read.table("~/brain/SCENIC/by_group/CON/tfs_targer.tsv", header=T, sep=",")
@@ -598,7 +524,6 @@ tf_to_keep3 <- MDD_TFS$tf
 tf_to_keep4 <- PTSD_TFS$tf
 tf_to_keep5 <- SZ_TFS$tf
 
-# 取并集
 union_tfs01 <- union(tf_to_keep0, tf_to_keep1)
 union_tfs02 <- union(tf_to_keep0, tf_to_keep2)
 union_tfs03 <- union(tf_to_keep0, tf_to_keep3)
@@ -610,15 +535,11 @@ scRNA4<-readRDS("~/brain/SCENIC/by_group/sub/scRNAsub_PTSD.rds")#读取rds文件
 scRNA_filtered0 <- subset(scRNA0, features = union_tfs04)
 scRNA_filtered4 <- subset(scRNA4, features = union_tfs04)
 
-# 加载Seurat包
 library(Seurat)
 
-# 假设scRNA_filtered0和scRNA_filtered1都是Seurat对象
-# 使用Seurat的`merge`函数来合并这两个对象
 
 combined_seurat <- merge(scRNA_filtered0, scRNA_filtered4)
 
-# 查看合并后的对象
 print(combined_seurat)
 
 saveRDS(combined_seurat,"PTSDVSCON.rds")
@@ -628,17 +549,12 @@ seurat.obj<-combined_seurat
 table(seurat.obj$group)#查看疾病与正常分组(IVL,Normal)
 table(seurat.obj$cell_type)#查看细胞类型分组()
 
-#### 寻找差异基因 ----
-# 将细胞类型及刺激状态作为分组
 Idents(seurat.obj) <- "group"
 
-# 查看当前分组
 table(Idents(seurat.obj))
 
-#使用FindMarkers函数寻找差异表达基因
 DefaultAssay(seurat.obj) <- "RNA"
 
-##_____________________________________________________________________________________________
 
 markers <- FindMarkers(seurat.obj,
                        ident.1 = "PTSD",
@@ -649,8 +565,6 @@ markers <- FindMarkers(seurat.obj,
 
 markers$celltype <- "PTSDVSCON"
 markers$gene <- rownames(markers)
-#### 保存结果 ----
-# 差异基因
 write.table(
   markers,
   file = "~/brain/SCENIC/by_group/downsrtream_analysis/VS/DEG/PTSDVSCON_deg.txt",
@@ -659,19 +573,13 @@ write.table(
   row.names = F
 )
 
-##————————————————————————火山图——————————————————————————————————————————————————————————————————————————————————————————————
-#### 导入包 ----
 library(ggplot2)
 library(ggpubr)
 library(ggrepel)
 library(ggrastr)
 library(dplyr)
 
-#### 导入数据 ----
-##markers <- read.table("~/brain/差异/output/deg/ASDVSCON_deg.txt", sep = ",", header = T)
 
-#### 定义差异基因 ----
-# 设置阈值
 logFC.cutoff <- 0.25
 pvalue.cutoff <- 0.05
 
@@ -687,7 +595,6 @@ table(markers$change)
 Volcano_data <- na.omit(markers)
 Volcano_data$logP <- -log10(Volcano_data$p_val)
 
-# 输入关注的基因
 genes <- c("APOE")#####
 
 Volcano_data$label <- ""
@@ -747,8 +654,6 @@ Volcano_paired <-
 
 Volcano_paired
 
-#### 保存结果 ----
-# 保存图片
 ggsave(
   "~/brain/SCENIC/by_group/downsrtream_analysis/VS/DEG/PTSDVSCON_volcano.pdf",
   plot = Volcano_paired,
@@ -757,7 +662,6 @@ ggsave(
   dpi = 600
 )
 
-# 保存上调基因
 write.table(
   Volcano_data[Volcano_data$change=="UP",],
   file = "~/brain/SCENIC/by_group/downsrtream_analysis/VS/DEG/PTSDVSCON_up_deg.csv",
@@ -766,7 +670,6 @@ write.table(
   row.names = F
 )
 
-# 保存下调基因
 write.table(
   Volcano_data[Volcano_data$change=="DOWN",],
   file = "~/brain/SCENIC/by_group/downsrtream_analysis/VS/DEG/PTSDVSCON_down_deg.csv",
@@ -775,8 +678,6 @@ write.table(
   row.names = F
 )
 
-####——————————————————————————————————————————————————————————————————————————————————————————————————————————————————
-####——————————————————————————————————————————————————————————————————————————————————————————————————————————————————
 setwd("/home/chenzh/brain/SCENIC/by_group/downsrtream_analysis/VS")
 
 CON_TFS<- read.table("~/brain/SCENIC/by_group/CON/tfs_targer.tsv", header=T, sep=",")
@@ -793,7 +694,6 @@ tf_to_keep3 <- MDD_TFS$tf
 tf_to_keep4 <- PTSD_TFS$tf
 tf_to_keep5 <- SZ_TFS$tf
 
-# 取并集
 union_tfs01 <- union(tf_to_keep0, tf_to_keep1)
 union_tfs02 <- union(tf_to_keep0, tf_to_keep2)
 union_tfs03 <- union(tf_to_keep0, tf_to_keep3)
@@ -805,15 +705,11 @@ scRNA5<-readRDS("~/brain/SCENIC/by_group/sub/scRNAsub_SZ.rds")#读取rds文件
 scRNA_filtered0 <- subset(scRNA0, features = union_tfs05)
 scRNA_filtered5 <- subset(scRNA5, features = union_tfs05)
 
-## 加载Seurat包
 library(Seurat)
 
-# 假设scRNA_filtered0和scRNA_filtered1都是Seurat对象
-# 使用Seurat的`merge`函数来合并这两个对象
 
 combined_seurat <- merge(scRNA_filtered0, scRNA_filtered5)
 
-# 查看合并后的对象
 print(combined_seurat)
 
 saveRDS(combined_seurat,"SZVSCON.rds")
@@ -823,17 +719,12 @@ seurat.obj<-combined_seurat
 table(seurat.obj$group)#查看疾病与正常分组(IVL,Normal)
 table(seurat.obj$cell_type)#查看细胞类型分组()
 
-#### 寻找差异基因 ----
-# 将细胞类型及刺激状态作为分组
 Idents(seurat.obj) <- "group"
 
-# 查看当前分组
 table(Idents(seurat.obj))
 
-#使用FindMarkers函数寻找差异表达基因
 DefaultAssay(seurat.obj) <- "RNA"
 
-##_____________________________________________________________________________________________
 
 markers <- FindMarkers(seurat.obj,
                        ident.1 = "SZ",
@@ -844,8 +735,6 @@ markers <- FindMarkers(seurat.obj,
 
 markers$celltype <- "SZVSCON"
 markers$gene <- rownames(markers)
-#### 保存结果 ----
-# 差异基因
 write.table(
   markers,
   file = "~/brain/SCENIC/by_group/downsrtream_analysis/VS/DEG/SZVSCON_deg.txt",
@@ -854,19 +743,13 @@ write.table(
   row.names = F
 )
 
-##————————————————————————火山图——————————————————————————————————————————————————————————————————————————————————————————————
-#### 导入包 ----
 library(ggplot2)
 library(ggpubr)
 library(ggrepel)
 library(ggrastr)
 library(dplyr)
 
-#### 导入数据 ----
-##markers <- read.table("~/brain/差异/output/deg/ASDVSCON_deg.txt", sep = ",", header = T)
 
-#### 定义差异基因 ----
-# 设置阈值
 logFC.cutoff <- 0.25
 pvalue.cutoff <- 0.05
 
@@ -882,7 +765,6 @@ table(markers$change)
 Volcano_data <- na.omit(markers)
 Volcano_data$logP <- -log10(Volcano_data$p_val)
 
-# 输入关注的基因
 genes <- c("APOE")#####
 
 Volcano_data$label <- ""
@@ -942,8 +824,6 @@ Volcano_paired <-
 
 Volcano_paired
 
-#### 保存结果 ----
-# 保存图片
 ggsave(
   "~/brain/SCENIC/by_group/downsrtream_analysis/VS/DEG/SZVSCON_volcano.pdf",
   plot = Volcano_paired,
@@ -952,7 +832,6 @@ ggsave(
   dpi = 600
 )
 
-# 保存上调基因
 write.table(
   Volcano_data[Volcano_data$change=="UP",],
   file = "~/brain/SCENIC/by_group/downsrtream_analysis/VS/DEG/SZVSCON_up_deg.csv",
@@ -961,7 +840,6 @@ write.table(
   row.names = F
 )
 
-# 保存下调基因
 write.table(
   Volcano_data[Volcano_data$change=="DOWN",],
   file = "~/brain/SCENIC/by_group/downsrtream_analysis/VS/DEG/SZVSCON_down_deg.csv",

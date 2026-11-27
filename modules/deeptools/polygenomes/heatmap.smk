@@ -7,17 +7,10 @@ samples = config.get("Params", {}).get("computeMatrix", {}).get("samples", None)
 bigwig_dir = config.get("bigwig_dir", "")
 sample_ip_input_map = config.get("sample_ip_input_map", {})
 
-# --- Config ---
 regions_cfg = config.get("Params", {}).get("computeMatrix", {}).get("regions", "tss")
 MODULE_DIR = os.path.join(config.get("ROOT_DIR", "."), "modules", "deeptools_heatmap")
 HEATMAP_SCRIPT = os.path.join(MODULE_DIR, "bin", "run_heatmap.py")
 
-# --- Image formats (forwarded to plotHeatmap --plotFileFormat) ---
-# ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
-# 参数精确到 rule:formats 按 rule 独立配置(Params.plotHeatmap.<rule_name>.formats,
-# 无 module 级共享回退,config 全量路径内联读取)。
-# 每 rule 一个 parse 期变量;heatmap / heatmap_gene 各自消费;
-# deeptools_heatmap_result 聚合 heatmap 输出,展开同一 rule 键。
 _formats_heatmap = config.get("Params", {}).get("plotHeatmap", {}).get("heatmap", {}).get("formats", ["png"])
 if isinstance(_formats_heatmap, str):
     _formats_heatmap = [_formats_heatmap]
@@ -65,9 +58,6 @@ def _heatmap_suffix():
 
 HEATMAP_SUFFIX = _heatmap_suffix()
 
-# ============================================================
-# bigwigCompare: IP/Input ratio bigwig
-# ============================================================
 
 rule bigwig_ratio:
     """Generate IP/Input ratio bigwig using deeptools bigwigCompare."""
@@ -104,14 +94,14 @@ rule bigwig_ratio:
                 "-p", str(threads),
             ]
             script = receipt_script(f"bigwig_ratio_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"bigwig_ratio_{wildcards.sample_id}.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
                 f.write(f'echo "bigwig_ratio for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -126,9 +116,6 @@ rule bigwig_ratio_result:
 def get_ratio_bigwig(wildcards):
     return os.path.join(outdir, wildcards.genome, wildcards.sample_id, wildcards.sample_id + "_IP_over_Input.bigwig")
 
-# ============================================================
-# Heatmap (computeMatrix + plotHeatmap unified)
-# ============================================================
 
 def _build_heatmap_cmd(wildcards, input, out_base, threads, title, gene_names=None):
     """Build run_heatmap.py command for a given sample.
@@ -143,7 +130,6 @@ def _build_heatmap_cmd(wildcards, input, out_base, threads, title, gene_names=No
     elif regions_cfg == "peaks":
         mode, ref_point = "reference-point", "center"
     elif _is_gene_regions():
-        # genes mode: force scale-regions to show TSS and TES labels
         mode, ref_point = "scale-regions", "TSS"
 
     tss_bed = config['genome'][wildcards.genome].get('tss_bed')
@@ -168,14 +154,12 @@ def _build_heatmap_cmd(wildcards, input, out_base, threads, title, gene_names=No
         "--what-to-show", config.get("Params", {}).get("plotHeatmap", {}).get("whatToShow", "plot, heatmap and colorbar"),
     ]
 
-    # Region source + mode selection based on regions_cfg
     if regions_cfg == "tss" and tss_bed and os.path.isfile(tss_bed):
         cmd += ["--regions", tss_bed]
     elif regions_cfg == "tss":
         cmd += ["--gtf", input.gtf, "--region-mode", "tss",
                 "--tss-flank", str(config.get("Params", {}).get("computeMatrix", {}).get("tss_flank", 1000))]
     elif regions_cfg == "peaks":
-        # Peaks have no directionality — use center reference point
         cmd += ["--regions", input.regions]
     elif _is_gene_regions():
         cmd += ["--gtf", input.gtf, "--region-mode", "genes",
@@ -183,8 +167,6 @@ def _build_heatmap_cmd(wildcards, input, out_base, threads, title, gene_names=No
         names = gene_names if gene_names is not None else _get_gene_names()
         for name in names:
             cmd += ["--gene-names", name]
-        # TE subfamilies: don't merge loci, each locus gets its own row with correct strand
-        # Gene list: merge exons into gene body
         if not _is_te_regions():
             cmd += ["--merge"]
 
@@ -203,7 +185,6 @@ def _get_regions_for_heatmap(wildcards):
     """Return pre-made BED only for peaks mode."""
     if regions_cfg == "peaks":
         return os.path.join(indir, wildcards.sample_id, wildcards.sample_id + "_peaks.narrowPeak")
-    # tss/genes modes generate BED from GTF inside run_heatmap.py
     tss_bed = config['genome'][wildcards.genome].get('tss_bed')
     if regions_cfg == "tss" and tss_bed and os.path.isfile(tss_bed):
         return tss_bed
@@ -216,7 +197,6 @@ rule heatmap:
         gtf = _get_gtf_for_heatmap,
         regions = _get_regions_for_heatmap,
     output:
-        # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
         plots = [outdir + "/{genome}/{sample_id}/{sample_id}_" + HEATMAP_SUFFIX + "_heatmap." + fmt for fmt in _formats_heatmap],
     log: logdir + "/{genome}/{sample_id}/heatmap.log"
     threads: rule_res("heatmap").get("threads", 4)
@@ -226,7 +206,7 @@ rule heatmap:
             "heatmap", input_size=input_size_mb(input),
             attempt=attempt).get("mem_mb", 16000),
     params:
-        formats = _formats_heatmap,   # ③ 转发
+        formats = _formats_heatmap,
         out_base = outdir + "/{genome}/{sample_id}/{sample_id}_" + HEATMAP_SUFFIX + "_heatmap",
     conda: "../deeptools_heatmap.yaml"
     container: sif("../deeptools_heatmap.yaml", "heatmap")
@@ -245,14 +225,14 @@ rule heatmap:
             for fmt in params.formats:
                 cmd += ["--format", str(fmt)]
             script = receipt_script(f"heatmap_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"heatmap_{wildcards.sample_id}.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
                 f.write(f'echo "heatmap for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -275,7 +255,7 @@ rule heatmap_gene:
             "heatmap_gene", input_size=input_size_mb(input),
             attempt=attempt).get("mem_mb", 16000),
     params:
-        formats = _formats_heatmap_gene,   # ③ 转发
+        formats = _formats_heatmap_gene,
         out_base = outdir + "/{genome}/{sample_id}/{sample_id}_{gene_name}_heatmap",
     conda: "../deeptools_heatmap.yaml"
     container: sif("../deeptools_heatmap.yaml", "heatmap_gene")
@@ -296,14 +276,14 @@ rule heatmap_gene:
             for fmt in params.formats:
                 cmd += ["--format", str(fmt)]
             script = receipt_script(f"heatmap_gene_{wildcards.sample_id}_{wildcards.gene_name}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"heatmap_gene_{wildcards.sample_id}_{wildcards.gene_name}.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
                 f.write(f'echo "heatmap_gene for {wildcards.sample_id} {wildcards.gene_name} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -311,12 +291,7 @@ rule heatmap_gene:
             rule_logger.error(f"Error occurred during heatmap_gene for sample {wildcards.sample_id} {wildcards.gene_name}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
-        # ============================================================
-        # Result
-        # ============================================================
 
 rule deeptools_heatmap_result:
     input:
-        # {genome}/{sample_id} stay rule wildcards; only the extension is
-        # expanded over formats — comprehension, not expand()
         plots = [outdir + "/{genome}/{sample_id}/{sample_id}_" + HEATMAP_SUFFIX + "_heatmap." + fmt for fmt in _formats_deeptools_heatmap_result],

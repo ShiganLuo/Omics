@@ -64,7 +64,6 @@ prepare_ranked_list <- function(ranked_df) {
     filter(!is.na(log2FoldChange)) %>%
     arrange(desc(log2FoldChange))
 
-  ## break ties
   set.seed(123)
   ranked_df$log2FoldChange <- ranked_df$log2FoldChange +
     runif(nrow(ranked_df), -1e-5, 1e-5)
@@ -154,22 +153,6 @@ gradient_bar_panel <- function(n) {
       midpoint = 0,
       guide = "none"
     ) +
-    # annotate(
-    #   "text",
-    #   x = 1,
-    #   y = 1.3,
-    #   label = "Negative",
-    #   hjust = 0,
-    #   size = 3
-    # ) +
-    # annotate(
-    #   "text",
-    #   x = n,
-    #   y = 1.3,
-    #   label = "Positive",
-    #   hjust = 1,
-    #   size = 3
-    # ) +
     theme_void() +
     theme(
       plot.margin = margin(t = 0, r = 5, b = 0, l = 5)
@@ -190,7 +173,6 @@ plot_enrichment_gseapy_style <- function(pathway,
   library(ggplot2)
   library(patchwork)
 
-  ## ---- geneset ----
   pathway_genes <- geneset[[pathway]]
   if (is.null(pathway_genes)) {
     log_msg("WARN", "Pathway not found:", pathway)
@@ -207,7 +189,6 @@ plot_enrichment_gseapy_style <- function(pathway,
     return(invisible(NULL))
   }
 
-  ## ---- running ES (gseapy definition) ----
   stats <- ranked_list
   Nh <- sum(hit)
   Nm <- length(stats) - Nh
@@ -228,17 +209,14 @@ plot_enrichment_gseapy_style <- function(pathway,
     ES = running_es
   )
 
-  ## ES peak (for annotation)
   peak_pos <- which.max(abs(running_es))
   peak_es  <- running_es[peak_pos]
 
-  ## ---- hit ticks ----
   df_hits <- data.frame(
     position = hit_idx,
     y = 1
   )
 
-  ## ---- rank metric ----
   df_rank <- data.frame(
     position = seq_along(stats),
     score = stats
@@ -247,7 +225,6 @@ plot_enrichment_gseapy_style <- function(pathway,
   nes  <- round(fgsea_row$NES, 3)
   padj <- signif(fgsea_row$padj, 3)
 
-  ## ================= Panel 1 =================
   p1 <- ggplot(df_es, aes(position, ES)) +
     geom_line(color = "#D62728", linewidth = 1) +
     geom_hline(yintercept = 0,
@@ -272,7 +249,6 @@ plot_enrichment_gseapy_style <- function(pathway,
       axis.ticks.x = element_blank()
     )
 
-  ## ================= Panel 2 =================
   p2 <- ggplot(df_hits, aes(position, y)) +
     geom_linerange(aes(ymin = 0, ymax = 1),
                    linewidth = 0.4,
@@ -281,7 +257,6 @@ plot_enrichment_gseapy_style <- function(pathway,
     theme_void()
 
   p_grad <- gradient_bar_panel(length(ranked_list))
-  ## ================= Panel 3 =================
   p3 <- ggplot(df_rank, aes(position, score, fill = score)) +
     geom_area() +
     scale_fill_gradient2(
@@ -324,7 +299,6 @@ plot_enrichment_gseapy_style <- function(pathway,
       color = "blue"
     )
 
-  ## ---- combine ----
   p <- p1 / p2 / p_grad / p3 +
     plot_layout(
       heights = c(2.2, 0.4, 0.25, 1)
@@ -409,7 +383,6 @@ waterfall_plot <- function(rnk,
     height = height,
     dpi = 300
   )
-  ## ===== gseapy-style enrichment plots =====
   top_pathways <- fgsea_res %>%
     arrange(desc(NES)) %>%
     slice_head(n = 5)
@@ -469,9 +442,6 @@ plot_enrichment <- function(geneset,
   )
 }
 
-## =========================
-## CLI
-## =========================
 parser <- ArgumentParser(description = "GSEA analysis for TE and Gene")
 
 parser$add_argument("-m", "--mode",default = "Gene",choices = c("Gene", "TE"),type="character", help = "GSEA mode: Gene or TE")
@@ -484,9 +454,6 @@ parser$add_argument("-t", "--graphTitle",type = "character", default = "", help 
 parser$add_argument("-r", "--rewrite",action = "store_true", default = FALSE, help = "Whether to rewrite existing files")
 args <- parser$parse_args()
 
-## =========================
-## Main
-## =========================
 log_msg("INFO", "Mode:", args$mode)
 log_msg("INFO", "GMT:", args$gmt)
 log_msg("INFO", "Matrix:", args$matrix)

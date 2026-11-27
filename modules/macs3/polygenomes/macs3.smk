@@ -10,12 +10,6 @@ bam_substring = config.get("bam_substring", "sorted_markdup.bam")
 MODULE_DIR = os.path.join(config.get("ROOT_DIR", "."), "modules", "macs3")
 CUTOFF_SCRIPT = os.path.join(MODULE_DIR, "bin", "plot_cutoff_analysis.py")
 
-# ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
-# 参数精确到 rule:formats 挂 macs3_cutoff_plot 名下
-# (Params.macs3.macs3_cutoff_plot.formats,单 plot rule 消费;
-# 无 module 级共享回退),config 全量路径读取 + str 收成单元素 list。
-# 每 rule 一个 parse 期变量;macs3_result 聚合 macs3_cutoff_plot 输出,
-# 展开同一 rule 键。
 _formats_macs3_cutoff_plot = config.get("Params", {}).get("macs3", {}).get("macs3_cutoff_plot", {}).get("formats") or ["png"]
 if isinstance(_formats_macs3_cutoff_plot, str):
     _formats_macs3_cutoff_plot = [_formats_macs3_cutoff_plot]
@@ -30,7 +24,6 @@ def get_macs3_input(wildcards):
     """
     bam_treatment = os.path.join(indir,f"{wildcards.sample_id}/{wildcards.sample_id}.{bam_substring}")
     
-    # Check if there's a matched input control
     input_sample = sample_ip_input_map.get(wildcards.sample_id)
     if input_sample:
         bam_control = os.path.join(indir,f"{input_sample}/{input_sample}.{bam_substring}")
@@ -84,7 +77,7 @@ rule macs3_callpeak:
             rule_logger.info(f"Start macs3 call peak for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.narrow_peak))
             script = receipt_script(f"macs3_callpeak_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"macs3_callpeak.sh")
             cmd = [
                 params.macs3, "callpeak",
@@ -100,7 +93,6 @@ rule macs3_callpeak:
                 rule_logger.info(f"Using control BAM: {input.bam_control}")
                 cmd += ["-c", input.bam_control]
             cmd.append("--cutoff-analysis")
-            # ── Broad peak calling ──
             broad_name = f"{params.name}_broad"
             broad_cmd = [
                 params.macs3, "callpeak",
@@ -123,7 +115,7 @@ rule macs3_callpeak:
                 f.write(" ".join(broad_cmd) + "\n")
                 f.write(f'echo "macs3 call peak (narrow + broad) for sample {wildcards.sample_id} completed !"'+ "\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -138,7 +130,6 @@ rule macs3_cutoff_plot:
     input:
         cutoffs = expand(outdir + "/{genome}/{sample_id}/{sample_id}_cutoff_analysis.txt", sample_id=ip_samples, genome="{genome}"),
     output:
-        # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
         plots = [outdir + "/{genome}/cutoff_analysis." + fmt for fmt in _formats_macs3_cutoff_plot],
     log:
         logdir + "/{genome}/../group/macs3/macs3_cutoff_plot.log"
@@ -153,7 +144,7 @@ rule macs3_cutoff_plot:
     container:
         sif("../macs3.yaml", "macs3_cutoff_plot")
     params:
-        formats = _formats_macs3_cutoff_plot,   # ③ 转发
+        formats = _formats_macs3_cutoff_plot,
         out_base = lambda wildcards: outdir + f"/{wildcards.genome}/cutoff_analysis",
     run:
         log_path = str(log)
@@ -173,14 +164,14 @@ rule macs3_cutoff_plot:
             plot_dir = os.path.dirname(str(output.plots[0]))
             os.makedirs(plot_dir, exist_ok=True)
             script = receipt_script(f"plot_cutoff_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(plot_dir, f"plot_cutoff.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

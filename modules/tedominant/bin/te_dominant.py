@@ -63,9 +63,9 @@ def cell_metrics(merged):
     tot = X.sum(1).astype(float)
     gene = tot - te
     return {
-        "te_abs": te,                                   # absolute TE counts
-        "te_pct": te / np.maximum(tot, 1.0) * 100.0,    # relative TE fraction
-        "gene_abs": gene,                               # non-TE gene counts
+        "te_abs": te,
+        "te_pct": te / np.maximum(tot, 1.0) * 100.0,
+        "gene_abs": gene,
         "n_gene": (X[:, ~is_te] > 0).sum(1).astype(float),
     }
 
@@ -105,7 +105,6 @@ def dominant_v2(cm, leiden, cell_type, min_cells, gate_frac, method="v1"):
     tab = pd.DataFrame(rows).set_index("cluster")
     old_dom = tab["te_pct_mean"].idxmax()
     if method == "v1":
-        # legacy: no gates; the pure-TE% winner is the answer
         return old_dom, tab.loc[old_dom, "cell_type"], tab, rejects
     elig = tab[tab["eligible"]]
     dom = elig["te_pct_mean"].idxmax() if len(elig) else old_dom
@@ -123,7 +122,6 @@ def dominant_v2(cm, leiden, cell_type, min_cells, gate_frac, method="v1"):
 
 def fig_burden(tab, dom, tissue, gate_frac, outdir, method="v1"):
     if method == "v1":
-        # legacy view: rank by relative TE%, dashed line = global mean TE%
         order = tab.sort_values("te_pct_mean", ascending=False)
         fig, ax = plt.subplots(figsize=(11, 5))
         colors = ["#c0392b" if i == dom else "#b0b0b0" for i in order.index]
@@ -164,7 +162,6 @@ def fig_umap(auto, cm, dom, dom_ct, te_pct_dom, tissue, outdir, method="v1"):
     dom_mask = (auto.obs["leiden"].astype(str).values == str(dom))
     fig, axes = plt.subplots(1, 2, figsize=(12.8, 5.2))
     if method == "v1":
-        # legacy view: color by relative TE% per cell
         sc_pt = axes[0].scatter(emb[:, 0], emb[:, 1], c=cm["te_pct"], s=1.2,
                                 cmap="RdYlBu_r", vmin=0, vmax=60)
         plt.colorbar(sc_pt, ax=axes[0], fraction=0.046).set_label("TE% per cell")

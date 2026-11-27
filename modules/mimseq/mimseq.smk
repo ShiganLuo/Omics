@@ -8,7 +8,6 @@ logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 meta = config.get("meta", "")
 
-# Import serialization utilities
 _bin_dir = os.path.join(ROOT_DIR, "modules", "mimseq", "bin")
 if _bin_dir not in sys.path:
     sys.path.insert(0, _bin_dir)
@@ -19,8 +18,6 @@ rule mimseq_prepare_sample_data:
     input:
         meta = meta,
     output:
-        # intermediate: consumed only by mimseq_align; kept by default, temp
-        # when Params.mimseq.keep_intermediates is false
         sample_data = maybe_temp(outdir + "/sample_data.tsv", "mimseq"),
     log:
         logdir + "/mimseq_prepare_sample_data.log"
@@ -50,7 +47,6 @@ rule mimseq_prepare_sample_data:
         except Exception as e:
             raise
 
-        # Include sub-modules
 include: "tRNAtools/tRNAtools.smk"
 include: "align/align.smk"
 include: "clusters/clusters.smk"

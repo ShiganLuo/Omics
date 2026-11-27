@@ -1,9 +1,6 @@
 include: "../common/common.smk"
 
 from typing import List
-# temp 规范(modules.md):本模块的中间文件用 maybe_temp(path, "disambiguate") 包裹,
-# 是否标 temp 由 Params.disambiguate.keep_intermediates 决定(缺省 True=兜底保留)。
-# {sample}.disambiguatedSpecies_*/ambiguousSpecies_* 交付物不包裹。
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -57,7 +54,7 @@ rule ngs_disambiguate:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start ngs_disambiguate for sample {wildcards.sample_id} at {current_time}")
             script = receipt_script(f"ngs_disambiguate_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(params.outdir, f"ngs_disambiguate.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -73,7 +70,7 @@ rule ngs_disambiguate:
                 f.write(f"rm -f {params.bamA_sortN} {params.bamB_sortN}\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -119,7 +116,7 @@ rule disambiguate_sort_rename:
             rule_logger.info(f"Start disambiguate_sort_rename for sample {wildcards.sample_id} at {current_time}")
             outdir_sample = os.path.dirname(str(output.clean_bamA))
             script = receipt_script(f"sort_rename_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir_sample, f"sort_rename.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -136,7 +133,7 @@ rule disambiguate_sort_rename:
                 f.write(f"rm -f {input.summary}\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -172,7 +169,7 @@ rule disambiguate_report:
             rule_logger.info(f"Start disambiguate_report at {current_time}")
             report_dir = os.path.dirname(str(output.report))
             script = receipt_script(f"disambiguate_report_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(report_dir, f"disambiguate_report.sh")
             reports_str = " ".join(input.reports)
             with open(script, "w") as f:
@@ -182,7 +179,7 @@ rule disambiguate_report:
                 f.write(f"    -o {output.report}\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

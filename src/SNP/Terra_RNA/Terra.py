@@ -34,7 +34,6 @@ def count_terra_reads_pe_seqkit(
         r1_ids = os.path.join(tmp, "r1.ids")
         r2_ids = os.path.join(tmp, "r2.ids")
 
-        # 1️⃣ extract read IDs with telomeric motif
         cmd_r1 = (
             f"seqkit grep -s -r -p '{motif_regex}' {fastq_r1} "
             f"| seqkit seq -n > {r1_ids}"
@@ -47,13 +46,11 @@ def count_terra_reads_pe_seqkit(
         subprocess.run(cmd_r1, shell=True, check=True)
         subprocess.run(cmd_r2, shell=True, check=True)
 
-        # 2️⃣ union read IDs (read-pair level)
         cmd_union = f"cat {r1_ids} {r2_ids} | sort -u | wc -l"
         terra_pairs = int(
             subprocess.check_output(cmd_union, shell=True).strip()
         )
 
-    # 3️⃣ total read pairs (use R1 only)
     cmd_total = ["seqkit", "stats", "-T", fastq_r1]
     out_total = subprocess.check_output(cmd_total, text=True)
     total_pairs = int(out_total.strip().splitlines()[1].split("\t")[3])
@@ -72,7 +69,6 @@ if __name__ == "__main__":
 
     results = []
 
-    # 只遍历 R1
     for r1 in sorted(glob.glob("/disk5/luosg/Totipotent20251031/data/fq/*_1.fastq.gz")):
         r2 = r1.replace("_1.fastq.gz", "_2.fastq.gz")
 

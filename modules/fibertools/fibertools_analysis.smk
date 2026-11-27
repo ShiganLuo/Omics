@@ -18,8 +18,6 @@ outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 _bam_suffix = config.get("bam_suffix", ".fiberseq.fire.aligned.bam")
-# 参数精确到 rule(2026-11 规范):Params.fibertools.<rule_name>.<key>,无
-# module 级共享回退(config 全量路径内联读取)。
 
 rule ft_extract:
     """Extract Fiber-seq data to BED format.
@@ -80,7 +78,7 @@ rule ft_extract:
                     f.write(f"tabix -f -p bed {bed}\n")
                 f.write(f'echo "Fiber-seq extraction completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -102,8 +100,6 @@ def _ft_call_peaks_inputs(wildcards):
         "shuffle_script": ROOT_DIR + "/modules/fibertools/bin/shuffle_bed.py",
     }
     if config.get("Params", {}).get("fibertools", {}).get("ft_call_peaks", {}).get("call_peaks_mode", "fdr") == "fdr":
-        # fdr mode shuffles fibers genome-wide; without chrom sizes the
-        # null cannot be built — fail at DAG time naming the JSON key.
         files["fai"] = _require(
             config.get("genome", {}).get("fai"),
             "genome.fai", "ft_call_peaks",
@@ -126,9 +122,6 @@ rule ft_call_peaks:
     output:
         peaks = outdir + "/{sample_id}/{sample_id}.fire_peaks.bed",
         fdr_table = outdir + "/{sample_id}/{sample_id}.fire_fdr_table.tsv",
-        # fdr-mode null artifacts — node.py-registered deliverables; outside
-        # fdr mode the engine writes header-only placeholders (placeholder
-        # pattern keeps the registered contract unconditional)
         fibers = outdir + "/{sample_id}/{sample_id}.fibers.bed",
         shuffled = outdir + "/{sample_id}/{sample_id}.fibers.shuffled.bed",
     log:
@@ -145,7 +138,6 @@ rule ft_call_peaks:
         sif("fibertools.yaml", "ft_call_peaks")
     params:
         ft = config.get("Procedure", {}).get("fibertools") or "ft",
-        # 整段 dict 转发已展开逐 key(Params.fibertools.ft_call_peaks.<key>)
         call_peaks_mode = config.get("Params", {}).get("fibertools", {}).get("ft_call_peaks", {}).get("call_peaks_mode", "fdr"),
         sd_cov = config.get("Params", {}).get("fibertools", {}).get("ft_call_peaks", {}).get("sd_cov", 5.0),
         max_fdr = config.get("Params", {}).get("fibertools", {}).get("ft_call_peaks", {}).get("max_fdr", 0.05),
@@ -192,7 +184,7 @@ rule ft_call_peaks:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f'echo "FIRE peak calling completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -250,7 +242,7 @@ rule ft_qc:
                 f.write(f'echo "QC metrics collected for sample {wildcards.sample_id}"\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(command_script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -318,7 +310,7 @@ rule ft_extract_fire:
                 f.write(f"rm -f {tmp_fire}\n")
                 f.write(f'echo "FIRE extraction completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -331,7 +323,6 @@ rule ft_split_hap:
     input:
         bam = indir + "/{sample_id}/{sample_id}" + _bam_suffix
     output:
-        # intermediates controlled by Params.fibertools.keep_intermediates (modules.md temp spec)
         bam = maybe_temp(outdir + "/{sample_id}/{sample_id}.{hap}.bam", "fibertools"),
         bai = maybe_temp(outdir + "/{sample_id}/{sample_id}.{hap}.bam.bai", "fibertools"),
     log:
@@ -366,7 +357,7 @@ rule ft_split_hap:
                 f.write(f'samtools index {output.bam}\n')
                 f.write(f'echo "Haplotype split completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -380,7 +371,6 @@ rule ft_extract_hap:
         bam = outdir + "/{sample_id}/{sample_id}.{hap}.bam",
         bai = outdir + "/{sample_id}/{sample_id}.{hap}.bam.bai",
     output:
-        # registered deliverables (node.py outfiles) - never wrapped per modules.md temp spec
         m6a = outdir + "/{sample_id}/{sample_id}.{hap}.m6a.bed.gz",
         nuc = outdir + "/{sample_id}/{sample_id}.{hap}.nuc.bed.gz",
         msp = outdir + "/{sample_id}/{sample_id}.{hap}.msp.bed.gz",
@@ -427,12 +417,11 @@ rule ft_extract_hap:
             with open(command_script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
-                # tabix indexes travel with the element BEDs (declared outputs)
                 for bed in (output.m6a, output.nuc, output.msp, output.cpg):
                     f.write(f"tabix -f -p bed {bed}\n")
                 f.write(f'echo "Haplotype extraction completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

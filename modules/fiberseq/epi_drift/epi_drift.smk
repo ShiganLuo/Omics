@@ -113,7 +113,7 @@ rule fiberseq_epi_drift_run:
                 f.write(f'echo "fiberseq_epi_drift_run at {current_time} '
                         f'completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

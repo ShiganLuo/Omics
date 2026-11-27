@@ -13,12 +13,10 @@ import os
 import sys
 from pathlib import Path
 
-# Add mimseq source to path
 MIMSEQ_PARENT = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 if MIMSEQ_PARENT not in sys.path:
     sys.path.insert(0, MIMSEQ_PARENT)
 
-# Add bin/ to path for serialize module
 BIN_DIR = os.path.dirname(os.path.dirname(__file__))
 if BIN_DIR not in sys.path:
     sys.path.insert(0, BIN_DIR)
@@ -30,10 +28,6 @@ import mimseq.ssAlign as ssAlign_module
 
 log = logging.getLogger(__name__)
 
-# Plot formats forwarded to the vendored mimseq plotting code through the
-# MIMSEQ_PLOT_FORMATS env var (read around ggsave()/savefig in mimseq/*.R and
-# mimseq/tRNAmap.py; default "pdf" preserves upstream behaviour). Valid set =
-# the R ggsave device set (every entry is also a matplotlib savefig format).
 PLOT_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg", "jpeg")
 
 
@@ -63,12 +57,10 @@ def run_mods(
 ) -> None:
     """Run modification quantification."""
 
-    # Ensure out has trailing /
     if not out.endswith("/"):
         out = out + "/"
     os.makedirs(out, exist_ok=True)
 
-    # Set up logging
     logging.basicConfig(
         format="%(asctime)s [%(levelname)-5.5s] %(message)s",
         level=logging.INFO,
@@ -80,19 +72,16 @@ def run_mods(
 
     log.info("Starting modification quantification module")
 
-    # Load states
     tRNA_state = load_tRNA_state(out)
     align_state = load_align_state(out)
     cluster_state = load_cluster_state(out)
 
-    # Set ssAlign global stkname (required by tRNAclassifier -> structureParser)
     stk_files = glob.glob(os.path.join(out, "*_align.stk"))
     if not stk_files:
         raise FileNotFoundError(f"No *_align.stk file found in {out}")
     ssAlign_module.stkname = stk_files[0]
     log.info(f"Set stkname: {stk_files[0]}")
 
-    # Run modification quantification
     new_mods, new_Inosines, filtered_cov, filter_warning, unsplitCluster_lookup, readRef_unsplit_newNames = \
         mmQuant_module.generateModsTable(
             align_state["coverageData"],
@@ -115,16 +104,14 @@ def run_mods(
             cluster_state["splitBool_new"],
             cluster_state["isodecoder_sizes"],
             cluster_state["unsplitCluster_lookup"],
-            True,  # cluster
+            True,
             crosstalks,
         )
 
-    # Crosstalks analysis
     if crosstalks:
         log.info("Analyzing crosstalks between pairs of modifications and modification-charging...")
         crosstalks_module.crosstalks_wrapper(os.path.join(out, "single_read_data"), misinc_thresh, threads)
 
-    # Save modification state
     save_pickle(new_mods, os.path.join(out, "state", "new_mods.pkl"))
     save_pickle(new_Inosines, os.path.join(out, "state", "new_Inosines.pkl"))
     save_pickle(filtered_cov, os.path.join(out, "state", "filtered_cov.pkl"))

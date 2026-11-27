@@ -5,9 +5,6 @@ from typing import List, Iterable, Dict, Tuple
 from collections import defaultdict
 
 
-# ======================
-# 数据结构
-# ======================
 
 @dataclass(frozen=True)
 class CrosslinkSite:
@@ -38,9 +35,6 @@ class BindingSite:
     score: float
 
 
-# ======================
-# 参数配置（原则驱动）
-# ======================
 
 @dataclass(frozen=True)
 class BindingConfig:
@@ -54,13 +48,9 @@ class BindingConfig:
 
     @property
     def max_gap(self) -> int:
-        # 原则：resize 后不重叠
         return self.target_width - 1
 
 
-# ======================
-# 解析
-# ======================
 
 def parse_pureclip(path: str) -> List[CrosslinkSite]:
     sites: List[CrosslinkSite] = []
@@ -85,9 +75,6 @@ def parse_pureclip(path: str) -> List[CrosslinkSite]:
     return sites
 
 
-# ======================
-# Step 1: 聚类
-# ======================
 
 def cluster_sites(
     sites: Iterable[CrosslinkSite],
@@ -129,9 +116,6 @@ def cluster_sites(
     return clusters
 
 
-# ======================
-# Step 2: 过滤短 cluster
-# ======================
 
 def filter_clusters(
     clusters: List[ClusterRegion],
@@ -144,9 +128,6 @@ def filter_clusters(
     ]
 
 
-# ======================
-# 工具函数
-# ======================
 
 def center_window(center: int, width: int) -> Tuple[int, int]:
     half = width // 2
@@ -176,9 +157,6 @@ def count_support(
     return sum(1 for s in sites if start <= s.start < end)
 
 
-# ======================
-# Step 3: 统一宽度
-# ======================
 
 def generate_binding_sites(
     cluster: ClusterRegion,
@@ -188,19 +166,16 @@ def generate_binding_sites(
     width = cluster.end - cluster.start
     target = config.target_width
 
-    # 按信号排序（高 → 低）
     sites_sorted = sorted(cluster.sites, key=lambda x: x.score, reverse=True)
 
     results: List[BindingSite] = []
     used_intervals: List[Tuple[int, int]] = []
 
-    # ---- long region → 拆分 ----
     if width > target:
         for s in sites_sorted:
             center = s.start
             start, end = center_window(center, target)
 
-            # 限制 center 必须在 cluster 内
             if not (cluster.start <= center < cluster.end):
                 continue
 
@@ -223,7 +198,6 @@ def generate_binding_sites(
 
             used_intervals.append((start, end))
 
-    # ---- short / equal → 单窗口 ----
     else:
         peak = max(cluster.sites, key=lambda x: x.score)
         center = peak.start
@@ -246,9 +220,6 @@ def generate_binding_sites(
     return results
 
 
-# ======================
-# Step 4: 支持度过滤
-# ======================
 
 def filter_binding_sites(
     sites: List[BindingSite],
@@ -261,9 +232,6 @@ def filter_binding_sites(
     ]
 
 
-# ======================
-# Pipeline
-# ======================
 
 def build_binding_sites(
     sites: List[CrosslinkSite],
@@ -281,9 +249,6 @@ def build_binding_sites(
     return filter_binding_sites(results, config)
 
 
-# ======================
-# 输出（BED-like）
-# ======================
 
 def write_binding_sites(path: str, sites: List[BindingSite]) -> None:
     with open(path, "w") as f:
@@ -293,9 +258,6 @@ def write_binding_sites(path: str, sites: List[BindingSite]) -> None:
             )
 
 
-# ======================
-# CLI 示例入口（可删）
-# ======================
 
 def main(input_path: str, output_path: str):
     config = BindingConfig(

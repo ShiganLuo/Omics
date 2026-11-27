@@ -45,7 +45,7 @@ rule DESeq2_TEcount:
         outdir = outdir,
         gtf = gtf,
         gene_map = gene_map,
-        formats = _formats,   # ③ 转发
+        formats = _formats,
 
     conda:
         "DESeq2.yaml"
@@ -63,7 +63,7 @@ rule DESeq2_TEcount:
             sample_outdir = os.path.dirname(str(output.deseq2_results))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"DESeq2_TEcount_{wildcards.contrast}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"DESeq2_TEcount.sh")
             control_group_name = comparisons[wildcards.contrast]["control_group_name"]
             experimental_group_name = comparisons[wildcards.contrast]["experimental_group_name"]
@@ -114,7 +114,7 @@ rule DESeq2_TEcount:
                 f.write("echo 'DESeq2 TEcount analysis completed successfully'\n")
 
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

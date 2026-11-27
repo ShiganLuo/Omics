@@ -12,26 +12,19 @@ import os
 import sys
 from pathlib import Path
 
-# Add mimseq source to path (parent of mimseq package)
 MIMSEQ_PARENT = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 if MIMSEQ_PARENT not in sys.path:
     sys.path.insert(0, MIMSEQ_PARENT)
 
-# Add bin/ to path for serialize module
 BIN_DIR = os.path.dirname(os.path.dirname(__file__))
 if BIN_DIR not in sys.path:
     sys.path.insert(0, BIN_DIR)
 
 from serialize import load_tRNA_state, save_align_state, load_json
-# Import mimseq as a package
 import mimseq.tRNAmap as tRNAmap_module
 
 log = logging.getLogger(__name__)
 
-# Plot formats forwarded to the vendored mimseq plotting code through the
-# MIMSEQ_PLOT_FORMATS env var (read around ggsave()/savefig in mimseq/*.R and
-# mimseq/tRNAmap.py; default "pdf" preserves upstream behaviour). Valid set =
-# the R ggsave device set (every entry is also a matplotlib savefig format).
 PLOT_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg", "jpeg")
 
 
@@ -60,12 +53,10 @@ def run_align(
 ) -> None:
     """Run alignment using GSNAP."""
 
-    # Ensure out has trailing /
     if not out.endswith("/"):
         out = out + "/"
     os.makedirs(out, exist_ok=True)
 
-    # Set up logging
     logging.basicConfig(
         format="%(asctime)s [%(levelname)-5.5s] %(message)s",
         level=logging.INFO,
@@ -77,18 +68,15 @@ def run_align(
 
     log.info("Starting alignment module")
 
-    # Load tRNA state
     tRNA_state = load_tRNA_state(out)
     snp_tolerance = tRNA_state["snp_tolerance"]
 
-    # Load GSNAP indices
     gsnap_indices = load_json(os.path.join(out, "state", "gsnap_indices.json"))
     genome_index_path = gsnap_indices["genome_index_path"]
     genome_index_name = gsnap_indices["genome_index_name"]
     snp_index_path = gsnap_indices["snp_index_path"]
     snp_index_name = gsnap_indices["snp_index_name"]
 
-    # Run alignment
     map_round = 1
     bams_list, coverageData = tRNAmap_module.mainAlign(
         sample_data, name,
@@ -98,7 +86,6 @@ def run_align(
         mismatches, map_round, remap,
     )
 
-    # Save alignment state
     save_align_state(
         outdir=out,
         bams_list=bams_list,

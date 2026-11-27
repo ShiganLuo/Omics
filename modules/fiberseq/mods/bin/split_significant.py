@@ -25,8 +25,6 @@ import sys
 from pathlib import Path
 from typing import List, Optional, Sequence, TextIO
 
-# Copied verbatim from src/common/util/LogUtil.py (module bin scripts are
-# self-contained — see modules.md 脚本撰写规范 #0).
 
 
 def setup_logger(
@@ -78,7 +76,6 @@ def setup_logger(
 
 logger = setup_logger("SplitSignificant", stream=sys.stdout)
 
-# feature id: <chrom>:<start>-<end>|<name>
 _REGION_RE = re.compile(r"^(\S+):(\d+)-(\d+)\|(.+)$")
 
 
@@ -143,7 +140,6 @@ def split_results(args: argparse.Namespace) -> int:
 
     bed = Path(args.out_bed) if args.out_bed else None
     if bed is None:
-        # no BED requested (TE axis: features are family names, no coords)
         logger.info(" BED skipped (--out-bed absent)")
     else:
         bed.parent.mkdir(parents=True, exist_ok=True)

@@ -13,17 +13,12 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Add mimseq source to path
 MIMSEQ_PARENT = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 if MIMSEQ_PARENT not in sys.path:
     sys.path.insert(0, MIMSEQ_PARENT)
 
 log = logging.getLogger(__name__)
 
-# Plot formats forwarded to the vendored mimseq plotting code through the
-# MIMSEQ_PLOT_FORMATS env var (read around ggsave()/savefig in mimseq/*.R and
-# mimseq/tRNAmap.py; default "pdf" preserves upstream behaviour). Valid set =
-# the R ggsave device set (every entry is also a matplotlib savefig format).
 PLOT_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg", "jpeg")
 
 
@@ -49,12 +44,10 @@ def run_deseq(
 ) -> None:
     """Run DESeq2 differential expression analysis."""
 
-    # Ensure out has trailing /
     if not out.endswith("/"):
         out = out + "/"
     os.makedirs(out, exist_ok=True)
 
-    # Set up logging
     logging.basicConfig(
         format="%(asctime)s [%(levelname)-5.5s] %(message)s",
         level=logging.INFO,
@@ -66,7 +59,6 @@ def run_deseq(
 
     log.info("Starting DESeq2 module")
 
-    # Run DESeq2 R script
     script_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "mimseq")
     deseq_cmd = [
         "Rscript",

@@ -50,7 +50,6 @@ logger = logging.getLogger("ecdna_junction_microhomology")
 
 THRESHOLDS = (1, 2, 3, 5, 8, 10)
 
-# both junction breakpoints bucketed to --tolerance resolution
 JunctionKey = tuple[tuple[str, int], tuple[str, int]]
 
 
@@ -150,7 +149,7 @@ def random_flank(rng: random.Random, chrom: str, sizes: dict[str, int],
                  fa: FastaReader, w: int, role: str) -> str:
     """Random flank with the same orientation convention as ``role``."""
     size = sizes[chrom]
-    if role == "3p":  # sequence ending at the drawn breakpoint
+    if role == "3p":
         p = rng.randrange(w, size)
         return fa.fetch(chrom, p - w, p)
     p = rng.randrange(0, size - w)
@@ -173,7 +172,6 @@ def main(argv: list[str] | None = None) -> int:
     logger.info(f"{len(junctions)} junctions from "
                 f"{len(args.ecdna_links)} samples")
 
-    # ---------------- observed microhomology ---------------- #
     records: list[JuncRecord] = []
     seen: dict[JunctionKey, JuncRecord] = {}
     for junc in junctions:
@@ -220,7 +218,6 @@ def main(argv: list[str] | None = None) -> int:
                      f"{rec.flank_down[:12]}\t{rep}\n")
     logger.info(f"Wrote {junc_path}")
 
-    # ---------------- null draws ---------------- #
     obs_mh = [r.mh_len for r in uniq]
     null_counts = {t: [] for t in THRESHOLDS}
     null_mean = []
@@ -250,7 +247,6 @@ def main(argv: list[str] | None = None) -> int:
             fh.write(f"mh>={t}\t{obs_n}\t{mean_n:.2f}\t{enr:.2f}\t{p:.4f}\n")
     logger.info(f"Wrote {sum_path}")
 
-    # ---------------- stdout summary ---------------- #
     n = len(uniq)
     print(f"\n=== eccDNA junction microhomology "
           f"({n} unique junctions, flank {args.flank} bp) ===")

@@ -68,7 +68,6 @@ def run(args: argparse.Namespace) -> int:
     dfq = df[keep].copy()
     logger.info(f"q<={args.qvalue}: {len(dfq)} precursor rows")
 
-    # Per-run QC
     qc_rows: List[List] = []
     for run_name, sub in dfq.groupby(run_col):
         q_sub = qval.loc[sub.index]
@@ -86,7 +85,6 @@ def run(args: argparse.Namespace) -> int:
     qc.to_csv(qc_path, sep="\t", index=False)
     logger.info(f"Wrote {qc_path}")
 
-    # Protein matrix (PG.MaxLFQ, q-filtered)
     if maxlfq_col:
         mat = (dfq.assign(_int=pd.to_numeric(dfq[maxlfq_col], errors="coerce"))
                .pivot_table(index=pg_col, columns=run_col, values="_int",

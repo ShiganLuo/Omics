@@ -53,23 +53,18 @@ from utils.common import setup_logger
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
 if TYPE_CHECKING:
     import pysam  # pyright: ignore[reportMissingImports] — run env has pysam
 
-# record dict produced by load_merged_vcf and enriched downstream
 Rec = Dict[str, Any]
-# TE bucket spec entry (see the bucket schema below)
 Bucket = Dict[str, Any]
 
 logger = setup_logger("mei_analysis")
 
 
-# ---------------------------------------------------------------- VCF parsing
 CIGAR_RE = re.compile(r"(\d+)([MIDNSHP=X])")
 
 
@@ -102,15 +97,13 @@ def parse_alt_insertion(ref: Optional[str], alt: Optional[str]) -> Optional[str]
     """
     if alt is None or alt.startswith("<") or alt == ".":
         return None
-    ref = ref or ""  # None REF: trim against an empty anchor
+    ref = ref or ""
     if alt == ref:
         return None
-    # shared-prefix trim (REF=A ALT=AACGT... -> ACGT...)
     i = 0
     while i < len(ref) and i < len(alt) and ref[i] == alt[i]:
         i += 1
     ins = alt[i:]
-    # also trim a shared suffix (rare, keeps middle)
     if len(ins) > 0 and len(ref) - i > 0:
         j = 0
         while (j < len(ins) and j < len(ref) - i
@@ -197,9 +190,7 @@ def load_merged_vcf(path: str) -> Tuple[List[Rec], List[str]]:
             dr = []
             for s in f[9:]:
                 fmt = s.split(":")
-                # DR is Number=2 "ref,variant support reads"; pbsv/SURVIVOR
-                # writes a single combined value pre-merge -> take max field
-                m = re.search(r"DR=([^;:\t]+)", s)  # not standard; fallback
+                m = re.search(r"DR=([^;:\t]+)", s)
                 dr.append(fmt)
             recs.append({
                 "chrom": f[0], "pos": int(f[1]), "id": f[2],
@@ -239,7 +230,7 @@ def build_famdb_dir(h5_paths: List[str], workdir: str) -> str:
     famdb = os.path.join(parent, "famdb")
     os.makedirs(famdb, exist_ok=True)
 
-    files: Dict[str, str] = {}  # basename -> source path
+    files: Dict[str, str] = {}
     home = find_rm_home()
     if home:
         bundled = os.path.join(home, "Libraries", "famdb")
@@ -248,7 +239,7 @@ def build_famdb_dir(h5_paths: List[str], workdir: str) -> str:
                 if fn.endswith(".h5"):
                     files[fn] = os.path.join(bundled, fn)
     for p in h5_paths:
-        files[os.path.basename(p)] = p  # user partitions override same-name
+        files[os.path.basename(p)] = p
     if not files:
         raise RuntimeError("no FamDB h5 files found (RepeatMasker bundled "
                            "root missing and no --dfam-h5 given)")
@@ -338,7 +329,6 @@ def run_repeatmasker(seqs: List[str], ids: List[str], workdir: str,
     fa = os.path.join(workdir, "ins.fa")
     out = os.path.join(workdir, "ins.fa.out")
     stamp_path = os.path.join(workdir, "rm_config.stamp.json")
-    # cache key: classification config + the exact query set (content hash)
     ins_md5 = hashlib.md5(
         "\n".join(f"{i}\n{s}" for i, s in zip(ids, seqs)).encode()).hexdigest()
     stamp = json.dumps({**(config_stamp or {}), "ins_md5": ins_md5},
@@ -387,24 +377,12 @@ def run_repeatmasker(seqs: List[str], ids: List[str], workdir: str,
             f = line.rstrip("\n").split()
             if len(f) < 15 or not f[0].isdigit():
                 continue
-            # RepeatMasker .out layout is variable-width; use stable anchors:
-            #   f[0]=SW score, f[4]=query id, f[5]/f[6]=query begin/end,
-            #   then [strand], repeat name, class/family, rep-begin/end...
-            # Parse from the RIGHT: last col = ID(*), before it rep end,
-            # before rep begin, before class/family, before repeat name.
             try:
                 sw = int(f[0])
                 sid = f[4]
                 begin, end = int(f[5]), int(f[6])
             except (ValueError, IndexError):
                 continue
-            # find the class/family token by scanning from the RIGHT: the last
-            # three tokens are ID, and (in the 15-col layout) rep-end/rep-begin
-            # sit left of the ID; class/family and repeat name are fixed
-            # anchors relative to them. Repeat names may themselves contain
-            # '/' (e.g. ALR/Alpha in the macaque lib), so anchoring on the
-            # FIRST '/'-token from the left mis-parses satellite rows into
-            # strand '+' / 'C' as the "repeat name".
             rep = cls = fam = ""
             strand = "+"
             # Right-anchored walk: skip the trailing '*' column if present,
@@ -417,7 +395,6 @@ def run_repeatmasker(seqs: List[str], ids: List[str], workdir: str,
                 return t.isdigit()
 
             def _pnum(t):
-                # (123) or (-1): the (left) column can be negative
                 body = t.strip("()")
                 return t.startswith("(") and body.lstrip("-").isdigit()
 
@@ -441,7 +418,6 @@ def run_repeatmasker(seqs: List[str], ids: List[str], workdir: str,
                 "begin": begin, "end": end, "repeat": rep,
                 "class": cls, "family": fam, "sw": sw, "strand": strand,
             })
-    # best hit per record: longest covered span
     best = {}
     for sid, hs in hits.items():
         hs.sort(key=lambda h: (h["end"] - h["begin"]), reverse=True)
@@ -515,8 +491,8 @@ def microhomology_tsd(ref_fa_idx: "pysam.FastaFile", chrom: str, pos: int,
         fails.
     """
     try:
-        up = ref_fa_idx.fetch(chrom, max(0, pos - 1 - flank), pos)  # ends at POS
-        down = ref_fa_idx.fetch(chrom, pos, pos + 1 + flank)  # starts at POS+1
+        up = ref_fa_idx.fetch(chrom, max(0, pos - 1 - flank), pos)
+        down = ref_fa_idx.fetch(chrom, pos, pos + 1 + flank)
     except Exception:
         return None
     up, down = up.upper(), down.upper()
@@ -529,24 +505,6 @@ def microhomology_tsd(ref_fa_idx: "pysam.FastaFile", chrom: str, pos: int,
     return None
 
 
-# ------------------------------------------------- family bucket profiles
-# A profile is an ORDERED list of buckets; the first bucket whose match
-# level hits claims the event (so put specific buckets before generic
-# ones, e.g. IAP/ETn before a bare LTR bucket).
-#
-# Bucket schema (all matching is EXACT, case-insensitive):
-#   name       display/bucket name (never used for matching)
-#   subfamily  match against the RM repeat NAME (AluY / B1_Mm / IAP1 ...)
-#   family     match against the RM class/family suffix ("SINE/Alu" -> Alu;
-#              entries without a slash match the whole string)
-#   class      match against the RM class/family prefix ("SINE", "LTR" ...)
-# Level probing order is subfamily -> family -> class; ONLY the first
-# non-empty level list of a bucket participates in matching.
-#   catch_all  "classified"   RM hit but no bucket matched
-#              "unclassified" no RM hit at all
-#   retro_fingerprint  true -> include this bucket in the fingerprint figure
-#   zero_slot   false -> omit the bucket from figures when it has zero
-#               events (default true: keep the slot, labelled "0")
 
 def parse_te_buckets(spec: Union[str, List[Bucket]]) -> List[Bucket]:
     """Validate the --te-buckets value into an ordered bucket list.
@@ -631,14 +589,14 @@ def make_bucket_fn(buckets: List[Bucket]) -> Callable[[str, str], str]:
         RepeatMasker repeat NAME and class/family field to a bucket
         name.
     """
-    compiled = []  # (name, level, {lowercased values})
+    compiled = []
     catch = {}
     for b in buckets:
         for level in ("subfamily", "family", "class"):
             vals = b.get(level)
             if vals:
                 compiled.append((b["name"], level, {v.lower() for v in vals}))
-                break  # only the FIRST non-empty level participates
+                break
         if b.get("catch_all"):
             catch[b["catch_all"]] = b["name"]
     def classify(rep: str, cls: str) -> str:
@@ -782,7 +740,6 @@ def annotate_context(pos_rec: Rec, genes: List[Tuple[str, int, int, str]],
     ctx = "intergenic"
     gene = ""
     import bisect
-    # genes: any gene span containing pos
     starts = gidx
     i = bisect.bisect_right(starts, pos) - 1
     while i >= 0 and genes_sorted_check(genes, i, chrom):
@@ -954,7 +911,6 @@ def classify_insertions(recs: List[Rec], args: argparse.Namespace,
                         buckets: List[Bucket]) -> None:
     """RepeatMasker classification + family bucket assignment."""
     classify = make_bucket_fn(buckets)
-    # ---------------- classification (RepeatMasker) ----------------
 
     to_classify = [r for r in recs if r["ins_len"] >= args.min_len]
     logger.info(f"classifying {len(to_classify)} INS >= {args.min_len} bp "
@@ -991,7 +947,7 @@ def classify_insertions(recs: List[Rec], args: argparse.Namespace,
 
     for r, sid in zip(to_classify, ids):
         h = best.get(sid)
-        r["rm_id"] = sid  # ins.fa query id: joins mei_events.tsv to ins.fa.out rows
+        r["rm_id"] = sid
         if h:
             cov = (h["end"] - h["begin"] + 1) / r["ins_len"]
             r["te_repeat"] = h["repeat"]
@@ -1008,7 +964,6 @@ def classify_insertions(recs: List[Rec], args: argparse.Namespace,
             r["te_strand"] = ""
             r["te_sw"] = 0
 
-    # family bucket: profile-driven (see the bucket schema / --te-buckets)
     for r in recs:
         if r.get("te_repeat"):
             r["family"] = classify(r["te_repeat"], r["te_class"])
@@ -1024,7 +979,6 @@ def annotate_fingerprints(recs: List[Rec], args: argparse.Namespace,
     """poly(A) tail / TSD fingerprints; returns the poly(A) hit count."""
     fingerprint_fams = {b["name"] for b in buckets
                         if b.get("retro_fingerprint")}
-    # ---------------- fingerprints ----------------
     fa_idx = None
     if args.fasta:
         try:
@@ -1047,7 +1001,6 @@ def annotate_fingerprints(recs: List[Rec], args: argparse.Namespace,
 
 def annotate_genomic_context(recs: List[Rec], args: argparse.Namespace) -> None:
     """exon/intron/intergenic and TE-into-TE context fields."""
-    # ---------------- context annotation ----------------
     genes = exons = tes = []
     gidx = eidx = tidx = []
     if args.gtf:
@@ -1071,7 +1024,6 @@ def annotate_genomic_context(recs: List[Rec], args: argparse.Namespace) -> None:
 
 def mark_full_length(recs: List[Rec], args: argparse.Namespace) -> List[Rec]:
     """Flag full-length candidates and return them."""
-    # full-length L1 candidates
     fl_fam = args.full_length_family
     fl = [r for r in recs
           if r["family"] == fl_fam and r["svlen"] >= args.full_length_l1]
@@ -1173,8 +1125,6 @@ def diff_by_group(recs: List[Rec], cb: str, eb: str, key: str = "family",
     if out.empty:
         return out
     out["fdr"] = _bh_fdr(out["p_value"].tolist())
-    # focus rule (triage, not significance): 2x share, p < 0.05, and
-    # enough specific calls to trust the ratio
     out["focus"] = ((out["log2fc_exp_vs_ctrl"].abs() >= 1.0)
                     & (out["p_value"] < 0.05)
                     & (out["n_ctrl_specific"] + out["n_exp_specific"] >= 10))
@@ -1186,7 +1136,6 @@ def write_outputs(recs: List[Rec], args: argparse.Namespace,
                   ) -> Dict[str, Any]:
     """Write the tsv tables and mei_summary.json; return the summary."""
     fl_fam = args.full_length_family
-    # ---------------- outputs ----------------
     cols = ["chrom", "pos", "id", "svlen", "ins_len", "supp_vec", "group",
             "family", "te_repeat", "te_class", "te_family", "te_cov",
             "te_strand", "polyA", "tsd", "context", "gene", "in_te_region",
@@ -1199,8 +1148,6 @@ def write_outputs(recs: List[Rec], args: argparse.Namespace,
     fam_group.to_csv(os.path.join(args.outdir, "mei_family_by_group.tsv"),
                      sep="\t")
 
-    # context table: TE buckets only (exclude repeat-noise classes —
-    # simple/low-complexity/satellite — so the table stays interpretable)
     noise_classes = {"Simple_repeat", "Satellite", "Low_complexity"}
     te_bucket_names = [b["name"] for b in buckets
                        if not b.get("catch_all")
@@ -1234,7 +1181,6 @@ def write_outputs(recs: List[Rec], args: argparse.Namespace,
         "family_by_group": {fam: row.to_dict()
                             for fam, row in fam_group.iterrows()},
         "context_counts": df["context"].value_counts().to_dict(),
-        # exploratory ranking only — no biological replicates
         "diff_top": json.loads(diff_df.head(10).to_json(orient="records")),
         "diff_top_repeat": json.loads(
             diff_rep_df.head(10).to_json(orient="records")),
@@ -1264,8 +1210,6 @@ def run_figures(args: argparse.Namespace) -> None:
 
 def main() -> None:
     args = build_arg_parser().parse_args()
-    # image formats: None (flag absent) = default ["png"]; fail fast on
-    # anything outside the matplotlib savefig set (modules.md #9)
     args.formats = args.formats if args.formats else ["png"]
     bad = [f for f in args.formats if f not in VALID_FORMATS]
     if bad:
@@ -1277,7 +1221,6 @@ def main() -> None:
         + ", ".join(b["name"] for b in buckets))
     os.makedirs(args.outdir, exist_ok=True)
 
-    # whole-run cache: identical inputs + existing outputs -> skip
     run_stamp_path = os.path.join(args.outdir, "mei_run.stamp.json")
     run_stamp = json.dumps(_run_stamp(args, buckets), sort_keys=True)
     if (not args.force_rerun

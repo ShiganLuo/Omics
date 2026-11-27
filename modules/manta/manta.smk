@@ -6,8 +6,6 @@ indir = config.get("indir", "input")
 bam_suffix = config.get("bam_suffix", "")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
-# 参数精确到 rule:threads 按 rule 独立配置(Params.manta.<rule_name>.threads),
-# 无 module 级共享。
 
 rule manta_config_germline:
     """Configure Manta SV caller."""
@@ -38,7 +36,7 @@ rule manta_config_germline:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start manta config for sample {wildcards.sample_id} at {current_time}")
             script = receipt_script(f"manta_config_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/manta_config.sh")
             cmd = [
                 "configManta.py",
@@ -51,7 +49,7 @@ rule manta_config_germline:
                 f.write(' '.join(cmd) + '\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -88,7 +86,7 @@ rule manta_run_germline:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start manta run for sample {wildcards.sample_id} at {current_time}")
             script = receipt_script(f"manta_run_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/manta_run.sh")
             cmd = [
                 "python", str(input.script),
@@ -99,7 +97,7 @@ rule manta_run_germline:
                 f.write(' '.join(cmd) + '\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -137,7 +135,7 @@ rule manta_config_somatic:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start manta somatic config for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} at {current_time}")
             script = receipt_script(f"manta_config_somatic_{wildcards.experimental_sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"{wildcards.normal_sample_id}_vs_{wildcards.experimental_sample_id}/manta_config_somatic.sh")
             cmd = [
                 "configManta.py",
@@ -151,7 +149,7 @@ rule manta_config_somatic:
                 f.write(' '.join(cmd) + '\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -189,7 +187,7 @@ rule manta_run_somatic:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start manta somatic run for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} at {current_time}")
             script = receipt_script(f"manta_run_somatic_{wildcards.experimental_sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"{wildcards.normal_sample_id}_vs_{wildcards.experimental_sample_id}/manta_run_somatic.sh")
             cmd = [
                 "python", str(input.script),
@@ -200,7 +198,7 @@ rule manta_run_somatic:
                 f.write(' '.join(cmd) + '\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

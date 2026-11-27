@@ -142,7 +142,6 @@ def collect_sample(regions, paths: Dict[str, str], msp_min_len: int) -> List[dic
         fracs = []
         rlen = e - s
         for spans in fiber_sets[i].values():
-            # fast per-fiber union coverage via difference array
             diff = np.zeros(rlen + 1, dtype=np.int32)
             for s0, e0 in spans:
                 diff[s0 - s] += 1
@@ -172,7 +171,7 @@ def binned_metaprofile(regions, msp_path: str, n_bins: int, msp_min_len: int
     """Mean MSP-accessibility metaprofile per class (region normalized 0..1)."""
     anchors = [(c, s, e) for c, s, e, _ in regions]
     prof: Dict[str, List[np.ndarray]] = defaultdict(list)
-    drop = n_bins * 20  # skip absurdly long regions for the metaprofile
+    drop = n_bins * 20
 
     def on_msp(i, recs):
         c, s, e, cls = regions[i]
@@ -196,9 +195,6 @@ def binned_metaprofile(regions, msp_path: str, n_bins: int, msp_min_len: int
     return {k: np.vstack(v).mean(axis=0) for k, v in prof.items() if v}
 
 
-# --------------------------------------------------------------------------- #
-# summary + plots
-# --------------------------------------------------------------------------- #
 METRICS = ["msp_frac_pooled", "msp_frac_per_fiber_mean", "nuc_frac_pooled",
            "m6a_calls_per_kb_overlap", "mcpg_calls_per_kb_overlap"]
 

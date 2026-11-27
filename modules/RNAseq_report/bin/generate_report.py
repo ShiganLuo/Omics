@@ -13,7 +13,6 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-# ── Chinese font support for matplotlib ──────────────────────────────────
 for _font_name in ["WenQuanYi Micro Hei", "WenQuanYi Zen Hei", "Noto Sans CJK SC",
                    "SimHei", "Microsoft YaHei", "Arial Unicode MS"]:
     try:
@@ -24,7 +23,6 @@ for _font_name in ["WenQuanYi Micro Hei", "WenQuanYi Zen Hei", "Noto Sans CJK SC
     except Exception:
         continue
 
-# ── Import venn.py from src/common/plot/Python ───────────────────────────
 _VENN_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "src", "common", "plot", "Python")
 if os.path.isdir(_VENN_DIR) and _VENN_DIR not in sys.path:
     sys.path.insert(0, os.path.abspath(_VENN_DIR))
@@ -43,16 +41,9 @@ from PIL import Image as PILImage
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
-# ── 上游产出图 raster-first 变体解析(modules.md #9 formats 规范)──
-# 生产者按各自 Params.<producer>.formats 每格式写一个 `<base>.<fmt>`;报告
-# 消费这些图时按 raster-first(png → jpg → jpeg → tif → tiff,再按
-# VALID_FORMATS 余下顺序)找已存在的变体;都不存在时原样返回硬编码路径
-# (默认配置下行为与历史逐字节一致)。
 _PICK_EXTS = ("png", "jpg", "jpeg", "tif", "tiff",
               "pdf", "svg", "ps", "eps", "pgf", "raw", "rgba")
 _RASTER_EXTS = ("png", "jpg", "jpeg", "tif", "tiff")
@@ -223,7 +214,7 @@ class TempImageStore:
                 f"valid: {', '.join(VALID_FORMATS)}")
         self.image_formats = image_formats
         self.paths = []
-        self.manifest = []  # (name, filename) rows for manifest.tsv
+        self.manifest = []
         if self.img_dir:
             os.makedirs(self.img_dir, exist_ok=True)
 
@@ -237,8 +228,6 @@ class TempImageStore:
             if "png" in self.image_formats:
                 plt.close(fig)
                 return os.path.join(self.img_dir, f"{stem}.png")
-        # no img_dir, or png not among the requested formats: embedding keeps
-        # using a raster copy (temp fallback)
         fd, tmp_path = tempfile.mkstemp(prefix=f"{stem}_", suffix=".png")
         os.close(fd)
         fig.savefig(tmp_path, dpi=DPI, bbox_inches="tight")
@@ -426,7 +415,6 @@ def _add_picture(slide, path: str, left: float, top: float, max_w: float, max_h:
     if not path or not os.path.isfile(path):
         return None
     if os.path.splitext(path)[1].lower() not in _RASTER_EXTS:
-        # vector-only variant (svg/pdf/...) — 按缺图降级(不嵌入,不崩溃)
         return None
     img = PILImage.open(path)
     aspect = img.size[0] / max(img.size[1], 1)
@@ -553,7 +541,6 @@ def plot_de_counts(diff_summaries: list[dict], img_store: TempImageStore) -> str
     return img_store.save_fig(fig, "de_summary")
 
 
-# ── Venn / UpSet plot helpers ────────────────────────────────────────────
 
 def load_updown_sets(name_tsv_path: str) -> Dict[str, Set[str]]:
     """Load up/down gene name sets from a TEcount_*.name.tsv file.
@@ -609,20 +596,17 @@ def plot_venn(sets: List[Set[str]], labels: List[str], title: str,
     n = len(sets)
 
     if n <= 6 and venn_lib is not None:
-        # venn.py expects list[Iterable], returns labels dict + (fig, ax)
         labels_dict = venn_lib.get_labels(sets, fill=["number"])
         venn_func = getattr(venn_lib, "venn{}".format(n), None)
         if venn_func is None:
             return _plot_upset(sets, labels, title, img_store, stem)
-        # Close any existing figures to avoid venn.py's plt.figure(0) conflicts
         plt.close("all")
         fig, _ax = venn_func(labels_dict, names=labels, figsize=(8, 7), dpi=150)
         fig.suptitle(title, fontsize=14, weight="bold", y=0.98)
         path = img_store.save_fig(fig, stem)
-        plt.close("all")  # Clean up venn.py's global figure state
+        plt.close("all")
         return path
     else:
-        # 7+ sets or venn.py not available: UpSet-style bar chart
         return _plot_upset(sets, labels, title, img_store, stem)
 
 
@@ -664,7 +648,6 @@ def build_venn_slides(prs: "Presentation", diff_summaries: List[dict], lang: str
         _header(slide, "{}: {}".format(t("de_detail", lang), slide_title))
         _add_picture(slide, venn_img, 1.0, 0.95, 8.0, 3.8)
 
-        # Collect intersection (all contrasts) for Excel
         if len(sets) >= 2:
             shared = sets[0].copy()
             for s in sets[1:]:
@@ -923,14 +906,12 @@ def build_function_go_kegg_slide(prs: Presentation, item: dict, lang: str):
     _add_picture(slide, item["go_plot"], 0.45, 0.95, 4.35, 2.5)
     _add_picture(slide, item["kegg_plot"], 5.0, 0.95, 4.55, 2.5)
 
-    # GO top terms table
     go_rows = [[f"{t('go', lang)} {t('up', lang)}", t("count", lang), "p.adj"]]
     go_rows.extend(_enrichment_table_rows(item["go_up_df"], "p.adjust", top_n=2))
     go_rows.append([f"{t('go', lang)} {t('down', lang)}", "", ""])
     go_rows.extend(_enrichment_table_rows(item["go_down_df"], "p.adjust", top_n=2))
     _table(slide, 0.45, 3.55, 4.35, 0.22 * len(go_rows), go_rows, font_size=8)
 
-    # KEGG top terms table
     kegg_rows = [[f"{t('kegg', lang)} {t('up', lang)}", t("count", lang), "p.adj"]]
     kegg_rows.extend(_enrichment_table_rows(item["kegg_up_df"], "p.adjust", top_n=2))
     kegg_rows.append([f"{t('kegg', lang)} {t('down', lang)}", "", ""])
@@ -977,7 +958,6 @@ def build_gsva_slide(prs: Presentation, gsva_heatmap: str, gsva_scores_path: str
     slide.background.fill.fore_color.rgb = C_BG
     _header(slide, t("gsva", lang))
     _add_picture(slide, gsva_heatmap, 0.45, 0.95, 6.0, 3.8)
-    # Top gene sets by mean absolute score
     df = safe_read_tsv(gsva_scores_path)
     rows = [["Gene Set", "Mean |Score|"]]
     if not df.empty:
@@ -1103,7 +1083,6 @@ def write_file_inventory(output_path: str, analysis_dir: str, contrasts: List[st
 
     wb = openpyxl.Workbook()
 
-    # ── Sheet 1: Overview ─────────────────────────────────────
     ws = wb.active
     ws.title = "Overview"
     overview_rows = [
@@ -1204,13 +1183,11 @@ def write_file_inventory(output_path: str, analysis_dir: str, contrasts: List[st
                 ws_data.append([line.strip()])
         ws_data.column_dimensions["A"].width = 30
 
-    # ── TE chimeric results (no contrast) ─────────────────────
     te_base = os.path.join(analysis_dir, "transcripts", "TE_chimeric")
     _write_tsv_sheet("te_sample_summary", os.path.join(te_base, "TE_chimeric_sample_summary.tsv"))
     _write_tsv_sheet("te_group_summary", os.path.join(te_base, "TE_chimeric_group_summary.tsv"))
     _write_tsv_sheet("te_type_counts", os.path.join(te_base, "TE_chimeric_te_type_counts.tsv"))
 
-    # ── TEcount matrix ────────────────────────────────────────
     genome = os.path.basename(analysis_dir) if analysis_dir else ""
     tecount_path = os.path.join(analysis_dir, "counts", "TEtranscripts", f"{genome}_TEcount.tsv")
     tecount_name_path = os.path.join(analysis_dir, "counts", "TEtranscripts", f"{genome}_TEcount_name.tsv")
@@ -1219,24 +1196,20 @@ def write_file_inventory(output_path: str, analysis_dir: str, contrasts: List[st
     if os.path.isfile(tecount_name_path) and os.path.getsize(tecount_name_path) < 10 * 1024 * 1024:
         _write_tsv_sheet("tecount_name_matrix", tecount_name_path)
 
-    # ── featureCounts matrix ─────────────────────────────────
     fc_path = os.path.join(analysis_dir, "counts", "featureCounts", f"{genome}_featureCounts.tsv")
     if os.path.isfile(fc_path) and os.path.getsize(fc_path) < 10 * 1024 * 1024:
         _write_tsv_sheet("featurecounts_matrix", fc_path)
 
-    # ── GSVA scores ──────────────────────────────────────────
     gsva_scores_path = os.path.join(analysis_dir, "function", "gsva", "gsva_scores.tsv")
     if os.path.isfile(gsva_scores_path):
         _write_tsv_sheet("gsva_scores", gsva_scores_path)
 
-    # ── Fusion results (no contrast) ──────────────────────────
     fusion_base = os.path.join(analysis_dir, "fusion", "arriba_report")
     _write_tsv_sheet("fusion_summary", os.path.join(fusion_base, "per_sample_summary.tsv"))
     _write_tsv_sheet("recurrent_fusions", os.path.join(fusion_base, "recurrent_fusions.tsv"))
     _write_tsv_sheet("high_medium_fusions", os.path.join(fusion_base, "high_medium_confidence_fusions.tsv"))
     _write_tsv_sheet("inframe_fusions", os.path.join(fusion_base, "inframe_fusions.tsv"))
 
-    # ── Per-contrast DE results ───────────────────────────────
     for contrast in contrasts:
         de_dir = os.path.join(analysis_dir, "diff_expression", contrast)
         contrast_prefix = "{}.".format(contrast)
@@ -1248,7 +1221,6 @@ def write_file_inventory(output_path: str, analysis_dir: str, contrasts: List[st
             _write_tsv_sheet(sheet_name, os.path.join(de_dir, fname), contrast=contrast)
 
 
-    # ── Per-contrast function results ─────────────────────────
     for contrast in contrasts:
         func_dir = os.path.join(analysis_dir, "function", contrast)
         _write_csv_sheet("func_go_up", os.path.join(func_dir, "go_up.csv"), contrast=contrast)
@@ -1259,7 +1231,6 @@ def write_file_inventory(output_path: str, analysis_dir: str, contrasts: List[st
         _write_text_sheet("func_down_genes", os.path.join(func_dir, "down_genes.txt"), contrast=contrast)
         _write_csv_sheet("func_gsea_csv", os.path.join(func_dir, "GSEA", "TEcount_Gene_GSEA.csv"), contrast=contrast)
 
-    # ── Intersection sheets from Venn diagrams ────────────────
     if intersection_data:
         for sheet_name, feature_ids in intersection_data.items():
             ws_inter = wb.create_sheet(_unique_sheet_name(sheet_name))
@@ -1369,7 +1340,6 @@ def main():
             if os.path.isfile(item["gsea_plot"]):
                 build_function_gsea_slide(prs, item, args.lang)
 
-    # ── GSVA slide ────────────────────────────────────────────
     gsva_heatmap = _pick_variant(os.path.join(analysis_dir, "function", "gsva", "gsva_heatmap.png"))
     gsva_scores = os.path.join(analysis_dir, "function", "gsva", "gsva_scores.tsv")
     if os.path.isfile(gsva_heatmap):

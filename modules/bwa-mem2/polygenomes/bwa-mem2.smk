@@ -42,7 +42,7 @@ rule bwaMem2_index:
             sample_outdir = os.path.dirname(str(output.index[0]))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"bwaMem2_index_{wildcards.genome}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"bwaMem2_index.sh")
             cmd = [
                 str(params.bwa_mem2), "index",
@@ -54,7 +54,7 @@ rule bwaMem2_index:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -89,12 +89,10 @@ def get_alignment_input(wildcards):
     return: A list of input file paths for the STAR alignment step. 
     """
     logger.debug(f"[get_alignment_input] called with wildcards: {wildcards}")
-    # 构造可能的输入路径
     paired_r1 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_1.fq.gz"
     paired_r2 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_2.fq.gz"
     single = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}single.fq.gz"
     
-    # 检查文件实际存在情况
     if wildcards.sample_id in paired_samples:
         logger.debug(f"双端测序：{[paired_r1, paired_r2]}")
         logger.debug(f"双端测序：{[paired_r1, paired_r2]}")
@@ -143,7 +141,7 @@ rule bwaMem2_alignment:
             sample_outdir = os.path.dirname(str(output.bam))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"bwaMem2_alignment_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"bwaMem2_alignment.sh")
             cmd1 = [
                 str(params.bwa_mem2), "mem", 
@@ -172,7 +170,7 @@ rule bwaMem2_alignment:
                 f.write(" ".join(cmd2) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

@@ -115,7 +115,6 @@ def main(argv: list[str] | None = None) -> int:
             continue
         hits = shared_breakpoints(edge_set(circles[(s1, c1)]),
                                   edge_set(circles[(s2, c2)]), args.tolerance)
-        # distinct breakpoint positions (collapse mirror pairs of the same edge)
         positions = {h[0] for h in hits}
         if len(hits) >= args.min_shared:
             uf.union((s1, c1), (s2, c2))
@@ -135,12 +134,9 @@ def main(argv: list[str] | None = None) -> int:
         loci = {(frags[0][0], frags[0][1] // 1_000_000)
                 for frags in (circles[key] for key in members)}
         locus_str = ";".join(f"{ch}:{mb}Mb" for ch, mb in sorted(loci))
-        # breakpoint columns: positions shared by >= 2 members
         edge_sets = {f"{s}:circ{c}": edge_set(circles[(s, c)])
                      for s, c in members}
         all_edges = set().union(*edge_sets.values())
-        # cluster matched edges into distinct breakpoint positions (edges of the
-        # same locus within tolerance collapse to one breakpoint)
         bps = []
         used = set()
         for chrom, pos in sorted(all_edges):
@@ -155,7 +151,6 @@ def main(argv: list[str] | None = None) -> int:
                 spread = max(hits.values()) - min(hits.values())
                 canonical = min(hits.values())
                 bps.append((chrom, canonical, len(hits), spread, hits))
-                # mark every edge in the cluster as used
                 for (ch2, y) in all_edges:
                     if ch2 == chrom and abs(pos - y) <= args.tolerance:
                         used.add((ch2, y))
@@ -180,7 +175,6 @@ def main(argv: list[str] | None = None) -> int:
         w.writerows(rows)
     logger.info("Wrote %s", args.out)
 
-    # stdout: per-family detail with member lists
     for fam_i, members in enumerate(ordered, 1):
         label = ";".join(f"{s}:circ{c}" for s, c in sorted(members))
         print(f"family {fam_i}: {len(members)} circles, "

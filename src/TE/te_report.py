@@ -80,7 +80,6 @@ def main():
     lines.append(f"输入 GTF：{len(specs)} 个；层级链 `class_id -> family_id -> gene_id (subfamily)`。")
     lines.append("")
 
-    # ---- overview ----
     lines.append("## 1. 总览")
     lines.append("")
     lines.append("| 物种/组装 | 记录总数 | Class 数 | Family 数 | Subfamily 数 | TE 总长 (Mb) |")
@@ -89,7 +88,6 @@ def main():
     for label, _ in specs:
         lv = data[label]["levels"]
         total_n = lv["class"][max(lv["class"], key=lambda k: lv["class"][k][0])][0]
-        # sum over classes is safer: recompute from subfamily? classes are disjoint; sum class rows
         total_n = sum(v[0] for v in lv["class"].values())
         total_bp = sum(v[1] for v in lv["class"].values())
         for c in lv["class"]:
@@ -99,7 +97,6 @@ def main():
                      f"{len(lv['family'])} | {len(lv['subfamily'])} | {total_bp/1e6:.1f} |")
     lines.append("")
 
-    # ---- per-species class tables ----
     lines.append("## 2. 各物种 Class 水平构成")
     lines.append("")
     for label, _ in specs:
@@ -113,7 +110,6 @@ def main():
             lines.append(f"| {name} | {fmt_int(n)} | {bp/1e6:.2f} | {len(cf[name])} |")
         lines.append("")
 
-    # ---- cross-species class comparison ----
     lines.append("## 3. 跨物种 Class 拷贝数对比")
     lines.append("")
     header = ["Class"] + [lbl for lbl, _ in specs] + ["合计"]
@@ -132,7 +128,6 @@ def main():
         lines.append("| " + " | ".join(row) + " |")
     lines.append("")
 
-    # ---- per-species top families ----
     lines.append(f"## 4. 各物种主要 Family (Top {args.top_families})")
     lines.append("")
     for label, _ in specs:
@@ -147,7 +142,6 @@ def main():
             lines.append(f"| {name} | {f2c[name]} | {fmt_int(n)} | {bp/1e6:.2f} | {len(fs[name])} |")
         lines.append("")
 
-    # ---- per-species top subfamilies ----
     lines.append("## 5. 各物种主要 Subfamily (Top 15)")
     lines.append("")
     for label, _ in specs:

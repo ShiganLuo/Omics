@@ -7,14 +7,9 @@ indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 
-# comparisons: list of dicts, each with control_vcf, experiment_vcf, name
 comparisons = config.get("comparisons", [])
 comparison_names = [c["name"] for c in comparisons]
 
-# Global parameters
-# 图片格式(modules.md #9):键名 "formats"。参数精确到 rule:formats 按 rule
-# 独立配置(Params.<rule_name>.formats,无 module 级共享回退),每 rule 一个
-# parse 期变量(config 全量路径读取 + str 收成单元素 list)。
 _formats_sv_exp_specific = config.get("Params", {}).get("sv_exp_specific", {}).get("formats") or ["png"]
 if isinstance(_formats_sv_exp_specific, str):
     _formats_sv_exp_specific = [_formats_sv_exp_specific]
@@ -34,12 +29,8 @@ _formats_sv_oncoprint = config.get("Params", {}).get("sv_oncoprint", {}).get("fo
 if isinstance(_formats_sv_oncoprint, str):
     _formats_sv_oncoprint = [_formats_sv_oncoprint]
 
-# genes 同样 rule 级(Params.sv_gene_model.genes),仅 sv_gene_model 消费。
 _genes_sv_gene_model = config.get("Params", {}).get("sv_gene_model", {}).get("genes", [])
 
-# ========================
-# Per-comparison rules
-# ========================
 
 rule sv_exp_specific:
     """Run experiment-specific SV analysis: merge, extract, annotate, plot, TE enrichment."""
@@ -64,7 +55,7 @@ rule sv_exp_specific:
         species = config.get("Params", {}).get("exp_specific", {}).get("species", "mus_musculus"),
         assembly = config.get("Params", {}).get("exp_specific", {}).get("assembly", "GRCm39"),
         dist = config.get("Params", {}).get("exp_specific", {}).get("dist", 500),
-        formats = _formats_sv_exp_specific,   # ③ 转发
+        formats = _formats_sv_exp_specific,
     conda:
         "../sv.yaml"
     container:
@@ -96,7 +87,7 @@ rule sv_exp_specific:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -120,7 +111,7 @@ rule sv_exp_enrichment:
             attempt=attempt).get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/run_enrichment.py"),
-        formats = _formats_sv_exp_enrichment,   # ③ 转发
+        formats = _formats_sv_exp_enrichment,
     conda:
         "../sv.yaml"
     container:
@@ -148,7 +139,7 @@ rule sv_exp_enrichment:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -174,7 +165,7 @@ rule sv_exp_circos:
         genome = config.get("Params", {}).get("circos", {}).get("genome", "mm39"),
         cytoband = config.get("Params", {}).get("circos", {}).get("cytoband", ""),
         ins_bin_size = config.get("Params", {}).get("circos", {}).get("ins_bin_size", 100000),
-        formats = _formats_sv_exp_circos,   # ③ 转发
+        formats = _formats_sv_exp_circos,
     conda:
         "../sv.yaml"
     container:
@@ -205,7 +196,7 @@ rule sv_exp_circos:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -230,8 +221,8 @@ rule sv_gene_model:
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/utils/gene_model.py"),
         threads = config.get("Params", {}).get("gene_model", {}).get("threads", 1),
-        genes = _genes_sv_gene_model,   # ③ 转发
-        formats = _formats_sv_gene_model,   # ③ 转发
+        genes = _genes_sv_gene_model,
+        formats = _formats_sv_gene_model,
     conda:
         "../sv.yaml"
     container:
@@ -263,16 +254,13 @@ rule sv_gene_model:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             raise
 
-        # ========================
-        # Aggregation rules (cross-comparison)
-        # ========================
 
 rule sv_diff_analysis:
     """Run SV differential analysis across all comparison groups."""
@@ -290,7 +278,7 @@ rule sv_diff_analysis:
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/pbsv_sv_diff_analysis.py"),
         large_sv_threshold = config.get("Params", {}).get("diff_analysis", {}).get("large_sv_threshold", 10000),
-        formats = _formats_sv_diff_analysis,   # ③ 转发
+        formats = _formats_sv_diff_analysis,
     conda:
         "../sv.yaml"
     container:
@@ -320,7 +308,7 @@ rule sv_diff_analysis:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -345,7 +333,7 @@ rule sv_oncoprint:
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/run_OncoPrint.py"),
         deseq2_files = config.get("Params", {}).get("oncoprint", {}).get("deseq2_files", {}),
-        formats = _formats_sv_oncoprint,   # ③ 转发
+        formats = _formats_sv_oncoprint,
     conda:
         "../sv.yaml"
     container:
@@ -378,16 +366,13 @@ rule sv_oncoprint:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             raise
 
-        # ========================
-        # Result aggregation rule
-        # ========================
 
 rule sv_result:
     """Aggregate all SV analysis outputs as dependency endpoint."""

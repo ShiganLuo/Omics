@@ -65,7 +65,7 @@ rule gtfbuild_liftoff:
             sample_outdir = os.path.dirname(str(output.gff3))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"gtfbuild_liftoff_{genome_name}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"gtfbuild_liftoff_{genome_name}.sh")
             lift_cmd = [
                 "liftoff",
@@ -91,7 +91,7 @@ rule gtfbuild_liftoff:
                 f.write(f"mv {output.gtf}.tmp {output.gtf}\n")
                 f.write(f'echo "gtfbuild_liftoff for {genome_name} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -132,7 +132,7 @@ rule gtfbuild_qc:
             sample_outdir = os.path.dirname(str(output.qc))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"gtfbuild_qc_{genome_name}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"gtfbuild_qc_{genome_name}.sh")
             cmd = [
                 "python", params.script,
@@ -149,7 +149,7 @@ rule gtfbuild_qc:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "gtfbuild_qc for {genome_name} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -157,11 +157,6 @@ rule gtfbuild_qc:
             rule_logger.error(f"Error occurred during gtfbuild_qc for {genome_name}: {e}\n")
             raise RuntimeError(f"Error occurred during gtfbuild_qc for {genome_name}: {e}\n")
 
-# ---- Coordinate liftover of interval files (e.g. RepeatMasker BED) ----
-# Repeat annotations must be projected through whole-genome alignment
-# (synteny blocks), not per-sequence mapping: TE copies are near-identical
-# and would land on paralogous loci. paftools.js liftover carries intervals
-# inside long collinear alignments to their orthologous positions.
 
 BED_SRC = genome_cfg.get("source_bed") or ""
 BED_STEM = os.path.splitext(os.path.basename(BED_SRC))[0] if BED_SRC else "bed"
@@ -209,7 +204,7 @@ rule gtfbuild_wga:
             sample_outdir = os.path.dirname(str(output.paf))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"gtfbuild_wga_{genome_name}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"gtfbuild_wga_{genome_name}.sh")
             cmd = [
                 "minimap2",
@@ -225,7 +220,7 @@ rule gtfbuild_wga:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "gtfbuild_wga for {genome_name} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -268,7 +263,7 @@ rule gtfbuild_liftover_bed:
             sample_outdir = os.path.dirname(str(output.bed))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"gtfbuild_liftover_bed_{BED_STEM}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"gtfbuild_liftover_bed_{BED_STEM}.sh")
             cmd = [
                 "paftools.js", "liftover",
@@ -294,7 +289,7 @@ rule gtfbuild_liftover_bed:
                 )
                 f.write(f'echo "gtfbuild_liftover_bed for {BED_STEM} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

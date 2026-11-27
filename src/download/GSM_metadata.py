@@ -90,9 +90,6 @@ from src.common.util.LogUtil import setup_logger
 logger = logging.getLogger(__name__)
 
 
-# ============================================================
-# Entrez GEO Fetcher
-# ============================================================
 
 def _acc_to_entrez_db(acc: str) -> str:
     """Map GEO accession prefix to Entrez GDS query format."""
@@ -155,7 +152,6 @@ def fetch_entrez_geo_xml(
 
     for attempt in range(1, retries + 1):
         try:
-            # Search for the UID in GDS database
             handle = Entrez.esearch(db="gds", term=f"{acc}[Accession]")
             search_results = Entrez.read(handle)
             handle.close()
@@ -165,7 +161,6 @@ def fetch_entrez_geo_xml(
                 logging.warning(f"[ENTREZ] No GDS record found for {acc}")
                 return False
 
-            # Find the UID matching this accession (not just the first one)
             target_uid = None
             sum_handle = Entrez.esummary(db="gds", id=",".join(id_list))
             summaries = Entrez.read(sum_handle)
@@ -177,10 +172,8 @@ def fetch_entrez_geo_xml(
                     break
 
             if not target_uid:
-                # Fallback: use first UID
                 target_uid = id_list[0]
 
-            # Fetch full summary for the target UID
             sum_handle = Entrez.esummary(db="gds", id=target_uid)
             summaries = Entrez.read(sum_handle)
             sum_handle.close()
@@ -191,7 +184,6 @@ def fetch_entrez_geo_xml(
 
             summary = summaries[0]
 
-            # Build XML from esummary data
             gse_value = summary.get("GSE", "")
             if gse_value and not str(gse_value).startswith("GSE"):
                 gse_value = f"GSE{gse_value}"
@@ -209,7 +201,6 @@ def fetch_entrez_geo_xml(
                 f'  <n_samples>{_xml_escape(_extract_int(summary.get("n_samples", 0)))}</n_samples>',
             ]
 
-            # Enrich with elink: find related SRA and BioSample records
             for target_db in ["sra", "biosample"]:
                 try:
                     elink_handle = Entrez.elink(
@@ -224,7 +215,6 @@ def fetch_entrez_geo_xml(
                                 links = linksetdb.get("Link", [])
                                 link_ids = [lnk["Id"] for lnk in links]
                                 if link_ids:
-                                    # Fetch accessions for these UIDs
                                     esum_handle = Entrez.esummary(
                                         db=target_db, id=",".join(link_ids)
                                     )
@@ -278,19 +268,12 @@ def _xml_escape(text: str) -> str:
 def _extract_int(value) -> str:
     """Extract integer value from BioPython IntegerElement or plain int."""
     if hasattr(value, "attributes"):
-        # BioPython IntegerElement
         return str(int(value))
     return str(value)
 
 
-# ============================================================
-# GSM Resolver
-# ============================================================
 
 
-# ============================================================
-# Downloader (concurrent + retry + cache)
-# ============================================================
 _proxy = os.environ.get("all_proxy") or os.environ.get("http_proxy")
 proxies = {"http": _proxy, "https": _proxy} if _proxy else None
 def build_ncbi_url(acc: str) -> str:
@@ -375,14 +358,12 @@ def download_one(
     bool
         True if successfully downloaded or already exists; False on failure.
     """
-    # GEO accessions → Entrez (XML)
     if acc.startswith(("GSM", "GSE", "GPL")):
         return fetch_entrez_geo_xml(
             acc, outdir, retries=retries, force=force,
             email=email, api_key=api_key
         )
 
-    # SRA / BioSample → requests (HTML)
     out_html = os.path.join(outdir, f"{acc}.html")
 
     if os.path.exists(out_html) and not force:
@@ -469,9 +450,6 @@ def download_batch(
             pass
 
 
-# ============================================================
-# Extract Characteristics
-# ============================================================
 
 def extract_feature(html_path: str, item: str = "Characteristics") -> Dict[str, str]:
     """
@@ -546,11 +524,9 @@ def extract_gse_ids_from_xml(xml_path: str) -> List[str]:
         tree = ET.parse(xml_path)
         root = tree.getroot()
 
-        # Search all elements for GSE accessions
         for elem in root.iter():
             if elem.text and elem.text.strip().startswith("GSE"):
                 gse_ids.append(elem.text.strip())
-            # Also check attributes
             for attr_val in elem.attrib.values():
                 if attr_val.startswith("GSE"):
                     gse_ids.append(attr_val)
@@ -593,7 +569,6 @@ def extract_gse_ids(html_path: str) -> List[str]:
 
         header_text = tds[0].get_text(strip=True)
 
-        # Match rows like "Series (2)"
         if header_text.startswith("Series"):
             for a in tds[1].find_all("a"):
                 text = a.get_text(strip=True)
@@ -695,7 +670,7 @@ def extract_relations_txt(
             if text.startswith(prefix):
                 relation_ids.append(text)
 
-        break  # only one matching row exists
+        break
 
     return relation_ids
 
@@ -726,13 +701,11 @@ def extract_gsm_batch(html_dir: str, outfile: str | None = None, gsm_order: List
     """
     rows: list[dict] = []
 
-    # Find both XML (Entrez) and HTML (legacy) GSM files
     gsm_files = (
         glob.glob(os.path.join(html_dir, "GSM*.xml"))
         + glob.glob(os.path.join(html_dir, "GSM*.html"))
     )
 
-    # Deduplicate: prefer XML over HTML for the same GSM
     seen: set[str] = set()
     unique_files: list[str] = []
     for f in gsm_files:
@@ -746,26 +719,21 @@ def extract_gsm_batch(html_dir: str, outfile: str | None = None, gsm_order: List
 
         row: Dict[str, str] = {"GSM": gsm}
 
-        # Characteristics (only available from HTML or SOFT-format XML)
         if filepath.endswith(".html"):
             row.update(extract_feature(filepath, item="Characteristics"))
         elif filepath.endswith(".xml"):
-            # Extract metadata from Entrez GeoMeta XML
             row.update(_extract_geometa_fields(filepath))
 
-        # GSE
         gse_ids = extract_gse_ids(filepath)
         logging.info(f"{gsm} -> GSE IDs: {gse_ids}")
         if gse_ids:
             row["GSE"] = ",".join(gse_ids)
 
-        # SRA
         sra_ids = extract_relations_txt(filepath, item="SRA")
         logging.info(f"{gsm} -> SRA IDs: {sra_ids}")
         if sra_ids:
             row["SRA"] = ",".join(sra_ids)
 
-        # BioSample
         biosample_ids = extract_relations_txt(filepath, item="BioSample")
         logging.info(f"{gsm} -> BioSample IDs: {biosample_ids}")
         if biosample_ids:
@@ -775,16 +743,12 @@ def extract_gsm_batch(html_dir: str, outfile: str | None = None, gsm_order: List
 
     df = pd.DataFrame(rows)
 
-    # Reorder according to gsm_order if provided
     if gsm_order and "GSM" in df.columns:
-        # Create a mapping of GSM to its position in gsm_order
         order_map = {gsm: i for i, gsm in enumerate(gsm_order)}
-        # Add order column, use max order for GSM not in gsm_order
         max_order = len(gsm_order)
         df["_order"] = df["GSM"].map(order_map).fillna(max_order)
         df = df.sort_values("_order").drop(columns=["_order"]).reset_index(drop=True)
 
-    # Optional CSV export
     if outfile:
         sep = "\t" if outfile.endswith(".tsv") else ","
         df.to_csv(outfile, index=False, encoding="utf-8",sep=sep)
@@ -812,7 +776,6 @@ def _extract_geometa_fields(xml_path: str) -> Dict[str, str]:
         tree = ET.parse(xml_path)
         root = tree.getroot()
 
-        # Check if this is a GSM record
         entry_type_elem = root.find("EntryType")
         is_gsm = entry_type_elem is not None and entry_type_elem.text and entry_type_elem.text.strip() == "GSM"
 
@@ -821,7 +784,6 @@ def _extract_geometa_fields(xml_path: str) -> Dict[str, str]:
             if elem is not None and elem.text:
                 fields[tag] = elem.text.strip()
 
-        # Only include n_samples for non-GSM records (GSE, GPL, etc.)
         if not is_gsm:
             elem = root.find("n_samples")
             if elem is not None and elem.text:
@@ -862,23 +824,15 @@ def extract_sra_library_and_runs(html_path: str) -> Dict[str, object]:
         "runs": []
     }
 
-    # ============================================================
-    # 1. Organism (from summary line)
-    # ============================================================
     summary = soup.find("p", class_="details")
     if summary:
         bold = summary.find("b")
         if bold:
             text = bold.get_text(strip=True)
-            # Expected pattern:
-            # SRXxxxx: GSMxxxx: <title> ; Organism ; Strategy
             parts = [p.strip() for p in text.split(";")]
             if len(parts) >= 2:
                 result["Organism"] = parts[1]
 
-    # ============================================================
-    # 2. Library block (and Sample_id)
-    # ============================================================
     for div in soup.find_all("div", class_="expand showed sra-full-data"):
         if div.get_text(strip=True).startswith("Library"):
             for sub in div.find_all("div"):
@@ -889,7 +843,6 @@ def extract_sra_library_and_runs(html_path: str) -> Dict[str, object]:
                 key, value = map(str.strip, text.split(":", 1))
                 result["library"][key] = value
 
-                # GSM → Sample_id
                 if key == "Name" and value.startswith("GSM"):
                     result["Sample_id"] = value
             break
@@ -902,15 +855,12 @@ def extract_sra_library_and_runs(html_path: str) -> Dict[str, object]:
                     text = span.get_text(strip=True)
                     if text.startswith("GSM"):
                         result["Sample_id"] = text
-                break  # 只处理第一个 Experiment attributes div
+                break
     if not result["Sample_id"]:
         logging.error(f"{srx} - Sample_id (GSM) not found in Library block by both methods")
-    # ============================================================
-    # 3. Runs table (SRR → Data_id)
-    # ============================================================
     table = soup.find("table")
     if table:
-        rows = table.find_all("tr")[1:]  # skip header
+        rows = table.find_all("tr")[1:]
         for tr in rows:
             tds = tr.find_all("td")
             if len(tds) < 5:
@@ -950,7 +900,6 @@ def extract_sra_batch(
         library = parsed["library"]
         runs = parsed["runs"]
 
-        # No runs (rare, but possible)
         if not runs:
             row = {
                 "SRX": srx,
@@ -980,9 +929,6 @@ def extract_sra_batch(
 
     return df
 
-# ============================================================
-# CLI
-# ============================================================
 def main():
     parser = argparse.ArgumentParser(
         description="Concurrent GEO GSM downloader and extractor"
@@ -1034,12 +980,11 @@ def main():
     logger.info(f"Starting GSM metadata download and extraction")
     verify_ssl: bool | str = False if args.insecure else (args.ca_bundle or True)
     if args.insecure:
-        requests.packages.urllib3.disable_warnings()  # suppress InsecureRequestWarning
+        requests.packages.urllib3.disable_warnings()
         logger.warning("HTTPS certificate verification is disabled (--insecure)")
     elif args.ca_bundle:
         logger.info(f"Using custom CA bundle: {args.ca_bundle}")
 
-    # Entrez configuration
     entrez_email = args.entrez_email
     entrez_api_key = args.entrez_api_key
     if entrez_email:
@@ -1058,12 +1003,10 @@ def main():
     srx_ids = classified.get("sra", [])
     logger.info(f"Resolved: {len(gsm_ids)} GEO, {len(srx_ids)} SRA, {len(classified.get('biosample', []))} BioSample")
 
-    # Step 1: Download all pages (GEO via Entrez XML, SRA/BioSample via requests HTML)
     all_ids = gsm_ids + srx_ids + classified.get("biosample", [])
     download_batch(all_ids, str(html_dir), args.workers, args.retries, args.force, verify_ssl,
                    email=entrez_email, api_key=entrez_api_key)
 
-    # Step 2: Extract GSM metadata
     gsm_outfile = os.path.join(outdir, "gsm_metadata.csv")
     if args.phase in ("gsm", "all") and gsm_ids:
         gsm_meta = extract_gsm_batch(str(html_dir), str(gsm_outfile))
@@ -1072,10 +1015,8 @@ def main():
     else:
         gsm_meta = pd.DataFrame()
 
-    # Step 3: Extract SRA metadata
     sra_outfile = os.path.join(outdir, "sra_metadata.csv")
     if args.phase in ("sra", "all"):
-        # Collect SRX: from direct input + from GSM metadata
         all_srx = set(srx_ids)
         if "SRA" in gsm_meta.columns:
             all_srx.update(gsm_meta["SRA"].dropna().str.split(",").explode().tolist())

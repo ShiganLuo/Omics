@@ -35,16 +35,13 @@ def plot_gsea_from_csv(
     绘制 GSEA 显著通路累积 ES 曲线（多彩、平滑、底部图例），图例列数根据通路数量和图宽自动调整。
     """
 
-    # ===== 读取 CSV =====
     df = pd.read_csv(csv_path)
 
-    # 定位 FDR 列
     fdr_col_candidates = [c for c in df.columns if "fdr" in c.lower()]
     if not fdr_col_candidates:
         raise ValueError("CSV 中未找到 FDR 列(例如 'FDR q-val')")
     fdr_col = fdr_col_candidates[0]
 
-    # 只保留显著通路
     df_sig = df[df[fdr_col] < fdr_cutoff].copy()
     if df_sig.empty:
         print(f"没有显著通路 (FDR < {fdr_cutoff})，不绘图。")
@@ -54,20 +51,17 @@ def plot_gsea_from_csv(
     if top_n is not None:
         df_sig = df_sig.head(top_n)
 
-    # ===== 绘图设置 =====
     plt.figure(figsize=fig_size)
     ax = plt.gca()
     N = len(ranked_genes)
     ax.axhline(0, color="black", linewidth=1, linestyle="--", alpha=0.6)
 
-    # ===== 颜色循环 =====
     if color_map is None:
         color_map = {}
         colors_cycle = cycle(plt.get_cmap("tab20").colors)
     else:
         colors_cycle = None
 
-    # ===== 绘制每条通路 =====
     for _, row in df_sig.iterrows():
         term = str(row[label_col])
         nes = row["NES"]
@@ -80,14 +74,12 @@ def plot_gsea_from_csv(
         no = N - nh
         running_es = np.cumsum(hits / nh - (1 - hits) / no)
 
-        # 平滑
         win = min(len(running_es) - (1 - len(running_es) % 2), 101)
         if win >= 11:
             smooth_es = savgol_filter(running_es, window_length=win, polyorder=3)
         else:
             smooth_es = running_es
 
-        # 获取颜色
         if term not in color_map:
             color = next(colors_cycle)
             color_map[term] = color
@@ -96,20 +88,15 @@ def plot_gsea_from_csv(
 
         ax.plot(smooth_es, linewidth=2, color=color, label=f"{term} (NES={nes:.2f})")
 
-    # ===== 美化 =====
     ax.set_xlabel("Ranked Genes", fontsize=label_font)
     ax.set_ylabel("Enrichment Score (ES)", fontsize=label_font)
-    # ax.set_title(f"GSEA Significant Pathways (FDR < {fdr_cutoff})", fontsize=title_font)
     ax.grid(True, alpha=0.3)
 
-    # ===== 自动计算图例列数 =====
     n_terms = len(df_sig)
-    # 根据图形宽度、字体大小、通路数量自动估算列数
-    approx_char_per_col = 25  # 每列大约能放多少字符
+    approx_char_per_col = 25
     fig_width_inch = fig_size[0]
     legend_ncol = max(1, min(n_terms, int((fig_width_inch * 5) / approx_char_per_col)))
 
-    # 图例底部
     ax.legend(
         fontsize=label_font,
         loc="upper center",
@@ -118,7 +105,6 @@ def plot_gsea_from_csv(
         frameon=False
     )
 
-    # 自动调整 subplots bottom
     plt.subplots_adjust(left=0.08, right=0.98, top=0.88, bottom=max(0.2, -legend_bottom + 0.05))
     plt.savefig(out_png, dpi=300)
     plt.close()
@@ -133,7 +119,6 @@ if __name__ == "__main__":
         gmt_pathway= "/disk5/luosg/Totipotent20251031/data/geneset/GSI_mouse.gmt",
         outdir= "/disk5/luosg/Totipotent20251031/PRJNA663159/count/gsva"
     )
-    ################ gsea preprank
     infiles = {
         "ci8CLC": "/disk5/luosg/Totipotent20251031/Totipotent/result/ci8CLC/DESeq2/TEcount_Gene_name.tsv",
         "hTBLC": "/disk5/luosg/Totipotent20251031/Totipotent/result/hTBLC/DESeq2/TEcount_Gene_name.tsv",
@@ -146,16 +131,6 @@ if __name__ == "__main__":
         df = pd.read_csv(infile,sep="\t",index_col=0)
         geneRank = df["log2FoldChange"]
         outdir = Path(infile).parent.parent / "gsea"
-        # if cell in human_cell:
-        #     gsea_results = run_gsea(geneRank,
-        #                             "/disk5/luosg/Totipotent20251031/data/geneset/GSI_human.gmt",
-        #                             str(outdir))
-        # elif cell in mouse_cell:
-        #     gsea_results = run_gsea(geneRank,
-        #                 "/disk5/luosg/Totipotent20251031/data/geneset/GSI_mouse.gmt",
-        #                 str(outdir))
-        # else:
-        #     raise ValueError("not support cell")
         report = outdir / "gseapy.gene_set.prerank.report.csv"
         rnk = outdir / "prerank_data.rnk"
         df_gsea = pd.read_csv(str(report))
@@ -180,11 +155,5 @@ if __name__ == "__main__":
                             legend_bottom= -0.12)
         i += 1
    
-    ########## multiple curve plot
-    # df_gsea = pd.read_csv("/home/luosg/Data/genomeStability/Totipotent/result/gsea/gseapy.gene_set.prerank.report.csv")
-    # df_rnk = pd.read_csv("/home/luosg/Data/genomeStability/Totipotent/result/gsea/prerank_data.rnk",header=None,sep="\t")
-    # geneRnk = df_rnk[0].to_list()
-    # plot_gsea_from_csv("/home/luosg/Data/genomeStability/Totipotent/result/gsea/gseapy.gene_set.prerank.report.csv",
-    #                    geneRnk,"/home/luosg/Data/genomeStability/Totipotent/result/gsea/all.png",5)
 
     

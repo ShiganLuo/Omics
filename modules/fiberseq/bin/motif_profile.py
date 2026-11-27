@@ -58,8 +58,6 @@ from _fiberprofile_core import ChromBlockStream, IdMapper  # noqa: E402
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
@@ -131,12 +129,9 @@ def run(args: argparse.Namespace) -> int:
         )
 
     paths = {"m6a": str(args.m6a), "msp": str(args.msp), "nuc": str(args.nuc)}
-    # background parser per BED: gzip decompression overlaps with the scan
     rec_iters = {p: iter(ChromBlockStream(path)) for p, path in paths.items()}
     pending = {p: next(rec_iters[p], None) for p in paths}
     passed: Dict[str, set] = {p: set() for p in paths}
-    # ONE shared namespace for all three files: classification compares m6a
-    # fiber ids against msp/nuc fiber ids, so ids must be globally consistent
     mappers = {"all": IdMapper()}
     mapper_of = {"m6a": "all", "msp": "all", "nuc": "all"}
 
@@ -151,20 +146,17 @@ def run(args: argparse.Namespace) -> int:
     args.outdir.mkdir(parents=True, exist_ok=True)
     scores_path = args.outdir / f"{args.sample}.motif_footprint_scores.tsv"
     scores_tmp = Path(f"{scores_path}.tmp")
-    scores_tmp.unlink(missing_ok=True)  # clear stale leftovers from failed runs
+    scores_tmp.unlink(missing_ok=True)
     scores_fh = scores_tmp.open("w", encoding="utf-8")
     scores_fh.write("\t".join(
         ["chrom", "start", "end", "motif", "footprint_score", "mean_m6a_frac"]) + "\n")
 
     for chrom, idx_sites in by_chrom.items():
-        # window extent for this chromosome: only [0, size) is ever read
         size = 0
         for s, e, _n in idx_sites:
             we = ((s + e) // 2) + flank
             if we > size:
                 size = we
-        # per-fiber block collection; EVERY file gets a per-fiber union merge
-        # (legacy block_signal uniq_fibers=True) before building coverage
         file_parts = {"m6a": [], "msp": [], "nuc": []}
 
         n_rec = 0
@@ -172,7 +164,7 @@ def run(args: argparse.Namespace) -> int:
             item = pending[p]
             while item is not None and item[0] != chrom:
                 passed[p].add(item[0])
-                item = next(rec_iters[p], None)  # skip chromosomes without sites
+                item = next(rec_iters[p], None)
             pending[p] = item
             if chrom in passed[p]:
                 raise ValueError(
@@ -209,8 +201,6 @@ def run(args: argparse.Namespace) -> int:
             first = np.empty(n_blocks, dtype=bool)
             first[0] = True
             np.not_equal(fid_s[1:], fid_s[:-1], out=first[1:])
-            # segmented running max of block ends within each fiber: a
-            # per-fiber base offset makes the global cummax segment-safe
             base = fid_s * (int(en_s.max()) + 1)
             seg_max = np.maximum.accumulate(en_s + base) - base
             prev_max = np.empty(n_blocks, dtype=np.int64)
@@ -226,7 +216,6 @@ def run(args: argparse.Namespace) -> int:
                  - np.bincount(seg_ends, minlength=size + 1)).astype(np.int64)
             return d
 
-        # nuc+msp cross-file union for fiber coverage
         un_parts = file_parts["msp"] + file_parts["nuc"]
         cov_m6a = np.cumsum(merged_diff(file_parts["m6a"])[:size])
         cov_msp = np.cumsum(merged_diff(file_parts["msp"])[:size])
@@ -246,7 +235,7 @@ def run(args: argparse.Namespace) -> int:
                 w_msp = cov_msp[lo:hi]
                 w_nuc = cov_nuc[lo:hi]
                 w_un = cov_un[lo:hi]
-            else:  # window clipped at contig bounds: pad with zero coverage
+            else:
                 w_m6a = np.pad(cov_m6a[lo:hi], (pad_l, pad_r))
                 w_msp = np.pad(cov_msp[lo:hi], (pad_l, pad_r))
                 w_nuc = np.pad(cov_nuc[lo:hi], (pad_l, pad_r))

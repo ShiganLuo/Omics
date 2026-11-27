@@ -36,7 +36,6 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger("ecdna_repeat_utils")
 
-# key for merged-interval queries: 'any', ('fam', idx) or ('cls', idx)
 RmskKey = str | tuple[str, int]
 
 _ATTR_RE = {
@@ -84,7 +83,6 @@ class RmskIndex:
              self.classes, self.family_class) = self._parse_gtf()
             if cache_dir:
                 self._save_cache(cache_dir)
-        # merged-interval caches: key -> chrom -> (intervals, starts, ends)
         self._merged: dict[RmskKey, dict[str, tuple]] = {}
         self._built: set[str] = set()
         self._elem_starts: dict[str, list[int]] = {}
@@ -324,9 +322,9 @@ def revcomp(seq: str) -> str:
 @dataclass
 class Fragment:
     """One merged fragment row of ``reconstruct.ecDNA.filtered.bed``."""
-    row: int          # 1-based data-row index (= links node id)
+    row: int
     chrom: str
-    start: int        # 0-based half-open
+    start: int
     end: int
     circ_id: str
     fragment_id: str
@@ -467,7 +465,7 @@ def load_junctions(links: dict[str, str],
         rows = fragments[sample]
         n_junc = 0
         with open(path) as fh:
-            fh.readline()  # header
+            fh.readline()
             for line in fh:
                 if not line.strip() or line.startswith("#"):
                     continue

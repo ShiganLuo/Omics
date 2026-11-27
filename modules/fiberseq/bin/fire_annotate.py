@@ -146,7 +146,6 @@ def annotate(
                     cls, gene_sym = "intron", genes[bodies[gi].name]["symbol"]
                     break
         if not gene_sym:
-            # intergenic (or exon/intron without symbol): nearest gene by TSS
             nearest = (1 << 60, "")
             for gid, g in genes.items():
                 if g["chrom"] != p.chrom:

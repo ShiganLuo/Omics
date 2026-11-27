@@ -59,11 +59,9 @@ rule sawfish_discover:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start sawfish discover for sample {wildcards.sample_id} at {current_time}")
             script = receipt_script(f"sawfish_discover_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"discover/{wildcards.sample_id}/sawfish_discover.sh")
             sa = params.sa
-            # fast_cnv_mode 默认跟随 call_sv:不开 SV 鉴定时跑 CNV 快速模式
-            # (sawfish --fast-cnv-mode:只保留对 CNV 有用的大型断点证据)
             fast_cnv = sa.get("fast_cnv_mode")
             if fast_cnv is None:
                 fast_cnv = not (sa.get("call_sv") or False)
@@ -91,11 +89,10 @@ rule sawfish_discover:
                 f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
                 f.write(f"echo 'sawfish discover for {wildcards.sample_id} was completed successfully'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
-            # completion marker (discover/ 是工具目录,不作为 directory() 输出)
             with open(str(output.done), "w") as f:
                 f.write("ok\n")
         except Exception as e:
@@ -110,7 +107,6 @@ rule sawfish_joint_call:
         fasta = _require(fasta, "genome.fasta", "sawfish"),
         fai = [fai] if fai else []
     output:
-        # intermediate controlled by Params.sawfish.keep_intermediates (modules.md temp spec)
         vcf = maybe_temp(outdir + "/joint_call/genotyped.sv.vcf.gz", "sawfish")
     log:
         logdir + "/sawfish/sawfish_joint_call.log"
@@ -145,8 +141,6 @@ rule sawfish_joint_call:
                 "--output-dir", str(params.out_dir),
                 "--clobber",
             ]
-            # 样本目录取自实际 DAG 输入(每样本 discover 完成标记的父目录),
-            # 空样本拼出缺 --sample 的坏命令是静默错误,直接报错
             sample_dirs = [os.path.dirname(str(d)) for d in input.discover_done]
             if not sample_dirs:
                 raise RuntimeError(
@@ -166,7 +160,7 @@ rule sawfish_joint_call:
                 f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
                 f.write("echo 'sawfish joint-call was completed successfully'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -234,7 +228,7 @@ rule sawfish_cnv_filter:
                 f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
                 f.write("echo 'sawfish cnv_filter was completed successfully'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

@@ -58,7 +58,6 @@ def main():
     p.add_argument("--sample-id", default="", help="Sample ID to include in output")
     args = p.parse_args()
 
-    # Step 1: bedtools intersect -wa -wb
     cmd = [args.bedtools, "intersect", "-a", args.peak, "-b", args.te_gtf, "-wa", "-wb"]
     logger.info(f"Running: {' '.join(cmd)}")
     result = subprocess.run(cmd, capture_output=True, text=True)
@@ -66,8 +65,7 @@ def main():
         logger.error(f"bedtools intersect failed: {result.stderr}")
         sys.exit(1)
 
-    # Step 2: Parse peak info from narrowPeak
-    peak_info = {}  # peak_id -> (chrom, start, end)
+    peak_info = {}
     with open(args.peak) as f:
         for line in f:
             if line.startswith("#") or not line.strip():
@@ -76,10 +74,9 @@ def main():
             if len(fields) >= 4:
                 peak_info[fields[3]] = (fields[0], int(fields[1]), int(fields[2]))
 
-    # Step 3: Parse overlaps — group by peak
-    peak_te_intervals = defaultdict(list)  # peak_id -> [(te_start, te_end)]
-    peak_te_classes = defaultdict(set)     # peak_id -> {class1, class2, ...}
-    peak_te_subfamilies = defaultdict(set) # peak_id -> {subfamily1, ...}
+    peak_te_intervals = defaultdict(list)
+    peak_te_classes = defaultdict(set)
+    peak_te_subfamilies = defaultdict(set)
 
     for line in result.stdout.strip().split("\n"):
         if not line:
@@ -107,7 +104,6 @@ def main():
         peak_te_classes[peak_id].add(te_class)
         peak_te_subfamilies[peak_id].add(te_subfamily)
 
-    # Step 4: Calculate peak-centric metrics
     rows = []
     for peak_id, (pchrom, pstart, pend) in peak_info.items():
         peak_length = pend - pstart
@@ -115,10 +111,8 @@ def main():
         classes = sorted(peak_te_classes.get(peak_id, set()))
         subfamilies = sorted(peak_te_subfamilies.get(peak_id, set()))
 
-        # Merge TE intervals within this peak to compute covered bases
         intervals = peak_te_intervals.get(peak_id, [])
         if intervals:
-            # Clip intervals to peak boundaries
             clipped = [(max(s, pstart), min(e, pend)) for s, e in intervals if max(s, pstart) < min(e, pend)]
             merged = merge_intervals(clipped)
             covered = sum(e - s for s, e in merged)
@@ -142,7 +136,6 @@ def main():
             "te_coverage_frac": f"{coverage_frac:.6f}",
         })
 
-    # Step 5: Write output
     header = ["sample_id", "peak_id", "chrom", "start", "end", "peak_length",
               "te_count", "te_class_count", "te_classes",
               "te_subfamily_count", "te_subfamilies",

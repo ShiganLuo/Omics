@@ -10,21 +10,20 @@ TEsiteSta = function(df,outjpeg,top = 10,mainTitle="TE subfamily",outfile = ""){
     if ( outfile != "") {
         write.csv(df_count,outfile)
     }
-    df_count = df_count %>% head(top) # 统计 subfamily 数量，并保留 family 信息
-    # 绘制柱状图
+    df_count = df_count %>% head(top)
     p = ggplot(df_count, aes(x = reorder(subfamily, -n), y = n, fill = family)) +
     geom_bar(stat = "identity",width = 0.6) +  # 使用柱状图
     theme_minimal() +  
     labs(title = mainTitle, x = "Subfamily", y = "Number of loci", fill = "Family") +
        theme_minimal() +
     theme(
-        panel.border = element_blank(),  # 去除整个面板边框
+        panel.border = element_blank(),
         axis.line = element_line(colour = "black"),  # 重新添加坐标轴线条
-        panel.grid.major = element_blank(),  # 去除主要网格线
-        panel.grid.minor = element_blank(),  # 去除次要网格线
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
         axis.ticks = element_line(colour = "black"),  # 设置坐标轴刻度线颜色
         axis.text = element_text(colour = "black"),  # 设置坐标轴文本颜色
-        plot.title = element_text(hjust = 0.5),  # 标题居中
+        plot.title = element_text(hjust = 0.5),
         axis.title = element_text(colour = "black"),  # 设置坐标轴标题颜色
         axis.text.x = element_text(angle = 90, hjust = 1)
     )

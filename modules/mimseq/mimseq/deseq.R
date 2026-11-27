@@ -15,11 +15,6 @@ suppressMessages(library(grid))
 suppressMessages(library(dplyr))
 suppressMessages(library(circlize))
 
-# ---- multi-format figure output (repo formats sweep; minimal vendored hook) --
-# MIMSEQ_PLOT_FORMATS (comma-separated; default "pdf") selects the output
-# format(s) for every ggsave() figure. The default keeps upstream .pdf
-# filenames byte-identical. Figures drawn through pdf()/png() devices directly
-# (DE heatmaps, dispersion QC) are NOT affected and stay fixed-format.
 .plot_formats <- strsplit(Sys.getenv("MIMSEQ_PLOT_FORMATS", "pdf"), "[,;[:space:]]+")[[1]]
 .plot_formats <- .plot_formats[.plot_formats != ""]
 if (length(.plot_formats) == 0) .plot_formats <- "pdf"
@@ -57,7 +52,6 @@ lm_eqn <- function(linear_mod){
   as.character(as.expression(eq));                 
 }
 
-# Arguments
 args = commandArgs(trailingOnly = TRUE)
 outdir = args[1]
 sampleData = args[2]
@@ -70,13 +64,10 @@ if (mito_trnas == '') {
 }
 subdir = "DESeq2/"
 
-# Set output directory
 setwd(file.path(outdir))
 
 for (type in c("cyto", "mito")) {
 
-  # Import data from counts and sampleData
-  # Filter out mito/cyto counts depending on loop
   anticodon_countdata = read.table("Anticodon_counts_raw.txt", header=TRUE, row.names=1, check.names = FALSE)
   anticodon_countdata$size = NULL
   isodecoder_countdata = read.table("Isodecoder_counts_raw.txt", header=TRUE, row.names=1, check.names = FALSE)
@@ -105,7 +96,6 @@ for (type in c("cyto", "mito")) {
   isodecoder_countdata = isodecoder_countdata[, order(colnames(isodecoder_countdata))]
   coldata = coldata[order(rownames(coldata)), , drop = FALSE]
 
-  # Convert to matrix
   anticodon_countdata = as.matrix(anticodon_countdata)
   isodecoder_countdata = as.matrix(isodecoder_countdata)
 
@@ -114,8 +104,6 @@ for (type in c("cyto", "mito")) {
   isoacceptorInfo = isoacceptorInfo[ , 'size', drop=F]
   isoacceptorInfo$rn = rownames(isoacceptorInfo)
 
-  # cluster_id == 1 means that mim-seq clusters are already representative of isodecoders, therefore get isodecoder info directly from custerInfo
-  # cluster_id == '' means clustering is disabled
   if (cluster_id == 1){
     isodecoderFile = list.files(path="./", pattern = "clusterInfo.txt", full.names = T)
     isodecoderInfo = read.table(isodecoderFile[1], header = T)
@@ -135,7 +123,6 @@ for (type in c("cyto", "mito")) {
     print("Too few samples to continue with DESeq analysis! Use raw count data in counts/ folder.")
   } else{
     
-    # Remove .bam or .sam and outdir from column names
     colnames(anticodon_countdata) = gsub("\\.[sb]am$", "", colnames(anticodon_countdata))
     colnames(isodecoder_countdata) = gsub("\\.[sb]am$", "", colnames(isodecoder_countdata))
     rownames(coldata) = gsub("\\.[sb]am$", "", rownames(coldata))
@@ -144,11 +131,9 @@ for (type in c("cyto", "mito")) {
     rownames(coldata) = substr(rownames(coldata),nchar(outdir)+1,nchar(rownames(coldata)))
     colnames(coldata) = "condition"
     
-    # Make subdirectories
     dir.create(file.path(subdir_isodecoder), showWarnings = FALSE, recursive = TRUE)
     dir.create(file.path(subdir_anticodon), showWarnings = FALSE, recursive = TRUE)
     
-    # Instantiate the DESeqDataSet. See ?DESeqDataSetFromMatrix
     dds_anticodon = DESeqDataSetFromMatrix(countData = anticodon_countdata, colData = coldata, design = ~1)
     dds_isodecoder = DESeqDataSetFromMatrix(countData = isodecoder_countdata, colData = coldata, design = ~1)
     dds_anticodon = estimateSizeFactors(dds_anticodon)
@@ -158,20 +143,16 @@ for (type in c("cyto", "mito")) {
     isodecoder_counts = data.frame(row.names = rownames(isodecoder_countdata))
     
     single_reps = FALSE
-    # Remove conditions with single samples so DE analysis is not performed
     for (con in unique(coldata$condition)) {
       
       num = nrow(subset(coldata, condition == con))
       if (num == 1) {
         single_reps = TRUE
         a = rownames(coldata[coldata$condition == con, ,drop = FALSE])
-        # build data frames of normalized counts for single replicte conditions
         anticodon_counts$a = counts(dds_anticodon, normalized = TRUE)[,a]
         isodecoder_counts$a = counts(dds_isodecoder, normalized = TRUE)[,a]
-        # rename columns
         names(anticodon_counts)[names(anticodon_counts) == 'a'] = a
         names(isodecoder_counts)[names(isodecoder_counts) == 'a'] = a
-        # remove these samples from the countdata
         isodecoder_countdata = isodecoder_countdata[,!colnames(isodecoder_countdata) == a, drop = FALSE]
         anticodon_countdata = anticodon_countdata[,!colnames(anticodon_countdata) == a, drop = FALSE]
         coldata = coldata[!rownames(coldata) == a, , drop = FALSE]
@@ -180,7 +161,6 @@ for (type in c("cyto", "mito")) {
     }
     
     if (single_reps == TRUE) {
-      # Merge normalized count data with gene copy number info
       anticodon_counts$rn = rownames(anticodon_counts)
       isodecoder_counts$rn = rownames(isodecoder_counts)
       
@@ -202,13 +182,10 @@ for (type in c("cyto", "mito")) {
       print("DESeq2 analysis not run as there are no sample replicates!") 
     } else {
       
-      # Analysis with DESeq2 ----------------------------------------------------
       
-      # If only one condition, do not perform DE, but only generate normalised counts table
       if (length(unique(coldata$condition)) == 1) {
         print("Only one condition with replicates! Producing normalized counts only.")
         
-        # reintialize dds in case samples were removed above
         dds_anticodon = DESeqDataSetFromMatrix(countData = anticodon_countdata, colData = coldata, design = ~1)
         dds_isodecoder = DESeqDataSetFromMatrix(countData = isodecoder_countdata, colData = coldata, design = ~1)
         dds_anticodon = estimateSizeFactors(dds_anticodon)
@@ -237,17 +214,14 @@ for (type in c("cyto", "mito")) {
         dds_anticodon = DESeqDataSetFromMatrix(countData=anticodon_countdata, colData=coldata, design=~condition)
         dds_isodecoder = DESeqDataSetFromMatrix(countData=isodecoder_countdata, colData=coldata, design=~condition)
         
-        # Run the DESeq pipeline
         dds_anticodon = DESeq(dds_anticodon)
         dds_isodecoder = DESeq(dds_isodecoder)
         
-        # Normalized counts
         count_df_anticodon = as.data.frame(counts(dds_anticodon, normalized=TRUE))
         count_df_isodecoder = as.data.frame(counts(dds_isodecoder, normalized=TRUE))
         count_df_anticodon$rn = rownames(count_df_anticodon)
         count_df_isodecoder$rn = rownames(count_df_isodecoder)
         
-        # count tables with mean per condition for dot plots below
         baseMeanPerLvl_anticodon = as.data.frame(sapply(levels(dds_anticodon$condition), function(lvl) rowMeans(counts(dds_anticodon,normalized=TRUE)[,dds_anticodon$condition == lvl] )))
         baseMeanPerLvl_isodecoder = as.data.frame(sapply(levels(dds_isodecoder$condition), function(lvl) rowMeans(counts(dds_isodecoder,normalized=TRUE)[,dds_isodecoder$condition == lvl] )))
         
@@ -259,7 +233,6 @@ for (type in c("cyto", "mito")) {
         plotDispEsts(dds_isodecoder, main="Dispersion plot")
         dev.off()
         
-        # Variance stabilizing transformation for clustering/heatmaps, etc
         
         vsd_anticodon = varianceStabilizingTransformation(dds_anticodon, blind=FALSE)
         write.csv(assay(vsd_anticodon), file = paste(subdir_anticodon, "vst-transformedCounts.csv", sep = "/"))
@@ -287,7 +260,6 @@ for (type in c("cyto", "mito")) {
                 isodecoder_distance_cols=sampleDists_isodecoder,
                 col=colors, filename=paste(subdir_isodecoder,"qc-sampledists.png",sep="/"))
         
-        # Principal components analysis
         
         pcaData_anticodon <- plotPCA(vsd_anticodon, intgroup="condition", returnData=TRUE)
         percentVar <- round(100 * attr(pcaData_anticodon, "percentVar"))
@@ -309,26 +281,20 @@ for (type in c("cyto", "mito")) {
           theme_bw()
         ggsave(paste(subdir_isodecoder, "qc-pca.pdf", sep="/"), height = 7, width = 8)
         
-        # Get combinations of coditions for various DE contrasts
         ordered_levels = levels(lastlevel(unique(dds_anticodon$condition), control_cond))
         combinations = combn(ordered_levels, 2, simplify = FALSE)
         
-        # initialise lists for DE info from all contrasts vs control, for DE heatmaps
         DEcounts_list_isodecoder = list()
         DEcounts_list_anticodon = list()
-        # For each contrast...
         for (i in seq_len(length(combinations))) {
-          # Get differential expression results
           res_anticodon = results(dds_anticodon, contrast=c("condition",as.vector(combinations[[i]])))
           res_isodecoder = results(dds_isodecoder, contrast=c("condition",as.vector(combinations[[i]])))
           
-          ## Order by adjusted p-value
           res_anticodon = res_anticodon[order(res_anticodon$padj), ]
           res_isodecoder = res_isodecoder[order(res_isodecoder$padj), ]
           res_anticodon$rn = rownames(res_anticodon)
           res_isodecoder$rn = rownames(res_isodecoder)
           
-          ## Merge with normalized count data
           resdata_anticodon = join_all(list(as.data.frame(res_anticodon), count_df_anticodon, isoacceptorInfo), by="rn", type = 'left')
           resdata_isodecoder = join_all(list(as.data.frame(res_isodecoder), count_df_isodecoder, isodecoderInfo), by="rn", type = 'left')
           names(resdata_anticodon)[7] = "Gene"
@@ -338,14 +304,11 @@ for (type in c("cyto", "mito")) {
           col_idx = grep("Gene", names(resdata_isodecoder))
           resdata_isodecoder = resdata_isodecoder[, c(col_idx, (seq_len(ncol(resdata_isodecoder)))[-col_idx])]
           
-          # Count plots
-          # add significance to baseMean matrices for current contrast
           baseMeanPerLvl_anticodon$sig = res_anticodon[rownames(baseMeanPerLvl_anticodon),'padj'] <= p_adj
-          baseMeanPerLvl_anticodon$sig = !is.na(baseMeanPerLvl_anticodon$sig) & baseMeanPerLvl_anticodon$sig # deal with NAs turning them into FALSE
+          baseMeanPerLvl_anticodon$sig = !is.na(baseMeanPerLvl_anticodon$sig) & baseMeanPerLvl_anticodon$sig
           baseMeanPerLvl_isodecoder$sig = res_isodecoder[rownames(baseMeanPerLvl_isodecoder),'padj'] <= p_adj
-          baseMeanPerLvl_isodecoder$sig = !is.na(baseMeanPerLvl_isodecoder$sig) & baseMeanPerLvl_isodecoder$sig # deal with NAs turning them into FALSE
+          baseMeanPerLvl_isodecoder$sig = !is.na(baseMeanPerLvl_isodecoder$sig) & baseMeanPerLvl_isodecoder$sig
           
-          # add direction of DE to baseMean
           baseMeanPerLvl_anticodon$direction = sign(res_anticodon[rownames(baseMeanPerLvl_anticodon), 'log2FoldChange'])
           baseMeanPerLvl_anticodon[is.na(baseMeanPerLvl_anticodon$direction),'direction'] = 0
           baseMeanPerLvl_isodecoder$direction = sign(res_isodecoder[rownames(baseMeanPerLvl_isodecoder), 'log2FoldChange'])
@@ -361,7 +324,6 @@ for (type in c("cyto", "mito")) {
           anticodon_cor = format(cor(baseMeanPerLvl_anticodon[,combinations[[i]][1]], baseMeanPerLvl_anticodon[,combinations[[i]][2]]), digits = 2)
           isodecoder_cor = format(cor(baseMeanPerLvl_isodecoder[,combinations[[i]][1]], baseMeanPerLvl_isodecoder[,combinations[[i]][2]]), digits = 2)
           
-          # Convert x and y variables into symbols  to handle str and numeric variable names
           x = sym(combinations[[i]][2])
           y = sym(combinations[[i]][1])
           anticodon_data = subset(baseMeanPerLvl_anticodon, select = c(combinations[[i]], "sig", "comb"))
@@ -370,7 +332,6 @@ for (type in c("cyto", "mito")) {
           anticodon_dot = ggplot(anticodon_data, aes_string(x, y)) +
             geom_point(aes(color = comb, shape = comb, size = sig)) +
             scale_x_log10() + scale_y_log10() + 
-            #geom_smooth(method = 'lm', se = TRUE, alpha = 0.5, color = '#3182bd', fill = 'grey') +
             geom_abline(intercept = 0, slope = 1, linetype = 'dashed', color = '#3182bd', alpha = 0.8) + 
             scale_color_manual(paste('Differential expression\n(adj-p <=',p_adj, ')'), labels = c("None", "Down", "Up"), values = c("FALSE"="darkgrey", "TRUE-1"="#9970ab", "TRUE1"="#55ae61")) + 
             scale_shape_manual(paste('Differential expression\n(adj-p <=',p_adj, ')'), labels = c("None", "Down", "Up"), values = c("FALSE"=19, "TRUE-1"=17, "TRUE1"=17)) + 
@@ -381,7 +342,6 @@ for (type in c("cyto", "mito")) {
           isodecoder_dot = ggplot(isodecoder_data, aes_string(x, y)) +
             geom_point(aes(color = comb, shape = comb, size = sig)) +
             scale_x_log10() + scale_y_log10() + 
-            #geom_smooth(method = 'lm', se = TRUE, alpha = 0.5, color = '#3182bd', fill = 'grey') +
             geom_abline(intercept = 0, slope = 1, linetype = 'dashed', color = '#3182bd', alpha = 0.8) + 
             scale_color_manual(paste('Differential expression\n(adj-p <=',p_adj, ')'), labels = c("None", "Down", "Up"), values = c("FALSE"="darkgrey", "TRUE-1"="#9970ab", "TRUE1"="#55ae61")) + 
             scale_shape_manual(paste('Differential expression\n(adj-p <=',p_adj, ')'), labels = c("None", "Down", "Up"), values = c("FALSE"=19, "TRUE-1"=17, "TRUE1"=17)) + 
@@ -392,11 +352,9 @@ for (type in c("cyto", "mito")) {
           ggsave(paste(subdir_anticodon, paste(paste(combinations[[i]], collapse="vs"), "diffexpr-countplot.pdf", sep="_"), sep="/"), anticodon_dot, height = 5, width = 8)
           ggsave(paste(subdir_isodecoder, paste(paste(combinations[[i]], collapse="vs"), "diffexpr-countplot.pdf", sep="_"), sep="/"), isodecoder_dot, height = 5, width = 8)
           
-          ## Write results
           write.csv(resdata_anticodon, file=paste(subdir_anticodon, paste(paste(combinations[[i]], collapse="vs"), "diffexpr-results.csv", sep="_"), sep="/"))
           write.csv(resdata_isodecoder, file=paste(subdir_isodecoder, paste(paste(combinations[[i]], collapse="vs"), "diffexpr-results.csv", sep="_"), sep="/"))
           
-          # Build DE tables for heatmaps only if the current contrast is to the control condition
           if (control_cond %in% combinations[[i]]) {
             temp_lfc_isodecoder = as.data.frame(res_isodecoder[,c("log2FoldChange","padj")])
             temp_lfc_isodecoder = subset(temp_lfc_isodecoder, padj <= p_adj)
@@ -414,7 +372,6 @@ for (type in c("cyto", "mito")) {
           }
         }
         
-        ## Write normalized counts to /counts dir
         count_df_isodecoder_out = left_join(count_df_isodecoder, isodecoderInfo, by="rn")
         count_df_anticodon_out = left_join(count_df_anticodon, isoacceptorInfo, by="rn")
         names(count_df_anticodon_out)[names(count_df_anticodon_out) == "rn"] = "Anticodon"
@@ -427,7 +384,6 @@ for (type in c("cyto", "mito")) {
         write.table(count_df_anticodon_out, file = paste0(type, "_Anticodon_counts_DESEqNormalized.csv"), sep = "\t", quote = FALSE, row.names = FALSE)
         print("DESeq2 normalized counts saved to counts/*_normalized.txt")
         
-        # Build combined filtered tables for DE heatmaps and scale counts
         comb_isodecoder = DEcounts_list_isodecoder %>% Reduce(function(dtf1,dtf2) full_join(dtf1,dtf2,by="isodecoder"), .)
         basemean_isodecoder = as.data.frame(res_isodecoder) %>% dplyr::select(baseMean) %>% tibble::rownames_to_column(var = "isodecoder")
         normcounts_isodecoder = subset(count_df_isodecoder_out, select = -c(size))
@@ -452,11 +408,8 @@ for (type in c("cyto", "mito")) {
         scaled_counts_anticodon[is.na(scaled_counts_anticodon)] = 0
         rownames(scaled_counts_anticodon) = comb_anticodon$Anticodon
         
-        # Heatmaps
-        # note that all tables and plots only built if DE tables are not empty
         col_fun = colorRamp2(c(-3, 0, 3), c("#762a83", "#f7f7f7", "#1b7837"))
         
-        # Annotation for baseMean counts
         if (nrow(comb_isodecoder) != 0) {
           anno_type = ifelse(nrow(comb_isodecoder) > 1, anno_lines, anno_barplot)
           baseMeanAnno_iso = rowAnnotation(base_mean = anno_type(comb_isodecoder$baseMean,
@@ -528,7 +481,6 @@ for (type in c("cyto", "mito")) {
           }
         }
         
-        # calculate plot width based on sample numbers
         plot_width = (length(ordered_levels)*0.8 + 4) + (length(ordered_levels)-1)*1.3 + 0.8
         plot_width = plot_width/2.54
         plot_width = max(plot_width, 10)

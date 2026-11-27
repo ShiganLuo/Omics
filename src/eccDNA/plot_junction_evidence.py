@@ -30,10 +30,6 @@ logger = logging.getLogger("plot_junction_evidence")
 
 PlotFormat = Literal["png", "pdf", "svg"]
 
-# ---------------------------------------------------------------------------
-# Data (from junction_results/*.se.tsv and the soft-clip seam scan)
-# ---------------------------------------------------------------------------
-# (sample, rep): {circ_id: (nonsplice, backsplice, internal)}
 JUNCTIONS = {
     ("DMSO_P06", 1): {"33": (2, 0, 11665), "105": (0, 0, 22723), "104": (0, 0, 28),
                        "24": (0, 0, 14), "47": (0, 0, 33012), "66": (0, 0, 6), "9": (0, 0, 2091)},
@@ -52,7 +48,6 @@ JUNCTIONS = {
     ("PlaB_P20", 2): {"31": (5, 0, 23382), "18": (0, 0, 144), "43": (0, 0, 30614),
                        "58": (0, 0, 28), "81": (0, 0, 715), "82": (0, 0, 15037), "9": (0, 0, 2419)},
 }
-# Ring-seam (linearization-point) soft-clip verified reads, per (sample, rep):
 SEAM = {
     ("DMSO_P06", 1): {"105": 1},
     ("DMSO_P06", 2): {"33": 4, "105": 1},
@@ -63,8 +58,6 @@ SEAM = {
     ("PlaB_P20", 1): {"31": 1},
     ("PlaB_P20", 2): {"31": 1},
 }
-# Junction opportunities per ring: single-fragment = 1 (seam), 2-frag = 2 (1 fj + seam),
-# 3-frag = 3 (2 fj + seam). Fragment-junction threshold must be judged per opportunity.
 N_JUNCTIONS = {
     "DMSO_P06": {"33": 2, "105": 1, "104": 1, "24": 1, "47": 1, "66": 1, "9": 1},
     "DMSO_P20": {"82": 1, "22": 2, "32": 3, "83": 3, "16": 1, "81": 1, "55": 1},
@@ -72,7 +65,6 @@ N_JUNCTIONS = {
     "PlaB_P20": {"31": 3, "43": 1, "18": 1, "58": 1, "81": 1, "82": 1, "9": 1},
 }
 SAMPLES = ["DMSO_P06", "DMSO_P20", "PlaB_P06", "PlaB_P20"]
-# The chr4 homologous ring in each sample (circ id differs per decoil run)
 HOMOLOG = {"DMSO_P06": "33", "DMSO_P20": "22", "PlaB_P06": "35", "PlaB_P20": "31"}
 THRESHOLD = 3
 
@@ -104,8 +96,8 @@ def plot_panel_a(ax: plt.Axes, agg: dict) -> None:
     cats = [("seam", "#b2182b", "junction_spanning_nonsplice\n(ring seam, decisive)"),
             ("fj", "#35618f", "junction_spanning_nonsplice\n(fragment junction)"),
             ("bs", "#c9a227", "junction_spanning_backsplice\n(circRNA-suspect control)")]
-    group_half = 0.38          # half-width of one sample's group
-    bar_w = group_half / 3     # 3 bars per rep-half
+    group_half = 0.38
+    bar_w = group_half / 3
     for gi, sample in enumerate(SAMPLES):
         for rep in (1, 2):
             sign = -1 if rep == 1 else 1
@@ -117,13 +109,11 @@ def plot_panel_a(ax: plt.Axes, agg: dict) -> None:
                        edgecolor="white", lw=0.4, zorder=2)
                 if v:
                     ax.text(x, v + 0.12, str(v), ha="center", fontsize=6.5, zorder=4)
-    # threshold line + label at far left, clear of bars (max bar there is small)
     ax.axhline(THRESHOLD, color="#555555", lw=0.9, ls="--", alpha=0.8, zorder=1)
     ax.annotate(f"expression threshold = {THRESHOLD} seam reads",
                 xy=(len(SAMPLES) - 0.45, THRESHOLD), xytext=(6, 0),
                 textcoords="offset points", fontsize=6.5, color="#555555",
                 ha="left", va="center", annotation_clip=False)
-    # aligned multi-row tick labels: all centered exactly at gi
     for gi, sample in enumerate(SAMPLES):
         ax.text(gi - group_half / 2, -0.35, "rep1", ha="center", va="top",
                 fontsize=6, color="#999999")
@@ -149,7 +139,7 @@ def plot_panel_a(ax: plt.Axes, agg: dict) -> None:
 def plot_panel_b(ax: plt.Axes, agg: dict) -> None:
     """Seam nonsplice (the decisive count) as the headline panel."""
     bar_w = 0.30
-    gap = 0.06                 # explicit gap between rep1 and rep2 bars
+    gap = 0.06
     for gi, sample in enumerate(SAMPLES):
         for rep in (1, 2):
             n = agg[(sample, rep)]["seam"]

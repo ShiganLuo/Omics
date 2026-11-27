@@ -9,19 +9,11 @@ samples = config.get("samples", [])
 mzML_dir = config.get("mzML_dir", "data/mzml")
 decoy_dir = config.get("decoy_dir", "data/decoy_database")
 
-# Get parameters
-# 参数精确到 rule(2026-11 规范):config 全量路径字面链,无 module 级共享回退:
-#   Params.search_engine.<rule_name>.engine            # 引擎选择,每 rule 独立键
-#   Params.search_engine.<engine组>.<rule_name>.<key>  # 各引擎参数组(单消费,挂 rule 名下)
 
-# engine(Params.search_engine.<rule_name>.engine):原 module 级共享键
-# Params.search_engine.engine 被 comet/msgf/sage 3 rules 共享 → 每 rule 独立键,
-# 每 rule 一个 parse 期变量(默认即该 rule 的引擎)。
 _engine_comet = config.get("Params", {}).get("search_engine", {}).get("search_engine_comet", {}).get("engine", "comet")
 _engine_msgf = config.get("Params", {}).get("search_engine", {}).get("search_engine_msgf", {}).get("engine", "msgf")
 _engine_sage = config.get("Params", {}).get("search_engine", {}).get("search_engine_sage", {}).get("engine", "sage")
 
-# Get decoy database
 decoy_fasta = config.get("genome", {}).get("decoy_fasta")
 
 def get_input_for_search_engine(wildcards):
@@ -34,17 +26,6 @@ def get_input_for_search_engine(wildcards):
     return in_dict
         
 
-# Modification defaults follow the sample chemistry implied by the
-# quantification method: labelled samples need the label as modification,
-# label-free (lfq/dia) samples only need the standard tryptic set. Explicit
-# config values always win.
-#
-# CAUTION (verified against real TMT16 data + pepXML ground truth): CometAdapter
-# SILENTLY IGNORES isobaric label mods configured as FIXED modifications — with
-# TMTpro fixed the search output was identical to a no-TMT control (0/40 known
-# PSMs recovered), while TMTpro as a VARIABLE modification recovered 13/40.
-# N-terminal labelling is also frequently incomplete, which a variable mod
-# handles naturally. Label mods therefore always end up in variable_modifications.
 _MOD_DEFAULTS = {
     "tmt": ["Carbamidomethyl (C)"],
     "lfq": ["Carbamidomethyl (C)"],
@@ -90,10 +71,6 @@ def _normalize_label_mods(fixed, variable, method):
 
 _quant_method = (config.get("Params", {}).get("workflow", {}).get("quantification_method") or "").lower()
 
-# 每 rule 一个 parse 期变量(原 _rule_mods 内联;config 全量路径读取,
-# 键挂 Params.search_engine.<engine组>.<rule_name>.<key>,未配置按
-# quantification_method 默认集;原 module 级 _fixed_mods/_variable_mods 喂
-# comet/msgf/sage 3 rules(CLI 转发 + 报告离子校验)→ 每 rule 独立)。
 _fixed_comet, _variable_comet = _normalize_label_mods(
     config.get("Params", {}).get("search_engine", {}).get("comet", {}).get("search_engine_comet", {}).get("fixed_modifications", _MOD_DEFAULTS.get(_quant_method, ["Carbamidomethyl (C)"])),
     config.get("Params", {}).get("search_engine", {}).get("comet", {}).get("search_engine_comet", {}).get("variable_modifications", _VAR_MOD_DEFAULTS.get(_quant_method, ["Oxidation (M)"])),
@@ -109,9 +86,6 @@ _fixed_sage, _variable_sage = _normalize_label_mods(
     config.get("Params", {}).get("search_engine", {}).get("sage", {}).get("search_engine_sage", {}).get("variable_modifications", _VAR_MOD_DEFAULTS.get(_quant_method, ["Oxidation (M)"])),
     _quant_method,
 )
-# Label mods imply isobaric reporter ions must be present in the spectra;
-# verify at runtime so a label/data mismatch fails loudly at the search step
-# instead of silently producing noise PSMs (see check_reporter_ions).
 _expect_comet = any("tmt" in str(m).lower() or "itraq" in str(m).lower() for m in list(_fixed_comet) + list(_variable_comet))
 _expect_msgf = any("tmt" in str(m).lower() or "itraq" in str(m).lower() for m in list(_fixed_msgf) + list(_variable_msgf))
 _expect_sage = any("tmt" in str(m).lower() or "itraq" in str(m).lower() for m in list(_fixed_sage) + list(_variable_sage))
@@ -166,7 +140,7 @@ rule search_engine_comet:
             rule_logger.info(f"Start Comet search (engine={params.engine}) for sample {wildcards.sample_id} at {current_time}")
             _assert_label_matches_data(input.mzml, _fixed_comet, _variable_comet, _expect_comet)
             script = receipt_script(f"comet_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/comet.sh")
             cmd = [
                 params.comet,
@@ -178,12 +152,8 @@ rule search_engine_comet:
                 "-fragment_mass_tolerance", str(params.fragment_mass_tolerance),
                 "-fragment_bin_offset", str(params.fragment_bin_offset)
             ]
-            # PeptideIndexer aborts (exit 13) on unmatched peptides by default;
-            # they cannot be used for FDR/quant anyway, so drop them.
             if params.unmatched_action:
                 cmd += ["-PeptideIndexing:unmatched_action", str(params.unmatched_action)]
-            # Labelled samples (e.g. TMT) need their label modification set as
-            # fixed, otherwise real peptides never match (mass shift lost).
             for mod in params.fixed_modifications:
                 cmd += ["-fixed_modifications", str(mod)]
             for mod in params.variable_modifications:
@@ -193,7 +163,7 @@ rule search_engine_comet:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f'echo "rule search_engine_comet called for {wildcards.sample_id} was successfully completed"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -234,7 +204,7 @@ rule search_engine_msgf:
             rule_logger.info(f"Start MSGF+ search (engine={params.engine}) for sample {wildcards.sample_id} at {current_time}")
             _assert_label_matches_data(input.mzml, _fixed_msgf, _variable_msgf, _expect_msgf)
             script = receipt_script(f"msgf_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/msgf.sh")
             cmd = [
                 params.msgf,
@@ -251,7 +221,7 @@ rule search_engine_msgf:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f'echo "rule search_engine_msgf called for {wildcards.sample_id} was successfully completed"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -290,7 +260,7 @@ rule search_engine_sage:
             rule_logger.info(f"Start Sage search (engine={params.engine}) for sample {wildcards.sample_id} at {current_time}")
             _assert_label_matches_data(input.mzml, _fixed_sage, _variable_sage, _expect_sage)
             script = receipt_script(f"sage_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/sage.sh")
             cmd = [
                 params.sage,
@@ -306,7 +276,7 @@ rule search_engine_sage:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f'echo "rule search_engine_sage called for {wildcards.sample_id} was successfully completed"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

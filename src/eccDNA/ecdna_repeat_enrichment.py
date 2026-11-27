@@ -145,7 +145,6 @@ def main(argv: list[str] | None = None) -> int:
         keys.append(("fam", i))
         key_name[("fam", i)] = f
 
-    # observed + genome context
     obs: dict[RmskKey, int] = {}
     genome_bp: dict[RmskKey, int] = {}
     for k in keys:
@@ -153,7 +152,6 @@ def main(argv: list[str] | None = None) -> int:
         genome_bp[k] = rmsk.family_bp(k)
     logger.info("Observed coverage computed")
 
-    # background: matched random placements, per draw aggregate coverage
     draws_bp: dict[RmskKey, list[int]] = {k: [] for k in keys}
     for draw in range(args.n_draws):
         per_key = {k: 0 for k in keys}
@@ -169,7 +167,6 @@ def main(argv: list[str] | None = None) -> int:
         if (draw + 1) % 100 == 0:
             logger.info(f"background draws: {draw + 1}/{args.n_draws}")
 
-    # per-sample 'any' coverage vs the same background logic (secondary)
     per_sample = eccdna_regions(fragments, per_sample=True)
 
     def write_table(path: str, want_level: str) -> None:
@@ -207,7 +204,6 @@ def main(argv: list[str] | None = None) -> int:
     write_table(class_path, "class")
     write_table(fam_path, "family")
 
-    # secondary: per-sample any-repeat fraction
     sample_path = os.path.join(args.out_dir, "ecdna_repeat_per_sample.tsv")
     with open(sample_path, "w") as fh:
         fh.write("sample\tecdna_bp\tfrac_any\tfrac_class_LINE\tfrac_class_SINE\t"
@@ -223,7 +219,6 @@ def main(argv: list[str] | None = None) -> int:
                      + "\n")
     logger.info(f"Wrote {sample_path}")
 
-    # ---------------- stdout summary ---------------- #
     print(f"\n=== eccDNA repeat enrichment ({len(regions)} intervals, "
           f"{total_bp / 1e6:.2f} Mb) ===")
     print(f"{'key':<20s} {'ecdna':>8s} {'bg':>8s} {'enr':>6s} {'p':>7s} "

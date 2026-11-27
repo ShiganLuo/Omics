@@ -7,17 +7,12 @@ logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 
-# 参数精确到 rule:Params.karrseq.<rule_name>.<key>(config 全量路径直读;
-# 无 module 级共享回退,karrseq_chimeric_to_pairs / karrseq_remove_duplicates
-# 各自独立键)。
 
 rule karrseq_chimeric_to_pairs:
     input:
         aligned = indir + "/{sample_id}/{sample_id}_Aligned.sortedByCoord.out.bam",
         chimeric = indir + "/{sample_id}/{sample_id}_Chimeric.out.sam"
     output:
-        # intermediate: consumed only by karrseq_remove_duplicates; kept by
-        # default, temp when Params.karrseq.keep_intermediates is false
         pairs = maybe_temp(outdir + "/{sample_id}/{sample_id}.txt.gz", "karrseq")
     log:
         logdir + "/{sample_id}/karrseq_chimeric_to_pairs.log"
@@ -67,7 +62,7 @@ rule karrseq_chimeric_to_pairs:
             f.write(" ".join(cmd_cleanup) + "\n")
             f.write(f'echo "script completed successfully"\n')
         shutil.copyfile(script_file, plain_script)
-        if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+        if SCRIPT_ONLY:
             script_only_touch(output)
         else:
             shell("bash {plain_script} >> {log} 2>&1")
@@ -75,8 +70,6 @@ rule karrseq_remove_duplicates:
     input:
         pairs = outdir + "/{sample_id}/{sample_id}.txt.gz"
     output:
-        # intermediates: dedup.txt.gz feeds karrseq_ligation only; bed/pairs.gz
-        # are kept for now per user decision (no temp on them)
         dedup = maybe_temp(outdir + "/{sample_id}/{sample_id}.dedup.txt.gz", "karrseq"),
         bed = outdir + "/{sample_id}/{sample_id}.dedup.bed",
         pairs_gz = outdir + "/{sample_id}/{sample_id}.dedup.pairs.gz"
@@ -126,7 +119,7 @@ rule karrseq_remove_duplicates:
             f.write(" ".join(cmd_index) + "\n")
             f.write(f'echo "script completed successfully"\n')
         shutil.copyfile(script_file, plain_script)
-        if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+        if SCRIPT_ONLY:
             script_only_touch(output)
         else:
             shell("bash {plain_script} >> {log} 2>&1")
@@ -171,7 +164,7 @@ rule karrseq_ligation:
             f.write(" ".join(cmd_index) + "\n")
             f.write(f'echo "script completed successfully"\n')
         shutil.copyfile(script_file, plain_script)
-        if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+        if SCRIPT_ONLY:
             script_only_touch(output)
         else:
             shell("bash {plain_script} >> {log} 2>&1")

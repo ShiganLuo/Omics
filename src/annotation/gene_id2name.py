@@ -32,7 +32,7 @@ import pandas as pd
 logging.basicConfig(
 	level=logging.INFO,
 	format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-	stream=sys.stdout,  # Output to stdout instead of stderr
+	stream=sys.stdout,
 	datefmt='%Y-%m-%d %H:%M:%S'
 )
 
@@ -106,7 +106,7 @@ def load_cache_if_valid(cache_path: str, gtf_signature: dict):
         with open(cache_path, "rb") as f:
             cache = pickle.load(f)
     except:
-        return None  # Corrupted cache
+        return None
 
     cached_sig = cache.get("signature", {})
     if cached_sig == gtf_signature:
@@ -197,17 +197,14 @@ def load_gtf_gene_map(gtf_path: str, cache_path="gene_map.pkl") -> dict:
     """
     gtf_signature = get_file_signature(gtf_path)
 
-    # Try loading from cache
     gene_map = load_cache_if_valid(cache_path, gtf_signature)
 
     if gene_map is not None:
         return gene_map
 
-    # Parse GTF
     logging.info("Parsing GTF (this may take a while)...")
     gene_map = parse_gtf_gene_map(gtf_path)
 
-    # Save cache
     save_cache(cache_path, gene_map, gtf_signature)
     logging.info(f"Cache written: {cache_path}")
 
@@ -307,7 +304,7 @@ def extract_gene_name_or_keep(df: pd.DataFrame,pattern:str) -> pd.DataFrame:
     """
     df['gene_name'] = df['gene_name'].str.replace(
         pat=pattern,
-        repl=r'\1',   # Replacement pattern: r'\1' refers to the first capture group
+        repl=r'\1',
         regex=True
     )
     
@@ -468,11 +465,6 @@ def convert_featurecounts_gene_ids(
     cols.remove("gene_name")
     cols.remove("Geneid")
     df = df[["gene_name"] + cols]
-    # df = (
-    #     df
-    #     .groupby('gene_name', as_index=False)
-    #     .sum(numeric_only=True)
-    # )
     if save_path is not None:
         df.to_csv(save_path, sep="\t", index=False)
 

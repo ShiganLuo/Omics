@@ -59,7 +59,7 @@ logger = setup_logger(__name__, level=logging.INFO)
 matplotlib.use("Agg")
 
 
-PlotFormat = str  # any matplotlib savefig format: png, pdf, svg, ...
+PlotFormat = str
 
 DESEQ2_STAT_COLS = ("baseMean", "log2FoldChange", "lfcSE", "stat", "pvalue", "padj")
 GROUP_PALETTE = ["#4C72B0", "#DD8452", "#55A868", "#C44E52", "#8172B3", "#937860", "#64B5CD", "#CCB974"]
@@ -346,10 +346,6 @@ def load_loci_lengths(loci_tsv: str, matrix_index: "pd.Index") -> "pd.Series":
             0,
             os.path.join(os.path.dirname(os.path.abspath(__file__))),
         )
-        # reuse the te_manhattan loader: consults the <locInd>.parquet
-        # cache when present, else falls back to pickle + tree walk
-        # (the pickle walk needs TElocal_Toolkit, absent from this
-        # container)
         from te_manhattan import load_loci_table  # noqa: PLC0415
 
         loci = load_loci_table(loci_tsv)
@@ -602,7 +598,6 @@ def plot_family_distributions(
                         pos, y_top + pad * (1.0 + 1.2 * (pos % 2)), f"p={p_val:.2g}",
                         ha="center", va="bottom", fontsize=7, color="#444444", clip_on=True,
                     )
-                # reserve in-axes headroom so p texts never touch the title
                 ax.set_ylim(y_bot - span * 0.08, y_top + span * stat_headroom)
 
         n_entries = fam_matrix.shape[0]
@@ -611,11 +606,9 @@ def plot_family_distributions(
         ax.set_xticklabels(groups, rotation=x_rotation, ha="right")
         ax.set_xlim(-0.6, len(groups) - 0.4)
 
-    # leftover panels: turn off
     for idx in range(n_panels, nrows * ncols):
         axes[idx // ncols][idx % ncols].axis("off")
 
-    # ylabel ownership: left-column panels only
     for row in range(nrows):
         axes[row][0].set_ylabel(ylabel)
         for col in range(1, ncols):

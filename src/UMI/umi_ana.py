@@ -4,7 +4,6 @@ from collections import Counter
 from pathlib import Path
 from typing import Union, Tuple, Dict
 
-# Setup logger
 logger = logging.getLogger("fastq_diversity")
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()

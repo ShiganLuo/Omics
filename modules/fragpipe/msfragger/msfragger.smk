@@ -6,13 +6,10 @@ logdir = config.get("logdir", "logs")
 samples = config.get("samples", [])
 search_fasta = config.get("genome", {}).get("search_fasta", "")
 
-# Get parameters
 ms_params = config.get("Params", {}).get("msfragger", {})
 threads = ms_params.get("threads", 16)
 label = ms_params.get("label", "tmt16")
 license_key = ms_params.get("license_key") or ""
-# Direct jar mode: run MSFragger-3.x.jar via java (paper version, no license
-# key needed). Takes precedence over the Procedure.msfragger wrapper.
 msfragger_jar = ms_params.get("jar") or ""
 java = ms_params.get("java") or "java"
 java_xmx = ms_params.get("java_xmx", "32G")
@@ -21,7 +18,6 @@ if label not in ("tmt16", "label-free"):
         f"Params.msfragger.label={label!r} is not supported: use 'tmt16' or 'label-free'"
     )
 
-# Get executables (bioconda installs the launcher in lower case: 'msfragger')
 msfragger = config.get("Procedure", {}).get("msfragger") or "msfragger"
 make_params = ROOT_DIR + "/modules/fragpipe/bin/make_fragger_params.py"
 
@@ -63,8 +59,6 @@ rule msfragger_run:
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
 
-            # MSFragger writes results next to its input file: hardlink the
-            # mzML into the work dir so outputs never pollute raw2mzml.
             local_mzml = os.path.join(sample_outdir, f"{wildcards.sample_id}.mzML")
             if not os.path.exists(local_mzml):
                 try:
@@ -82,14 +76,11 @@ rule msfragger_run:
                 check=True,
             )
             script = receipt_script(f"msfragger_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"msfragger.sh")
             if params.jar:
                 cmd = [params.java, f"-Xmx{params.java_xmx}", "-jar", str(params.jar)]
             else:
-                # The conda launcher defaults to -Xmx1g — far too small for a
-                # ~500k-protein search DB; pass -Xmx through (it forwards
-                # -Xm* args to the JVM).
                 cmd = [params.msfragger, f"-Xmx{params.java_xmx}"]
                 if params.license_key:
                     cmd += ["--key", str(params.license_key)]
@@ -107,7 +98,7 @@ rule msfragger_run:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f"echo 'MSFragger search for {wildcards.sample_id} completed at {current_time}'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -148,42 +139,21 @@ rule msfragger_idxml:
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"msfragger_idxml_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"msfragger_idxml.sh")
-            # Staged copy must keep a .pepXML suffix: IDFileConverter has no
-            # -in_type in OpenMS 3.x and infers the INPUT type from the
-            # extension (it only offers -out_type).
             tmp_pepxml = os.path.join(sample_outdir, f"{wildcards.sample_id}.sanitized.pepXML")
             tmp_idxml = str(output.idxml) + ".tmp"
-            # MSFragger writes <sample_enzyme name="stricttrypsin">, which the
-            # OpenMS EnzymeDB cannot resolve ("the element 'stricttrypsin' could
-            # not be found"); rewrite it to the equivalent standard enzyme name
-            # on a staged copy -- the <specificity> element keeps the actual
-            # cleavage semantics. The upstream pepXML stays untouched.
             sanitize_cmd = (
                 "sed 's/name=\"stricttrypsin\"/name=\"Trypsin\"/' {} > {}".format(
                     shlex.quote(str(input.pepxml)), shlex.quote(tmp_pepxml)
                 )
             )
-            # -out_type is required: OpenMS would otherwise infer the output
-            # type from the .tmp staging extension and abort with
-            # "Could not determine output file type!".
             convert_cmd = [
                 params.converter,
                 "-in", tmp_pepxml,
                 "-out", tmp_idxml,
                 "-out_type", "idXML",
             ]
-            # IDMapper at quantification requires an annotated primary MS run
-            # path (idXML meta 'spectra_data'); pepXML -> idXML conversion
-            # leaves it empty (even with -mz_file) and later OpenMS tools
-            # serialize it as "[]", which IDMapper rejects with
-            # "No MS run path annotated in ProteinIdentification.". Inject the
-            # mzML run path once here; downstream tools round-trip the value
-            # unchanged (verified PSMFeatureExtractor -> PercolatorAdapter ->
-            # FalseDiscoveryRate -> Epifany -> IDMapper). Delete-before-insert
-            # keeps it single: duplicate 'spectra_data' keys silently overwrite
-            # (last one wins), which re-introduces the empty value.
             annotate_expr = (
                 "s|^\\([[:space:]]*<ProteinIdentification [^>]*>\\)$|\\1\\n"
                 "\\t\\t\\t<UserParam type=\"stringList\" name=\"spectra_data\" "
@@ -195,9 +165,6 @@ rule msfragger_idxml:
                     expr=shlex.quote(annotate_expr),
                 )
             )
-            # PeptideIndexer re-annotates target/decoy + protein mapping so the
-            # downstream OpenMS chain (PercolatorAdapter/FalseDiscoveryRate)
-            # sees the same annotations the CometAdapter path produces.
             index_cmd = [
                 params.indexer,
                 "-in", tmp_idxml,
@@ -215,7 +182,7 @@ rule msfragger_idxml:
                 f.write(f"rm -f {shlex.quote(tmp_idxml)} {shlex.quote(tmp_pepxml)}\n")
                 f.write(f"echo 'pepXML -> idXML conversion for {wildcards.sample_id} completed at {current_time}'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

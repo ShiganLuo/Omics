@@ -33,15 +33,12 @@ logger = setup_logger("scan_assembly_telomere", stream=sys.stdout)
 
 
 
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
-TEL_MOTIF_FWD = "CCCTAA"  # C-rich strand
-TEL_MOTIF_REV = "TTAGGG"  # G-rich strand
-DEFAULT_SCAN_LENGTH = 50_000  # bp to scan from each contig end
-DEFAULT_MIN_TEL_FRAC = 0.5   # minimum fraction of telomeric bases in a window
-DEFAULT_WINDOW_SIZE = 200     # sliding window size
-DEFAULT_STEP_SIZE = 50        # step size for sliding window
+TEL_MOTIF_FWD = "CCCTAA"
+TEL_MOTIF_REV = "TTAGGG"
+DEFAULT_SCAN_LENGTH = 50_000
+DEFAULT_MIN_TEL_FRAC = 0.5
+DEFAULT_WINDOW_SIZE = 200
+DEFAULT_STEP_SIZE = 50
 
 
 @dataclass
@@ -49,12 +46,12 @@ class ContigTelomere:
     """Telomere measurement for one end of a contig."""
     contig: str
     contig_length: int
-    end: str  # "5prime" or "3prime"
-    tel_start: int  # start position of telomeric region (0-based)
-    tel_end: int    # end position of telomeric region
-    tel_length: int  # length of contiguous telomeric region
-    tel_motif: str   # "CCCTAA" or "TTAGGG"
-    supporting_windows: int  # number of windows with telomeric signal
+    end: str
+    tel_start: int
+    tel_end: int
+    tel_length: int
+    tel_motif: str
+    supporting_windows: int
     total_windows_scanned: int
 
 
@@ -85,7 +82,6 @@ def find_telomeric_region(seq: str, scan_from_start: bool,
 
     seg_len = len(segment)
 
-    # Find all telomeric k-mer positions
     tel_positions = []
     for m in re.finditer(r"(CCCTAA|TTAGGG)", segment):
         tel_positions.append((m.start(), m.end()))
@@ -93,7 +89,6 @@ def find_telomeric_region(seq: str, scan_from_start: bool,
     if not tel_positions:
         return (0, 0, "", 0, 0)
 
-    # Cluster nearby hits (allow 30bp gaps)
     clusters = []
     current_cluster = [tel_positions[0]]
     for pos in tel_positions[1:]:
@@ -104,7 +99,6 @@ def find_telomeric_region(seq: str, scan_from_start: bool,
             current_cluster = [pos]
     clusters.append(current_cluster)
 
-    # Find the largest cluster
     best_cluster = None
     best_tel_bases = 0
     for cluster in clusters:
@@ -120,7 +114,6 @@ def find_telomeric_region(seq: str, scan_from_start: bool,
     cluster_end = best_cluster[-1][1]
     cluster_len = cluster_end - cluster_start
 
-    # Determine dominant motif
     ccctaa_count = 0
     ttaggg_count = 0
     for m in re.finditer(r"CCCTAA", segment[cluster_start:cluster_end]):
@@ -129,7 +122,6 @@ def find_telomeric_region(seq: str, scan_from_start: bool,
         ttaggg_count += 1
     motif = TEL_MOTIF_FWD if ccctaa_count >= ttaggg_count else TEL_MOTIF_REV
 
-    # Count supporting windows (windows with high telomeric density)
     supporting = 0
     total_windows = 0
     for start in range(0, seg_len - window_size + 1, step_size):
@@ -140,7 +132,6 @@ def find_telomeric_region(seq: str, scan_from_start: bool,
         if tel_frac >= min_tel_frac:
             supporting += 1
 
-    # Adjust positions if scanning from 3' end
     if not scan_from_start:
         tel_start = n - scan_len + cluster_start
         tel_end = n - scan_len + cluster_end
@@ -157,7 +148,6 @@ def scan_assembly(fasta_path: str, scan_length: int,
     """Scan all contigs in an assembly for telomeric repeats at ends."""
     results = []
 
-    # Parse FASTA (simple parser, no pysam dependency)
     contigs = {}
     current_name = None
     current_seq = []
@@ -181,21 +171,18 @@ def scan_assembly(fasta_path: str, scan_length: int,
     for name, seq in contigs.items():
         contig_len = len(seq)
 
-        # Scan 5' end
         tel5_start, tel5_end, motif5, sup5, tot5 = find_telomeric_region(
             seq, scan_from_start=True, scan_length=scan_length,
             window_size=window_size, step_size=step_size, min_tel_frac=min_tel_frac
         )
         tel5_len = tel5_end - tel5_start
 
-        # Scan 3' end
         tel3_start, tel3_end, motif3, sup3, tot3 = find_telomeric_region(
             seq, scan_from_start=False, scan_length=scan_length,
             window_size=window_size, step_size=step_size, min_tel_frac=min_tel_frac
         )
         tel3_len = tel3_end - tel3_start
 
-        # Only report contigs with significant telomeric signal
         if tel5_len > 100 or sup5 >= 3:
             results.append(ContigTelomere(
                 contig=name, contig_length=contig_len, end="5prime",
@@ -224,9 +211,6 @@ def plot_telomere_length(results: list[ContigTelomere], sample_name: str,
     (not sample length — see README).
     """
     if not results:
-        # Still write the declared figure: a zero-region scan is a valid
-        # result (e.g. an assembly without telomere-spanning contig ends),
-        # and a silently skipped figure fails the rule on missing output.
         fig, ax = plt.subplots(figsize=(6, 4))
         ax.text(0.5, 0.5, "no telomeric regions detected at contig ends",
                 ha="center", va="center")
@@ -275,7 +259,6 @@ def write_results(results: list[ContigTelomere], sample_name: str,
     """Write results to TSV and summary files."""
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. Per-contig-end detail TSV
     detail_path = output_dir / f"{sample_name}_assembly_telomere.tsv"
     with open(detail_path, "w") as f:
         f.write("contig\tcontig_length\tend\ttel_start\ttel_end\t"
@@ -286,7 +269,6 @@ def write_results(results: list[ContigTelomere], sample_name: str,
                     f"{r.tel_motif}\t{r.supporting_windows}\t{r.total_windows_scanned}\n")
     logger.info(f"Wrote: {detail_path}")
 
-    # 2. Statistical summary
     stats_path = output_dir / f"{sample_name}_assembly_telomere_stats.txt"
     with open(stats_path, "w") as f:
         f.write(f"Sample: {sample_name}\n")
@@ -294,7 +276,6 @@ def write_results(results: list[ContigTelomere], sample_name: str,
 
         f.write(f"Total contig ends with telomeric signal: {len(results)}\n\n")
 
-        # Filter for significant telomeres (>1kb)
         sig_results = [r for r in results if r.tel_length >= 1000]
         f.write(f"Contig ends with telomere >= 1kb: {len(sig_results)}\n\n")
 
@@ -312,7 +293,6 @@ def write_results(results: list[ContigTelomere], sample_name: str,
             f.write(f"  Q25:     {np.percentile(lengths, 25):.0f} bp\n")
             f.write(f"  Q75:     {np.percentile(lengths, 75):.0f} bp\n\n")
 
-            # Per-end breakdown
             prime5 = [r for r in sig_results if r.end == "5prime"]
             prime3 = [r for r in sig_results if r.end == "3prime"]
 
@@ -330,7 +310,6 @@ def write_results(results: list[ContigTelomere], sample_name: str,
                 f.write(f"  Mean:    {np.mean(arr3):.0f} bp\n")
                 f.write(f"  Median:  {np.median(arr3):.0f} bp\n\n")
 
-            # Length distribution
             f.write("=== Length Distribution ===\n")
             thresholds = [0, 1000, 5000, 10000, 20000, 50000, 100000, 200000]
             for i in range(len(thresholds) - 1):
@@ -340,7 +319,6 @@ def write_results(results: list[ContigTelomere], sample_name: str,
             count = sum(1 for r in sig_results if r.tel_length >= thresholds[-1])
             f.write(f"  >{thresholds[-1]:>7,} bp:  {count}\n")
 
-            # Top contigs
             f.write("\n=== Top 20 Longest Telomeres ===\n")
             f.write(f"{'Contig':<20} {'End':<8} {'Length':>10} {'Motif':<8} {'Windows':>8}\n")
             for r in sorted(sig_results, key=lambda x: x.tel_length, reverse=True)[:20]:
@@ -355,11 +333,9 @@ def write_results(results: list[ContigTelomere], sample_name: str,
 
     logger.info(f"Wrote: {stats_path}")
 
-    # Print summary to stdout
     with open(stats_path) as f:
         logger.info(f.read())
 
-    # Figure 2: assembly contig-end telomere length distribution (multi-format)
     plot_base = str(output_dir / f"{sample_name}_assembly_telomere_length")
     for _p in plot_telomere_length(results, sample_name, plot_base, formats):
         logger.info(f"Wrote: {_p}")

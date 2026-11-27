@@ -8,11 +8,6 @@ suppressMessages(library(RColorBrewer))
 suppressMessages(library(plyr))
 suppressMessages(library(gridExtra))
 
-# ---- multi-format figure output (repo formats sweep; minimal vendored hook) --
-# MIMSEQ_PLOT_FORMATS (comma-separated; default "pdf") selects the output
-# format(s) for every ggsave() figure. The default keeps upstream .pdf
-# filenames byte-identical. Figures drawn through pdf()/png() devices directly
-# are NOT affected and stay fixed-format.
 .plot_formats <- strsplit(Sys.getenv("MIMSEQ_PLOT_FORMATS", "pdf"), "[,;[:space:]]+")[[1]]
 .plot_formats <- .plot_formats[.plot_formats != ""]
 if (length(.plot_formats) == 0) .plot_formats <- "pdf"
@@ -51,7 +46,6 @@ if (length(args)==0) {
 	sorted_aa = args[4]
 	sorted_aa = unlist(strsplit(sorted_aa, "_"))
 
-	## Aggregated coverage plots for all Isoacceptors
 	cov_byaa = read.table(args[2], header=TRUE, sep = "\t")
 	cov_byaa = cov_byaa[complete.cases(cov_byaa),]
 	cov_byaa$bam = gsub(".unpaired_uniq.bam","",cov_byaa$bam)
@@ -92,7 +86,7 @@ if (length(args)==0) {
 
 	cyto_cov_byaa = subset(cov_byaa, !grepl("mito", cov_byaa$aa) & !grepl("plastid", cov_byaa$aa) & !grepl("nmt", cov_byaa$aa))
 	cyto_cov_byaa_sum = aggregate(x = cyto_cov_byaa$cov_norm, by = list(bin = cyto_cov_byaa$bin, bam = cyto_cov_byaa$bam), FUN = sum)
-	cyto_scale_factors = cyto_cov_byaa_sum[which(cyto_cov_byaa_sum$bin == 96),] # 96 is second last bin of 4%
+	cyto_scale_factors = cyto_cov_byaa_sum[which(cyto_cov_byaa_sum$bin == 96),]
 	cyto_cov_byaa$cov_norm_scaled = NA
 	for (i in 1:nrow(cyto_cov_byaa)){
 		cyto_cov_byaa[i,'cov_norm_scaled'] = cyto_cov_byaa[i,'cov_norm']/cyto_scale_factors[which(cyto_cov_byaa[i,'bam'] == cyto_scale_factors$bam),3]
@@ -100,7 +94,7 @@ if (length(args)==0) {
 
 	if (!is.na(mito_trnas) && nrow(mito_cov_byaa) != 0){
 		mito_cov_byaa_sum = aggregate(x = mito_cov_byaa$cov_norm, by = list(bin = mito_cov_byaa$bin, bam = mito_cov_byaa$bam), FUN = sum)
-		mito_scale_factors = mito_cov_byaa_sum[which(mito_cov_byaa_sum$bin == 96),] # 96 is second last bin of 4%
+		mito_scale_factors = mito_cov_byaa_sum[which(mito_cov_byaa_sum$bin == 96),]
 		mito_cov_byaa$cov_norm_scaled = NA
 		for (i in 1:nrow(mito_cov_byaa)){
 			mito_cov_byaa[i,'cov_norm_scaled'] = mito_cov_byaa[i,'cov_norm']/mito_scale_factors[which(mito_cov_byaa[i,'bam'] == mito_scale_factors$bam),3]
@@ -150,7 +144,6 @@ if (length(args)==0) {
 		theme_bw()
 	ggsave(paste(out_dir, "coverage_byaa_line.pdf", sep = ''), cov_byaa_line, height = ceiling(facetCount/4) * 4, width = 14)
 
-	## Coverage plots per cluster multipage
 	cov_bygene = read.table(args[1], header = TRUE, sep="\t")
 	cov_bygene$Cluster = sub(".*_mito_tRNA-", "mito", cov_bygene$Cluster)
 	cov_bygene$Cluster = sub(".*_plastid_tRNA-", "plastid", cov_bygene$Cluster)

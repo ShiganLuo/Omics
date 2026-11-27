@@ -5,20 +5,10 @@ indir = config.get("indir", "data/quantification")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
 samples = config.get("samples", [])
-# 指令派生名(input: 与 params 按方法选源;config 原名 quantification_method),
-# 赋值写 config 全量路径 Params.workflow.quantification_method。
 quantification_method = (config.get("Params", {}).get("workflow", {}).get("quantification_method") or "lfq").lower()
 
-# Experimental design TSV (OpenMS design format); wired from
-# Params.workflow.expdesign at subworkflow level. MSstatsConverter REQUIRES
-# it for the isobaric path, ProteomicsLFQ uses it to fill Run/Condition.
 expdesign = config.get("expdesign", "")
 
-# Per-method product of the quantification module that carries the peptide
-# intensities for the MSstats input table:
-#   lfq/dia -> ProteomicsLFQ -out_msstats CSV (already MSstats input format)
-#   tmt     -> merged isobaric consensusXML (only produced with an expdesign),
-#              converted here by MSstatsConverter
 _MSSTATS_SOURCE = {
     "tmt": indir + "/tmt_quantification.consensusXML",
     "lfq": indir + "/lfq_msstats.csv",
@@ -57,12 +47,6 @@ rule msstats:
             os.makedirs(outdir, exist_ok=True)
             plain_script = os.path.join(outdir, f"msstats.sh")
             if params.method == "tmt":
-                # Isobaric consensusXML -> MSstats (MSstatsTMT) input CSV.
-                # Requires an experimental design AND a merged consensusXML
-                # with intact per-plex sample identity; per the quantification
-                # module, merged-design mzTab/MSstats inputs are only produced
-                # when Params.workflow.expdesign is set. Without a design the
-                # deliverable is the long abundance table instead, so skip.
                 if not params.expdesign:
                     rule_logger.info(
                         "Params.workflow.expdesign is empty: skipping TMT "
@@ -80,21 +64,17 @@ rule msstats:
                         "-method", "ISO",
                         "-out", output.csv,
                     ]
-                    # receipt_script 预占文件名:必须与写入同分支,跳过执行的
-                    # 分支不占名,否则备份池留下空壳回执
                     script = receipt_script(f"msstats_{current_time}.sh")
                     with open(script, "w") as f:
                         f.write("#!/bin/bash\nset -euo pipefail\n")
                         f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                         f.write(f"echo 'MSstats input preparation completed at {current_time}'\n")
                     shutil.copyfile(script, plain_script)
-                    if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                    if SCRIPT_ONLY:
                         script_only_touch(output)
                     else:
                         shell(f"bash {plain_script} >> {log_path} 2>&1")
             else:
-                # ProteomicsLFQ -out_msstats already writes the MSstats input
-                # CSV; stage it under the uniform final path.
                 rule_logger.info(f"Staging {input.source} as {output.csv}")
                 shutil.copy(str(input.source), str(output.csv))
                 rule_logger.info(f"MSstats input preparation completed at {current_time}")

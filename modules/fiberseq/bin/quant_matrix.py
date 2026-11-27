@@ -68,8 +68,6 @@ def fibers_overlapping(index: RegionIndex, records, chrom, start, end) -> set:
 
 def run_sample(args: argparse.Namespace) -> int:
     peaks = read_bed(str(args.peaks))
-    # Element BEDs (msp/nuc/m6a/fire) are multi-GB: stream them against the
-    # peak anchors instead of whole-file read_bed (which OOMs).
     paths = [str(args.msp), str(args.nuc), str(args.m6a)]
     if args.fire:
         paths.append(str(args.fire))
@@ -132,7 +130,6 @@ def merge_samples(args: argparse.Namespace) -> int:
     if not tables:
         logger.error("no quant tables provided")
         return 1
-    # preserve first-table region order
     first = next(iter(tables))
     order = list(tables[first].keys())
     samples = list(tables.keys())

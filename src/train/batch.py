@@ -28,15 +28,12 @@ def batch_correct_pycombat(df_log2: pd.DataFrame,
         批次校正后的表达矩阵 (same shape as df_log2)
     """
 
-    # —— 1. 对齐样本 —— #
     df_sample_unique = df_sample.drop_duplicates(subset=[sample_id_col])
     df_sample_sel = df_sample_unique[df_sample_unique[sample_id_col].isin(df_log2.columns)]
 
-    # reorder df_log2 columns to match df_sample order
     sel_ids = list(df_sample_sel[sample_id_col])
     df_log2_sel = df_log2.loc[:, sel_ids]
 
-    # —— 2. 构建 batch labels 和 covariate dataframe —— #
     batch_labels = df_sample_sel[batch_col].values
 
     covariates = None
@@ -46,9 +43,7 @@ def batch_correct_pycombat(df_log2: pd.DataFrame,
             cov_dict[col] = df_sample_sel[col].astype(str).values
         covariates = pd.DataFrame(cov_dict, index=sel_ids)
 
-    # —— 3. 调用 pyComBat —— #
-    # pyComBat expects data as samples × features (i.e. transpose)
-    Y = df_log2_sel.T  # now rows = samples, cols = genes
+    Y = df_log2_sel.T
 
     combat = Combat()
     if covariates is not None:
@@ -56,7 +51,6 @@ def batch_correct_pycombat(df_log2: pd.DataFrame,
     else:
         Y_corr = combat.fit_transform(Y=Y, b=batch_labels)
 
-    # —— 4. 转回 genes × samples 格式 —— #
     df_corr = pd.DataFrame(Y_corr.T, index=df_log2_sel.index, columns=df_log2_sel.columns)
     return df_corr
 

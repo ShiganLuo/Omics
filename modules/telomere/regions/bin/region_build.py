@@ -154,13 +154,12 @@ def build_sat(args: argparse.Namespace) -> int:
                 start, end = int(f[5]), int(f[6])
             except ValueError:
                 continue
-            if start > end:  # minus-strand hits are still query coords
+            if start > end:
                 start, end = end, start
             hits.append((f[4], start - 1, end,
                          classify(f[9], mapping, args.other_class)))
     logger.info(f"satellite hits kept: {len(hits)}")
 
-    # cluster per (chrom, class), gap <= args.gap (as censatbuild_rm2bed)
     by_key: Dict[Tuple[str, str], List[Tuple[int, int]]] = defaultdict(list)
     for chrom, start, end, cls in hits:
         by_key[(chrom, cls)].append((start, end))

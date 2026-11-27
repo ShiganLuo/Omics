@@ -27,12 +27,9 @@ from matplotlib.patches import Circle, Wedge
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
-# Register a CJK font (the container ships only Latin fonts)
 _CJK_FONT = "/tmp/fonts/NotoSansCJK-Regular.ttc"
 try:
     font_manager.fontManager.addfont(_CJK_FONT)
@@ -41,7 +38,6 @@ except Exception:
     _CJK_NAME = "sans-serif"
 
 
-# Muted palette, consistent with decoil_structure.py
 BLUE = "#5B7C99"
 BLUE_L = "#7A93B5"
 BLUE_LL = "#9FB3CC"
@@ -53,9 +49,9 @@ ROSE = "#B57A7F"
 GRAY = "#8A94A0"
 INK = "#3B4A5A"
 
-R = 1.0          # ring outer radius
-BAND = 0.22      # ring band width
-SLIT = 4.0       # breakpoint slit width (degrees) for simple_circle
+R = 1.0
+BAND = 0.22
+SLIT = 4.0
 
 
 def add_ring(ax, arcs):
@@ -168,8 +164,6 @@ def main():
 
     image_formats = args.formats if args.formats else ["png"]
     out_base = args.out_base
-    # legacy compat: positional carried a full file name (out.png) — strip a
-    # known extension and, absent explicit -f, honor it as the format
     for fmt in VALID_FORMATS:
         if out_base.endswith("." + fmt):
             out_base = out_base[: -(len(fmt) + 1)]
@@ -192,46 +186,35 @@ def main():
     plt.subplots_adjust(left=0.03, right=0.97, top=0.955, bottom=0.015,
                         wspace=0.06, hspace=0.10)
 
-    # ---- 1. simple_circle: uniform ring + one narrow white slit ---------
     a = axes[0, 0]
-    # hairline 1.5-deg slit centered at 30 deg: arc from 30.75 to 389.25
     add_ring(a, [(30.75, 389.25, BLUE, 1.0)])
     sx, sy = pol(30, 1.52)
     a.text(sx, sy, "断点", ha="left", va="center", fontsize=8.6, color=GRAY)
     style_axes(a, "1  simple_circle  简单切离环",
                "一段基因组整体切下、首尾相连\n白色窄缝 = 唯一的 excision 断点")
 
-    # ---- 2. simple_sv: one dashed orange SV segment ----------------------
     a = axes[0, 1]
     add_ring(a, [(0, 360, BLUE, 1.0)])
     dashed_arc(a, 240, 300)
     style_axes(a, "2  simple_sv  单一简单 SV",
                "环上某段带一个 SV(小缺失或倒位)\n橙虚线弧 = SV 所在段")
 
-    # ---- 3. mixed_sv: deletion + inversion ------------------------------
     a = axes[1, 0]
-    # Blue ring = reference orientation (plain, no marker). The green
-    # inversion arc itself tapers into a single arrowhead pointing
-    # counter-ringwise (SnapGene feature convention): ONE tip, shape-
-    # native, no overlaid markers, nothing to collide with.
     add_ring(a, [(0, 360, BLUE, 1.0)])
-    arrowed_arc(a, 120, 210, GREEN, ccw=True, tip_deg=12)  # inversion arc
-    dashed_arc(a, 240, 300)                                # deletion arc
+    arrowed_arc(a, 120, 210, GREEN, ccw=True, tip_deg=12)
+    dashed_arc(a, 240, 300)
     style_axes(a, "3  mixed_sv  缺失 + 倒位",
                "橙虚线 = 缺失段;绿弧 = 倒位段\n绿弧末端箭头示其方向与环相反(倒位)")
 
-    # ---- 4. multi_region_intra_chr: shades of blue, no slits ------------
     a = axes[1, 1]
     add_ring(a, [(30, 150, BLUE, 1.0), (150, 270, BLUE_L, 1.0),
                  (270, 390, BLUE_LL, 1.0)])
     style_axes(a, "4  multi_region_intra_chr  同染色体多区域",
                "同一染色体 ≥2 个不相邻区域拼接\n深浅蓝区分区域;颜色交界 = 拼接点")
 
-    # ---- 5. multi_region_inter_chr: one color per chromosome ------------
     a = axes[2, 0]
     add_ring(a, [(0, 120, BLUE, 1.0), (120, 240, ROSE, 1.0),
                  (240, 360, GREEN, 1.0)])
-    # chromosome labels inside the ring cavity (one per arc, at its mid-angle)
     for ang, name, col in ((60, "chrA", BLUE), (180, "chrB", ROSE),
                            (300, "chrC", GREEN)):
         lx, ly = pol(ang, 0.55)
@@ -240,7 +223,6 @@ def main():
     style_axes(a, "5  multi_region_inter_chr  跨染色体",
                "不同染色体的片段拼接成环\n每种颜色 = 一种来源染色体")
 
-    # ---- 6. simple_duplications: A / A' ---------------------------------
     a = axes[2, 1]
     add_ring(a, [(0, 90, BLUE, 1.0), (90, 170, RED, 1.0),
                  (170, 250, RED, 0.5), (250, 360, BLUE_L, 1.0)])
@@ -253,22 +235,10 @@ def main():
     style_axes(a, "6  simple_duplications  串联重复",
                "同一片段在环内出现 ≥2 次\n深红 / 浅红 = 两次拷贝(A 与 A′ 同源)")
 
-    # ---- 7. foldbacks: hairpin of two same-color arcs at a fold point ----
     a = axes[3, 0]
-    # Foldback = the circle re-enters the SAME segment in reverse. Genome-
-    # coordinate arrows of the two copies CONVERGE at the fold point:
-    #   copy 1 (B)  runs forward  -> its 3' arrow leads INTO the fold
-    #   copy 2 (BR) is reversed   -> its coordinate arrow points BACK
-    #                                into the fold as well
-    # Blue base covers ONLY the rest of the circle (138 -> 42 via 180/0):
-    # the foldback sector belongs to the orange copies — no phantom blue
-    # may show between the converging tips. Solid orange dot at the apex
-    # = the hinge; deep/light orange = forward vs reversed copy.
-    add_ring(a, [(138, 402, BLUE, 1.0)])                                # rest
-    # Block-arrow style: long full-width body + SHORT head (8 deg) — the
-    # inverted-repeat glyph (▶◀). Voids shrink to a crisp notch at the apex.
-    arrowed_arc(a, 42, 90, ORANGE, alpha=1.0, ccw=True, tip_deg=8)     # copy 1
-    arrowed_arc(a, 90, 138, ORANGE, alpha=0.55, ccw=False, tip_deg=8)  # copy 2, tip at fold
+    add_ring(a, [(138, 402, BLUE, 1.0)])
+    arrowed_arc(a, 42, 90, ORANGE, alpha=1.0, ccw=True, tip_deg=8)
+    arrowed_arc(a, 90, 138, ORANGE, alpha=0.55, ccw=False, tip_deg=8)
     a.add_patch(Circle(pol(90, R - BAND / 2.0), 0.042, facecolor=ORANGE,
                        edgecolor="none", zorder=6))
     fx, fy = pol(90, 1.18)
@@ -277,7 +247,6 @@ def main():
     style_axes(a, "7  foldbacks  折回连接",
                "两段橙弧 = 同一片段的两份拷贝(深=正向,浅=反向)\n尖端相向汇聚于折回点(橙点):第二拷贝方向相反")
 
-    # ---- 8. graphic-language summary -------------------------------------
     a = axes[3, 1]
     a.set_xlim(0, 1)
     a.set_ylim(0, 1)

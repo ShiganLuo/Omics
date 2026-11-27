@@ -39,7 +39,7 @@ rule pbsv_discover:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start pbsv discover for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
         script = receipt_script(f"pbsv_discover_{wildcards.sample_id}_{current_time}.sh")
-        os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+        os.makedirs(os.path.dirname(script), exist_ok=True)
         plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/pbsv_discover.sh")
         cmd = [
             params.pbsv, "discover",
@@ -52,7 +52,7 @@ rule pbsv_discover:
             f.write(" ".join(cmd) + "\n")
             f.write(f'echo "script completed successfully"\n')
         shutil.copyfile(script, plain_script)
-        if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+        if SCRIPT_ONLY:
             script_only_touch(output)
         else:
             shell("bash {plain_script} >> {log} 2>&1")
@@ -84,7 +84,7 @@ rule pbsv_call:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start pbsv call for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
         script = receipt_script(f"pbsv_call_{wildcards.genome}_{current_time}.sh")
-        os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+        os.makedirs(os.path.dirname(script), exist_ok=True)
         plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/pbsv_call.sh")
         cmd1 = [
             params.pbsv, "call",
@@ -111,7 +111,7 @@ rule pbsv_call:
             f.write(" ".join(cmd4) + "\n")
             f.write(f'echo "script completed successfully"\n')
         shutil.copyfile(script, plain_script)
-        if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+        if SCRIPT_ONLY:
             script_only_touch(output)
         else:
             shell("bash {plain_script} >> {log} 2>&1")

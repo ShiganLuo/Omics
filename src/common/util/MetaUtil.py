@@ -83,8 +83,6 @@ class MetadataUtils:
         self.pacbio_required_cols = pacbio_required_cols
         self.bam_required_cols = bam_required_cols
         self.data_id_col = data_id_col
-        # 实验对比设计唯一住 design JSON(--design);design 列只保留
-        # SampleInfo.design 存储(MERIP 角色 / group 回退),不参与配对。
         self.design_col = design_col
         self.design = design
         self.column_design: Dict[str, Any] = {}
@@ -94,8 +92,6 @@ class MetadataUtils:
         self.cellranger_input_dict: Dict[str, CellrangerInput] = {}
         self.raw_fq_dir = os.path.join(self.outdir, "common", "1_raw_data")
         self.raw_bam_dir = os.path.join(self.outdir, "common", "2_raw_bam")
-        # Per-data_type staging roots actually used (data_type routing in
-        # prepare_fastq_meta); scanned alongside raw_fq_dir by _collect_raw_files.
         self._data_type_raw_dirs: set = set()
 
 
@@ -117,8 +113,6 @@ class MetadataUtils:
         sep = "\t" if head.count("\t") >= head.count(",") else ","
         df = pd.read_csv(meta, sep=sep)
 
-        # 相对路径以 meta 文件所在目录为基准(绝对路径不动):meta 记载的路径
-        # 是唯一依据,与调用时的 cwd 无关。
         base = os.path.dirname(os.path.abspath(str(meta)))
         for col in df.columns:
             df[col] = df[col].map(
@@ -152,11 +146,6 @@ class MetadataUtils:
 
         return a list of DesignPair objects and a list of CompareGroupPair objects
         """
-        # Design pairs are built per data_type partition (DR 分 data_type):
-        # DNA rows pair with DNA rows (somatic normal/tumor), RNA rows with RNA
-        # rows (DE contrasts); cross-data_type pairs never form. Dict keys are
-        # unique sample keys (sample_id, or "<sample_id>|<data_type>" when a
-        # name spans data_types), so DesignPair/CompareGroupPair carry keys.
         group_dict: Dict[Tuple[str, str], Dict[str, List[Tuple[str, SampleInfo]]]] = defaultdict(lambda: defaultdict(list))
         design_col = self.design_col
         for sample_key, info in self.samples_dict.items():
@@ -176,28 +165,23 @@ class MetadataUtils:
                 logger.warning(f"Invalid design format for {sample_key}: {design_val}")
                 continue
             role, contrast = m.groups()
-            # normalise role: "ctrl" -> "ctr" for uniform key
             role = "ctr" if role in ("ctr", "ctrl") else "exp"
             dt = (getattr(info, "data_type", None) or "").strip().upper()
             group_dict[(dt, contrast)][role].append((sample_key, info))
-        # Pre-compute token sets for each tag
         ctr_contrast_tokens = {key: set(key[1].split("_")) for key, roles in group_dict.items() if "ctr" in roles}
         exp_contrast_tokens = {key: set(key[1].split("_")) for key, roles in group_dict.items() if "exp" in roles}
         logger.debug(f"group_dict: {group_dict}")
         sample_pairs = []
         group_pairs = []
-        seen = set()  # deduplicate (ctr_key, exp_key)
+        seen = set()
         for exp_key, exp_token_set in exp_contrast_tokens.items():
             exp_dt, exp_contrast = exp_key
-            # Every control of the SAME data_type whose tokens intersect the
-            # experiment's tokens yields a comparison (exp_E14_KSR matches both
-            # ctr_E14 and ctr_KSR); cross-data_type matches never form.
             matched_ctr_keys: List[Tuple[str, str]] = []
             for ctr_key, ctr_token_set in ctr_contrast_tokens.items():
                 if ctr_key[0] != exp_dt:
                     continue
                 shared_tokens = exp_token_set & ctr_token_set
-                if shared_tokens:  # non-empty intersection
+                if shared_tokens:
                     non_rep_shared = {t for t in shared_tokens if not REP_PATTERN.match(t)}
                     if not non_rep_shared:
                         logger.warning(
@@ -241,7 +225,6 @@ class MetadataUtils:
                 )
                 group_pairs.append(compare_group_pair)
 
-        # --- Validation: warn if final results look wrong ---
         if exp_contrast_tokens and not group_pairs:
             logger.warning(
                 "Design column has experimental samples but no group_pairs were generated. "
@@ -498,8 +481,6 @@ class MetadataUtils:
                                 f"'{seen[s]}' and '{n}'")
                         seen[s] = n
 
-                # 派生两两对(参照, 检验, 参照组名列表, 检验组名列表)——
-                # 与 comparison_design() 的 pairwise 展开逐条一致
                 pairs = []
                 if coding == "consecutive":
                     for i in range(len(names) - 1):
@@ -515,7 +496,7 @@ class MetadataUtils:
                         for j in range(i + 1, len(names)):
                             pairs.append((names[i], names[j],
                                           [names[i]], [names[j]]))
-                else:  # helmert
+                else:
                     for k in range(1, len(names)):
                         pairs.append(("prev_mean", names[k],
                                       list(names[:k]), [names[k]]))
@@ -541,7 +522,6 @@ class MetadataUtils:
                         ctr_sample_ids=ctr_keys,
                         exp_sample_ids=exp_keys,
                     ))
-                    # designPairs 只属于两两 entry:实验样本 ↔ 首个对照样本
                     if len(names) == 2:
                         for exp_key in exp_keys:
                             pair_key = (ctr_keys[0], exp_key)
@@ -730,13 +710,6 @@ class MetadataUtils:
         if not self.fastq_required_cols.issubset(df.columns):
             raise ValueError(f"Metadata must contain columns: {self.fastq_required_cols}")
 
-        # Sample identity for multi-chain metas (DR) is (sample_id, data_type):
-        # the same name under two data_types is one biological sample assayed
-        # twice (a DRclass pairing), not a replicate merge and not a duplicate.
-        # Replicate merging (one-to-many data_id) still applies within one
-        # (sample_id, data_type). The samples_dict key equals sample_id unless
-        # a name spans several data_types, then "<sample_id>|<data_type>";
-        # SampleInfo.sample_id keeps the real name (staging/output naming).
         _name_dts: Dict[str, set] = {}
         if data_type_col in df.columns:
             df = df.copy()
@@ -774,9 +747,6 @@ class MetadataUtils:
             self.samples_dict[sample_key].assay = self._parse_assay(
                 df_sample[assay_col].values[0] if assay_col in df_sample.columns else None)
             self.samples_dict[sample_key].strain = self._parse_strain(df_sample["strain"].values[0] if "strain" in df_sample.columns else None)
-            # data_type 条件分支:DNA/RNA 行分别软链到 {outdir}/{DNA|RNA}/common/
-            # 1_raw_data;无该列/留空保持共享 {outdir}/common/1_raw_data
-            # (单链工作流不受影响)。
             data_type_value = self._parse_data_type(
                 df_sample[data_type_col].values[0] if data_type_col in df_sample.columns else None)
             self.samples_dict[sample_key].data_type = data_type_value
@@ -794,7 +764,6 @@ class MetadataUtils:
                     self.samples_dict[sample_key].contaminated_organism = None 
             except ValueError as e:
                 logger.error(f"Failed to resolve genome for organism '{host_organism_value}' in sample '{sample_id}': {e}")
-                # some pipeline may not rely on organism, so we can set it to UNKNOWN and continue
                 self.samples_dict[sample_key].organism = "UNKNOWN"
                 self.samples_dict[sample_key].contaminated_organism = None
             workflow_value = str(df_sample[workflow_col].values[0]) if workflow_col in df_sample.columns else None
@@ -901,7 +870,6 @@ class MetadataUtils:
                     self.samples_dict[sample_id].organism = resolve_genome(organism, workflow=self._row_workflow(df_sample))
                 except ValueError as e:
                     logger.error(f"Failed to resolve genome for organism '{organism}' in sample '{sample_id}': {e}")
-                    # some pipeline may not rely on organism, so we can set it to UNKNOWN and continue
                     self.samples_dict[sample_id].organism = "UNKNOWN"
                 if not bam_path or not os.path.exists(bam_path) or not pbi_path or not os.path.exists(pbi_path):
                     logger.warning(f"{sample_id} is missing BAM path or PBI path, skipping.")
@@ -918,7 +886,7 @@ class MetadataUtils:
                     self.samples_dict[sample_id].sample_id = sample_id
                     self.samples_dict[sample_id].pacbio_bam = target_bam
                     self.samples_dict[sample_id].pacbio_pbi = target_pbi
-                    self.samples_dict[sample_id].layout = Layout.SE  # Treat BAM as SE for downstream processing
+                    self.samples_dict[sample_id].layout = Layout.SE
         elif self.bam_required_cols.issubset(df.columns):
             for sample_id, df_sample in df.groupby(sample_id_col):
                 sample_id = str(sample_id).strip()
@@ -944,7 +912,6 @@ class MetadataUtils:
                     self.samples_dict[sample_id].organism = resolve_genome(organism, workflow=self._row_workflow(df_sample))
                 except ValueError as e:
                     logger.error(f"Failed to resolve genome for organism '{organism}' in sample '{sample_id}': {e}")
-                    # some pipeline may not rely on organism, so we can set it to UNKNOWN and continue
                     self.samples_dict[sample_id].organism = "UNKNOWN"
                 if not bam_path or not os.path.exists(bam_path) or not bai_path or not os.path.exists(bai_path):
                     logger.warning(f"{sample_id} is missing BAM path or BAI path, skipping.")
@@ -952,7 +919,7 @@ class MetadataUtils:
                 else:
                     logger.debug(f"Preparing BAM metadata for sample {sample_id}: BAM={bam_path}")
                     self.samples_dict[sample_id].sample_id = sample_id
-                    self.samples_dict[sample_id].layout = Layout.SE  # Treat BAM as SE for downstream processing
+                    self.samples_dict[sample_id].layout = Layout.SE
 
                     if cellranger_dir and os.path.exists(cellranger_dir):
                         logger.debug(f"Sample {sample_id} has a cellranger_dir specified: {cellranger_dir}. skipping symlinking of BAM/BAI files for this sample.")
@@ -1003,7 +970,6 @@ class MetadataUtils:
                 organism = resolve_genome(host_organism_value, workflow=self._row_workflow(df_sample))
             except ValueError as e:
                 logger.error(f"Failed to resolve genome for organism '{host_organism_value}' in sample '{sample_id}': {e}")
-                # some pipeline may not rely on organism, so we can set it to UNKNOWN and continue
                 organism = "UNKNOWN"
             self.samples_dict[sample_id].organism = organism
             design_value, group_value = self._parse_design(
@@ -1075,7 +1041,6 @@ class MetadataUtils:
                 logger.warning(f"FASTQ directory for {sample_id} does not exist: {fastq_dir}")
                 continue
 
-            # Scan for matching FASTQ files
             reads = {"1": [], "2": []}
             for fq_file in sorted(fastq_dir.iterdir()):
                 if not fq_file.is_file():
@@ -1098,7 +1063,6 @@ class MetadataUtils:
             target_r1 = os.path.join(sample_dir, f"{sample_id}_1.fq.gz")
             target_r2 = os.path.join(sample_dir, f"{sample_id}_2.fq.gz")
 
-            # R1
             if len(r1_files) == 1:
                 logger.debug(f"[{sample_id}] Linking R1: {r1_files[0].name}")
                 self._link_file(r1_files[0], target_r1)
@@ -1106,7 +1070,6 @@ class MetadataUtils:
                 logger.debug(f"[{sample_id}] Merging {len(r1_files)} R1 files")
                 self._merge_files(r1_files, target_r1)
 
-            # R2
             if r2_files:
                 if len(r2_files) == 1:
                     logger.debug(f"[{sample_id}] Linking R2: {r2_files[0].name}")
@@ -1123,11 +1086,9 @@ class MetadataUtils:
             self.samples_dict[sample_id].fastq_1 = target_r1
             if r2_files:
                 self.samples_dict[sample_id].fastq_2 = target_r2
-            # Keep original dir/prefix for Cell Ranger (--fastqs / --sample)
             self.samples_dict[sample_id].fastq_dir = str(fastq_dir)
             self.samples_dict[sample_id].sample_prefix = sample_prefix
 
-            # Also store organism/tissue if present
             for col in ("organism", "tissue"):
                 if col in df.columns:
                     setattr(self.samples_dict[sample_id], col, row[col])
@@ -1136,7 +1097,6 @@ class MetadataUtils:
             self.samples_dict[sample_id].assay = self._parse_assay(row.get("assay"))
             self.samples_dict[sample_id].strain = self._parse_strain(row.get("strain"))
 
-            # Build cellranger_input for this sample
             self.cellranger_input_dict[sample_id] = CellrangerInput(
                 fastq_dir=str(fastq_dir),
                 sample_prefix=sample_prefix,
@@ -1176,7 +1136,6 @@ class MetadataUtils:
                 logger.debug(f"Skipping non-FASTQ file: {fq_name}")
                 continue
 
-            # 优先识别 _R1/_R2 或 _1/_2，sample_id 不带 lane/read后缀
             m = re.match(r"(.+?)(?:_R?([12]))[^/]*\.f(ast)?q(?:\.gz)?$", fq_name)
             if m:
                 sample_id, read_num = m.group(1), m.group(2)
@@ -1185,7 +1144,6 @@ class MetadataUtils:
                 elif read_num == "2":
                     temp_files[sample_id]["fastq_2"].append(fq_file)
             else:
-                # 单端：去掉扩展名
                 sample_id = re.sub(r"\.(f(ast)?q)(\.gz)?$", "", fq_name)
                 temp_files[sample_id]["fastq_1"].append(fq_file)
                 logger.warning(f"File {fq_name} did not match R1 or R2 patterns, treat as SE: sample_id={sample_id}")
@@ -1200,7 +1158,6 @@ class MetadataUtils:
             files_r2 = sorted(reads["fastq_2"])
 
             if files_r1 and files_r2:
-                # PE
                 target_r1 = os.path.join(raw_fq_dir, sample_id, f"{sample_id}_1.fq.gz")
                 target_r2 = os.path.join(raw_fq_dir, sample_id, f"{sample_id}_2.fq.gz")
                 if len(files_r1) > 1:
@@ -1219,7 +1176,6 @@ class MetadataUtils:
                 sample_info.fastq_2 = target_r2
                 sample_info.layout = Layout.PE
             elif files_r1:
-                # SE
                 target_se = os.path.join(self.raw_fq_dir, sample_id, f"{sample_id}.single.fq.gz")
                 if len(files_r1) > 1:
                     logger.info(f"[{sample_id}] Merging {len(files_r1)} SE files into {os.path.basename(target_se)}")

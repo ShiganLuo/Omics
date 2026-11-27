@@ -10,13 +10,7 @@ QC_plot = function(Sat,out){
         Sat,
         pattern = "^MT-"
     )
-    # Sat = CellCycleScoring(
-    #     Sat,
-    #     s.features = cc.genes$c.genes,
-    #     g2m.features = cc.genes$g2m.genes
-    # )#Seurat自带cc.genes
     print(colnames(Sat@meta.data))#"orig.ident"   "nCount_RNA"   "nFeature_RNA"Seurat自带
-    # print(str(Sat))
 
     p = VlnPlot(Sat,
         features = c("nFeature_RNA","nCount_RNA","percent.mt"),
@@ -49,8 +43,6 @@ QC_plot = function(Sat,out){
 
 }
 QC_filter = function(Sat,nfeature_min,nfeature_max,percent_max){
-    ### filter
-    # you should caculate MT like QC_plot
     Sat[["percent.mt"]] = PercentageFeatureSet(
         Sat,
         pattern = "^MT-"
@@ -61,13 +53,10 @@ QC_filter = function(Sat,nfeature_min,nfeature_max,percent_max){
 }
 
 execute = function(Sat,outid,nfeature_min,nfeature_max,percent_max){
-    # plot for filter,so that you can specify the parments of QC_filter
     QC_plot(Sat,outid)
-    #filter
     cat("\nbefore filter,the dimension of",outid,"is",dim(Sat),"\n")
     Sat = QC_filter(Sat,nfeature_min,nfeature_max,percent_max)
     cat("\nafter filter,the dimension of",outid,"is",dim(Sat))
-    #save
     saveRDS(Sat, file = paste("/home/lsg/Data/glioblastoma/output/rds/QC/",outid,"_QC.rds",sep = ""))
     cat("\n",outid,"已保存\n")
 }

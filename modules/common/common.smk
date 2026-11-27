@@ -21,21 +21,12 @@ from snakemake.logging import logger
 import subprocess
 import shlex
 import re
-# Get ROOT_DIR from config (set by run.py)
 ROOT_DIR = config.get("ROOT_DIR", ".")
 
-# Output-root constant for command-receipt backups: subworkflows pass
-# OUTDIR_ROOT (the workflow's total output directory, absolute). Receipt
-# backups live flat under OUTDIR_ROOT/log/cmd/ — file names already carry
-# rule + sample + timestamp, so no per-key subdirectories. The directory
-# is created here once; rules only build their file path.
 OUTDIR_ROOT = config.get("OUTDIR_ROOT") or "output"
 RECEIPT_DIR = os.path.join(OUTDIR_ROOT, "log", "cmd")
 os.makedirs(RECEIPT_DIR, exist_ok=True)
 
-# 测试模式(run.py --test / --script-only 置环境变量 OMICS_SCRIPT_ONLY=1):
-# 输出 shell 脚本但不执行——run 块末尾以 SCRIPT_ONLY 判断跳过 bash 执行,回执
-# 脚本照常双写落盘,供跨版本 diff 对照参数传递语义。
 SCRIPT_ONLY = os.environ.get("OMICS_SCRIPT_ONLY", "") == "1"
 
 
@@ -52,7 +43,7 @@ def receipt_script(name: str) -> str:
     碰撞时出现,正常运行文件名不变。
     """
     path = os.path.join(RECEIPT_DIR, name)
-    os.makedirs(os.path.dirname(path), exist_ok=True)  # sample_id 可能含路径分隔符
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     stem, ext = os.path.splitext(path)
     candidate, i = path, 0
     while True:
@@ -95,12 +86,10 @@ def script_only_touch(out):
         with open(manifest, "a") as fh:
             fh.write("\n".join(created) + "\n")
 
-# Ensure src directory is in sys.path for importing common modules
 _src_dir = os.path.join(ROOT_DIR, "src")
 if _src_dir not in sys.path:
     sys.path.insert(0, _src_dir)
 
-# Import common utilities
 try:
     from common.util.LogUtil import setup_logger
 except ImportError as e:
@@ -113,25 +102,12 @@ except ImportError as e:
         f"Original error: {e}"
     )
 
-# ---------------------------------------------------------------------------
-# temp 中间产物规范(详见 modules.md temp 规范)
-# ---------------------------------------------------------------------------
-# temp 原则:只给"本次跑完后大概率不会再用到"的中间文件标 temp。交付物、
-# QC 证据、报告、index、clean fastq 等非中间文件永不包裹(它们是各模块
-# 确定的常量,不属于字段范围)。保留中间文件是兜底规则:
-# Params.<mod>.keep_intermediates 缺省 True(常驻),未传字段的流程不会发生
-# 任何删除;显式 false 时模块的全部中间文件用完即删。同一 output 块内
-# temp 与非 temp 混用合法。用户配置挂在 Params.<模块实例段>.keep_intermediates,
-# 子流程翻译到模块 config dict 的 Params.<mod>.keep_intermediates。
 def maybe_temp(path, mod_key):
     """按 Params.<mod_key>.keep_intermediates 决定 path 是否标 temp(缺省保留)。"""
     keep = config.get("Params", {}).get(mod_key, {}).get("keep_intermediates", True)
     return path if keep is not False else temp(path)
 
 
-# ---------------------------------------------------------------------------
-# Required-input helper
-# ---------------------------------------------------------------------------
 
 def _require(value, key, tool=""):
     """Return a configured input path or fail naming the JSON key to fill.
@@ -148,9 +124,6 @@ def _require(value, key, tool=""):
     return value
 
 
-# ---------------------------------------------------------------------------
-# Per-rule resource helper (config["resources"])
-# ---------------------------------------------------------------------------
 
 def _clamp_res_value(key, value, caps):
     """Clamp one resource value against the host budget (方案 A clamp).
@@ -279,7 +252,7 @@ def _scaled_mem_mb(name, merged, input_size):
     """
     scale = merged.get("scale")
     if not scale or input_size is None:
-        return None  # caller keeps the static value
+        return None
     _validate_scale(name, scale)
     base = float(merged.get("mem_mb", 0))
     if base <= 0:
@@ -344,10 +317,6 @@ def rule_res(name, input_size=None, attempt=1):
     return merged
 
 
-# ---------------------------------------------------------------------------
-# Isobaric label sanity check
-# ---------------------------------------------------------------------------
-# TMT6/10/11/16/18 and iTRAQ 4/8 reporter m/z values (monoisotopic).
 _REPORTER_MZ = [
     114.1276, 115.1247, 116.1217, 117.1189, 118.1345, 119.1316, 121.1344,
     126.1277, 127.1248, 127.1311, 128.1281, 128.1344, 129.1312, 129.1375,
@@ -385,7 +354,7 @@ def check_reporter_ions(mzml_path, max_spectra=400):
     import xml.etree.ElementTree as ET
 
     rng = random.Random(1)
-    reservoir = []          # sampled (mz_raw, is_64bit) arrays
+    reservoir = []
     total_ms2 = 0
     for _, el in ET.iterparse(mzml_path, events=("end",)):
         if el.tag.endswith("spectrum"):
@@ -464,16 +433,9 @@ def check_reporter_ions(mzml_path, max_spectra=400):
         f"{hit_spectra}/{checked} sampled MS2 spectra carry reporter-mass "
         f"peaks ({total_hits} reporter-mass peaks in total, {total_ms2} MS2 in file)"
     )
-    # Labelled data shows reporter peaks in most peptide spectra; unlabelled
-    # data produces only random m/z coincidences (~0.1 hits/spectrum, rarely
-    # more than one >=3-hit spectrum per 400). Require at least 3 such
-    # spectra to call the file labelled.
     return hit_spectra >= 3, detail
 
 
-# ---------------------------------------------------------------------------
-# Container (SIF) path resolution
-# ---------------------------------------------------------------------------
 _ENV_MAP = config.get("env", {})
 
 
@@ -515,11 +477,9 @@ def sif(yaml_filename: str, rule_name: str = "") -> str:
     logger.debug(f"stem:{stem}, yaml_filename: {yaml_filename}, rule_name: {rule_name}")
     logger.debug(f"_ENV_MAP: {_ENV_MAP}")
 
-    # 1. Explicit per-rule mapping in config["env"]
     if rule_name and rule_name in _ENV_MAP:
         return _ENV_MAP[rule_name]
 
-    # 2. Explicit module-level mapping in config["env"]
     if stem in _ENV_MAP:
         return _ENV_MAP[stem]
 
@@ -533,13 +493,11 @@ def sif(yaml_filename: str, rule_name: str = "") -> str:
             f"'\"env_dir\": \"/path/to/env\"' to the 'env' section of your config."
         )
 
-    # 3. Per-rule container directory (rule-specific SIF wins over module SIF)
     if rule_name:
         rule_sif = os.path.join(env_dir, rule_name, f"{stem}.sif")
         if os.path.isfile(rule_sif):
             return rule_sif
 
-    # 4. Fallback: env_dir / <module_dir> / <stem>.sif
     module_dir = os.path.basename(workflow.basedir)
     fallback_sif = os.path.join(env_dir, module_dir, f"{stem}.sif")
     if not os.path.isfile(fallback_sif):
@@ -551,18 +509,6 @@ def sif(yaml_filename: str, rule_name: str = "") -> str:
     return fallback_sif
 
 
-# ---------------------------------------------------------------------------
-# 比较设计展开:sample_params.design → 脚本消费的 wire JSON
-# ---------------------------------------------------------------------------
-# 分工(设计原则:流程字段照顾大局、脚本选最适形状、转化归 rule):
-#   设计源  sample_params.design {tissue: {groups, comparisons, tests}}
-#           —— 比较意图,值跟样本走,全运行一份;
-#   wire    {"<tissue>": {"<contrast>": entry}};entry = DESeq2 group_pairs
-#           形状(control_group_name/experimental_group_name/
-#           control_samples/experimental_samples)或 sccoda 多组形状
-#           (groups 有序列表,首组 = 基线);
-#   本函数  展开 + 语义校验(rule 层唯一转化点);脚本只收各自最适形状:
-#           pseudobulk 只收两两 entry,sccoda 原生双形状。
 
 _COMPARISON_CODINGS = ("consecutive", "vs_ref", "all_pairs", "helmert")
 
@@ -618,7 +564,6 @@ def comparison_design(design_source, tissue, view, tissue_samples=None):
             f"comparison_design: design.{tissue}.comparisons is empty — "
             f"no comparison to run")
 
-    # ── 注册表语义校验 ──
     for gname, samples in registry.items():
         where = f"design.{tissue}.groups.{gname}"
         if not isinstance(samples, (list, tuple)) or not samples:
@@ -670,7 +615,6 @@ def comparison_design(design_source, tissue, view, tissue_samples=None):
                 f"{where}: unknown coding {coding!r} — valid: "
                 f"{list(_COMPARISON_CODINGS)}")
 
-        # 组间样本互斥(析因/角色翻转请用不同的组名表达)
         seen = {}
         for n in names:
             for s in registry[n]:
@@ -691,7 +635,6 @@ def comparison_design(design_source, tissue, view, tissue_samples=None):
                     "experimental_samples": resolve([test]),
                 }
             else:
-                # sccoda 多组:首柱即基线,组序即柱序(生物学顺序)
                 if ref is not None and ref != names[0]:
                     raise ValueError(
                         f"{where}: multi-group entry goes to sccoda as-is "
@@ -704,8 +647,6 @@ def comparison_design(design_source, tissue, view, tissue_samples=None):
                 }
             continue
 
-        # view == "pairwise":按 coding 展开(派生名, 参照组, 检验组,
-        # 参照组名列表, 检验组名列表)
         pairs = []
         if coding == "consecutive":
             for i in range(len(names) - 1):
@@ -722,7 +663,6 @@ def comparison_design(design_source, tissue, view, tissue_samples=None):
                     pairs.append((f"{names[i]}_vs_{names[j]}",
                                   names[i], names[j], [names[i]], [names[j]]))
         elif coding == "helmert":
-            # 第 k 组对此前 k-1 组的合并(参照名 prev_mean)
             for k in range(1, len(names)):
                 prev = list(names[:k])
                 pairs.append((f"{names[k]}_vs_prev_mean",

@@ -31,9 +31,6 @@ def _reannotate_marker(wildcards):
             if _sccoda_override(wildcards) else [])
 
 
-# ---------------------------------------------------------------------------
-# scCODA differential abundance over annotated cell types
-# ---------------------------------------------------------------------------
 rule sccoda_run:
     """scCODA differential abundance (pertpy): one job per tissue x counter,
     running the sample_params.design comparison design scoped to its tissue
@@ -79,7 +76,7 @@ rule sccoda_run:
             out_root = os.path.dirname(str(output.report))
             os.makedirs(out_root, exist_ok=True)
             script = receipt_script(f"sccoda_run_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(out_root, f"sccoda_run_{wildcards.counter}_{wildcards.tissue}.sh")
             cmd = [params.python, params.script,
                    "--h5ad", f"{wildcards.tissue}={input.h5ad}",
@@ -89,18 +86,11 @@ rule sccoda_run:
                    "--credible-threshold", str(params.credible_threshold),
                    "--num-samples", str(params.num_samples),
                    "--num-warmup", str(params.num_warmup)]
-            # 比较设计:sample_params.design → comparison_design(native 视图:
-            # 两两 entry → group_pairs,多组 entry → groups 有序形状原样,
-            # 首组 = 基线)→ compare_design.json(回执/溯源)→
-            # --compare-json。转化集中在 common.smk::write_compare_design,
-            # 语义错误(缺组织/组名悬空/样本互斥/多组 ref 非首组)在
-            # 那里快速失败。
             design_json = os.path.join(out_root, "compare_design.json")
             write_compare_design(params.sc_design, wildcards.tissue,
                                  "native", design_json,
                                  tissue_samples=params.tissue_samples)
             cmd += ["--compare-json", design_json]
-            # --format is action='append': one flag per format (modules.md #9)
             for fmt in params.formats:
                 cmd += ["--format", str(fmt)]
             with open(script, "w") as f:
@@ -113,7 +103,7 @@ rule sccoda_run:
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scCODA differential abundance for {wildcards.tissue} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

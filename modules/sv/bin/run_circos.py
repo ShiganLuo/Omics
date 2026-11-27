@@ -5,8 +5,6 @@ from typing import List, Literal, Optional
 from utils.common import setup_logger, _run_cmd, PlotFormat
 logger = setup_logger(__name__)
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
@@ -15,7 +13,7 @@ def run_cricos_pipeline(
         fasta: str,
         outdir: str,
         image_formats: Optional[List[PlotFormat]] = None,
-        outfile_name_mode: Literal["parent","sample"] = "sample",  # parent / sample
+        outfile_name_mode: Literal["parent","sample"] = "sample",
         prepare_script: str = "sv_circos_prepare.py",
         circos_script: str = "circos.r",
         ins_bin_size: int = 100000,

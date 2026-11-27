@@ -36,7 +36,6 @@ rule pbmm2_align:
             rule_logger.info(f"Start pbmm2 alignment for sample {wildcards.sample_id} on genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bam))
             os.makedirs(sample_outdir, exist_ok=True)
-            # 带时间戳的备份(log/cmd 历史);outdir 只放无时间戳的当前命令(见"命令回执双写")
             script = receipt_script(f"pbmm2_align_{wildcards.genome}_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"pbmm2_align_{wildcards.sample_id}.sh")
             raw_align_bam = outdir + f"/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}.raw.bam"
@@ -62,7 +61,6 @@ rule pbmm2_align:
                 "-o", output.bai
             ]
             cmd4 = [
-                # pbmm2 --sort also writes the .bai companion — remove both
                 "rm", "-f", raw_align_bam, raw_align_bam + ".bai",
             ]
             with open(script, "w") as f:
@@ -74,7 +72,7 @@ rule pbmm2_align:
                 f.write(f'echo "pbmm2 alignment for sample {wildcards.sample_id} on genome {wildcards.genome} was completed successfully"\n')
             rule_logger.info("Executing: " + " && ".join(" ".join(str(x) for x in c) for c in (cmd1, cmd2, cmd3, cmd4)))
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

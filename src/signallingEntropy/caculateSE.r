@@ -36,7 +36,6 @@ signalling_entropy_parallel <- function(string_path,
     
     log_msg("INFO", "Initializing parallel data loading...")
 
-    # 1. Adjacency Matrix Preparation (Single-threaded)
     if (!is.null(out_adj_path) && file.exists(out_adj_path) && !rewrite_adj) {
         log_msg("INFO", "Loading cached adjacency matrix.")
         adj_dt <- suppressWarnings(data.table::fread(out_adj_path))
@@ -52,17 +51,14 @@ signalling_entropy_parallel <- function(string_path,
         }
     }
 
-    # 2. Expression Matrix Loading
     exp_dt <- suppressWarnings(data.table::fread(exp_path))
     exp_mat <- as.matrix(exp_dt[, -1, with = FALSE])
     rownames(exp_mat) <- exp_dt[[1]]
     sample_names <- colnames(exp_mat)
     
-    # 3. Parallel Backend Setup
     if (n_cores > 1) {
         log_msg("INFO", paste("Setting up parallel backend with", n_cores, "cores."))
         future::plan(future::multisession, workers = n_cores)
-        # Ensure cleanup of workers on exit
         on.exit(future::plan(future::sequential), add = TRUE)
         apply_func <- future.apply::future_lapply
     } else {
@@ -71,8 +67,6 @@ signalling_entropy_parallel <- function(string_path,
 
     log_msg("INFO", paste("Processing", length(sample_names), "samples..."))
 
-    # 4. Parallelized Iteration
-    # future_lapply automatically exports necessary objects (adj_mat, etc.) to workers
     entropy_results_list <- apply_func(sample_names, function(sample_id) {
 
         current_exp <- exp_mat[, sample_id, drop = FALSE]
@@ -86,7 +80,6 @@ signalling_entropy_parallel <- function(string_path,
                           stringsAsFactors = FALSE))
     })
 
-    # 5. Consolidation and Output
     final_entropy_df <- do.call(rbind, entropy_results_list)
     write.table(final_entropy_df, file = result_output_path, 
                 sep = "\t", quote = FALSE, row.names = FALSE)
@@ -106,15 +99,6 @@ plot_signalling_entropy <- function(entropy_df, output_path = "signalling_entrop
     ggsave(output_path, plot = p, width = 10, height = 6)
     log_msg("INFO", paste("Signalling entropy plot saved to:", output_path))
 }
-# signalling_entropy_parallel(
-#           string_path = "/data/pub/zhousha/Totipotent20251031/data/STRING/10090.protein.links.v12.0.txt",
-#           exp_path = "/data/pub/zhousha/20260207_Exome/output/RNAseq/counts/featureCounts/mouse/mouse_all_tpm.tsv",
-#           out_adj_path = "/data/pub/zhousha/Totipotent20251031/data/STRING/10090_adj_matrix.tsv",
-#           rewrite_adj = TRUE,
-#           species = 10090,
-#           n_cores = 6,
-#           result_output_path = "/data/pub/zhousha/20260207_Exome/output/RNAseq/results/signallingEntropy/signalling_entropy_local.txt"
-#         )
 plot_signalling_entropy(
     entropy_df = read.table("/data/pub/zhousha/20260207_Exome/output/RNAseq/results/signallingEntropy/signalling_entropy_local.txt", header = TRUE, sep = "\t"),
     output_path = "/data/pub/zhousha/20260207_Exome/output/RNAseq/results/signallingEntropy/signalling_entropy_plot.png"

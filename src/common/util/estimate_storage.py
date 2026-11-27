@@ -87,37 +87,13 @@ import shutil
 import sys
 import tempfile
 
-MIN_POINTS = 3   # >=3 calibration points before empirical ratios are dropped
+MIN_POINTS = 3
 HISTORY_NAME = "storage_ratio_history.tsv"
-GENERIC_BORN = 6  # stage at which generic outfile products are considered born
+GENERIC_BORN = 6
 
-# Repo root = workflow/Omics (this file lives at src/common/util/)
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.dirname(os.path.abspath(__file__)))))
 
-# ---------------------------------------------------------------------------
-# ClassSpec (curated manifest entry fields):
-#   id       unique id; also the calibration-history key
-#   desc     human-readable description
-#   scope    "sample" = one copy per sample (x n_samples); "run" = one copy
-#   basis    "input_bam" | "input_fastq" | "input_total" | "genome_fasta"
-#            | "fixed"
-#   ratio    (low, mid, high): for non-fixed basis "output bytes / basis
-#            bytes"; for fixed basis the absolute bytes per scope unit
-#   gate     [(dotted_cfg_path, expected, default_if_missing), ...] -- all
-#            must hold for the class to be produced; defaults match node.py
-#            (_enabled defaults True, sawfish defaults False)
-#   require  special prerequisites, e.g. ["genome_repeat_bed"]: the genome
-#            reference must provide the file
-#   need_comparisons  True = needs ctr_/exp_ pairs (sv comparison analyses)
-#   temp_when (dotted_cfg_path, expected, default): when satisfied the class
-#            is temp (auto-deleted after the run); else it is kept
-#   born     stage number producing the class; die = stage of its last
-#            consumer (a temp class still occupies disk at that stage, then
-#            is released); kept classes have die=None
-#   patterns relative-path globs for measure/calibrate classification
-#            (first match wins)
-# ---------------------------------------------------------------------------
 
 PACVAR_CLASSES = [
     dict(id="pbmm2_sorted_bam", desc="pbmm2 aligned BAM (bare output, never temp)",
@@ -185,7 +161,7 @@ PACVAR_CLASSES = [
          patterns=["variation/germline_cnv/**"]),
     dict(id="bamCoverage_bw", desc="coverage bigWig (shared by decoil/regionplot)",
          scope="sample", basis="input_bam", ratio=(0.0005, 0.002, 0.006),
-         gate=[],  # gate_any injected below: decoil OR regionplot enabled
+         gate=[],
          temp_when=None, born=5, die=None,
          patterns=["eccdna/coverage/**"]),
     dict(id="sv_go_kegg", desc="SV gene GO/KEGG analysis",
@@ -211,7 +187,7 @@ PACVAR_CLASSES = [
          patterns=["repeat/trgt/**"]),
     dict(id="hifiasm_assembly", desc="hifiasm assembly dirs (contigs + undeclared .bin/.gfa intermediates, counted together)",
          scope="sample", basis="input_bam", ratio=(0.05, 0.15, 0.30),
-         gate=[],  # gate_any injected below: telomere OR hifiasm.qc pulls it in
+         gate=[],
          temp_when=None, born=2, die=None,
          patterns=["repeat/centromere/**/assembly/**"]),
     dict(id="centromere_out", desc="centromere analysis (RepeatMasker + stats)",
@@ -236,10 +212,6 @@ PACVAR_CLASSES = [
                    "common/raw.json", "common/1_raw_data/**"]),
 ]
 
-# any-of gates (one satisfied is enough), matching node.py:
-# bamCoverage bigWig is shared by decoil/regionplot; the hifiasm assembly is
-# pulled into the DAG by the telomere assembly_scan OR by hifiasm_qc
-# (Params.hifiasm.qc.enabled, registered unconditionally in runPacVar)
 PACVAR_GATE_ANY = {
     "bamCoverage_bw": [("Params.decoil.enabled", True, True),
                        ("Params.regionplot.enabled", True, True)],
@@ -250,9 +222,6 @@ PACVAR_GATE_ANY = {
 MANIFESTS = {"PacVar": PACVAR_CLASSES}
 GATE_ANY = {"PacVar": PACVAR_GATE_ANY}
 
-# measure/calibrate suffix fallback (works without a manifest; first match
-# wins). These class ids are also the calibration-history keys of the
-# generic per-file model below, so measure/calibrate/estimate agree.
 FALLBACK_PATTERNS = [
     ("fb_bam", ["**/*.bam", "**/*.bam.bai", "**/*.bai", "**/*.cram", "**/*.crai", "**/*.pbi"]),
     ("fb_vcf", ["**/*.vcf", "**/*.vcf.gz", "**/*.vcf.gz.tbi", "**/*.vcf.gz.csi",
@@ -271,36 +240,25 @@ FALLBACK_PATTERNS = [
     ("fb_gz", ["**/*.gz", "**/*.gzip", "**/*.zip", "**/*.tar", "**/*.tgz"]),
 ]
 
-# Generic per-file size model for outfiles NOT covered by a curated manifest.
-# (basis, ratio): non-fixed classes size each FILE as ratio x its attributed
-# input basis (sample basis when the sample owns the file, else run totals);
-# fixed classes have absolute (low, mid, high) bytes per file. Ranges are
-# empirical, same spirit as the manifest ratios; calibrate() refines them.
 FALLBACK_MODEL = {
-    "fb_fastq":  ("input_fastq", (0.08, 0.25, 0.50)),   # trimmed reads fraction
-    "fb_bam":    ("input_total", (0.60, 1.10, 1.60)),   # aligned BAM ~ input size
+    "fb_fastq":  ("input_fastq", (0.08, 0.25, 0.50)),
+    "fb_bam":    ("input_total", (0.60, 1.10, 1.60)),
     "fb_bigwig": ("input_total", (2e-4, 1.5e-3, 6e-3)),
     "fb_vcf":    ("fixed", (2e6, 3e7, 3e8)),
-    "fb_fasta":  ("fixed", (1e7, 2e8, 5e9)),            # assemblies vary wildly
+    "fb_fasta":  ("fixed", (1e7, 2e8, 5e9)),
     "fb_bed":    ("fixed", (1e5, 5e6, 2e8)),
     "fb_h5":     ("fixed", (1e7, 3e8, 5e9)),
     "fb_office": ("fixed", (1e6, 1e7, 1e8)),
-    "fb_table":  ("fixed", (1e5, 3e6, 3e8)),            # count matrices can be large
+    "fb_table":  ("fixed", (1e5, 3e6, 3e8)),
     "fb_figure": ("fixed", (5e4, 2e6, 5e7)),
     "fb_gz":     ("fixed", (1e6, 5e7, 2e9)),
     "fb_other":  ("fixed", (1e3, 1e5, 1e7)),
 }
-# class-id -> basis key ("fixed" = absolute bytes), shared with calibrate()
 FALLBACK_BASIS = {cid: model[0] for cid, model in FALLBACK_MODEL.items()}
-# index sidecar files are tiny regardless of their class (fb_bam groups
-# .bai/.crai/.pbi with the BAMs, fb_vcf the .tbi/.csi)
 INDEX_SUFFIXES = (".bai", ".crai", ".pbi", ".tbi", ".csi", ".fai")
 INDEX_FIXED = (1e5, 5e7, 5e8)
 
 
-# ---------------------------------------------------------------------------
-# Small helpers
-# ---------------------------------------------------------------------------
 
 def glob_to_re(glob_pat):
     """Convert a glob (with cross-directory **) to an anchored regex.
@@ -365,9 +323,6 @@ def input_kind(path):
     return None
 
 
-# ---------------------------------------------------------------------------
-# Instantiated-json accessors (raw.json = one complete run's parameters)
-# ---------------------------------------------------------------------------
 
 def instance_samples(datajson):
     """Collect sample ids from an instantiated json.
@@ -387,7 +342,6 @@ def instance_samples(datajson):
         elif isinstance(value, list):
             ids.update(v for v in value if isinstance(v, str))
         elif isinstance(value, dict):
-            # genome -> [samples] maps etc.; values only, keys are genomes
             for v in value.values():
                 add(v)
 
@@ -485,7 +439,7 @@ def instance_inputs(datajson, samples, allow_missing=False):
                          "(sample_params.raw_files / Params.workflow.raw_files)")
     per_sample = {}
     totals = {"input_bam": 0, "input_fastq": 0, "input_total": 0}
-    unattributed = []           # (path, size)
+    unattributed = []
     missing = []
 
     def add_file(path, size, sid):
@@ -526,7 +480,6 @@ def instance_inputs(datajson, samples, allow_missing=False):
         raise SystemExit("input files missing (sizes are never guessed), "
                          f"{len(missing)} total, e.g. {missing[0]}")
     if unattributed and samples:
-        # Their outputs still materialize: split evenly, and say so.
         share = {k: 0 for k in ("input_bam", "input_fastq", "input_total")}
         for path, size in unattributed:
             share["input_total"] += size
@@ -581,9 +534,9 @@ def instance_comparisons(datajson):
         n = 0
         for v in cmps.values():
             if isinstance(v, dict) and (set(v) & pair_keys):
-                n += 1                      # flat: {name: pair}
+                n += 1
             elif isinstance(v, dict):
-                n += len(v)                 # nested: {organism: {name: pair}}
+                n += len(v)
         if n:
             return n
     return 0
@@ -657,11 +610,6 @@ def is_instantiated(datajson):
     return bool(datajson.get("outfiles"))
 
 
-# ---------------------------------------------------------------------------
-# Instantiation (uninstantiated template + meta -> raw.json), reusing the
-# exact code path of run.py: MetadataUtils for meta parsing and
-# node.run<Workflow>() for raw.json registration.
-# ---------------------------------------------------------------------------
 
 def instantiate_from_meta(meta, workflow, config_path, outdir, comparison=None):
     """Generate the instantiated run json for meta + workflow.
@@ -692,8 +640,6 @@ def instantiate_from_meta(meta, workflow, config_path, outdir, comparison=None):
                               workflow=workflow, comparison_file=comparison)
     (samples_info_dict, sample_pairs, group_pairs, raw_fastq_dir,
      raw_files, cellranger_input_dict) = meta_util.run()
-    # WORKFLOW_DISPATCH values call node.run<Workflow>() and return
-    # (snakefile, raw_json_path); pass a copy because node mutates the dict.
     _smk, raw_json_path = WORKFLOW_DISPATCH[workflow](
         copy.deepcopy(template), samples_info_dict, sample_pairs, group_pairs,
         raw_fastq_dir, os.path.abspath(outdir), meta, raw_files,
@@ -703,9 +649,6 @@ def instantiate_from_meta(meta, workflow, config_path, outdir, comparison=None):
     return datajson, raw_json_path
 
 
-# ---------------------------------------------------------------------------
-# gate / size / calibration
-# ---------------------------------------------------------------------------
 
 def gate_ok(cls, cfg, n_comparisons, gate_any=None):
     """Evaluate a manifest class's gates against the (instantiated) config.
@@ -778,9 +721,6 @@ def calibrated_ratio(hist, workflow, cls_id, manifest_lo, manifest_mid, manifest
     return pct(0.10), pct(0.50), pct(0.90), len(obs), True
 
 
-# ---------------------------------------------------------------------------
-# estimate
-# ---------------------------------------------------------------------------
 
 def generic_fill_classes(datajson, covered_res, per_sample, basis_all, samples):
     """Size every registered outfile not covered by a curated manifest.
@@ -804,14 +744,14 @@ def generic_fill_classes(datajson, covered_res, per_sample, basis_all, samples):
     outfiles = datajson.get("outfiles") or []
     fallback = [(glob_to_re(pat), cid) for cid, pats in FALLBACK_PATTERNS
                 for pat in pats]
-    agg = {}   # class_id -> {"lo","mid","hi","files"}
+    agg = {}
     for out in sorted(set(outfiles)):
         try:
             rel = os.path.relpath(out, outdir)
         except ValueError:
             rel = os.path.basename(out)
         if any(rx.match(rel) for rx in covered_res):
-            continue    # already sized by the curated manifest class
+            continue
         cid = "fb_other"
         for rx, cand in fallback:
             if rx.match(rel):
@@ -819,7 +759,7 @@ def generic_fill_classes(datajson, covered_res, per_sample, basis_all, samples):
                 break
         basis_key, ratio = FALLBACK_MODEL[cid]
         if out.lower().endswith(INDEX_SUFFIXES):
-            lo, mid, hi = INDEX_FIXED   # index sidecars: small fixed files
+            lo, mid, hi = INDEX_FIXED
         else:
             sid = attribute_to_sample(out, samples) if samples else None
             if basis_key == "fixed":
@@ -917,7 +857,7 @@ def do_estimate(args):
     table = []
     final = [0.0, 0.0, 0.0]
     transient = [0.0, 0.0, 0.0]
-    timeline = []   # (born, die|None, lo, mid, hi)
+    timeline = []
     skipped = []
     covered_res = []
 
@@ -930,8 +870,6 @@ def do_estimate(args):
                        gate_any=gate_any.get(cls["id"]) if gate_any else None):
             skipped.append((cls["id"], cls["desc"]))
             continue
-        # ratio is per unit: non-fixed = output/basis ratio, fixed = absolute
-        # bytes per scope unit. Calibration records the same per-unit quantity.
         r_lo, r_mid, r_hi = cls["ratio"]
         r_lo, r_mid, r_hi, n_obs, used = calibrated_ratio(
             hist, workflow, cls["id"], r_lo, r_mid, r_hi)
@@ -966,8 +904,6 @@ def do_estimate(args):
         fold(lo, mid, hi, temp)
         born = cls.get("born", 1)
         die = cls.get("die") if temp else None
-        # kept classes: die=None -> occupied from born forever;
-        # temp classes: occupied through their last consumer stage (die)
         timeline.append((born, die, lo, mid, hi))
         manifest_ids.add(cls["id"])
         covered_res.extend(glob_to_re(p) for p in cls["patterns"])
@@ -976,9 +912,6 @@ def do_estimate(args):
             low=lo, mid=mid, hi=hi, temp=temp,
             calibrated=used, n_obs=n_obs))
 
-    # Registered outfiles not covered by the curated manifest: generic
-    # per-file model. Calibrated class totals override the model when
-    # history has enough points for this workflow+class.
     generic_rows = generic_fill_classes(datajson, covered_res, per_sample,
                                         basis_all, samples)
     for row in generic_rows:
@@ -997,8 +930,6 @@ def do_estimate(args):
         table.append(row)
 
     if not curated:
-        # No curated manifest: still account for fixed run overhead, and say
-        # plainly that temp intermediates/peak are unmodeled.
         r_lo, r_mid, r_hi, n_obs, used = calibrated_ratio(
             hist, workflow or "", "run_overhead", 5e8, 2e9, 1e10)
         fold(r_lo, r_mid, r_hi, False)
@@ -1009,7 +940,6 @@ def do_estimate(args):
                           low=r_lo, mid=r_mid, hi=r_hi, temp=False,
                           calibrated=used, n_obs=n_obs))
 
-    # Peak: at stage s the disk holds every class with born <= s <= die
     checkpoints = set()
     for b, d, _lo, _mid, _hi in timeline:
         checkpoints.add(b)
@@ -1027,7 +957,6 @@ def do_estimate(args):
         if acc[1] > peak[1]:
             peak_stage, peak = s, acc
 
-    # ---- report ----
     print(f"workflow: {workflow or '(not detected)'}   samples: {len(samples)}   "
           f"comparisons: {n_cmp}   genome fasta: {human(gsize)}")
     print(f"inputs: bam {human(basis_all['input_bam'])}, "
@@ -1087,9 +1016,6 @@ def do_estimate(args):
     return 0
 
 
-# ---------------------------------------------------------------------------
-# measure / calibrate
-# ---------------------------------------------------------------------------
 
 def classify_matcher(workflow=None):
     """Build (relpath) -> class_id: manifest patterns first, suffix fallback.
@@ -1219,7 +1145,7 @@ def sample_inputs_from_meta(rows, allow_missing=False):
             if not os.path.exists(p):
                 missing.append(p)
                 continue
-            size = os.path.getsize(p)  # symlinks: size of the real data
+            size = os.path.getsize(p)
             d["input_total"] += size
             kind = input_kind(p)
             if kind:
@@ -1285,11 +1211,8 @@ def do_calibrate(args):
     history = args.history or os.path.join(
         os.path.dirname(os.path.abspath(__file__)), HISTORY_NAME)
 
-    # Per-sample attribution: exact path-component match on sample ids
-    # (same rule as calibrate_resources.py - unattributable sample-class
-    # bytes are dropped, never guessed).
-    per_class_sample = {}   # (class_id, sample) -> bytes
-    per_class_run = {}      # class_id -> bytes (run-scope classes)
+    per_class_sample = {}
+    per_class_run = {}
     n_links = 0
     for dirpath, _dirnames, filenames in os.walk(args.root):
         for fn in filenames:
@@ -1331,7 +1254,6 @@ def do_calibrate(args):
             fixed = (cls is not None and cls["basis"] == "fixed") or \
                 (cls is None and FALLBACK_BASIS.get(cid) == "fixed")
             if fixed:
-                # fixed class: calibrates absolute bytes; ratio holds bytes
                 ratio = obs_b
                 basis_b = ""
             else:
@@ -1351,7 +1273,7 @@ def do_calibrate(args):
         for cid, obs in sorted(per_class_run.items()):
             cls = cls_by_id.get(cid)
             if cls is not None and cls["scope"] == "sample":
-                continue  # sample-class bytes without a sample owner: dropped
+                continue
             basis_key = None
             if cls is not None and cls["basis"] != "fixed":
                 basis_key = cls["basis"]
@@ -1367,9 +1289,6 @@ def do_calibrate(args):
     return 0
 
 
-# ---------------------------------------------------------------------------
-# main
-# ---------------------------------------------------------------------------
 
 def main(argv=None):
     ap = argparse.ArgumentParser(

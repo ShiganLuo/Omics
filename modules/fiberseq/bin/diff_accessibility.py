@@ -39,8 +39,6 @@ from src.common.util.FiberlibUtil import bh_fdr, write_tsv  # noqa: E402
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
@@ -203,8 +201,6 @@ def _gene_table(args, contrast: str, res_rows, gene_by_key: Dict[str, str]) -> N
         if gene not in best or p < float(best[gene][10]):
             best[gene] = r
     rows = [[gene, r[9], r[11]] for gene, r in best.items()]
-    # rule output declares <outdir>/TEcount/<contrast>.TEcount_Gene.name.tsv
-    # (function_go_kegg consumes it at that path via indir=<workflow diff root>)
     out_dir = args.outdir / "TEcount"
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / f"{contrast}.TEcount_Gene.name.tsv"

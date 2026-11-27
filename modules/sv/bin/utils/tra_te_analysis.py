@@ -122,12 +122,10 @@ def stage1_enrichment(ev, starts, ends, chrlens, n_perm, seed, flank_ci=0):
         te_hit(c2, p2, starts, ends, None) is not None
         for (c1, p1), (c2, p2) in zip(bp1, bp2)) / len(ev)
 
-    # genome background
     tot = sum(chrlens.values())
     tebp = sum((ends[c][i] - starts[c][i]) for c in starts for i in range(len(starts[c])))
     bg = tebp / tot
 
-    # permutation: random inter-chromosomal breakpoint pairs
     rng = random.Random(seed)
     chrs = sorted(chrlens)
     w = [chrlens[c] for c in chrs]
@@ -137,7 +135,6 @@ def stage1_enrichment(ev, starts, ends, chrlens, n_perm, seed, flank_ci=0):
         r1.append(te_hit(c, rng.randint(1, chrlens[c]), starts, ends, None) is not None)
     perm1 = sum(r1) / len(r1)
 
-    # both-TE permutation: independent pairs
     n_pairs = 2000
     cnt = 0
     for _ in range(n_pairs):
@@ -150,9 +147,6 @@ def stage1_enrichment(ev, starts, ends, chrlens, n_perm, seed, flank_ci=0):
         cnt += ok
     perm_both = cnt / n_pairs
 
-    # binomial p for observed both-TE count (exact upper tail).
-    # scipy when available (sv.yaml ships it); otherwise the same sum of
-    # exact binomial pmfs computed with math.comb — identical result.
     n = len(ev)
     k = round(obs_both * n)
     try:
@@ -259,7 +253,6 @@ def main():
     SIF_SAM = args.samtools_sif
     SIF_SV = args.blast_sif
 
-    # ---- stage 0
     recs, ev = parse_tra(args.vcf)
     print(f'[stage0] TRA records {len(recs)} -> independent events {len(ev)}')
     ev.to_csv(os.path.join(args.outdir, 'tra_events.tsv'), sep='\t', index=False)
@@ -270,7 +263,6 @@ def main():
     has_fam_col = len(te) > 0 and bool(
         te['family'].astype(str).ne('').any())
 
-    # annotate both breakpoints
     h1 = [te_hit(c, p, starts, ends, names, fams, classes)
           for c, p in zip(ev.chrom1, ev.pos1)]
     h2 = [te_hit(c, int(p), starts, ends, names, fams, classes)
@@ -280,8 +272,6 @@ def main():
     ev['i1'] = [h[0] if h else -1 for h in h1]
     ev['i2'] = [h[0] if h else -1 for h in h2]
     if has_fam_col:
-        # official RepeatMasker family_id (BED col7); fall back to prefix
-        # bucket only for rows where the column is missing/blank
         ev['fam1'] = [h[2] if h and len(h) > 2 and h[2] else
                       (fam_of(h[1]) if h else '') for h in h1]
         ev['fam2'] = [h[2] if h and len(h) > 2 and h[2] else
@@ -301,7 +291,6 @@ def main():
     ev.to_csv(os.path.join(args.outdir, 'tra_events_annotated.tsv'),
               sep='\t', index=False)
 
-    # ---- stage 1
     s1 = stage1_enrichment(ev, starts, ends, chrlens,
                            args.n_perm, args.seed)
     print('[stage1] enrichment:', {k: (round(v, 4) if isinstance(v, float) else v)
@@ -309,9 +298,6 @@ def main():
     pd.Series(s1).to_csv(os.path.join(args.outdir, 'stage1_enrichment.tsv'),
                          sep='\t')
 
-    # ---- stage 2: family pair matrix among both-TE events
-    # pair key uses '|' separator: repeat names and official family_ids
-    # (e.g. ERVL-MaLR, hAT-Charlie) may themselves contain '-'
     bt = ev[ev.both_te]
     pair_counter = Counter(bt.apply(
         lambda r: '|'.join(sorted([str(r.fam1), str(r.fam2)])), axis=1))
@@ -331,7 +317,6 @@ def main():
     print('[stage2] family pairs (top):')
     print(s2.head(8).to_string(index=False))
 
-    # ---- stage 3: sequence homology for both-TE events (blastn)
     print(f'[stage3] blastn homology for {len(bt)} both-TE events ...')
     import tempfile
     tmpd = tempfile.mkdtemp(prefix='tra_blast_',
@@ -385,7 +370,6 @@ def main():
         os.rmdir(tmpd)
     except OSError:
         pass
-    # ---- stage 4: figures (tra_te_figures.py consumes the 5 TSVs above)
     fig_script = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               'tra_te_figures.py')
     if os.path.exists(fig_script):

@@ -45,8 +45,6 @@ except ImportError:
 logger = setup_logger(__name__, level=logging.INFO)
 matplotlib.use("Agg")
 
-# statistics_plot lives in the src/common submodule; make it importable
-# (only used with --test).
 _STATISTICS_PLOT_DIR = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
     "..", "..", "..", "src", "common", "statistics_plot", "Python",
@@ -56,8 +54,6 @@ if os.path.isdir(_STATISTICS_PLOT_DIR) and _STATISTICS_PLOT_DIR not in sys.path:
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
@@ -313,7 +309,6 @@ def plot_subfamily_bars(
     groups = [str(g) for g in annot["group"].cat.categories]
     group_of = annot.set_index("sample")["group"].astype(str)
 
-    # y scale first: subsequent display transforms must reflect it
     fig, ax = plt.subplots(figsize=figsize)
     if yscale == "log":
         ax.set_yscale("log")
@@ -342,25 +337,16 @@ def plot_subfamily_bars(
     ax.set_xticks(np.arange(len(patterns)))
     ax.set_xticklabels(patterns, rotation=x_rotation, ha="right")
     ax.set_ylabel(ylabel)
-    # legend outside the axes (right side) so it never covers bars
     ax.legend(frameon=False, fontsize=9, loc="center left", bbox_to_anchor=(1.02, 0.5))
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     fig.tight_layout()
 
-    # significance brackets (optional, do_test): each group vs the
-    # reference group (default: first group, e.g. fibroblasts); test
-    # auto-selected by statistical_test.compare_groups; bracket layout
-    # and headroom come from bar_significance (statistics_plot
-    # submodule) -- display-point based, so spacing is identical on
-    # linear/log axes; headroom is computed after tight layout so
-    # transforms are final.
     if do_test:
         sys.path.insert(
             0,
             os.path.join(os.path.dirname(os.path.abspath(__file__))),
         )
-        # vendored copy in this directory (from statistics_plot submodule)
         from statistical_test import compare_groups  # noqa: PLC0415
         from bar_significance import draw_significance_bracket, fit_bracket_headroom, p_to_star  # type: ignore[import-not-found]  # noqa: PLC0415
 
@@ -369,7 +355,6 @@ def plot_subfamily_bars(
         x_of = {grp: np.arange(len(patterns)) + (gi - n_g / 2 + 0.5) * width
                 for gi, grp in enumerate(groups)}
 
-        # pre-pass: expand y headroom so every bracket stack fits
         fit_bracket_headroom(ax, bar_tops, max(1, n_g - 1))
 
         for pi, pattern in enumerate(patterns):

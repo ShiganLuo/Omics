@@ -32,7 +32,7 @@ def smart_cast(val):
             return val.lower() == "true"
         try:
             if val.startswith("0") and len(val) > 1 and not val.startswith("0."):
-                return val  # 避免八进制等
+                return val
             return int(val)
         except Exception:
             pass
@@ -69,9 +69,6 @@ class SchemaValidator:
             raise RuntimeError("Schema not loaded. Call load() first.")
         return self._schema
 
-    # ------------------------------------------------------------------
-    # Type resolution & cast
-    # ------------------------------------------------------------------
 
     @staticmethod
     def _is_field_def(obj: Any) -> bool:
@@ -119,17 +116,14 @@ class SchemaValidator:
         if not parts:
             return None
 
-        # ---- traverse to the parent node --------------------------------
         node = self.schema
         for part in parts[:-1]:
             resolved = self._resolve_field(node, part)
             if resolved is None:
                 return None
-            # If resolved is a field def with properties, step into it.
             if isinstance(resolved, dict) and "properties" in resolved:
                 node = resolved
             elif isinstance(resolved, dict) and "type" in resolved:
-                # Typed field with child keys → still a container (e.g. "type":"dict")
                 child_keys = {k for k in resolved.keys() if k not in (
                     "type", "required", "nullable", "path", "items", "description",
                     "properties", "additionalProperties",
@@ -138,32 +132,24 @@ class SchemaValidator:
                 if child_keys:
                     node = resolved
                 else:
-                    return None  # Pure leaf; can't go deeper.
+                    return None
             else:
                 node = resolved
 
-        # ---- resolve the final segment ----------------------------------
         leaf = self._resolve_field(node, parts[-1])
         if leaf is None:
             return None
 
-        # If leaf is itself a field def, return it directly.
         if self._is_field_def(leaf):
             return leaf
 
-        # Leaf is a container (e.g. genome subtree without 'type').
-        # We can still extract structural info.
         if isinstance(leaf, dict):
             if "properties" in leaf:
                 return {"type": "object", **leaf}
-            # Pure subtree — not a typed field.
             return None
 
         return None
 
-    # ------------------------------------------------------------------
-    # Index file extensions (for prefix path validation)
-    # ------------------------------------------------------------------
 
     INDEX_MAP = {
         "hisat2": [f".{i}.ht2" for i in range(1, 9)],
@@ -172,9 +158,6 @@ class SchemaValidator:
         "bowtie2_for_rRNA": [".1.bt2", ".2.bt2", ".3.bt2", ".4.bt2", ".rev.1.bt2", ".rev.2.bt2"],
     }
 
-    # ------------------------------------------------------------------
-    # Cast & validate extra_args
-    # ------------------------------------------------------------------
 
     @staticmethod
     def _parse_field_def(fd: Dict[str, Any]) -> Tuple[str, bool, Optional[Dict], Optional[str]]:
@@ -198,20 +181,17 @@ class SchemaValidator:
         for key, value in extra_args.items():
             field_def = self.get_field_type(key)
 
-            # ---- key not in schema → fall back to smart_cast -------------
             if field_def is None:
                 result[key] = smart_cast(value)
                 continue
 
             type_str, nullable, items_def, path_type = self._parse_field_def(field_def)
 
-            # ---- nullable guard -----------------------------------------
             if (value is None or value == "") and not nullable:
                 errors.append(f"字段 '{key}' 不允许为空")
                 result[key] = value
                 continue
 
-            # ---- cast by target type ------------------------------------
             if type_str in ("list", "array"):
                 if isinstance(value, str):
                     try:
@@ -248,7 +228,7 @@ class SchemaValidator:
                 errors.extend(cerr)
 
             elif type_str == "str":
-                result[key] = value  # CLI strings are always valid
+                result[key] = value
 
             elif type_str in ("dict", "object"):
                 if isinstance(value, str):
@@ -267,25 +247,19 @@ class SchemaValidator:
                 result[key] = value
 
             else:
-                # Unknown type string — pass through
                 result[key] = smart_cast(value)
 
-            # ---- path validation ----------------------------------------
             if path_type and result[key] is not None and result[key] != "":
                 path_errors = self._validate_path(key, result[key], path_type)
                 errors.extend(path_errors)
 
-            # ---- enum validation ----------------------------------------
             allowed = field_def.get("enum") or field_def.get("values")
             if allowed is not None and isinstance(allowed, list):
                 enum_errors = self._validate_enum(key, result[key], allowed)
                 errors.extend(enum_errors)
 
-            # ---- range validation ---------------------------------------
-            # 1. Explicit from schema
             lo = field_def.get("minimum")
             hi = field_def.get("maximum")
-            # 2. Inferred from field name if schema doesn't declare
             if lo is None and hi is None and isinstance(result[key], (int, float)):
                 inferred = self._infer_range(key)
                 if inferred:
@@ -339,7 +313,6 @@ class SchemaValidator:
             )
             return value, errors
 
-        # Fallback — shouldn't be reached for known types
         return smart_cast(value), errors
 
     @classmethod
@@ -358,7 +331,6 @@ class SchemaValidator:
         """
         errors: List[str] = []
 
-        # Handle list of paths
         if isinstance(value, list):
             for i, item in enumerate(value):
                 if isinstance(item, str):
@@ -396,9 +368,6 @@ class SchemaValidator:
                 )
 
         elif path_type == "prefix":
-            # Check if at least one index file exists for this prefix.
-            # Infer tool name from field name (e.g. "hisat2_index_prefix" → "hisat2")
-            # Prefer longer matches (bowtie2_for_rRNA over bowtie2)
             tool = None
             for name in sorted(cls.INDEX_MAP, key=len, reverse=True):
                 if name in field_name:
@@ -413,7 +382,6 @@ class SchemaValidator:
                         f"'{value}' (检查了 {tool} 扩展名: {', '.join(exts[:3])}...)"
                     )
             else:
-                # Unknown tool — just check if prefix path's parent dir exists
                 parent = os.path.dirname(value)
                 if parent and not os.path.isdir(parent):
                     errors.append(
@@ -422,9 +390,6 @@ class SchemaValidator:
 
         return errors
 
-    # ------------------------------------------------------------------
-    # Enum constraint
-    # ------------------------------------------------------------------
 
     @staticmethod
     def _validate_enum(
@@ -459,15 +424,8 @@ class SchemaValidator:
             f"收到 '{value}'，有效值: {display}{suffix}"
         ]
 
-    # ------------------------------------------------------------------
-    # Range constraint
-    # ------------------------------------------------------------------
 
-    # Patterns for inferring numeric ranges from field names.
-    # Each entry: (substring, min, max, description)
-    # None means unbounded.
     _RANGE_PATTERNS: List[tuple] = [
-        # probability / ratio fields → [0, 1]
         ("resolution",  0.0, 1.0, "probability"),
         ("fdr",         0.0, 1.0, "FDR"),
         ("p_cut",       0.0, 1.0, "p-value cutoff"),
@@ -476,7 +434,6 @@ class SchemaValidator:
         ("doublet_rate", 0.0, 1.0, "doublet rate"),
         ("max_pct_mt",  0.0, 100.0, "percentage"),
         ("identity",    0.0, 1.0, "identity"),
-        # positive integers
         ("min_genes",   1, None, "positive integer"),
         ("max_genes",   1, None, "positive integer"),
         ("n_pcs",       1, None, "positive integer"),
@@ -568,7 +525,6 @@ class SchemaValidator:
         """
         return self._validate_node(config, self.schema, prefix="")
 
-    # type-check lookup shared by validate() and cast helpers
     _TYPE_CHECK = {
         "str": lambda v: isinstance(v, str),
         "int": lambda v: isinstance(v, int) and not isinstance(v, bool),
@@ -583,7 +539,7 @@ class SchemaValidator:
         if isinstance(declared, list):
             return any(SchemaValidator._type_ok(value, t) for t in declared)
         check = SchemaValidator._TYPE_CHECK.get(declared)
-        return check(value) if check else True  # unknown type names pass
+        return check(value) if check else True
 
     def _validate_node(self, cfg: Any, node: Dict[str, Any],
                        prefix: str = "") -> List[str]:
@@ -595,7 +551,6 @@ class SchemaValidator:
         props = node.get("properties")
         has_type = "type" in node and not isinstance(node.get("type"), dict)
 
-        # -- leaf / typed-node checks (a node can be typed AND have children)
         if has_type and prefix:
             declared = node["type"]
             declared = [declared] if isinstance(declared, str) else declared
@@ -633,16 +588,11 @@ class SchemaValidator:
                                 f"Field '{dotted}[{i}]' expects type "
                                 f"{item_type}, got {type(item).__name__} "
                                 f"({item!r})")
-            # typed non-dict leaf: nothing deeper to check
             if "dict" not in declared or not isinstance(cfg, dict):
                 return errors
 
-        # -- container: recurse into properties
         if not isinstance(cfg, dict):
             return errors
-        # -- dynamic keys: validate each undeclared key's value against the
-        # additionalProperties schema node (tissue/组名/对比名 style maps).
-        # Declared keys are handled by the properties walk below.
         add_props = node.get("additionalProperties")
         if isinstance(add_props, dict):
             declared_keys = props if isinstance(props, dict) else {}
@@ -676,7 +626,6 @@ class SchemaValidator:
             if not isinstance(defn, dict):
                 continue
             if key == "properties" and not defn.get("path"):
-                # "properties" 是 schema 包装层而非字段名,透明下钻(前缀不变)
                 yield from SchemaValidator._iter_path_fields(defn, prefix)
                 continue
             dotted = f"{prefix}{key}"
@@ -705,8 +654,6 @@ class SchemaValidator:
             with open(schema_file, "r", encoding="utf-8") as f:
                 schema = json.load(f)
 
-            # Top-level path fields (the flattener descends "properties"
-            # nesting, so wrapped module-schema fields are found too)
             for key, defn in self._iter_path_fields(
                     {k: v for k, v in schema.items() if k != "genome"}):
                 if key not in mapping:
@@ -732,12 +679,9 @@ class SchemaValidator:
                         p.touch(exist_ok=True)
                     mapping[key] = str(p)
 
-            # Genome path fields: flat `genome.<field>` or nested
-            # `genome.<G>.<field>`; per-genome keys get their own placeholders
             for gkey, defn in self._iter_path_fields(schema.get("genome") or {}):
                 parts = gkey.split(".")
                 field_name = parts[-1]
-                # genome 上下文取字段名上一段(GRCm39.fasta、genome.reference.GRCm39.fasta)
                 ctx = parts[-2] if len(parts) > 1 else None
                 config_key = f"genome.{gkey}"
                 if config_key in mapping:
@@ -746,7 +690,6 @@ class SchemaValidator:
                 path_type = defn["path"]
                 gname = ctx or genome
                 if path_type == "file":
-                    # Determine filename
                     if "smallrna" in field_name:
                         name = "smallrna"
                     elif "rRNA" in field_name:
@@ -779,7 +722,6 @@ class SchemaValidator:
                     mapping[config_key] = str(d)
 
                 elif path_type == "prefix":
-                    # Determine tool from field name (prefer longer match)
                     tool = None
                     for name in sorted(self.INDEX_MAP, key=len, reverse=True):
                         if name in field_name:
@@ -797,7 +739,6 @@ class SchemaValidator:
                         (pfx_dir / f"{gname}{ext}").touch(exist_ok=True)
                     mapping[config_key] = str(pfx)
 
-        # Write chrom.sizes
         chrom_sizes = ref_dir / "chrom.sizes"
         if not chrom_sizes.exists():
             with open(chrom_sizes, "w") as f:

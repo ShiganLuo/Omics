@@ -78,7 +78,6 @@ def read_overlap_assignments(
     with overlap_path.open(encoding="utf-8") as handle:
         for line_number, line in enumerate(handle, start=1):
             fields = line.rstrip("\n").split("\t")
-            # bedtools -bed emits six A fields followed by all B fields.
             if len(fields) < 12:
                 raise ValueError(
                     f"Unexpected bedtools intersect record at line {line_number}: "
@@ -167,8 +166,6 @@ def write_gene_reference(
         raise ValueError(f"Unsupported strand {strand!r} for {gene_id}")
     local_gene_end = local_gene_start + gene_length - 1
 
-    # bedtools getfasta -s already orients the sequence 5' to 3'. The local
-    # annotation therefore uses '+' regardless of the genomic source strand.
     attributes = f'gene_id "{gene_id}"; gene_name "{gene_id}";'
     transcript_attributes = attributes + f' transcript_id "{gene_id}";'
     reference_gtf = gene_dir / "reference.gtf"
@@ -271,7 +268,6 @@ def main() -> None:
 
     args.outdir.mkdir(parents=True, exist_ok=True)
     bed_records, display_names = load_bed(args.bed)
-    # Reverse lookup: display_name -> ensembl_id
     ensembl_lookup: dict[str, str] = {v: k for k, v in display_names.items()}
     overlap_path = args.outdir / "read_gene_overlaps.tsv"
     with overlap_path.open("w", encoding="utf-8") as output_handle:

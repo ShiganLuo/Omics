@@ -13,7 +13,6 @@ comparison_names = list(comparisons)
 vcf_dir = config.get("vcf_dir", "")
 vcf_suffix = config.get("vcf_suffix", ".sv.vcf.gz")
 
-# 指令派生名: parse 期格式列表(output 指令无法调用函数;str 收成单元素 list)
 _formats_sv_exp_specific = config.get("Params", {}).get("sv", {}).get("sv_exp_specific", {}).get("formats") or ["png"]
 if isinstance(_formats_sv_exp_specific, str):
     _formats_sv_exp_specific = [_formats_sv_exp_specific]
@@ -33,9 +32,7 @@ _formats_sv_mei = config.get("Params", {}).get("sv", {}).get("sv_mei", {}).get("
 if isinstance(_formats_sv_mei, str):
     _formats_sv_mei = [_formats_sv_mei]
 
-# genes 同样 rule 级(Params.sv.sv_gene_model.genes),仅 sv_gene_model 消费。
 _genes_sv_gene_model = config.get("Params", {}).get("sv", {}).get("sv_gene_model", {}).get("genes", [])
-# gene_model 线程数的 Params 兜底(resources.<rule>.threads 优先,见 rule_res)
 _threads_sv_gene_model = config.get("Params", {}).get("sv", {}).get("gene_model", {}).get("threads", 1)
 
 
@@ -80,7 +77,7 @@ rule sv_exp_specific:
         custom_fasta = config.get("genome", {}).get("custom_fasta", ""),
         te_lib = config.get("genome", {}).get("te_lib", ""),
         dist = config.get("Params", {}).get("sv", {}).get("exp_specific", {}).get("dist", 500),
-        formats = _formats_sv_exp_specific,   # ③ 转发
+        formats = _formats_sv_exp_specific,
     conda:
         "sv.yaml"
     container:
@@ -128,13 +125,10 @@ rule sv_exp_specific:
                 f.write(f'echo "sv_exp_specific for {wildcards.comparison} was completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(shlex.quote(str(x)) for x in cmd))
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
-                # completion markers: repeatmasker/ and statistics/ are NOT
-                # directory() outputs, so the engine's artifacts inside survive
-                # reruns; the markers track the dirs in the DAG instead
                 with open(str(output.repeatmasker_done), "w") as f:
                     f.write("ok\n")
                 with open(str(output.statistics_done), "w") as f:
@@ -163,7 +157,7 @@ rule sv_exp_circos:
         genome = config.get("Params", {}).get("sv", {}).get("circos", {}).get("genome", "mm39"),
         cytoband = config.get("Params", {}).get("sv", {}).get("circos", {}).get("cytoband", ""),
         ins_bin_size = config.get("Params", {}).get("sv", {}).get("circos", {}).get("ins_bin_size", 100000),
-        formats = _formats_sv_exp_circos,   # ③ 转发
+        formats = _formats_sv_exp_circos,
     conda:
         "sv.yaml"
     container:
@@ -203,7 +197,7 @@ rule sv_exp_circos:
                 f.write(f'echo "sv_exp_circos for {wildcards.comparison} was completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(shlex.quote(str(x)) for x in cmd))
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -231,8 +225,8 @@ rule sv_gene_model:
             attempt=attempt).get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/utils/gene_model.py"),
-        genes = _genes_sv_gene_model,   # ③ 转发
-        formats = _formats_sv_gene_model,   # ③ 转发
+        genes = _genes_sv_gene_model,
+        formats = _formats_sv_gene_model,
     conda:
         "sv.yaml"
     container:
@@ -273,7 +267,7 @@ rule sv_gene_model:
                 f.write(f'echo "sv_gene_model for {wildcards.comparison} was completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(shlex.quote(str(x)) for x in cmd))
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -301,7 +295,7 @@ rule sv_diff_analysis:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/pbsv_sv_diff_analysis.py"),
         large_sv_threshold = config.get("Params", {}).get("sv", {}).get("diff_analysis", {}).get("large_sv_threshold", 10000),
         comparison_names = comparison_names,
-        formats = _formats_sv_diff_analysis,   # ③ 转发
+        formats = _formats_sv_diff_analysis,
     conda:
         "sv.yaml"
     container:
@@ -338,7 +332,7 @@ rule sv_diff_analysis:
                 f.write('echo "sv_diff_analysis was completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(shlex.quote(str(x)) for x in cmd))
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -368,7 +362,7 @@ rule sv_oncoprint:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/run_OncoPrint.py"),
         deseq2_files = config.get("Params", {}).get("sv", {}).get("oncoprint", {}).get("deseq2_files", {}),
         comparison_names = comparison_names,
-        formats = _formats_sv_oncoprint,   # ③ 转发
+        formats = _formats_sv_oncoprint,
     conda:
         "sv.yaml"
     container:
@@ -406,7 +400,7 @@ rule sv_oncoprint:
                 f.write('echo "sv_oncoprint was completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(shlex.quote(str(x)) for x in cmd))
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -469,7 +463,7 @@ rule sv_mei:
         analysis = os.path.join(ROOT_DIR, "modules/sv/bin/mei_analysis.py"),
         mei = config.get("Params", {}).get("sv", {}).get("mei", {}) or {},
         te_lib = config.get("genome", {}).get("te_lib") or "",
-        formats = _formats_sv_mei,   # ③ 转发
+        formats = _formats_sv_mei,
         ctrl_name = lambda wildcards: (comparisons.get(wildcards.comparison, {}) or {}).get("control_group_name") or "",
         exp_name = lambda wildcards: (comparisons.get(wildcards.comparison, {}) or {}).get("experimental_group_name") or "",
     conda:
@@ -509,7 +503,6 @@ rule sv_mei:
                 cmd += ["--te-lib", params.te_lib]
             if mei.get("force_rerun"):
                 cmd += ["--force-rerun"]
-            # TE bucket list (Params.sv.mei.te_buckets), JSON transport
             cmd += ["--te-buckets",
                     json.dumps(mei.get("te_buckets"), ensure_ascii=False)]
             for flag, val in (("--ctrl-name", params.ctrl_name),
@@ -519,8 +512,6 @@ rule sv_mei:
                               ("--te-bed", getattr(input, "te_bed", ""))):
                 if val:
                     cmd += [flag, str(val)]
-            # image formats: one -f per requested format (mei figures + report
-            # are written per format by mei_analysis -> mei_plot)
             for fmt in params.formats:
                 cmd += ["-f", str(fmt)]
             with open(script, "w") as f:
@@ -534,12 +525,10 @@ rule sv_mei:
                 f.write(f'echo "sv_mei for {wildcards.comparison} was completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(shlex.quote(str(x)) for x in cmd))
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
-                # completion marker: mei/ is NOT a directory() output, so the
-                # script-level caches and artifacts inside survive reruns
                 with open(str(output.mei_done), "w") as f:
                     f.write("ok\n")
         except Exception as e:
@@ -643,11 +632,10 @@ rule sv_tra_te:
                 f.write(f'echo "sv_tra_te for {wildcards.comparison} was completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(shlex.quote(str(x)) for x in cmd))
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
-                # completion marker (tra_te/ is not a directory() output)
                 with open(str(output.tra_te_done), "w") as f:
                     f.write("ok\n")
         except Exception as e:

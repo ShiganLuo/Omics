@@ -37,7 +37,6 @@ rule star_3pg_gene_specific:
     container:
         sif("../../star.yaml", "star_3pg_gene_specific")
     params:
-        # 工具/参数挂 Params 的 rule 子键(config 全量路径直读,run 只碰 params)
         HELPER = os.path.join(config["ROOT_DIR"], "modules/star/star_3pass/bin/gene_specific_align.py"),
         PREPARE_HELPER = os.path.join(config["ROOT_DIR"], "modules/star/star_3pass/bin/prepare_gene_inputs.py"),
         STAR = STAR,
@@ -50,7 +49,6 @@ rule star_3pg_gene_specific:
         pass1 = config.get("Params", {}).get("star_3pass_gene", {}).get("passes", {}).get("pass1", {}),
         pass2 = config.get("Params", {}).get("star_3pass_gene", {}).get("passes", {}).get("pass2", {}),
         pass3 = config.get("Params", {}).get("star_3pass_gene", {}).get("passes", {}).get("pass3", {}),
-        # tailer 参数:Params.tailer.star_3pg_gene_specific.<key>(与 tailer_global 各自独立键)
         tailer_threshold = config.get("Params", {}).get("tailer", {}).get("star_3pg_gene_specific", {}).get("threshold", None),
         tailer_rev_comp = config.get("Params", {}).get("tailer", {}).get("star_3pg_gene_specific", {}).get("rev_comp", False),
     run:
@@ -66,7 +64,7 @@ rule star_3pg_gene_specific:
             os.makedirs(os.path.dirname(log_path), exist_ok=True)
             input_dir = os.path.join(outdir, wildcards.genome, wildcards.sample_id)
             script = receipt_script(f"gene_specific_{wildcards.genome}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"gene_specific.sh")
             p1, p2, p3 = params.pass1, params.pass2, params.pass3
 
@@ -88,9 +86,7 @@ rule star_3pg_gene_specific:
                 "--ambiguous", params.ambiguous,
                 "--flank", str(params.flank),
             ]
-            # Index parameters (genomeGenerate)
             cmd += ["--index-genome-sa-index-nbases", str(params.genome_sa_index_nbases)]
-            # Pass 1 parameters
             if "outFilterMultimapNmax" in p1:
                 cmd += ["--pass1-outFilterMultimapNmax", str(p1["outFilterMultimapNmax"])]
             if "outFilterMultimapScoreRange" in p1:
@@ -101,7 +97,6 @@ rule star_3pg_gene_specific:
                 cmd += ["--pass1-alignIntronMin", str(p1["alignIntronMin"])]
             if "alignMatesGapMax" in p1:
                 cmd += ["--pass1-alignMatesGapMax", str(p1["alignMatesGapMax"])]
-            # Pass 2 parameters
             if "outFilterMultimapNmax" in p2:
                 cmd += ["--pass2-outFilterMultimapNmax", str(p2["outFilterMultimapNmax"])]
             if "outFilterMultimapScoreRange" in p2:
@@ -120,7 +115,6 @@ rule star_3pg_gene_specific:
                 cmd += ["--pass2-clip5pNbases", str(p2["clip5pNbases"])]
             if "clip3pNbases" in p2:
                 cmd += ["--pass2-clip3pNbases", str(p2["clip3pNbases"])]
-            # Pass 3 parameters
             if "outFilterMultimapNmax" in p3:
                 cmd += ["--pass3-outFilterMultimapNmax", str(p3["outFilterMultimapNmax"])]
             if "outFilterMultimapScoreRange" in p3:
@@ -133,7 +127,6 @@ rule star_3pg_gene_specific:
                 cmd += ["--pass3-alignMatesGapMax", str(p3["alignMatesGapMax"])]
             if "alignEndsType" in p3:
                 cmd += ["--pass3-alignEndsType", str(p3["alignEndsType"])]
-            # Tailer parameters (rule 级键,与 tailer_global 各自独立)
             if params.tailer_threshold is not None:
                 cmd += ["--tailer-threshold", str(int(params.tailer_threshold))]
             if params.tailer_rev_comp:
@@ -144,7 +137,7 @@ rule star_3pg_gene_specific:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f"echo 'star_3pg_gene_specific for sample {wildcards.sample_id} genome {wildcards.genome} completed successfully at {current_time}'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

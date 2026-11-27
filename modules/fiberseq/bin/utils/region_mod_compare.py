@@ -40,8 +40,6 @@ from src.common.util.LogUtil import setup_logger  # noqa: E402
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
@@ -160,7 +158,6 @@ def build_tables(g1: str, g2: str,
                  quant: Dict[str, Dict], censat: Dict[str, Dict],
                  outdir: Path) -> Tuple[List, List[Tuple], Dict]:
     """Write region_diff.tsv + class_diff.tsv; return class rows for figures."""
-    # region universe: union of quant keys (same regions across samples)
     keys: List[Tuple] = []
     seen = set()
     for table in list(quant.values()) + list(censat.values()):
@@ -184,7 +181,6 @@ def build_tables(g1: str, g2: str,
         chrom, start, end, cls = k
         row = [chrom, start, end, cls]
         for metric, _ in METRICS:
-            # metric lives in exactly one of the two table families
             fam = quant if metric in ("m6a_per_fiber", "percent_accessible",
                                       "nuc_occupancy", "fire_frac") else censat
             v1 = group_value(fam, g1, k, metric)
@@ -279,7 +275,6 @@ def fig_class_metrics(per_class_metric: Dict, keys: List[Tuple], g1: str,
                edgecolor="black", linewidth=0.6, label=g1)
         ax.bar(x + w / 2, m2, w, color=GROUP_COLORS["g2"],
                edgecolor="black", linewidth=0.6, label=g2)
-        # per-region points
         rng = np.random.default_rng(0)
         for xi, vals, off in ((x - w / 2, a, -w / 2), (x + w / 2, b, w / 2)):
             for xi_, v in zip(xi, vals):
@@ -371,7 +366,6 @@ def fig_profiles(profiles: Dict[str, Dict], samples_by_group: Dict, keys,
                                  figsize=(14, 7), squeeze=False)
         for ax, cls in zip(axes.flat, classes):
             for g in (g1, g2):
-                # per-position mean across sample curves (linear aggregation)
                 agg: Dict[int, List[float]] = defaultdict(list)
                 for s in samples_by_group[g]:
                     posmap = profiles.get(s, {}).get(cls, {})

@@ -15,8 +15,6 @@ logdir = config.get("logdir", "log")
 star_index_dir = config.get("genome", {}).get("star_index_dir")
 sample_fastqs = config.get("sample_fastqs") or {}
 
-# KARRseq_star_align 参数段:Params.star.KARRseq_star_align.<key>(config 全量
-# 路径直读;无 module 级共享回退,KARRseq_star_align 与 star_align 各自独立键)。
 
 
 def star_fastq(wildcards):
@@ -35,11 +33,8 @@ rule KARRseq_star_align:
         fastq = star_fastq,
         genome_index = star_genome_index,
     output:
-        # unregistered stage files consumed by karrseq + sexcheck QC; kept by
-        # default, temp when Params.star.keep_intermediates is false
         aligned = maybe_temp(outdir + "/{sample_id}/{sample_id}_Aligned.sortedByCoord.out.bam", "star"),
         chimeric = maybe_temp(outdir + "/{sample_id}/{sample_id}_Chimeric.out.sam", "star"),
-        # samtools index -o 命名遵循 sexcheck 的 splitext(bam)+.bai 约定
         bai = maybe_temp(outdir + "/{sample_id}/{sample_id}_Aligned.sortedByCoord.out.bai", "star"),
     log:
         logdir + "/{sample_id}/STAR.log"
@@ -71,7 +66,7 @@ rule KARRseq_star_align:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start STAR alignment for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.aligned))
-            os.makedirs(sample_outdir, exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"KARRseq_star_align_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, "KARRseq_star_align.sh")
             cmd = [
@@ -90,7 +85,6 @@ rule KARRseq_star_align:
                 "--scoreGapATAC", str(params.scoreGapATAC),
                 "--chimSegmentMin", str(params.chimSegmentMin),
                 "--chimJunctionOverhangMin", str(params.chimJunctionOverhangMin),
-                # 声明产物 <sid>_Chimeric.out.sam 的前提:Junctions 只出 .junctions
                 "--chimOutType", "SeparateSAMold",
                 "--outReadsUnmapped", "Fastq",
                 "--limitOutSJcollapsed", str(params.limitOutSJcollapsed),
@@ -110,7 +104,7 @@ rule KARRseq_star_align:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd_index) + "\n")
                 f.write(f'echo "STAR alignment for {wildcards.sample_id} was completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

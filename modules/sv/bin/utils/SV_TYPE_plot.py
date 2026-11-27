@@ -59,7 +59,6 @@ def plot_sv_type_barplot(
     """
     os.makedirs(os.path.dirname(outpng), exist_ok=True)
     
-    # 将长格式转换为宽格式绘图
     pivot = (
         summary_df.pivot(index=pivot_index, columns=pivot_columns, values=pivot_values)
         .fillna(0)
@@ -68,11 +67,9 @@ def plot_sv_type_barplot(
     fig, ax = plt.subplots(figsize=figsize)
     pivot.plot(kind="bar", ax=ax, edgecolor="black")
 
-    # 设置轴标签
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
 
-    # 视觉美化：移除多余边框线，增加参考网格
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.grid(axis="y", linestyle="--", alpha=0.4)
@@ -99,7 +96,6 @@ def plot_stacking_bar(
     legend_title_fontsize: int = 16,
     rotation: int = 45,
     colormap: str = "tab20",
-    # ========= 新增参数 =========
     show_block_counts: bool = False,
     show_total_counts: bool = False,
     block_count_fmt: str = "{count}",
@@ -161,21 +157,14 @@ def plot_stacking_bar(
         Displays the plot or saves it to *save_path*.
     """
 
-    # -------------------------------
-    # 1. 比例转化
-    # -------------------------------
     logger.info(f"\n{df_counts.head()}")
     df_prop = df_counts.div(df_counts.sum(axis=0).replace(0, 1), axis=1)
     logger.info(f"\n{df_prop.head()}")
 
     fig, ax = plt.subplots(figsize=figsize)
 
-    # 右侧预留空间给图例
     fig.subplots_adjust(right=1 - legend_width)
 
-    # -------------------------------
-    # 2. 绘制堆叠柱状图
-    # -------------------------------
     df_prop.T.plot(
         kind="bar",
         stacked=True,
@@ -187,9 +176,6 @@ def plot_stacking_bar(
 
     n_samples = df_counts.shape[1]
 
-    # -------------------------------
-    # 3. X 轴刻度标签
-    # -------------------------------
     if xlabels is None:
         xlabels = df_counts.columns.tolist()
 
@@ -199,9 +185,6 @@ def plot_stacking_bar(
     ax.set_xticks(range(n_samples))
     ax.set_xticklabels(xlabels, rotation=rotation, ha="right")
 
-    # -------------------------------
-    # 4. 根据分组给 X 轴标签上色
-    # -------------------------------
     xlabel_colors = ["black"] * n_samples
 
     if groups is not None:
@@ -218,20 +201,14 @@ def plot_stacking_bar(
     for label, c in zip(ax.get_xticklabels(), xlabel_colors):
         label.set_color(c)
 
-    # -------------------------------
-    # 5. 色块计数 / 柱子总数标注
-    # -------------------------------
     if show_block_counts or show_total_counts:
-        df_counts_T = df_counts.T   # 行：样本，列：类型
+        df_counts_T = df_counts.T
         df_prop_T = df_prop.T
 
         n_types = df_counts.shape[0]
 
-        # -------------------------------
-        # 色块内部绝对计数（修正版）
-        # -------------------------------
         if show_block_counts:
-            df_counts_T = df_counts.T   # 行：sample，列：type
+            df_counts_T = df_counts.T
             df_prop_T = df_prop.T
 
             n_samples = df_counts_T.shape[0]
@@ -262,7 +239,6 @@ def plot_stacking_bar(
                         fontsize=10,
                     )
 
-        # ---- 每根柱子的总计数 ----
         if show_total_counts:
             totals = df_counts.sum(axis=0).values
             for i, total in enumerate(totals):
@@ -277,9 +253,6 @@ def plot_stacking_bar(
                     transform=ax.get_xaxis_transform(),
                 )
 
-    # -------------------------------
-    # 6. 图例 1：突变类型
-    # -------------------------------
     legend_types = df_prop.index.tolist()
     cmap_types = plt.get_cmap(colormap)
 
@@ -302,9 +275,6 @@ def plot_stacking_bar(
     )
     ax.add_artist(legend1)
 
-    # -------------------------------
-    # 7. 图例 2：样本分组
-    # -------------------------------
     if groups is not None:
         unique_groups = list(dict.fromkeys(groups))
         group_patches = [
@@ -322,9 +292,6 @@ def plot_stacking_bar(
             frameon=False
         )
 
-    # -------------------------------
-    # 8. 轴与样式优化
-    # -------------------------------
     ax.set_xlabel(xlabel, fontsize=legend_title_fontsize)
     ax.set_ylabel(ylabel, fontsize=legend_title_fontsize)
     ax.set_title(title, fontsize=legend_title_fontsize + 2)
@@ -332,9 +299,6 @@ def plot_stacking_bar(
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
 
-    # -------------------------------
-    # 9. 保存或显示
-    # -------------------------------
     if save_path:
         save_path = Path(save_path)
         save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -386,9 +350,6 @@ def plot_sv_length_boxplot(
     """
     os.makedirs(os.path.dirname(outpng), exist_ok=True)
 
-    # -------------------------
-    # 数据筛选和转换
-    # -------------------------
     filtered_data = {}
     log_lengths = {}
 
@@ -397,9 +358,6 @@ def plot_sv_length_boxplot(
         filtered_data[group] = filtered_df
         log_lengths[group] = np.log10(filtered_df[svlen_col] + 1)
 
-    # -------------------------
-    # 统计检验（原始长度）
-    # -------------------------
     group_labels = list(data_dict.keys())
     p_values = {}
 
@@ -422,9 +380,6 @@ def plot_sv_length_boxplot(
         else:
             return "ns"
 
-    # -------------------------
-    # 作图
-    # -------------------------
     fig, ax = plt.subplots(figsize=figsize)
 
     box = ax.boxplot(
@@ -443,7 +398,6 @@ def plot_sv_length_boxplot(
         patch.set_facecolor(color)
         patch.set_alpha(0.6)
 
-    # 抖点
     for i, (group, lengths) in enumerate(log_lengths.items(), start=1):
         x_jitter = np.random.normal(i, jitter_width, size=len(lengths))
         ax.scatter(
@@ -453,9 +407,6 @@ def plot_sv_length_boxplot(
             alpha=point_alpha, linewidths=0
         )
 
-    # -------------------------
-    # 统计横盖（bracket）
-    # -------------------------
     y_max = max(max(lengths) for lengths in log_lengths.values())
     h = 0.03
     y = y_max + h
@@ -473,11 +424,8 @@ def plot_sv_length_boxplot(
             va="bottom",
             fontsize=9
         )
-        y += h * 2  # 增加高度避免重叠
+        y += h * 2
 
-    # -------------------------
-    # 样式（无标题）
-    # -------------------------
     ax.set_ylabel(ylabel)
 
     ax.spines["top"].set_visible(False)
@@ -647,7 +595,6 @@ def plot_group_type_comparison(
         else:
             return "ns"
 
-    # ---------- significance: pairwise chi2 ----------
     all_pairs: Dict[str, List[tuple]] = {}
     if do_test:
         for sv in pivot.index:
@@ -660,7 +607,6 @@ def plot_group_type_comparison(
                         [pivot.loc[sv, g1], pivot[g1].sum() - pivot.loc[sv, g1]],
                         [pivot.loc[sv, g2], pivot[g2].sum() - pivot.loc[sv, g2]],
                     ])
-                    # Skip degenerate tables
                     if table.min() < 0 or table.sum() == 0 or (table.sum(axis=0) == 0).any() or (table.sum(axis=1) == 0).any():
                         continue
                     try:
@@ -673,18 +619,15 @@ def plot_group_type_comparison(
                     pairs.append((idx1, idx2, p_to_star(p)))
             all_pairs[sv] = pairs
 
-    # ---------- colors ----------
     if colors is None:
         cmap = plt.cm.tab10
         colors = {g: cmap(i / max(n_groups - 1, 1)) for i, g in enumerate(group_order)}
 
-    # ---------- axis setup ----------
     x = np.arange(len(pivot.index))
     total_width = 0.8
     bar_width = total_width / n_groups
     offsets = [bar_width * (i - (n_groups - 1) / 2) for i in range(n_groups)]
 
-    # Auto-detect whether broken axis is needed
     global_max = pivot.values.max()
     sig_sv_list = [sv for sv, pairs in all_pairs.items()
                    if any(s != "ns" for _, _, s in pairs)]
@@ -693,7 +636,6 @@ def plot_group_type_comparison(
     else:
         sig_max = np.median(pivot.values)
 
-    # If the max bar is not significantly taller than the rest, skip broken axis
     need_broken = use_broken_axis and (global_max > sig_max * 2.0)
 
     if need_broken:
@@ -717,7 +659,6 @@ def plot_group_type_comparison(
         ax_bottom.set_ylim(0, low_max)
         ax_top.set_ylim(high_min, high_max)
 
-        # broken marks
         d = 0.008
         ax_top.plot((-d, +d), (-d, +d), transform=ax_top.transAxes,
                      color="black", clip_on=False)
@@ -732,7 +673,6 @@ def plot_group_type_comparison(
         axes = (ax,)
         ax_top = ax_bottom = ax
 
-    # ---------- significance brackets (宝盖头 style) ----------
     if do_test:
         LEG_PT = 8
         TEXT_PT = 3
@@ -769,7 +709,6 @@ def plot_group_type_comparison(
                 fs = 12 if is_sig else 9
                 fw = "bold" if is_sig else "normal"
 
-                # 宝盖头 bracket as single polyline to avoid line-cap overlap
                 tick_x = bar_width * 0.25
                 _, y_tick = inv.transform((0, y_hat_disp - tick_depth))
 
@@ -785,7 +724,6 @@ def plot_group_type_comparison(
 
                 bracket_offset += tick_depth + TEXT_PT + bracket_gap
 
-    # ---------- formatting ----------
     ax_bottom.set_xticks(x)
     ax_bottom.set_xticklabels(pivot.index)
     ax_bottom.set_ylabel(ylabel)
@@ -809,10 +747,10 @@ def plot_multi_smooth_curves(
         datasets: List[Dict],
         outfig: str,
         x_label: str = "SV Length (bp)", 
-        y_label: str = "Proportion", # 通常分箱后会是比例
+        y_label: str = "Proportion",
         title: str = "SV Length Distribution",
-        smooth_sigma: float = 2.0,  # 增加此值可以变得更平滑
-        highlight_x_values: List[float] = None # 新增参数：用于绘制竖直线的 X 值列表
+        smooth_sigma: float = 2.0,
+        highlight_x_values: List[float] = None
 ) -> plt.Figure:
     """
     Plot multiple smoothed SV length distribution curves on a log-scale x-axis.
@@ -844,13 +782,12 @@ def plot_multi_smooth_curves(
         The generated figure object.
     """
     fig = plt.figure(figsize=(10, 6))
-    ax = fig.gca() # 获取当前 Axes 对象，方便后面添加注释
+    ax = fig.gca()
 
     for data in datasets:
         x = np.array(data['x'], dtype=float)
         y = np.array(data['y'], dtype=float)
         
-        # 过滤非法值
         mask = (x > 0) & (y >= 0)
         x, y = x[mask], y[mask]
         if len(x) < 2: continue
@@ -858,40 +795,30 @@ def plot_multi_smooth_curves(
         label = data.get('label', 'Unnamed')
         color = data.get('color', None) 
 
-        # 1. 在 Log 空间对数据进行高精度重采样（生成 1000 个点）
         log_x = np.log10(x)
-        # 确保 x 轴范围涵盖所有数据点
-        min_log_x = log_x.min() if len(log_x) > 0 else np.log10(1) # 至少从 1 开始
-        max_log_x = log_x.max() if len(log_x) > 0 else np.log10(1000000) # 至少到 1Mb
+        min_log_x = log_x.min() if len(log_x) > 0 else np.log10(1)
+        max_log_x = log_x.max() if len(log_x) > 0 else np.log10(1000000)
         log_x_new = np.linspace(min_log_x, max_log_x, 1000)
         
-        # 2. 首先通过线性插值获取密集点
         y_interp = np.interp(log_x_new, log_x, y)
         
-        # 3. 【核心步骤】使用高斯平滑
         y_smooth = gaussian_filter1d(y_interp, sigma=smooth_sigma)
         
-        # 4. 确保非负性
         y_smooth = np.maximum(y_smooth, 0)
 
-        # 5. 绘图
         ax.plot(np.power(10, log_x_new), y_smooth, label=label, color=color, linewidth=2.5)
 
-    # --- 新增功能：绘制竖直线 ---
     if highlight_x_values:
         for val in highlight_x_values:
             ax.axvline(x=val, color='gray', linestyle='--', linewidth=1.5, alpha=0.7)
-            # 可以在这里添加文本标签，但需要手动调整位置
             if val < 1000:
                 label_text = f"{val:.0f} bp"
             else:
-                # 如果是整数kb则不带小数，否则带1位小数
                 label_text = f"{val/1000:.1f} kb".replace(".0 ", " ")
             ax.text(val, ax.get_ylim()[1]*0.95, label_text, 
                     rotation=0, va='top', ha='right', color='gray', fontsize=9)
 
 
-    # 坐标轴设置
     ax.set_xscale('log') 
     ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)

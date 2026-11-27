@@ -30,14 +30,11 @@ sv_plot = function(
 
     mat = read.csv(oncoprint_matrix_file, row.names = 1, check.names = FALSE)
 
-    # 提取实际存在的SV类型
     sv_types = unique(unlist(strsplit(as.vector(as.matrix(mat)), ",")))
     sv_types = sv_types[sv_types != "" & !is.na(sv_types)]
 
-    # 仅保留存在的颜色
     col = alteration_colors[names(alteration_colors) %in% sv_types]
 
-    # 构建 alter_fun
     alter_fun = list(
         background = function(x, y, w, h) {
             grid.rect(x, y, w, h, gp = gpar(fill = "white", col = NA))
@@ -90,7 +87,6 @@ sv_plot = function(
             title = "Alterations",
             at = names(col), 
             labels = names(col),
-            # 2. 修复颜色掩盖问题：将内部变量名重命名为 type_nm 避免与坐标轴 x 冲突
             graphics = lapply(names(col), function(type_nm) {
                 local({
                     t_color = col[type_nm]

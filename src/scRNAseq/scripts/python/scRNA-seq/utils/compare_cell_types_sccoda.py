@@ -60,7 +60,6 @@ def plot_effects_from_csv(csv_path: Path, out_path: Path, title: str) -> bool:
     df = df.sort_values("log2FC").reset_index(drop=True)
 
     n = len(df)
-    # Color only credible effects; non-credible = gray
     n_credible = int(df["is_credible"].sum())
     cmap = plt.cm.get_cmap("tab20" if n_credible <= 20 else "tab20b")
     cred_colors = [cmap(i / max(n_credible - 1, 1)) for i in range(n_credible)]
@@ -114,12 +113,6 @@ def run_sccoda(adata: sc.AnnData, ref: str, treat: str, tissue: str,
     Returns:
         DataFrame with per-cell-type credible effect results.
     """
-    # Subset to two conditions and rebuild count matrix.
-    # Order matters for scCODA: the FIRST level of `condition` becomes the
-    # base category (no [T.] marker in covariate names); the SECOND level
-    # becomes the treatment ([T.<level>] in covariate names).
-    # We force `categories=[ref, treat]` so the treatment is `treat` and
-    # effects are reported as "ref vs treat" (matches our CLI convention).
     sub = adata[adata.obs["sample_id"].isin([ref, treat])].copy()
     sub.obs["condition"] = pd.Categorical(
         sub.obs["sample_id"].values,
@@ -130,7 +123,6 @@ def run_sccoda(adata: sc.AnnData, ref: str, treat: str, tissue: str,
 
     sccoda = pt.tl.Sccoda()
 
-    # Step 1: load — aggregate cell-level -> sample-level MuData
     log.info("Aggregating cell-level to sample-level (cell_type × sample)...")
     mdata = sccoda.load(
         sub,
@@ -143,14 +135,12 @@ def run_sccoda(adata: sc.AnnData, ref: str, treat: str, tissue: str,
     log.info("  sample-level shape: %s × %s",
              mdata["coda"].shape[0], mdata["coda"].shape[1])
 
-    # Step 2: prepare — design matrix + automatic reference selection
     sccoda.prepare(
         mdata,
         formula="condition",
         reference_cell_type=ref_celltype,
     )
 
-    # Step 3: MCMC sampling
     log.info("Running scCODA NUTS sampler (num_samples=2000, num_warmup=500, ~20-40s)...")
     sccoda.run_nuts(
         mdata,
@@ -159,7 +149,6 @@ def run_sccoda(adata: sc.AnnData, ref: str, treat: str, tissue: str,
         rng_key=0,
     )
 
-    # Step 4: extract credible effects
     summary = sccoda.get_effect_df(mdata)
     summary = summary.reset_index().rename(columns={
         "Cell Type": "cell_type",
@@ -170,7 +159,6 @@ def run_sccoda(adata: sc.AnnData, ref: str, treat: str, tissue: str,
     summary["log2FC"] = summary["log2FC"].astype(float)
     summary["is_credible"] = summary["final_prob"] >= 0.90
 
-    # Log effect direction
     n_up = int(((summary["log2FC"] > 0) & summary["is_credible"]).sum())
     n_dn = int(((summary["log2FC"] < 0) & summary["is_credible"]).sum())
     n_total = int(summary["is_credible"].sum())
@@ -184,16 +172,12 @@ def run_sccoda(adata: sc.AnnData, ref: str, treat: str, tissue: str,
     if out_dir:
         out_dir.mkdir(parents=True, exist_ok=True)
         prefix = f"{out_dir.parent.name}_{ref}_vs_{treat}"
-        # CSV
         csv_path = out_dir / f"{prefix}_da.csv"
         summary.to_csv(csv_path, index=False)
         log.info("Saved: %s", csv_path)
 
-        # Build human-readable title (full sample IDs only).
-        # Convention: "A vs B" = A is reference (left), B is treatment (right).
         full_title = f"{tissue.upper()} DA: {ref} vs {treat}"
 
-        # Effects barplot — use return_fig=True so we can set our own suptitle
         if n_total > 0:
             try:
                 fg = sccoda.plot_effects_barplot(
@@ -207,8 +191,6 @@ def run_sccoda(adata: sc.AnnData, ref: str, treat: str, tissue: str,
                     return_fig=True,
                 )
                 if hasattr(fg, "fig"):
-                    # Force the actual canvas size — pertpy leaves a tall FacetGrid
-                    # even when there's only one facet, so resize manually.
                     fg.fig.set_size_inches(10, 5.5)
                     fg.fig.suptitle(full_title, fontsize=14, y=0.97)
                     for ax in fg.axes.flat:
@@ -230,13 +212,11 @@ def run_sccoda(adata: sc.AnnData, ref: str, treat: str, tissue: str,
         else:
             log.info("  skip effects_barplot: no credible effects to plot")
 
-        # Stacked barplot of cell-type proportions per sample
         try:
             fig = sccoda.plot_stacked_barplot(
                 mdata, feature_name="samples", figsize=(10, 4.5), return_fig=True,
             )
             if fig is None:
-                # pertpy sometimes still leaves the figure open — grab current
                 fig = plt.gcf()
             fig.set_size_inches(10, 5.0)
             fig.suptitle(full_title, fontsize=14, y=0.97)
@@ -305,7 +285,6 @@ def main():
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Parse --h5ad
     tissues = {}
     for item in args.h5ad:
         if "=" not in item:
@@ -313,7 +292,6 @@ def main():
         tissue, path = item.split("=", 1)
         tissues[tissue] = Path(path)
 
-    # Parse --compare
     comparisons = []
     for item in args.compare:
         if ":" not in item:
@@ -323,7 +301,6 @@ def main():
             raise SystemExit(f"Unknown tissue '{tissue}', define --h5ad first")
         comparisons.append((tissue, ref, treat))
 
-    # Run
     for tissue, ref, treat in comparisons:
         log.info("=" * 60)
         log.info("[%s] %s vs %s", tissue, ref, treat)

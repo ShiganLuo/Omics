@@ -1,8 +1,6 @@
 #!/usr/bin/Rscript
 #!/usr/bin/env Rscript
 
-# Plot 3' dinucleotide occurence of aligned reads
-# Data table generated in mmQuant module
 
 suppressMessages(library(ggplot2))
 suppressMessages(library(dplyr))
@@ -11,11 +9,6 @@ suppressMessages(library(grid))
 suppressMessages(library(gtable))
 suppressMessages(library(ggpol))
 
-# ---- multi-format figure output (repo formats sweep; minimal vendored hook) --
-# MIMSEQ_PLOT_FORMATS (comma-separated; default "pdf") selects the output
-# format(s) for every ggsave() figure. The default keeps upstream .pdf
-# filenames byte-identical. Figures drawn through pdf()/png() devices directly
-# are NOT affected and stay fixed-format.
 .plot_formats <- strsplit(Sys.getenv("MIMSEQ_PLOT_FORMATS", "pdf"), "[,;[:space:]]+")[[1]]
 .plot_formats <- .plot_formats[.plot_formats != ""]
 if (length(.plot_formats) == 0) .plot_formats <- "pdf"
@@ -38,8 +31,6 @@ ggsave <- function(filename, plot = ggplot2::last_plot(), ...) {
 
 args = commandArgs(trailingOnly = TRUE)
 
-# source facet_share.R
-# suppressMessages(source(args[5]))
 
 if (length(args) == 0) {
   stop("At least one argument must be supplied (input file).n", call.=FALSE)
@@ -94,7 +85,6 @@ if (length(args) == 0) {
   if (length(unique(cca_counts$condition)) > 1) {
     combinations = combn(unique(cca_counts$condition), 2, simplify = FALSE)
 
-    # For each contrast...
     for (i in 1:length(combinations)) {
       cca_summary_sub = subset(cca_summary, condition %in% combinations[[i]])
       cca_summary_sub = cca_summary_sub %>%
@@ -163,7 +153,6 @@ if (length(args) == 0) {
         geom_hline(data = subset(avg_cca, end == 'CA'), aes(yintercept=x), color = "white", alpha = 0.9) + 
         geom_jitter(data = cca_prop[cca_prop$end == "CC",], aes(x = gene, y = bar_pos), size = 0.5, color = "#383D3B", alpha = 0.7) +
         geom_text(data = subset(avg_cca, end == "CA"), aes(label = paste(abs(round(x,1)), '%'), x = Inf, y = x), size = 3.3, vjust = 1, color = '#3E606F', fontface='bold') +
-        #facet_share(~condition, dir = "h", scales = "free", reverse_num = TRUE) +
         coord_flip() + 
         scale_fill_manual(name = "", values = alpha(c(CA = "#F0F9ED", CC = "#427AA1", C = "#0D4282", Absent = "#133C55"), 0.8), labels = c("3'-CCA", "3'-CC", "3'-C", "Absent")) +
         scale_y_continuous(breaks = c(c(-100, -75, -50, -25, 0), c(0, 25, 50, 75, 100)))+

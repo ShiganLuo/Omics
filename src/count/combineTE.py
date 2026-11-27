@@ -20,7 +20,6 @@ def combineTE(infiles: list[str],outfile: str,split:str):
     for infile in infiles:
         newColName = os.path.basename(infile).split(f"{split}")[0]
         logging.info(newColName)
-        #默认会去除引号，可以使用 quotechar 参数来指定如何处理引号，quotechar='"'保留
         df = pd.read_csv(infile,sep="\t",header=0)
         df.columns.values[1] = newColName
         dfList.append(df)
@@ -50,22 +49,16 @@ if __name__ == "__main__":
     parser.add_argument('-o','--output',type=str,required=True,help="Path to your output file")
     args = parser.parse_args()
     if args.procedure == "TEcount":
-        ## TEcount
         infiles = fileList(args.inputDir,"TEcount.cntTable")
         logging.info(f"TEcount.cntTable file path : {infiles}")
         combineTE(infiles,args.output,"TEcount")
         logging.info(f"write file into {args.output}")
     elif args.procedure == "TElocal":
-        ### TElocal
         infiles = fileList(args.inputDir,"TElocal.cntTable")
         logging.info(f"TEcount.cntTable file path : {infiles}")
         combineTE(infiles,args.output,"TElocal")
         logging.info(f"write file into {args.output}")
-        # df = pd.read_csv(outfile,sep="\t",header=0)
-        # outfile = "output/RNASNP202503TElocal_TE.cntTable"
-        # getTE(df,outfile)
     elif args.procedure == "TEcountStringTie":
-        ## TEStringtie
         infiles = fileList(args.inputDir,"TEcountStringTie.cntTable")
         logging.info(f"TEcountStringTie.cntTable file path : {infiles}")
         combineTE(infiles,args.output,"TEcountStringTie")

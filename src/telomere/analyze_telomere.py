@@ -21,15 +21,10 @@ import numpy as np
 import pysam
 
 
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
 TEL_PATTERN = re.compile(r"(TTAGGG|CCCTAA){5,}", re.IGNORECASE)
-# For mouse, telomeres are long; use a sliding window to find contiguous
-# telomeric stretches allowing small interruptions
 WINDOW_SIZE = 100
 STEP_SIZE = 20
-MIN_TEL_CONTENT = 0.6  # 60% of window must be telomeric
+MIN_TEL_CONTENT = 0.6
 
 
 @dataclass
@@ -37,11 +32,11 @@ class TelomereHit:
     """A telomere repeat region found in a read."""
     read_name: str
     read_length: int
-    strand: str  # "G-rich" (TTAGGG) or "C-rich" (CCCTAA)
+    strand: str
     start: int
     end: int
     tel_length: int
-    position: str  # "5prime", "3prime", "internal"
+    position: str
 
 
 @dataclass
@@ -50,9 +45,9 @@ class ReadTelomere:
     read_name: str
     read_length: int
     has_telomere: bool
-    prime5_tel_len: int  # telomere length at 5' end
-    prime3_tel_len: int  # telomere length at 3' end
-    internal_tel_len: int  # internal telomeric sequence
+    prime5_tel_len: int
+    prime3_tel_len: int
+    internal_tel_len: int
     hits: list[TelomereHit] = field(default_factory=list)
 
 
@@ -67,7 +62,6 @@ def find_telomeric_regions(seq: str) -> list[tuple[int, int, str]]:
         strand = "G-rich" if m.group().upper().startswith("TTAGGG") else "C-rich"
         hits.append((m.start(), m.end(), strand))
 
-    # Merge overlapping/nearby hits (within 20bp)
     if not hits:
         return []
 
@@ -91,11 +85,9 @@ def find_telomere_with_gaps(seq: str, min_pct: float = 0.55) -> list[tuple[int, 
     seq_upper = seq.upper()
     n = len(seq_upper)
 
-    # Quick check: if no TTAGGG/CCCTAA at all, skip
     if "TTAGGG" not in seq_upper and "CCCTAA" not in seq_upper:
         return []
 
-    # Find regions by scanning for TTAGGG/CCCTAA density
     tel_positions = []
     for m in re.finditer(r"(TTAGGG|CCCTAA)", seq_upper):
         tel_positions.append((m.start(), m.end()))
@@ -103,11 +95,10 @@ def find_telomere_with_gaps(seq: str, min_pct: float = 0.55) -> list[tuple[int, 
     if not tel_positions:
         return []
 
-    # Cluster nearby hits
     clusters = []
     current_cluster = [tel_positions[0]]
     for pos in tel_positions[1:]:
-        if pos[0] - current_cluster[-1][1] < 30:  # allow 30bp gap
+        if pos[0] - current_cluster[-1][1] < 30:
             current_cluster.append(pos)
         else:
             clusters.append(current_cluster)
@@ -122,12 +113,10 @@ def find_telomere_with_gaps(seq: str, min_pct: float = 0.55) -> list[tuple[int, 
         tel_frac = tel_bases / region_len if region_len > 0 else 0
 
         if region_len >= 30 and tel_frac >= min_pct:
-            # Determine strand from first hit
             first_seq = seq_upper[cluster[0][0]:cluster[0][1]]
             strand = "G-rich" if first_seq == "TTAGGG" else "C-rich"
             results.append((start, end, strand))
 
-    # Merge overlapping results
     if not results:
         return []
     merged = [results[0]]
@@ -152,7 +141,6 @@ def analyze_read(read_name: str, seq: str) -> ReadTelomere:
 
     for start, end, strand in regions:
         tel_len = end - start
-        # Classify position
         if start < 500:
             position = "5prime"
             prime5_tel = max(prime5_tel, tel_len)
@@ -216,7 +204,6 @@ def write_results(results: list[ReadTelomere], sample_name: str, output_dir: Pat
     """Write analysis results to TSV files."""
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. Per-read summary
     summary_path = output_dir / f"{sample_name}_telomere_reads.tsv"
     with open(summary_path, "w") as f:
         f.write("read_name\tread_length\tprime5_tel_len\tprime3_tel_len\tinternal_tel_len\tn_hits\n")
@@ -225,7 +212,6 @@ def write_results(results: list[ReadTelomere], sample_name: str, output_dir: Pat
                     f"{r.prime3_tel_len}\t{r.internal_tel_len}\t{len(r.hits)}\n")
     print(f"Wrote: {summary_path}", file=sys.stderr)
 
-    # 2. Per-hit detail
     detail_path = output_dir / f"{sample_name}_telomere_hits.tsv"
     with open(detail_path, "w") as f:
         f.write("read_name\tread_length\tstrand\tstart\tend\ttel_length\tposition\n")
@@ -235,15 +221,11 @@ def write_results(results: list[ReadTelomere], sample_name: str, output_dir: Pat
                         f"{h.start}\t{h.end}\t{h.tel_length}\t{h.position}\n")
     print(f"Wrote: {detail_path}", file=sys.stderr)
 
-    # 3. Statistical summary
     stats_path = output_dir / f"{sample_name}_telomere_stats.txt"
     with open(stats_path, "w") as f:
         f.write(f"Sample: {sample_name}\n")
         f.write(f"Total reads with telomere: {len(results)}\n\n")
 
-        # Terminal telomere lengths (most biologically relevant)
-        # Filter: >1000bp to exclude subtelomeric noise / ITS fragments
-        # Mouse telomeres (129/Ola) are typically 30-150kb
         terminal_5 = [r.prime5_tel_len for r in results if r.prime5_tel_len > 1000]
         terminal_3 = [r.prime3_tel_len for r in results if r.prime3_tel_len > 1000]
         all_terminal = terminal_5 + terminal_3
@@ -276,7 +258,6 @@ def write_results(results: list[ReadTelomere], sample_name: str, output_dir: Pat
             f.write(f"  Median:  {np.median(arr):.0f} bp\n")
             f.write(f"  Max:     {np.max(arr):.0f} bp\n\n")
 
-        # Length distribution
         f.write("=== Terminal Telomere Length Distribution ===\n")
         thresholds = [0, 1000, 5000, 10000, 20000, 50000, 100000, 200000]
         for i in range(len(thresholds) - 1):
@@ -288,7 +269,6 @@ def write_results(results: list[ReadTelomere], sample_name: str, output_dir: Pat
 
     print(f"Wrote: {stats_path}", file=sys.stderr)
 
-    # 4. Quick print to stdout
     with open(stats_path) as f:
         print(f.read())
 

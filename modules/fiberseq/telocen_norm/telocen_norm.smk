@@ -11,8 +11,6 @@ _bams = _inputs.get("bam") or {}
 _p = config.get("Params", {}).get("fiberseq_telocen_norm", {})
 _groups = _p.get("groups") or {}
 _glabels = list(_groups)
-# 参数精确到 rule:formats 按 rule 独立配置(Params.fiberseq_telocen_norm.<rule_name>.formats,
-# 无 module 级共享回退),每 rule 一个 parse 期变量。
 _formats_fig = _p.get("fiberseq_telocen_norm_fig", {}).get("formats") or ["png"]
 if isinstance(_formats_fig, str):
     _formats_fig = [_formats_fig]
@@ -108,7 +106,7 @@ rule fiberseq_telocen_norm_run:
                 f.write(f'echo "fiberseq_telocen_norm_run at {current_time} '
                         f'completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

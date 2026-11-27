@@ -15,9 +15,6 @@ def compute_exonic_mutation_burden_from_vcf_dir(
     if main_chroms is None:
         main_chroms = ["chr" + str(i) for i in range(1,23)] + ["chrX","chrY","chrM"]
 
-    # ---------------------------------------------------------------
-    # 1) 构建外显子区间，并预处理二分查找所需结构
-    # ---------------------------------------------------------------
     def build_exon_intervals(gtf_file, main_chroms):
         exon_dict = {}
         with open(gtf_file) as f:
@@ -50,7 +47,6 @@ def compute_exonic_mutation_burden_from_vcf_dir(
 
         for c in exon_dict:
             merged = merge(exon_dict[c])
-            # 生成便于二分查找的起点和终点列表
             starts = [s for s, e in merged]
             ends = [e for s, e in merged]
             exon_dict[c] = {"intervals": merged, "starts": starts, "ends": ends}
@@ -60,9 +56,6 @@ def compute_exonic_mutation_burden_from_vcf_dir(
     exon_dict = build_exon_intervals(gtf_file, main_chroms)
     total_exon_length = sum(e - s + 1 for chrom in exon_dict for s, e in exon_dict[chrom]["intervals"])
 
-    # ---------------------------------------------------------------
-    # 2) 判断 POS 是否落在外显子区间（用二分法）
-    # ---------------------------------------------------------------
     def is_pos_in_exon(chrom, pos):
         if chrom not in exon_dict:
             return False
@@ -73,13 +66,9 @@ def compute_exonic_mutation_burden_from_vcf_dir(
             return True
         return False
 
-    # ---------------------------------------------------------------
-    # 3) 计算外显子突变数
-    # ---------------------------------------------------------------
     def count_exonic_mutations(vcf_file, qual_filter, main_chroms, chunksize=100000):
         count = 0
         try:
-            # 标准VCF
             vcf = pysam.VariantFile(vcf_file)
             vcf_chroms = set(vcf.header.contigs)
             valid_chroms = set(main_chroms) & vcf_chroms
@@ -90,7 +79,6 @@ def compute_exonic_mutation_burden_from_vcf_dir(
                     if is_pos_in_exon(chrom, rec.pos):
                         count += 1
         except:
-            # 非标准VCF文本，分块读取
             if vcf_file.endswith(".gz"):
                 file_like = vcf_file
                 compression = "gzip"
@@ -112,7 +100,6 @@ def compute_exonic_mutation_burden_from_vcf_dir(
                 if not all(c in chunk.columns for c in required_cols):
                     raise ValueError(f"{vcf_file} 缺少必要列: {required_cols}")
                 chunk = chunk[chunk["CHROM"].isin(main_chroms)]
-                # chunk = chunk[chunk["QUAL"].notna() & (chunk["QUAL"] >= qual_filter)]
 
                 for chrom, group in chunk.groupby("CHROM"):
                     for pos in group["POS"]:
@@ -121,9 +108,6 @@ def compute_exonic_mutation_burden_from_vcf_dir(
 
         return count
 
-    # ---------------------------------------------------------------
-    # 4) 批量处理目录
-    # ---------------------------------------------------------------
     results = []
     vcf_files = [f for f in os.listdir(vcf_dir)
                  if f.endswith(".vcf") or f.endswith(".vcf.gz") or f.endswith("_SNV.txt.gz")]
@@ -157,18 +141,3 @@ if __name__ == "__main__":
         gtf_file="/disk5/luosg/Reference/GENCODE/human/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
         output_csv="/disk5/luosg/Totipotent20251031/output/SNP/vcf/PoN/GSE204801/exonic_mutation_burden.csv"
     )
-    # df_result = compute_exonic_mutation_burden_from_vcf_dir(
-    #     vcf_dir="/disk5/luosg/Totipotent20251031/output/SNP/vcf/PoN/GSE185005/vcf_nopon",
-    #     gtf_file="/disk5/luosg/Reference/GENCODE/mouse/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
-    #     output_csv="/disk5/luosg/Totipotent20251031/output/SNP/vcf/PoN/GSE185005/exonic_mutation_burden.csv"
-    # )
-    # df_result = compute_exonic_mutation_burden_from_vcf_dir(
-    #     vcf_dir="/disk5/luosg/Totipotent20251031/output/SNP/vcf/PoN/GSE166216/vcf_nopon",
-    #     gtf_file="/disk5/luosg/Reference/GENCODE/mouse/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
-    #     output_csv="/disk5/luosg/Totipotent20251031/output/SNP/vcf/PoN/GSE166216/exonic_mutation_burden.csv"
-    # )
-    # df_result = compute_exonic_mutation_burden_from_vcf_dir(
-    #     vcf_dir="/disk5/luosg/Totipotent20251031/PRJNA663159/SNV",
-    #     gtf_file="/disk5/luosg/Reference/GENCODE/mouse/GRCm38/gencode.vM23.primary_assembly.annotation.gtf",
-    #     output_csv="/disk5/luosg/Totipotent20251031/PRJNA663159/SNV/PRJNA663159_exonic_mutation_burden.csv"
-    # )

@@ -136,8 +136,6 @@ logger = setup_logger(__name__)
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
@@ -173,9 +171,6 @@ def save_fig(fig, out_base: Union[str, Path],
     plt.close(fig)
 
 
-# ---------------------------------------------------------------------------
-# CLI parsing / validation
-# ---------------------------------------------------------------------------
 
 def _parse_group_entry(tissue: str, key: str, entry: dict
                        ) -> Tuple[List[Tuple[str, List[str]]], str]:
@@ -356,9 +351,6 @@ def parse_compare_json(items: List[str],
     return comparisons
 
 
-# ---------------------------------------------------------------------------
-# scCODA per comparison
-# ---------------------------------------------------------------------------
 
 def _plot_stacked_ribbon(counts_df: pd.DataFrame, out_base: Path,
                          image_formats: Optional[List[PlotFormat]] = None,
@@ -407,7 +399,6 @@ def _plot_stacked_ribbon(counts_df: pd.DataFrame, out_base: Path,
     totals[totals == 0] = 1.0
     props = counts / totals * 100.0
 
-    # Stable stacking order: most abundant cell type at the bottom.
     order = np.argsort(-counts.sum(axis=0))
     props = props[:, order]
     cell_types = [cell_types[i] for i in order]
@@ -420,16 +411,11 @@ def _plot_stacked_ribbon(counts_df: pd.DataFrame, out_base: Path,
     width = 0.55
     xs = np.arange(n_g, dtype=float)
 
-    # Segment bounds per group (n_g x n_c), bottom to top.
     y1 = np.cumsum(props, axis=1)
     y0 = y1 - props
 
-    # Ribbons first (behind the bars): lighter fill of the same color
-    # connecting same-cell-type segments between adjacent bars. Vertical
-    # transition uses a smoothstep (S-curve) so ribbons read as soft flows
-    # instead of angular trapezoids.
     t = np.linspace(0.0, 1.0, 40)
-    s = t * t * (3.0 - 2.0 * t)  # smoothstep
+    s = t * t * (3.0 - 2.0 * t)
     for i in range(n_c):
         for j in range(n_g - 1):
             xl0, xl1 = xs[j] + width / 2, xs[j + 1] - width / 2
@@ -440,14 +426,11 @@ def _plot_stacked_ribbon(counts_df: pd.DataFrame, out_base: Path,
                     np.concatenate([y0line, y1line[::-1]]),
                     color=colors[i], alpha=0.22, linewidth=0, zorder=1)
 
-    # Bars on top.
     for i in range(n_c):
         ax.bar(xs, props[:, i], bottom=y0[:, i], width=width,
                color=colors[i], edgecolor="white", linewidth=0.4, zorder=2)
 
     ax.set_xticks(xs)
-    # Group names on the ticks, horizontal when they fit (short group
-    # names like "youth"/"aged"); rotate only long bare-sample-id names.
     rotate = max((len(g) for g in groups), default=0) > 10
     ax.set_xticklabels(groups, rotation=45 if rotate else 0,
                        ha="right" if rotate else "center", fontsize=11)
@@ -463,10 +446,6 @@ def _plot_stacked_ribbon(counts_df: pd.DataFrame, out_base: Path,
     if da_key_rows or cell_arrows:
         leg_da = None
         if da_key_rows:
-            # DA key legend below the cell-type legend: one row per
-            # comparison, the ↑↓ glyph pair in the comparison's color AS
-            # THE HANDLE (leftmost column, left-aligned with the cell-type
-            # swatches), the meaning as the row label (bold, same color).
             ax.add_artist(leg_cells)
             key_handles: Any = [matplotlib.colors.to_rgba(color)
                                 for _label, color in da_key_rows]
@@ -478,12 +457,6 @@ def _plot_stacked_ribbon(counts_df: pd.DataFrame, out_base: Path,
             for text, (_label, color) in zip(leg_da.get_texts(), da_key_rows):
                 text.set_color(color)
                 text.set_fontweight("bold")
-        # One measurement pass feeds both placements: the key legend is
-        # anchored below the cell legend, and the DA arrows are appended
-        # right after each cell-type NAME. Drift guard: legend layout is
-        # dpi-dependent, so measure at the SAME dpi save_fig renders with
-        # (300) — measuring at fig.dpi=100 then saving at 300 shifts the
-        # legend rows and the arrows land BETWEEN names.
         fig.set_dpi(300)
         fig.canvas.draw()
         renderer = fig.canvas.get_renderer()
@@ -588,17 +561,14 @@ def run_sccoda(adata: sc.AnnData, comp: dict, formula: str,
     """
     tissue, label = comp["tissue"], comp["label"]
     groups: List[Tuple[str, List[str]]] = comp["groups"]
-    group_names = [name for name, _ in groups]      # bar order = listed order
-    base_name = comp["control"]                     # scCODA base level
+    group_names = [name for name, _ in groups]
+    base_name = comp["control"]
     compare_names = [n for n in group_names if n != base_name]
-    model_names = [base_name] + compare_names       # condition level order
+    model_names = [base_name] + compare_names
     notes: List[str] = []
-    # Reference naming (analysis/results/da_sccoda convention):
-    # da_sccoda_<contrast>_{da.csv,effects_barplot.<fmt>,stacked_barplot.<fmt>}
     prefix = f"da_sccoda_{comp['key']}"
     da_dir.mkdir(parents=True, exist_ok=True)
 
-    # sample_id -> group name (base group first, then compared groups).
     sample_group = {sid: name for name, samples in groups for sid in samples}
     sub = adata[adata.obs["sample_id"].isin(sample_group)].copy()
     for sid in sample_group:
@@ -608,13 +578,6 @@ def run_sccoda(adata: sc.AnnData, comp: dict, formula: str,
                 f"[{tissue}] comparison {comp['key']}: sample '{sid}' has "
                 f"0 cells in the h5ad — check the sample_id annotation")
         logger.info("  %s (%s): %d cells", sid, sample_group[sid], n)
-    # Order matters for scCODA: the FIRST level of `condition` becomes the
-    # base category (no [T.] marker in covariate names); every later level
-    # becomes a treatment covariate ([T.<level>]). We force
-    # `categories=model_names` (control group first) so effects are
-    # log2FC = log2(group / control) — "reference first, treatment
-    # second". Samples of one group are replicates of that group's
-    # condition level.
     sub.obs["condition"] = pd.Categorical(
         sub.obs["sample_id"].map(sample_group), categories=model_names)
 
@@ -631,19 +594,6 @@ def run_sccoda(adata: sc.AnnData, comp: dict, formula: str,
 
     sccoda = pt.tl.Sccoda()
 
-    # --- numpyro/anndata compatibility shim (pertpy 1.0.x quirks) ----------
-    # 1) anndata>=0.12 coerces 1-D obsm entries into (N,1) columns, so
-    #    prepare()'s sample_counts (= np.sum(X, 1), meant to be (N,)) is
-    #    stored and passed on as (N,1). numpyro's DirichletMultinomial
-    #    broadcasts that into an (N,N) batch whose multinomial support check
-    #    marks every obs row out-of-support -> -inf log-probs -> "Cannot find
-    #    valid initial parameters" (or "invalid total_count parameter" when
-    #    fractional). obsm assignment cannot hold a 1-D array, so flatten at
-    #    the model boundary instead.
-    # 2) prepare() pseudocounts zeros with 0.5, yielding fractional counts
-    #    that numpyro's nonnegative_integer total_count check rejects. Pre-
-    #    fill zeros with 1 (integer) before prepare so its 0.5 path never
-    #    fires and counts/totals stay integer-valued.
     _orig_model = sccoda.model
 
     def _model(counts, covariates, n_total, ref_index, sample_adata):
@@ -665,7 +615,6 @@ def run_sccoda(adata: sc.AnnData, comp: dict, formula: str,
     logger.info("  sample-level shape: %s x %s",
                 mdata["coda"].shape[0], mdata["coda"].shape[1])
 
-    # Zero pre-fill for the model shim above (integer pseudocount).
     coda = mdata["coda"]
     X = np.asarray(coda.X.todense() if hasattr(coda.X, "todense") else coda.X,
                    dtype=np.float64)
@@ -692,9 +641,6 @@ def run_sccoda(adata: sc.AnnData, comp: dict, formula: str,
     summary["final_prob"] = summary["final_prob"].astype(float)
     summary["log2FC"] = summary["log2FC"].astype(float)
     summary["is_credible"] = summary["final_prob"] >= credible_threshold
-    # Map every effect row back to the compared group it belongs to
-    # (pertpy dummy covariate "conditionT.<group>"); rows of extra formula
-    # terms map to themselves and carry no DA marks.
     if "Covariate" in summary.columns:
         summary["group"] = summary["Covariate"].map(
             lambda c: _covariate_group(str(c), model_names))
@@ -722,23 +668,13 @@ def run_sccoda(adata: sc.AnnData, comp: dict, formula: str,
                     [["group", "cell_type", "log2FC", "final_prob"]]
                     .to_string(index=False))
 
-    # CSV is the primary result — always written, empty results keep the
-    # real header row.
     csv_path = da_dir / f"{prefix}_da.csv"
     summary.to_csv(csv_path, index=False)
     logger.info("Saved: %s", csv_path)
 
-    # DA effect plot — one panel per compared group IN GROUP ORDER, one
-    # horizontal bar per cell type sorted by log2FC; credible effects in
-    # distinct colors with black edges, non-credible grey. No title: each
-    # panel is identified by its x label, and both axis ends carry the
-    # effect direction (phrased relative to the EXPERIMENTAL group —
-    # higher/lower in <exp>, never "higher in control"). No per-cell-type
-    # arrow marks: the bars' side already shows the direction.
     panel_names = list(compare_names)
     if len(summary):
         try:
-            # One color per cell type, shared across panels.
             all_types = sorted(summary["cell_type"].astype(str).unique())
             cmap = plt.get_cmap("tab20" if len(all_types) <= 20 else "tab20b")
             type_colors = {ct: cmap(i / max(len(all_types) - 1, 1))
@@ -753,8 +689,6 @@ def run_sccoda(adata: sc.AnnData, comp: dict, formula: str,
                        .sort_values("log2FC").reset_index(drop=True))
                 n = len(dfp)
                 if not (dfp["log2FC"].abs() > 0).any():
-                    # Degenerate panel (every effect zeroed): state it
-                    # explicitly instead of rendering a blank axes.
                     ax.text(0.5, 0.5,
                             "all effects are zero (nothing selected)",
                             transform=ax.transAxes, ha="center", va="center",
@@ -769,10 +703,6 @@ def run_sccoda(adata: sc.AnnData, comp: dict, formula: str,
                 ylabels = [str(row["cell_type"]) for _, row in dfp.iterrows()]
                 ax.set_yticks(range(n))
                 ax.set_yticklabels(ylabels, fontsize=10)
-                # Direction marking: the log2FC axis is signed, so spell
-                # out the direction RELATIVE TO THE EXPERIMENTAL GROUP
-                # ("higher/lower in <exp>"). The label keeps the house
-                # order: control FIRST, experimental second.
                 ax.set_xlabel(
                     f"log2-fold change ({base_name} vs {gname})", fontsize=12)
                 ax.text(0.0, 1.01, f"← lower in {gname}",
@@ -797,23 +727,11 @@ def run_sccoda(adata: sc.AnnData, comp: dict, formula: str,
         logger.info("  skip effects_barplot: empty result table")
 
     try:
-        # Stacked proportions per group with same-color ribbon links.
-        # Built from the raw cell-level crosstab (the coda counts carry the
-        # integer zero pre-fill, which would distort proportions);
-        # crosstabbing on the sample->group mapping SUMS the samples of a
-        # group into that group's single bar.
         group_of = sub.obs["sample_id"].map(sample_group)
         counts_df = pd.crosstab(group_of, sub.obs["cell_type"])
         counts_df = counts_df.reindex(index=group_names,
                                       columns=mdata["coda"].var.index,
                                       fill_value=0)
-        # DA arrows are appended AFTER each cell-type legend name, one
-        # glyph per comparison in that comparison's color (arrow color
-        # identifies the comparison — multi-group safe). The arrow legend
-        # below the cell-type legend carries one bold key row per
-        # comparison mapping its color to the "ctrl vs exp" reading and
-        # the ↑/↓ semantics (↑ = higher in the experimental group,
-        # ↓ = lower in it).
         comp_palette = plt.get_cmap("tab10")
         da_key_rows: List[Tuple[str, Any]] = []
         cell_arrows: Dict[str, List[Tuple[str, Any]]] = {}
@@ -840,9 +758,6 @@ def run_sccoda(adata: sc.AnnData, comp: dict, formula: str,
     return summary, notes
 
 
-# ---------------------------------------------------------------------------
-# Report
-# ---------------------------------------------------------------------------
 
 def _figure_variants(out_dir: Path, comp: dict) -> List[Path]:
     """One embeddable figure file per plot base (raster-first).
@@ -901,7 +816,6 @@ def write_report(out_dir: Path, comparisons: List[dict],
 
     report_path = out_dir / "sccoda_report.html"
 
-    # File inventory: every artifact the run produced (report excluded).
     inventory = []
     for root, _dirs, files in os.walk(out_dir):
         for name in sorted(files):
@@ -984,9 +898,6 @@ def write_report(out_dir: Path, comparisons: List[dict],
     logger.info("Report: %s", report_path)
 
 
-# ---------------------------------------------------------------------------
-# CLI
-# ---------------------------------------------------------------------------
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
@@ -1075,11 +986,9 @@ Examples:
                    help="NUTS posterior samples (default: 2000)")
     p.add_argument("-w", "--num-warmup", type=int, default=500,
                    help="NUTS warmup samples (default: 500)")
-    # long-only: -f is taken by --formula
     p.add_argument("--format", action="append", dest="formats", metavar="FMT",
                    help="Image format (png/pdf/svg/...). Repeatable. Default: png.")
     args = p.parse_args()
-    # Image formats: fail fast at parse time (modules.md #9)
     args.formats = list(args.formats) if args.formats else ["png"]
     bad = [f for f in args.formats if f not in VALID_FORMATS]
     if bad:

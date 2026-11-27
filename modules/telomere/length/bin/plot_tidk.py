@@ -61,7 +61,6 @@ def parse_tidk_tsv(path: Path) -> Tuple[Optional[str], Optional[str], dict]:
     data = rows_raw[1:]
     ncol = len(header)
 
-    # column classification
     numeric_cols = []
     for j in range(ncol):
         vals = [r[j] for r in data if j < len(r)]
@@ -77,7 +76,6 @@ def parse_tidk_tsv(path: Path) -> Tuple[Optional[str], Optional[str], dict]:
     if contig_col is None:
         contig_col = 0
 
-    # value column: prefer length-like, then count-like, else first numeric
     value_col = None
     for j in numeric_cols:
         if any(h in header[j].lower() for h in _LEN_HINTS):

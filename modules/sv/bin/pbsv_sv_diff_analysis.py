@@ -11,8 +11,6 @@ from utils.SV_TYPE_plot import plot_sv_type_barplot,plot_sv_length_boxplot,plot_
 from utils.SV_TYPE import parse_pbsv_vcf
 logger = setup_logger(__name__)
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
@@ -60,10 +58,8 @@ def run_pbsv_diff_analysis(
         df_all[group] = df
     all_df = pd.concat(df_all.values(), ignore_index=True)
 
-    # 保存所有 SV
     all_df.to_csv(f"{out_dir}/table/all_sv_records.tsv", sep="\t", index=False)
 
-    # SV 类型统计
     type_summary = (
         all_df.groupby(["group", "svtype"])
         .size()
@@ -74,7 +70,6 @@ def run_pbsv_diff_analysis(
         f"{out_dir}/table/sv_type_summary.tsv", sep="\t", index=False
     )
 
-    # 图 1：SV 类型
     for fmt in plot_formats:
         plot_sv_type_barplot(
             summary_df=type_summary,
@@ -83,7 +78,6 @@ def run_pbsv_diff_analysis(
             ylabel="SV count",
         )
 
-    # 图 2：SV 长度分布
     for fmt in plot_formats:
         plot_sv_length_boxplot(
             data_dict=df_all,
@@ -93,7 +87,6 @@ def run_pbsv_diff_analysis(
             large_sv_threshold = large_sv_threshold
         )
 
-    # ≥阈值的大 SV
     large_sv_df = all_df[all_df["svlen"] >= large_sv_threshold]
     large_summary = (
         large_sv_df.groupby(["group", "svtype"])

@@ -163,7 +163,6 @@ def plot_heatmap(ax, lfc_df, clim):
                         color="white" if abs(v) > 0.6 * clim else "black")
     cbar = plt.colorbar(im, ax=ax, fraction=0.035, pad=0.02)
     cbar.set_label("TE fraction log2FC (exp. / ctrl.)", fontsize=10)
-    # column keys 1..n, full comparison names in a text legend below the panel
     handles = [Line2D([], [], linestyle="none") for _ in lfc_df.columns]
     labels = [f"{i + 1}: {lab}" for i, lab in enumerate(lfc_df.columns)]
     ax.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, -0.08),

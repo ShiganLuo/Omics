@@ -1,7 +1,6 @@
 include: "../common/common.smk"
 
 
-# Import UMI detection helper from bin/
 _fumitools_bin_dir = os.path.join(ROOT_DIR, "modules", "fumitools", "bin")
 if _fumitools_bin_dir not in sys.path:
     sys.path.insert(0, _fumitools_bin_dir)
@@ -11,8 +10,6 @@ outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 paired_samples = config.get("paired_samples", [])
 
-# 参数精确到 rule:Params.fumitools.<rule_name>.<key>(config 全量路径直读;
-# 无 module 级共享回退,每 rule 各自独立键)。
 
 rule fumitools_copy_umi_paired:
     """Copy UMI from read sequence into FASTQ header."""
@@ -20,8 +17,6 @@ rule fumitools_copy_umi_paired:
         r1 = indir + "/{sample_id}_1.fq.gz",
         r2 = indir + "/{sample_id}_2.fq.gz",
     output:
-        # intermediate fastq: consumed only by the trimmer; kept by default,
-        # temp when Params.fumitools.keep_intermediates is false
         r1 = maybe_temp(outdir + "/{sample_id}/{sample_id}_1.umi.fq.gz", "fumitools"),
         r2 = maybe_temp(outdir + "/{sample_id}/{sample_id}_2.umi.fq.gz", "fumitools"),
     log:
@@ -46,7 +41,6 @@ rule fumitools_copy_umi_paired:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger = setup_logger(logger_name="fumitools_copy_umi_paired", log_file=log_path)
-            # Check if UMI is already present in the read header (check R1)
             if has_umi_in_header(input.r1):
                 logger.info(f"UMI already detected in header for {wildcards.sample_id}, symlinking inputs to outputs.")
                 os.makedirs(os.path.dirname(output.r1), exist_ok=True)
@@ -80,7 +74,7 @@ rule fumitools_copy_umi_paired:
                     f.write(" ".join(cmd) + "\n")
                     f.write(f'echo "script completed successfully"\n')
                 shutil.copyfile(script_path, plain_script)
-                if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                if SCRIPT_ONLY:
                     script_only_touch(output)
                 else:
                     shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -91,7 +85,6 @@ rule fumitools_copy_umi_single:
     input:
         r1 = indir + "/{sample_id}.single.fq.gz",
     output:
-        # intermediate fastq: same as fumitools_copy_umi_paired
         r1 = maybe_temp(outdir + "/{sample_id}/{sample_id}.umi.single.fq.gz", "fumitools"),
     log:
         logdir + "/{sample_id}/fumitools_copy_umi.log"
@@ -115,11 +108,9 @@ rule fumitools_copy_umi_single:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger = setup_logger(logger_name="fumitools_copy_umi_single", log_file=log_path)
-            # Check if UMI is already present in the read header
             if has_umi_in_header(input.r1):
                 logger.info(f"UMI already detected in header for {wildcards.sample_id}, symlinking input to output.")
                 os.makedirs(os.path.dirname(output.r1), exist_ok=True)
-                # Remove existing output if it exists (symlink or file)
                 if os.path.exists(output.r1) or os.path.islink(output.r1):
                     os.remove(output.r1)
                 os.symlink(os.path.abspath(input.r1), output.r1)
@@ -145,23 +136,18 @@ rule fumitools_copy_umi_single:
                     f.write(" ".join(cmd) + "\n")
                     f.write(f'echo "script completed successfully"\n')
                 shutil.copyfile(script_path, plain_script)
-                if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                if SCRIPT_ONLY:
                     script_only_touch(output)
                 else:
                     shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             raise
-        # ========================
-        # dedup — UMI-based deduplication on sorted BAM
-        # ========================
 
 rule fumitools_dedup:
     """Deduplicate BAM reads based on UMI and mapping position."""
     input:
         bam = outdir + "/{sample_id}/{sample_id}.sorted.bam",
     output:
-        # intermediate bam: consumed by downstream rules only; kept by default,
-        # temp when Params.fumitools.keep_intermediates is false
         bam = maybe_temp(outdir + "/{sample_id}/{sample_id}.dedup.bam", "fumitools"),
     log:
         logdir + "/{sample_id}/fumitools_dedup.log"
@@ -204,16 +190,13 @@ rule fumitools_dedup:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             raise
 
-        # ========================
-        # Result rules
-        # ========================
 
 rule fumitools_copy_umi_result:
     input:

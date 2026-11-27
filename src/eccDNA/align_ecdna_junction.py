@@ -47,7 +47,7 @@ from collections import defaultdict
 try:
     import pysam
 except ImportError:
-    pysam = None  # user installs pysam themselves (repo convention: no auto-install)
+    pysam = None
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s")
@@ -142,19 +142,18 @@ def read_blocks(aln) -> list[tuple[int, int]]:
         return []
     merged: list[list[int]] = []
     cigar = aln.cigartuples or []
-    # walk the CIGAR to know which gaps are D (merge) vs N (keep apart)
-    gaps: list[tuple[int, int, int]] = []  # (gap_start, gap_end, op)
+    gaps: list[tuple[int, int, int]] = []
     refpos = blocks[0][0] if blocks else 0
     for op, length in cigar:
-        if op in (0, 7, 8):  # M, =, X
+        if op in (0, 7, 8):
             refpos += length
-        elif op in (2, 3):  # D or N
+        elif op in (2, 3):
             gaps.append((refpos, refpos + length, op))
             refpos += length
     for s, e in blocks:
         if merged and s - merged[-1][1] > 0:
             gap = next((g for g in gaps if g[0] == merged[-1][1] and g[1] == s), None)
-            if gap and gap[2] == 2:  # D gap: merge
+            if gap and gap[2] == 2:
                 merged[-1][1] = e
                 continue
         merged.append([s, e])
@@ -186,31 +185,21 @@ def classify_read(aln, junctions: list[tuple[int, str]], length: int,
             right = [b for b in blocks if b[0] <= min_anchor]
             wraps = bool(left) and bool(right)
             if not wraps and len(blocks) >= 1:
-                # a single block crossing 0 is impossible in linear coords;
-                # soft-clip/supplementary split means primary covers one side
                 wraps = False
             if wraps:
                 spans.append((label, False))
             elif has_n:
-                # N-based wrap: first block near start, last block near end
                 first, last = blocks[0], blocks[-1]
                 if (first[0] <= min_anchor
                         and last[1] >= length - min_anchor
                         and len(blocks) >= 2):
                     spans.append((label, True))
         else:
-            # continuous: one block extends min_anchor bases to both sides
             contiguous = any(b[0] <= pos - min_anchor and b[1] >= pos + min_anchor
                              for b in blocks)
             if contiguous:
                 spans.append((label, False))
             elif has_n:
-                # spliced: the read's N lands on the junction — either the donor
-                # (left block ends at pos) or the acceptor (right block starts
-                # at pos) side, with min_anchor anchoring on the block itself.
-                # split reads abut the junction: left block ends exactly at
-                # pos (donor) or right block starts exactly at pos (acceptor),
-                # each with >= min_anchor anchored bases.
                 donor = any(b[1] == pos and pos - b[0] >= min_anchor
                             for b in blocks)
                 acceptor = any(b[0] == pos and b[1] - pos >= min_anchor

@@ -27,7 +27,6 @@ from typing import List, Optional
 DEFAULT_GRACE_S = 30
 KILL_GRACE_S = 5
 
-# 受管子进程注册表(launch_managed 登记,terminate_all_children 清空)。
 _children: List[subprocess.Popen] = []
 
 
@@ -105,7 +104,6 @@ def terminate_all_children(grace_s: float = DEFAULT_GRACE_S,
     """
     log = logger or logging.getLogger(__name__)
     alive = [p for p in _children if p.poll() is None]
-    # 记录涉及的进程组(子进程均自成进程组,绝不等于父进程的组)。
     pgids = set()
     for p in alive:
         try:
@@ -132,8 +130,6 @@ def terminate_all_children(grace_s: float = DEFAULT_GRACE_S,
                                         "escalating to SIGKILL", len(alive))
                             _signal_children(alive, signal.SIGKILL)
                             _wait_children(alive, KILL_GRACE_S)
-    # 组清扫:登记子进程退出后,其进程组里可能仍有漏网成员(忽略
-    # SIGINT 的后台任务等)。best-effort SIGKILL,组已空则无害。
     for pgid in pgids:
         try:
             os.killpg(pgid, signal.SIGKILL)

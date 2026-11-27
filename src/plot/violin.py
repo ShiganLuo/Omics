@@ -12,7 +12,6 @@ def violin(
 ):
     unique_cell_types = df['Cell_type'].unique().tolist()
     box_pairs = list(combinations(unique_cell_types, 2))
-    # combinations(unique_cell_types, 2) 会生成所有不重复的 (组A, 组B) 组合
 
     plt.figure(figsize=(10, 8))
     ax = sns.violinplot(
@@ -29,15 +28,13 @@ def violin(
         data=df,
         x='Cell_type',
         y='LV1',
-        order=unique_cell_types # 确保 order 与图中的顺序一致
+        order=unique_cell_types
     )
-    # 注意：进行多重比较时，通常需要进行多重检验校正 (Multiple Testing Correction)。
     annotator.configure(
         test='Mann-Whitney',
         text_format='star',
         loc='inside',
-        # 多重检验校正：例如使用 Benjamini/Hochberg FDR
-        comparisons_correction='fdr_bh', # <--- 关键参数！
+        comparisons_correction='fdr_bh',
         pvalue_thresholds=[
             [0.05, "*"],
             [0.01, "**"],
@@ -78,7 +75,6 @@ def violin_by_method_celltype_step(df_dict: dict, outplot: str):
         linewidth=1.5,
         dodge=True
     )
-    # 计算每个方法+cell_type的小提琴中心点
     violin_positions = {}
     for method_idx, method in enumerate(methods):
         cells_in_method = combined_df[combined_df['Method']==method]['Cell_type'].unique()
@@ -87,7 +83,6 @@ def violin_by_method_celltype_step(df_dict: dict, outplot: str):
         for i, ct in enumerate(cells_in_method):
             violin_positions[(method, ct)] = method_idx + offsets[i]
 
-    # 遍历每个方法做两两检验
     for method in methods:
         subset = combined_df[combined_df['Method'] == method]
         cells_in_method = subset['Cell_type'].unique().tolist()
@@ -105,14 +100,12 @@ def violin_by_method_celltype_step(df_dict: dict, outplot: str):
             x2 = violin_positions[(method, c2)]
             y_base = max(data1.max(), data2.max())
             y = y_base + (i+1)*step
-            y_top = y + step*0.3  # 梯形顶部高度
+            y_top = y + step*0.3
 
-            # 画梯形：竖直-水平-竖直
             ax.plot([x1, x1], [y, y_top], color='black', lw=2)
             ax.plot([x1, x2], [y_top, y_top], color='black', lw=2)
             ax.plot([x2, x2], [y_top, y], color='black', lw=2)
 
-            # 显示星号
             ax.text((x1+x2)/2, y_top + step*0.05,
                     "****" if p<0.0001 else
                     "***" if p<0.001 else
@@ -152,5 +145,4 @@ def combine_run():
     outplot = f"{outdir}/all_methods_violin.png"
     violin_by_method_celltype_step(df_dict, outplot)
 if __name__ == "__main__":
-    # single_run()
     combine_run()

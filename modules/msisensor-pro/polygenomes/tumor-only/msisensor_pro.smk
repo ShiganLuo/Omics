@@ -1,13 +1,7 @@
 include: "../../../common/common.smk"
 
-# ======================================================================================================================
-# Project: Project_ABC
-# Script : build_baseline.smk
 # Author : Peng Jia
-# Date   :  2024/5/27
 # Email  : pengjia@xjtu.edu.cn
-# Description: Pipeline of baseline building of MSIsensor-pro
-# ======================================================================================================================
 import pandas as pd
 
 print(config)
@@ -21,13 +15,11 @@ genome_version = config["genome_version"]
 print(samples)
 print(baseline_samples)
 genome_reference = {config["genome_version"]: config["reference"]}
-# print(outdir + f"baselines/{genome_version}.baseline.file")
 
 rule all:
     input:
         outdir+ f"tumor_only_output.{genome_version}.merge.tsv"
 
-        # outdir + f"baselines/{genome_version}.baseline.file"
 
 
 rule scan:
@@ -47,7 +39,7 @@ rule scan:
     container:
         sif("../../msisensor-pro.yaml", "scan")
     run:
-        if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+        if SCRIPT_ONLY:
             script_only_touch(output)
         else:
             shell("{msisensor_pro} scan -d {input} -o {output} 2>>{log} 1>>{log}")
@@ -71,7 +63,7 @@ rule pro_pre:
     container:
         sif("../../msisensor-pro.yaml", "pro_pre")
     run:
-        if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+        if SCRIPT_ONLY:
             script_only_touch(output)
         else:
             shell("{msisensor_pro} pro -d {input.ms} -t {input.bam} -g {input.ref} -o {output} >> {log} 2>&1")
@@ -114,7 +106,7 @@ rule baseline:
     container:
         sif("../../msisensor-pro.yaml", "baseline")
     run:
-        if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+        if SCRIPT_ONLY:
             script_only_touch(output)
         else:
             shell(f"{msisensor_pro} baseline  -d {input.ms} -i {input.conf} -o {output} -s 1 >> {log} 2>&1")
@@ -137,7 +129,7 @@ rule run_pro:
     container:
         sif("../../msisensor-pro.yaml", "run_pro")
     run:
-        if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+        if SCRIPT_ONLY:
             script_only_touch(output)
         else:
             shell("{msisensor_pro} pro -d {input.ms} -t {input.t} -g {input.ref}  -o {output} 2>>{log}")

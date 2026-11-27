@@ -7,9 +7,6 @@ samples = config.get("samples") or []
 sample_groups = config.get("sample_groups") or {}
 ROOT_DIR = config.get("ROOT_DIR", ".")
 
-# TEChimericPlot image formats (modules.md #9) — ① parse 期读入 + 规范化
-# (str 收成单元素 list;合法值由 schema 声明)。output 指令无法调用函数,
-# 格式列表必须是模块级变量。
 _formats = config.get("Params", {}).get("StringTie", {}).get("formats") or ["png"]
 if isinstance(_formats, str):
     _formats = [_formats]
@@ -22,7 +19,7 @@ rule stringTie:
     log:
         logdir + "/{sample_id}/stringTie.log"
     params:
-        gtf = config.get('genome', {}).get('gtf'), #最好使用完整的gtf文件，更有利于准确判断是否是新转录本
+        gtf = config.get('genome', {}).get('gtf'),
         stringtie = config.get("Procedure", {}).get("stringtie") or "stringtie"
     threads: rule_res("stringTie").get("threads", 5)
     benchmark: logdir + "/{sample_id}/stringTie.benchmark.tsv",
@@ -42,7 +39,7 @@ rule stringTie:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start stringTie run for sample {wildcards.sample_id} at {current_time}")
             script = receipt_script(f"stringTie_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = f"...{wildcards.sample_id}/stringTie.sh"
             cmd = [params.stringtie, "-o", output.gtf, input.bam, "-G", params.gtf, "-p", str(threads)]
             with open(script, 'w') as f:
@@ -50,7 +47,7 @@ rule stringTie:
                 f.write(' '.join(cmd) + '\n')
                 f.write(f"echo 'stringTie run completed for sample {wildcards.sample_id} was successful completed'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -86,7 +83,7 @@ rule TEChimericTranscripts:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             rule_logger.info(f"Start TEChimericTranscripts run for sample {wildcards.sample_id} at {current_time}")
             script = receipt_script(f"TEChimericTranscripts_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = f"...{wildcards.sample_id}/TEChimericTranscripts.sh"
             cmd = f"python {params.TEChimericTranscripts} -s {input.gtf} -t {params.te_gtf} -o {output.txt} >> {log} 2>&1"
             with open(script, 'w') as f:
@@ -94,7 +91,7 @@ rule TEChimericTranscripts:
                 f.write(cmd + "\n")
                 f.write(f"echo 'TEChimericTranscripts run completed for sample {wildcards.sample_id} was successful completed'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -106,7 +103,6 @@ rule TEChimericPlot:
     input:
         txts = expand(outdir + "/raw/{sample_id}/{sample_id}_TE_chimeric_transcripts.txt", sample_id=samples)
     output:
-        # ② 按格式展开:每种格式一个输出文件(base 不带扩展名)
         group_stack = [outdir + "/TE_chimeric/TE_chimeric_group_stacked." + fmt for fmt in _formats],
         type_top = [outdir + "/TE_chimeric/TE_chimeric_te_type_top." + fmt for fmt in _formats],
         type_by_group = [outdir + "/TE_chimeric/TE_chimeric_te_type_by_group." + fmt for fmt in _formats],
@@ -117,7 +113,7 @@ rule TEChimericPlot:
         logdir + "/../group/stringtie/TEChimericPlot.log"
     params:
         TEChimericPlot = ROOT_DIR + "/modules/StringTie/bin/TEChimericPlot.py",
-        formats = _formats,   # ③ 转发
+        formats = _formats,
     threads: rule_res("TEChimericPlot").get("threads", 1)
     benchmark: logdir + "/../group/stringtie/TEChimericPlot.benchmark.tsv",
     resources:
@@ -135,7 +131,7 @@ rule TEChimericPlot:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             script = receipt_script(f"TEChimericPlot_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             rule_logger.info(f"Start TEChimericPlot run at {current_time}")
             group_tsv = outdir + "/TE_chimeric/sample_groups.tsv"
             with open(group_tsv, 'w') as f:
@@ -156,7 +152,7 @@ rule TEChimericPlot:
                 f.write(' '.join(cmd) + "\n")
                 f.write(f"echo 'TEChimericPlot run completed successfully'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -178,7 +174,7 @@ rule stringTieMerge:
             "stringTieMerge", input_size=input_size_mb(input),
             attempt=attempt).get("mem_mb", 32000),
     params:
-        gtf = config.get('genome', {}).get('gtf'), #最好使用完整的gtf文件，更有利于准确判断是否是新转录本
+        gtf = config.get('genome', {}).get('gtf'),
         stringtie = config.get("Procedure", {}).get("stringtie") or "stringtie"
     conda:
         "StringTie.yaml"
@@ -192,7 +188,7 @@ rule stringTieMerge:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start stringTieMerge run at {current_time}")
             script = receipt_script(f"stringTieMerge_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"stringTieMerge.sh")
             cmd = [params.stringtie, "--merge"] + list(input.gtfs) + ["-o", output.gtf, "-G", params.gtf]
             with open(script, 'w') as f:
@@ -200,7 +196,7 @@ rule stringTieMerge:
                 f.write(' '.join(cmd) + '\n')
                 f.write(f"echo 'stringTieMerge run completed successfully'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

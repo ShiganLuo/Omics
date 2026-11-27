@@ -88,9 +88,7 @@ def parse_groups(items):
     return groups
 
 
-BAMS = {}      # sample -> bam path; set via Pool initializer (works under
-               # fork AND forkserver — Python 3.14 defaults to forkserver on
-               # Linux, so parent-side globals are NOT inherited by workers)
+BAMS = {}
 
 
 def _init_worker(bams):
@@ -176,7 +174,6 @@ def main():
                 regions.append((p[0], int(p[1]), int(p[2]), p[3]))
     print(f"{len(regions)} regions", flush=True)
 
-    # (sample, chrom, start, end, cls) tasks, sorted for IO locality per worker
     tasks = []
     for sample in bams:
         for chrom, s, e, cls in sorted(regions, key=lambda r: (r[0], r[1])):
@@ -191,7 +188,6 @@ def main():
             if done % 20 == 0:
                 print(f"  {done}/{len(tasks)}", flush=True)
 
-    # deterministic order: sample in group order, then region
     sample_order = {}
     for label in groups:
         for s in groups[label]:
@@ -210,12 +206,11 @@ def main():
                         f"{m6a / aligned * 1e6:.4f}" if aligned else "NA"])
     print("wrote region_normalized.tsv", flush=True)
 
-    # group-level per-region values: mean over the group's samples
     labels = list(groups)
     (label_a, samples_a), (label_b, samples_b) = \
         (labels[0], groups[labels[0]]), (labels[1], groups[labels[1]])
 
-    by = {}   # (cls, metric) -> {label: {region_key: value}}
+    by = {}
     for cls, chrom, s, e, sample, aligned, mcpg, m6a in rows:
         if aligned <= 0:
             continue

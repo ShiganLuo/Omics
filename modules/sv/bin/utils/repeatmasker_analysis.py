@@ -74,17 +74,9 @@ def run_te_annotation_pipeline(
             rm_cmd += ["-lib", str(lib)]
         else:
             rm_cmd += ["-species", species]
-        # Resolve to an absolute path BEFORE running with cwd=tmp_path:
-        # RepeatMasker resolves the query relative to its CWD.
         rm_cmd.append(str(fasta_path.resolve()))
 
         try:
-            # Run with cwd=tmp_path: RepeatMasker creates its parallel scratch
-            # dir as $CWD/RM_<pid>.<date> (RepeatMasker source, createTempDir)
-            # and only falls back to -dir when mkdir there FAILS. With the
-            # workflow's output root as CWD the RM_* dirs leak into the run
-            # root and are never cleaned. Inside tmp_path they vanish with
-            # the TemporaryDirectory context on exit.
             stdout = _run_cmd(rm_cmd, cwd=str(tmp_path), logger=logger)
             logger.info(f"RepeatMasker completed successfully:\n{stdout}")
             
@@ -167,7 +159,6 @@ class RepeatMaskerOutCompare:
                     continue
 
                 try:
-                    # Column Indices: 0: Score, 1: Div, 5: Start, 6: End, 9: Subfamily, 10: Class/Family
                     sw_score = int(fields[0])
                     perc_div = float(fields[1])
                     q_start = int(fields[5])
@@ -177,8 +168,8 @@ class RepeatMaskerOutCompare:
                     if sw_score < min_score or perc_div > max_div or fragment_len < min_len:
                         continue
                     
-                    subfamily = fields[9]  # Specific name, e.g., L1Md_T
-                    class_family = fields[10] # e.g., LINE/L1
+                    subfamily = fields[9]
+                    class_family = fields[10]
                     
                     if "/" in class_family:
                         repeat_class, repeat_family = class_family.split("/", 1)
@@ -300,7 +291,6 @@ class RepeatMaskerOutCompare:
 
 
 if __name__ == "__main__":
-    # 执行分析
     params = {
         "bg_out":"",
         "fg_out": ""

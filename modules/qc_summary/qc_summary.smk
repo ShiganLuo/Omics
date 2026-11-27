@@ -4,25 +4,10 @@ include: "../common/common.smk"
 outdir = config.get("outdir", "output/QC/qc_summary")
 logdir = config.get("logdir", "log")
 samples = config.get("samples", []) or []
-# stage name -> QC artifact directory; subworkflow passes upstream
-# xxx_config["outdir"] values here (subworkflow.md chaining rule)
 qc_dirs = config.get("qc_dirs", {}) or {}
-# stage -> per-sample anchor filename template ('{sample}' placeholder),
-# ONLY for stages whose producing rules are guaranteed to run (registered
-# outputs or unavoidable intermediates). Anchors become tracked rule inputs
-# so Snakemake orders qc_summary after the producers AND re-runs it when an
-# upstream artifact is refreshed. Stages listed in qc_dirs but absent here
-# (e.g. fastqc outputs the workflow never registers) stay best-effort:
-# the script scans the directory and skips it with a warning when missing.
 qc_anchors = config.get("qc_anchors", {}) or {}
-# optional per-stage sample list override (default: all samples) — e.g. MSI
-# anchors exist only for tumor samples in the design pairs
 qc_anchor_samples = config.get("qc_anchor_samples", {}) or {}
 report_title = config.get("Params", {}).get("qc_summary", {}).get("title") or "QC Summary"
-# formats(模块 md #9 / subworkflow.md formats 规范):QC 柱状图导出格式
-# (str 收成单元素列表;格式合法性由 schema 声明)。图文件
-# qc_summary_<metric>.<fmt> 为条件产出(无数据不出图),不在 output 逐一
-# 声明;qc_summary.html 固定引用 png 变体。
 _formats = (config.get("Params", {}).get("qc_summary", {}) or {}).get("formats") or ["png"]
 if isinstance(_formats, str):
     _formats = [_formats]
@@ -59,9 +44,6 @@ rule qc_summary:
     """Aggregate per-sample QC artifacts from all pipeline stages into one
     sample x metric table (qc_summary.tsv) plus an HTML visual summary."""
     input:
-        # anchor the aggregation AFTER per-sample QC rules when the stage
-        # directories are known outputs (DAG ordering only; the script
-        # re-discovers files inside each directory)
         anchors = _qc_stage_inputs()
     output:
         tsv = outdir + "/qc_summary.tsv",
@@ -81,7 +63,7 @@ rule qc_summary:
     params:
         script = QC_SCRIPT,
         title = report_title,
-        formats = _formats,   # ③ 转发
+        formats = _formats,
     run:
         log_path = str(log)
         open(log_path, "a").close()
@@ -106,14 +88,14 @@ rule qc_summary:
             cmd += ["--log", log_path]
 
             script = receipt_script(f"qc_summary_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(summary_dir, "qc_summary.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
                 f.write('echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

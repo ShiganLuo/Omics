@@ -31,7 +31,6 @@ rule fiberseq_coactuation_run:
         sif("../fiberseq.yaml", "fiberseq_coactuation_run")
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/coactuation.py",
-        # 参数精确到 rule:Params.fiberseq_coactuation.fiberseq_coactuation_run.<key>(config 全量路径读取)
         max_distance = config.get("Params", {}).get("fiberseq_coactuation", {}).get("fiberseq_coactuation_run", {}).get("max_distance", 50000),
         min_fibers = config.get("Params", {}).get("fiberseq_coactuation", {}).get("fiberseq_coactuation_run", {}).get("min_fibers", 10),
         max_pairs = config.get("Params", {}).get("fiberseq_coactuation", {}).get("fiberseq_coactuation_run", {}).get("max_pairs", 200000),
@@ -46,10 +45,7 @@ rule fiberseq_coactuation_run:
             sample_outdir = os.path.dirname(str(output.pairs))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"fiberseq_coactuation_run_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
-            # timestamped copy stays in log/cmd as history; the outdir copy
-            # (no timestamp, overwritten each run) documents the current command
-            # next to the results it produced
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"fiberseq_coactuation_run_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.script,
@@ -71,7 +67,7 @@ rule fiberseq_coactuation_run:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "fiberseq_coactuation_run for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

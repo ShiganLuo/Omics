@@ -32,7 +32,7 @@ if analysis.get("ld_decay", False):
             os.makedirs(os.path.dirname(log_path), exist_ok=True)
             os.makedirs(os.path.dirname(str(output.stat)), exist_ok=True)
             script = receipt_script(f"PopLDdecay_{wildcards.population}_{time.strftime('%Y%m%d_%H%M%S')}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(os.path.dirname(str(output.stat)), f"PopLDdecay_{wildcards.population}.sh")
             cmd = [params.tool, "-InVCF", input.vcf, "-OutStat", params.prefix, "-SubPop", input.popfile, "-MaxDist", str(params.max_dist)]
             with open(log_path, "a") as handle:
@@ -42,7 +42,7 @@ if analysis.get("ld_decay", False):
                 handle.write(" ".join(str(item) for item in cmd) + "\n")
                 handle.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

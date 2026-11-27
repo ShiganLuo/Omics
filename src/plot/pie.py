@@ -7,9 +7,6 @@ import re
 
 
 def genotype(text:str):
-# match genotype
-# print(text)
-    #有的基因型以|分割，且在相位中也可能展示基因型；所以第一个\t和:包括内容才为基因型
     pattern1 = re.compile(r'\t(\d.\d):')
     pattern2 = re.compile(r'(\d*\t)(\d*\t)(.\t)([a-zA-Z]*\t)([a-zA-Z]*\t)')
     genotype = pattern1.findall(text)
@@ -19,10 +16,6 @@ def genotype(text:str):
     w2 = match.groups()[4].replace("\t","")
     print(w1)
     print(w2)
-    # print(genotype)
-    # print(len(genotype))
-    # plot
-    #w1:0；w2:1
     g1 = genotype.count('0/0') + genotype.count('0|0')
     g2 = genotype.count('0/1') + genotype.count('1/0') + genotype.count('0|1') + genotype.count('1|0')
     g3 = genotype.count('1/1') + genotype.count('1|1')
@@ -33,7 +26,6 @@ def genotype(text:str):
     return sta
 
 def genetotype_pie(texts:list,outdir:str):
-    ####饼图
     fig,(ax1,ax2,ax3) = plt.subplots(1, 3, sharex=True,figsize=(10, 6))
     Domestication = genotype(texts[1])
     print(Domestication)
@@ -49,7 +41,6 @@ def genetotype_pie(texts:list,outdir:str):
     ax2.pie(Svalue,colors=['red','green','blue'])
     ax3.pie(Sivalue,colors=['red','green','blue'])
     fig.legend(Dlabel, loc="upper right")
-    #标记需手动修改
     ax1.text(-0.4,1.2,"Domestication")
     ax1.text(-0.1,1.4,"479")
     ax2.text(-0.35,1.2,"Splendens")
@@ -100,14 +91,13 @@ def draw_arc_text_quadrant(ax, center, radius, text, theta1, theta2, **kwargs):
     x = center[0] + radius * np.cos(np.deg2rad(theta_mid))
     y = center[1] + radius * np.sin(np.deg2rad(theta_mid))
 
-    # 根据象限调整旋转角度
-    if 0 <= theta_mid <= 90:  # 右上
+    if 0 <= theta_mid <= 90:
         rotation = theta_mid - 90
-    elif 90 < theta_mid <= 180:  # 左上
+    elif 90 < theta_mid <= 180:
         rotation = theta_mid - 90
-    elif 180 < theta_mid <= 270:  # 左下
+    elif 180 < theta_mid <= 270:
         rotation = theta_mid + 90
-    else:  # 右下 270~360
+    else:
         rotation = theta_mid - 90
 
     ax.text(x, y, text, rotation=rotation, ha='center', va='center', **kwargs)
@@ -116,11 +106,9 @@ def draw_arc_text_quadrant(ax, center, radius, text, theta1, theta2, **kwargs):
 
 def nested_donut_discrete(df: pd.DataFrame, columns: list, outplot:str, figsize=(8,8), startangle=90):
     """内层标签沿弧完整显示且方向自然，外层标签避让，父子颜色离散"""
-    # 按类别数排序（内层少->外层多）
     columns_sorted = sorted(columns, key=lambda c: df[c].nunique())
     layer_values, layer_labels, layer_colors = [], [], []
 
-    # 内层父类颜色（离散、饱和）
     col0 = columns_sorted[0]
     group0 = df.groupby(col0, sort=False).size()
     layer_values.append(group0.values.tolist())
@@ -129,7 +117,6 @@ def nested_donut_discrete(df: pd.DataFrame, columns: list, outplot:str, figsize=
     base_colors = sns.color_palette("tab20", n0)
     layer_colors.append([(*c,1.0) for c in base_colors])
 
-    # 外层子类颜色
     for layer_idx in range(1, len(columns_sorted)):
         col = columns_sorted[layer_idx]
         parent_col = columns_sorted[layer_idx-1]
@@ -153,7 +140,6 @@ def nested_donut_discrete(df: pd.DataFrame, columns: list, outplot:str, figsize=
         layer_values.append(outer_values)
         layer_colors.append(colors)
 
-    # 绘图
     fig = plt.figure(figsize=figsize)
     ax_main = fig.add_axes([0.15,0.15,0.7,0.7])
     ax_main.axis('equal')
@@ -167,22 +153,19 @@ def nested_donut_discrete(df: pd.DataFrame, columns: list, outplot:str, figsize=
     for layer_idx, (values, labels, colors) in enumerate(zip(layer_values, layer_labels, layer_colors)):
         wedges,_ = ax_main.pie(values, radius=radius, colors=colors, labels=None,
                                startangle=startangle, wedgeprops=dict(width=width, edgecolor='white'))
-        # 内层标签沿圆弧且方向自然
         if layer_idx == 0:
             for w, lab in zip(wedges, labels):
                 draw_arc_text_quadrant(ax_main, (0,0), radius-width/2, lab, w.theta1, w.theta2,
                                     fontsize=10, color='black')
 
 
-        # 外层记录用于标签
         if layer_idx == len(columns_sorted)-1:
             for w, lab in zip(wedges, labels):
                 ang = (w.theta2 + w.theta1)/2
                 outer_info.append((ang, lab, w))
 
-        radius += width*0.98  # 紧贴
+        radius += width*0.98
 
-    # 外层标签
     raw_positions = []
     for ang, text, w in outer_info:
         x = np.cos(np.deg2rad(ang))
@@ -209,14 +192,6 @@ def nested_donut_discrete(df: pd.DataFrame, columns: list, outplot:str, figsize=
     plt.savefig(outplot, dpi=300, bbox_inches='tight')
 
 if __name__ == "__main__":
-    # reda file 
-    # infile = "/home/lsg/GWAS/Betta_splendens240901/gene_Investication/output/snp/dip2a.txt"
-    # outdir = "/home/lsg/GWAS/Betta_splendens240901/gene_Investication/output/plot/pie"
-    # fo = open(infile,'r')
-    # texts = fo.readlines()
-    # fo.close()
-    # genetotype_pie(texts,"a.png")
 
-    # two degree nested_donut
     df = pd.read_csv("/home/luosg/Data/genomeStability/data/target_fq.tsv",sep="\t")
     nested_donut_discrete(df, ["Status","Cell_line"],"/home/luosg/Data/genomeStability/output/result/metadata/nested_donut_discrete.png")

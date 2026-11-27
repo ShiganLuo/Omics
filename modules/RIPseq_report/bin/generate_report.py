@@ -37,16 +37,9 @@ from pptx.enum.shapes import MSO_SHAPE
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
-# ── 上游产出图 raster-first 变体解析(modules.md #9 formats 规范)──
-# 生产者按各自 Params.<producer>.formats 每格式写一个 `<base>.<fmt>`;报告
-# 消费这些图时按 raster-first(png → jpg → jpeg → tif → tiff,再按
-# VALID_FORMATS 余下顺序)找已存在的变体;都不存在时原样返回硬编码路径
-# (默认配置下行为与历史逐字节一致)。
 _PICK_EXTS = ("png", "jpg", "jpeg", "tif", "tiff",
               "pdf", "svg", "ps", "eps", "pgf", "raw", "rgba")
 _RASTER_EXTS = ("png", "jpg", "jpeg", "tif", "tiff")
@@ -79,9 +72,6 @@ def _embeddable(path: str) -> bool:
             and os.path.splitext(path)[1].lower() in _RASTER_EXTS)
 
 
-# ============================================================
-# Layout & Colors
-# ============================================================
 SLIDE_W = 10.0
 SLIDE_H = 5.625
 HEADER_H = 0.65
@@ -105,9 +95,6 @@ ALIGN_THRESH = 80.0
 FRIP_THRESH = 0.20
 
 
-# ============================================================
-# I18N
-# ============================================================
 I18N = {
     "zh": {
         "report_title": "RIP-seq 分析报告",
@@ -154,9 +141,6 @@ def t(key, lang="zh"):
     return I18N.get(lang, I18N["zh"]).get(key, key)
 
 
-# ============================================================
-# PPT helpers
-# ============================================================
 
 def _header(slide, text):
     bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, Inches(SLIDE_W), Inches(HEADER_H))
@@ -209,9 +193,6 @@ def _add_img(slide, path, left, top, max_w, max_h):
         slide.shapes.add_picture(path, Inches(left), Inches(top), Inches(max_w), Inches(max_h))
 
 
-# ============================================================
-# Data Loaders
-# ============================================================
 
 def load_trim_stats(trim_dir, sample):
     """Parse TrimGalore statistics files for both reads."""
@@ -433,7 +414,7 @@ def load_cutoff(peaks_dir, sample):
         return []
     data = []
     with open(xf) as f:
-        f.readline()  # skip header
+        f.readline()
         for ln in f:
             parts = ln.strip().split("\t")
             if len(parts) >= 5:
@@ -451,7 +432,7 @@ def load_broad_cutoff(peaks_dir, sample):
         return []
     data = []
     with open(xf) as f:
-        f.readline()  # skip header
+        f.readline()
         for ln in f:
             parts = ln.strip().split("\t")
             if len(parts) >= 5:
@@ -618,18 +599,14 @@ def load_fastqc_summary(qc_dir, sample, stage="raw"):
         for ln in f:
             parts = ln.strip().split("\t")
             if len(parts) >= 2:
-                results[parts[0]] = parts[1]  # module_name -> PASS/WARN/FAIL
+                results[parts[0]] = parts[1]
     return results if results else None
 
 
-# ============================================================
-# Plotting
-# ============================================================
 
-# Standalone figure deliverables (report-module spec): figures/<name>.<fmt>
-FIG_DIR = ""        # set in main(): --img-dir, else a temp dir
-FIG_MANIFEST = []   # (name, filename) rows for figures/manifest.tsv
-_TEMP_EMBEDS = []   # temp raster copies used for PPTX embedding
+FIG_DIR = ""
+FIG_MANIFEST = []
+_TEMP_EMBEDS = []
 
 
 def save_fig(fig, name, image_formats: Optional[List[PlotFormat]] = None,
@@ -652,7 +629,6 @@ def save_fig(fig, name, image_formats: Optional[List[PlotFormat]] = None,
     if "png" in image_formats:
         embed = os.path.join(FIG_DIR, f"{name}.png")
     else:
-        # embedding keeps using a raster copy (temp fallback)
         embed = tempfile.mktemp(suffix=".png")
         fig.savefig(embed, dpi=dpi, bbox_inches="tight")
         _TEMP_EMBEDS.append(embed)
@@ -740,7 +716,6 @@ def plot_trim_stats(all_samples, trims, image_formats=None):
     """Save formats. Default ``["png"]``."""
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
     samples = [s for s in all_samples if s in trims]
-    # Adapter rate (R1)
     adapter_rates = []
     for s in samples:
         t = trims[s]
@@ -751,7 +726,6 @@ def plot_trim_stats(all_samples, trims, image_formats=None):
     ax1.set_title("Adapter Content (R1)"); ax1.set_ylabel("Reads with Adapters (%)")
     ax1.tick_params(axis='x', rotation=30)
     for i, v in enumerate(adapter_rates): ax1.text(i, v + max(adapter_rates)*0.02, f"{v:.1f}%", ha="center", fontsize=8)
-    # Passed reads (R1)
     passed = [int(trims[s].get("passed_R1", 0)) / 1e6 for s in samples]
     ax2.bar(samples, passed, color="#0094D8", width=0.5)
     ax2.set_title("Passed Reads (R1)"); ax2.set_ylabel("Reads (M)")
@@ -769,7 +743,6 @@ def plot_peak_centric_te(all_peak_centric_data, image_formats=None):
     if not all_peak_centric_data:
         return None
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
-    # Left: TE coverage fraction histogram
     fracs = [float(r["te_coverage_frac"]) for r in all_peak_centric_data if r.get("te_coverage_frac")]
     if fracs:
         ax1.hist(fracs, bins=30, color="#0094D8", edgecolor="white", alpha=0.8)
@@ -778,7 +751,6 @@ def plot_peak_centric_te(all_peak_centric_data, image_formats=None):
         mean_frac = np.mean(fracs)
         ax1.axvline(mean_frac, color="red", linestyle="--", alpha=0.7, label=f"mean={mean_frac:.3f}")
         ax1.legend(fontsize=8)
-    # Right: TE count distribution (capped at 20 for display)
     counts = [int(r["te_count"]) for r in all_peak_centric_data if r.get("te_count")]
     if counts:
         capped = [min(c, 20) for c in counts]
@@ -791,9 +763,6 @@ def plot_peak_centric_te(all_peak_centric_data, image_formats=None):
     return save_fig(fig, "peak_centric_te", image_formats)
 
 
-# ============================================================
-# PPT Slides
-# ============================================================
 
 def build_title_slide(prs, title, subtitle, date, pipeline, lang):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
@@ -806,7 +775,6 @@ def build_title_slide(prs, title, subtitle, date, pipeline, lang):
     if pipeline: meta.append(f"{t('pipeline_label', lang)}: {pipeline}")
     if date: meta.append(f"{t('date_label', lang)}: {date}")
     if meta: _textbox(slide, MARGIN_L, 2.2, CONTENT_W, 0.3, "  |  ".join(meta), font_size=10, color=C_MUTED)
-    # Accent band
     band = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.8), Inches(4.8), Inches(8.4), Inches(0.15))
     band.fill.solid(); band.fill.fore_color.rgb = C_ACCENT; band.line.fill.background()
 
@@ -970,7 +938,6 @@ def build_peak_centric_te_slide(prs, img_path, all_peak_centric_data, ip_samples
     slide = prs.slides.add_slide(prs.slide_layouts[6]); _bg(slide)
     _header(slide, t("peak_centric_te_title", lang))
     _add_img(slide, img_path, MARGIN_L, CONTENT_TOP, 6.0, 3.5)
-    # Summary stats
     if all_peak_centric_data:
         total = len(all_peak_centric_data)
         with_te = sum(1 for r in all_peak_centric_data if int(r.get("te_count", 0)) > 0)
@@ -1003,7 +970,6 @@ def build_heatmap_slide(prs, sample, heatmap_pngs, lang):
     """One slide per sample showing TE enrichment heatmaps in a grid."""
     slide = prs.slides.add_slide(prs.slide_layouts[6]); _bg(slide)
     _header(slide, f"TE Enrichment Heatmaps — {sample}")
-    # Show up to 6 heatmaps in 2x3 grid
     n = min(len(heatmap_pngs), 6)
     cols, rows_grid = 3, 2
     img_w = (CONTENT_W - 0.2 * (cols - 1)) / cols
@@ -1046,7 +1012,6 @@ def build_conclusion_slide(prs, ip_samples, aligns, frips, peaks, markdups, macs
     _textbox(slide, 0.8, 0.4, 4.0, 0.5, "总结与结论" if lang == "zh" else "Conclusions",
              font_size=28, bold=True, color=C_WHITE)
 
-    # Key findings bullets
     bullets = []
     total_narrow = sum(peaks[s]["narrow"] for s in ip_samples)
     avg_align = np.mean([aligns.get(s, {}).get("overall_rate") or 0 for s in ip_samples])
@@ -1075,7 +1040,6 @@ def build_conclusion_slide(prs, ip_samples, aligns, frips, peaks, markdups, macs
             bullets.append(f"⚠ QC issues in: {', '.join(bad)}")
     _bullets(slide, 0.9, 1.1, 8.2, 1.4, bullets, font_size=14, color=C_WHITE)
 
-    # QC cards
     cards = [
         ("样本数" if lang == "zh" else "Samples", str(len(ip_samples))),
         ("总 Peaks" if lang == "zh" else "Total Peaks", f"{total_narrow:,}"),
@@ -1092,11 +1056,9 @@ def build_conclusion_slide(prs, ip_samples, aligns, frips, peaks, markdups, macs
         p2 = tf.add_paragraph(); p2.text = value
         p2.font.size = Pt(22); p2.font.bold = True; p2.font.color.rgb = C_WHITE; p2.alignment = PP_ALIGN.CENTER
 
-    # Accent band
     band = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.8), Inches(3.8), Inches(8.4), Inches(0.12))
     band.fill.solid(); band.fill.fore_color.rgb = C_ACCENT; band.line.fill.background()
 
-    # Per-sample mini table
     mini = [["Sample", "Narrow", "Broad", "FRiP", "Dup%", "Align%", "Status"]]
     for s in ip_samples:
         rate = aligns.get(s, {}).get("overall_rate") or 0
@@ -1109,9 +1071,6 @@ def build_conclusion_slide(prs, ip_samples, aligns, frips, peaks, markdups, macs
     _table(slide, 0.8, 4.1, 8.4, 0.22 * len(mini), mini, font_size=10)
 
 
-# ============================================================
-# Excel export — ALL data from ALL modules
-# ============================================================
 
 def write_results_excel(output_path, ip_samples, input_samples, peaks_dir, annotation_dir,
                         qc_dir, log_dir, markdup_dir, te_dir, trim_dir, metrics_dir):
@@ -1145,7 +1104,6 @@ def write_results_excel(output_path, ip_samples, input_samples, peaks_dir, annot
 
     all_samples = ip_samples + input_samples
 
-    # 1. Overview
     ws = wb.active; ws.title = _sheet("Overview")
     for row in [["Category", "Item", "Value"],
                 ["Analysis", "n_ip", str(len(ip_samples))],
@@ -1155,22 +1113,18 @@ def write_results_excel(output_path, ip_samples, input_samples, peaks_dir, annot
         ws.append(row)
     _auto_width(ws)
 
-    # 2. MACS3 Narrow Peaks
     ws2 = wb.create_sheet(_sheet("MACS3 Narrow Peaks"))
     _write_dicts(ws2, [{**r, "sample_id": s} for s in ip_samples for r in load_macs3_xls(peaks_dir, s)],
                  ["sample_id", "chr", "start", "end", "length", "abs_summit", "pileup", "neg_log10_pvalue", "fold_enrichment", "neg_log10_qvalue", "name"])
 
-    # 3. MACS3 Broad Peaks
     ws3 = wb.create_sheet(_sheet("MACS3 Broad Peaks"))
     _write_dicts(ws3, [{**r, "sample_id": s} for s in ip_samples for r in load_broad_xls(peaks_dir, s)],
                  ["sample_id", "chr", "start", "end", "length", "pileup", "neg_log10_pvalue", "fold_enrichment", "neg_log10_qvalue", "name"])
 
-    # 4. MACS3 Peak Summits
     ws4 = wb.create_sheet(_sheet("MACS3 Peak Summits"))
     _write_dicts(ws4, [{**r, "sample_id": s} for s in ip_samples for r in load_summits(peaks_dir, s)],
                  ["sample_id", "chr", "start", "end", "name", "score"])
 
-    # 5. Cutoff Narrow
     ws5 = wb.create_sheet(_sheet("Cutoff Narrow"))
     ws5.append(["Sample", "-log10(p)", "-log10(q)", "Num Peaks", "Total Length", "Avg Peak Length"])
     for s in ip_samples:
@@ -1178,7 +1132,6 @@ def write_results_excel(output_path, ip_samples, input_samples, peaks_dir, annot
             ws5.append([s, r["pscore"], r["qscore"], r["npeaks"], r["lpeaks"], r["avelpeak"]])
     _auto_width(ws5)
 
-    # 6. Cutoff Broad
     ws6 = wb.create_sheet(_sheet("Cutoff Broad"))
     ws6.append(["Sample", "-log10(p)", "-log10(q)", "Num Peaks", "Total Length", "Avg Peak Length"])
     for s in ip_samples:
@@ -1186,7 +1139,6 @@ def write_results_excel(output_path, ip_samples, input_samples, peaks_dir, annot
             ws6.append([s, r["pscore"], r["qscore"], r["npeaks"], r["lpeaks"], r["avelpeak"]])
     _auto_width(ws6)
 
-    # 7. HOMER Annotation
     ws7 = wb.create_sheet(_sheet("HOMER Annotation"))
     ann_keys = ["peak_id", "chr", "start", "end", "strand", "score", "annotation",
                 "detailed_annotation", "distance_to_tss", "nearest_promoter", "entrez_id",
@@ -1198,7 +1150,6 @@ def write_results_excel(output_path, ip_samples, input_samples, peaks_dir, annot
             ws7.append([s] + [r.get(k, "") for k in ann_keys])
     _auto_width(ws7)
 
-    # 8. Region Distribution
     ws8 = wb.create_sheet(_sheet("Region Distribution"))
     ann_labels = ["promoter", "exon", "intron", "intergenic", "tts", "other"]
     ws8.append(["Sample"] + ann_labels + ["Total"])
@@ -1209,7 +1160,6 @@ def write_results_excel(output_path, ip_samples, input_samples, peaks_dir, annot
         ws8.append([s] + [a.get(l, 0) for l in ann_labels] + [total])
     _auto_width(ws8)
 
-    # 9. Top Genes
     ws9 = wb.create_sheet(_sheet("Top Genes"))
     ws9.append(["Sample", "Gene", "Position", "Score", "Distance to TSS"])
     for s in ip_samples:
@@ -1217,7 +1167,6 @@ def write_results_excel(output_path, ip_samples, input_samples, peaks_dir, annot
             ws9.append([s, g["gene"], g["position"], g["score"], g["distance_to_tss"]])
     _auto_width(ws9)
 
-    # 10. TSS Distance
     ws10 = wb.create_sheet(_sheet("TSS Distance"))
     ws10.append(["Sample", "Total", "≤1kb", "≤1kb (%)", "≤5kb", "≤5kb (%)", "≤10kb", "≤10kb (%)"])
     for s in ip_samples:
@@ -1228,7 +1177,6 @@ def write_results_excel(output_path, ip_samples, input_samples, peaks_dir, annot
                           ts["within_10kb"], round(ts["within_10kb_pct"], 2)])
     _auto_width(ws10)
 
-    # 11. TE Subfamily Overlap
     ws11 = wb.create_sheet(_sheet("TE Subfamily Overlap"))
     ws11.append(["Sample", "TE Subfamily", "TE Class", "TE Length", "Interval Overlap Frac", "Overlap Peak Count", "IP Reads", "Input Reads"])
     for s in ip_samples:
@@ -1237,7 +1185,6 @@ def write_results_excel(output_path, ip_samples, input_samples, peaks_dir, annot
                           r.get("overlap_peak_count", ""), r.get("ip_reads", ""), r.get("input_reads", "")])
     _auto_width(ws11)
 
-    # 12. Peak-Centric TE
     ws12 = wb.create_sheet(_sheet("Peak-Centric TE"))
     pc_keys = ["sample_id", "peak_id", "chrom", "start", "end", "peak_length",
                "te_count", "te_class_count", "te_classes",
@@ -1249,9 +1196,7 @@ def write_results_excel(output_path, ip_samples, input_samples, peaks_dir, annot
             ws12.append([r.get(k, "") for k in pc_keys])
     _auto_width(ws12)
 
-    # 13. QC Summary (consolidated, last sheet)
     ws_qc = wb.create_sheet(_sheet("QC Summary"))
-    # Build header: core QC columns + HISAT2 metrics columns
     qc_header = [
         "Sample", "Type",
         "Trim_Total_R1", "Trim_Adapters_R1", "Trim_Passed_R1",
@@ -1264,7 +1209,6 @@ def write_results_excel(output_path, ip_samples, input_samples, peaks_dir, annot
         "Peak_Narrow", "Peak_Broad", "FRiP_Score", "FRiP_Pct",
         "Status",
     ]
-    # Append HISAT2 metrics column names
     bt2_keys = []
     for s in all_samples:
         m = load_hisat2_metrics(metrics_dir, s)
@@ -1281,7 +1225,6 @@ def write_results_excel(output_path, ip_samples, input_samples, peaks_dir, annot
         mi = load_macs3_info(log_dir, s) or {} if is_ip else {}
         pc = load_peak_count(peaks_dir, s) if is_ip else {"narrow": "", "broad": ""}
         frip = load_frip(qc_dir, s) if is_ip else None
-        # Status (IP only)
         if is_ip:
             rate = al.get("overall_rate") or 0
             dup = md.get("dup_rate", 0)
@@ -1307,7 +1250,6 @@ def write_results_excel(output_path, ip_samples, input_samples, peaks_dir, annot
             frip, round((frip or 0) * 100, 2) if frip else "",
             status,
         ]
-        # Append HISAT2 metrics values
         bt2 = load_hisat2_metrics(metrics_dir, s) or {}
         row += [bt2.get(k, "") for k in bt2_keys]
         ws_qc.append(row)
@@ -1317,9 +1259,6 @@ def write_results_excel(output_path, ip_samples, input_samples, peaks_dir, annot
     print(f"Excel saved: {output_path}")
 
 
-# ============================================================
-# Main
-# ============================================================
 def main():
     ap = argparse.ArgumentParser(description="Generate RIP-seq PPT report")
     ap.add_argument("--samples", action="append", default=[], required=True, help="IP sample names (repeatable)")
@@ -1361,7 +1300,6 @@ def main():
     all_samples = ip_samples + input_samples
     lang = args.lang
 
-    # Parse IP-input pairs
     sample_ip_input_map = {}
     for pair in args.ip_input_pair:
         if ":" in pair:
@@ -1371,14 +1309,12 @@ def main():
     if not args.title: args.title = t("report_title", lang)
     if not args.subtitle: args.subtitle = " & ".join(ip_samples) + (f" — {args.genome}" if args.genome else "")
 
-    # Derived dirs
-    base_dir = os.path.dirname(args.peaks_dir)  # results/
+    base_dir = os.path.dirname(args.peaks_dir)
     te_dir = args.te_dir or os.path.join(base_dir, "te_overlap")
     heatmap_dir = args.heatmap_dir or os.path.join(base_dir, "heatmap")
     trim_dir = args.trim_dir or os.path.join(os.path.dirname(base_dir), "common/2_trimmed_fastq")
     metrics_dir = args.metrics_dir or os.path.join(os.path.dirname(base_dir), "common/3_raw_bam")
 
-    # Load data for PPT
     aligns = {s: load_hisat2(args.log_dir, s) or {} for s in all_samples}
     markdups = {s: d for s in all_samples if (d := load_markdup(args.markdup_dir, s))}
     macs3_info = {s: d for s in ip_samples if (d := load_macs3_info(args.log_dir, s))}
@@ -1396,7 +1332,6 @@ def main():
         img = get_te_enrichment_png(te_dir, ip, inp)
         if img:
             te_enrichment_imgs.append(img)
-    # Heatmap images per sample
     heatmap_imgs = {}
     for s in ip_samples:
         sample_heatmap_dir = os.path.join(heatmap_dir, s)
@@ -1404,12 +1339,10 @@ def main():
             pngs = list_heatmap_variants(sample_heatmap_dir)
             if pngs:
                 heatmap_imgs[s] = pngs
-    # Peak-centric TE data
     all_peak_centric_data = []
     for s in ip_samples:
         all_peak_centric_data.extend(load_peak_centric_te(te_dir, s))
 
-    # Generate plots (standalone deliverables: <FIG_DIR>/<name>.<fmt>)
     global FIG_DIR
     FIG_DIR = args.img_dir or tempfile.mkdtemp(prefix="report_figs_")
     os.makedirs(FIG_DIR, exist_ok=True)
@@ -1424,12 +1357,10 @@ def main():
     all_imgs = {"alignment": align_img, "peak_frip": pf_img, "annotation": ann_img,
                 "tss_distance": tss_img, "dup_rate": dup_img, "trim_stats": trim_img,
                 "peak_centric_te": peak_centric_img}
-    # Standalone figure manifest (report-module spec): name<TAB>filename
     with open(os.path.join(FIG_DIR, "manifest.tsv"), "w") as fh:
         for name, fname in FIG_MANIFEST:
             fh.write(f"{name}\t{fname}\n")
 
-    # Build PPT
     prs = Presentation()
     prs.slide_width = Inches(SLIDE_W); prs.slide_height = Inches(SLIDE_H)
     build_title_slide(prs, args.title, args.subtitle, args.date, args.pipeline, lang)
@@ -1453,7 +1384,6 @@ def main():
     prs.save(args.output)
     print(f"Saved: {args.output} ({len(prs.slides)} slides)")
 
-    # Save Excel
     excel_path = args.excel_output or os.path.splitext(args.output)[0] + ".xlsx"
     os.makedirs(os.path.dirname(os.path.abspath(excel_path)), exist_ok=True)
     write_results_excel(excel_path, ip_samples, input_samples,

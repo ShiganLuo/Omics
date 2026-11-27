@@ -15,7 +15,6 @@ function PRJ2SRA(){
         echo "${i}开始处理"
         if esearch -db sra -query $i | efetch -format runinfo > "${outdir}/${i}-SRA.csv"; then
             echo "${i} 处理完成"
-            # echo $?
         else
             echo "${i} 处理失败，跳过" >> ${log}
         fi
@@ -30,7 +29,6 @@ export -f PRJ2SRA
 sra=/ChIP_seq_2/StemCells/data/download/GSE.txt
 outdir=/ChIP_seq_2/StemCells/data/sra
 log=/ChIP_seq_2/StemCells/log/download/PRJ2SRA-wrong.log
-# PRJ2SRA ${sra} ${outdir} ${log}
 
 ###PRJ2SRASingle function parameter introduction
 ## PRJ=$1 the PRJ number
@@ -43,7 +41,6 @@ function PRJ2SRASingle(){
     echo "${PRJ}开始处理"
     if esearch -db sra -query ${PRJ} | efetch -format runinfo > "${outdir}/${PRJ}-SRA.csv"; then
         echo "PRJ2SRASingle ${PRJ} 处理成功" >> ${log}
-        # echo $?
     else
         echo "${PRJ} 处理失败，跳过" >> ${log}
     fi
@@ -79,13 +76,6 @@ function PRJ2SAMPLE(){
     echo "完毕"
 }
 export -f PRJ2SAMPLE
-# sra=/ChIP_seq_2/StemCells/data/download/GSE.txt
-# outdir=/ChIP_seq_2/StemCells/data/sra
-# log=/ChIP_seq_2/StemCells/log/download/PRJ2SRA-wrong.log
-# PRJ2SAMPLE ${sra} ${outdir} ${log}
-### RNAseq function parameter introduction
-## input=$1 the second column of infile muste be PRJ number (the serial number of BioProject)
-## outdir=$2
 
 ###PRJ2SAMPLESingle function parameter introduction
 ## PRJ=$1 the PRJ number
@@ -108,7 +98,6 @@ function PRJ2SAMPLESingle(){
 }
 export -f PRJ2SAMPLESingle
 
-###TargetSeq function parameter introduction
 
 function TargetSeq(){
     input=$1
@@ -136,7 +125,6 @@ function GetGSM(){
     arr_prj=$(awk '{print $2}' ${input})
     for i in ${arr_prj[@]};do
         infile=${outdir}/${i}-SRA.${type}.csv
-        #Run avgLength LibraryLayout ScientificName SampleName
         awk -F "\t" 'BEGIN {OFS = "\t"} NR > 1 {print $1,$7,$16,$29,$30}' ${infile} >>  ${outdir}/All-GSM.${type}.csv
     done
 }
@@ -170,13 +158,10 @@ function JudgeRNAseq(){
     awk -F "\t" '{print $5}' ${infile} | while read -r GSM;do
         if grep -iqE "scRNA|Single-cell|10x" /ChIP_seq_2/StemCells/data/GSM/${GSM}.html;then
             sed -i "/${GSM}/ s/$/\tscRNA-seq/" ${outfile}
-            # echo "${GSM} scRNA-seq" >> ${outfile}
         elif grep -iqE "bulk|VAHTS Universal V8 RNA-seq|Total RNA Extraction|magnetic beads with oligo" /ChIP_seq_2/StemCells/data/GSM/${GSM}.html;then
             sed -i "/${GSM}/ s/$/\tbulkRNA-seq/" ${outfile}
-            # echo "${GSM} bulkRNA-seq" >> ${outfile}
         else
             sed -i "/${GSM}/ s/$/\totherRNA-seq/" ${outfile}
-            # echo "${GSM} otherRNA-seq" >> ${outfile}
         fi
     done
     rm -f ${infile}
@@ -221,7 +206,6 @@ function GSMRunInfo(){
         head -n 1 tmp > "$outfile"
     fi
 
-    # 采用更严格的匹配方式，仅匹配完整的 GSM ID
     grep -w "${GSM}" tmp >> "$outfile"
 
     echo "Results saved to ${outfile}"
@@ -232,9 +216,3 @@ function GSMRunInfo(){
 export -f GSMRunInfo
 
 
-# GSMRunInfo GSM5837959 /ChIP_seq_2/StemCells/RNASNP202503/data/GSMRunInfo.csv
-# GSMRunInfo GSM5837962 /ChIP_seq_2/StemCells/RNASNP202503/data/GSMRunInfo.csv
-# GSMRunInfo GSM5837965 /ChIP_seq_2/StemCells/RNASNP202503/data/GSMRunInfo.csv
-# GSMRunInfo GSM5837968 /ChIP_seq_2/StemCells/RNASNP202503/data/GSMRunInfo.csv
-# GSMRunInfo GSM5837971 /ChIP_seq_2/StemCells/RNASNP202503/data/GSMRunInfo.csv
-# GSMRunInfo GSM5837974 /ChIP_seq_2/StemCells/RNASNP202503/data/GSMRunInfo.csv

@@ -10,12 +10,6 @@ suppressPackageStartupMessages({
   library(dplyr)
 })
 
-## =========================
-## Multi-format figure output (modules.md #9)
-## =========================
-## ggsave derives the device from the file extension, so writing every
-## requested format is a plain loop over "{out_base}.{fmt}". pgf/raw/rgba
-## are matplotlib-only and fail fast here (R ggsave device set).
 VALID_FORMATS <- c("png", "pdf", "svg", "ps", "eps", "tif", "tiff",
                    "jpg", "jpeg")
 
@@ -186,7 +180,6 @@ run_pipeline <- function(
   formats = "png"
 ) {
   dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
-  # fail fast on bad formats before any enrichment work starts
   validate_formats(formats)
 
   message("Defining Up / Down genes ...")

@@ -61,8 +61,6 @@ def _uniform_formats(rule_name, key, default):
 _go_kegg_formats = _uniform_formats("function_go_kegg", "formats", ["png"])
 _gsea_formats = _uniform_formats("function_gsea", "formats", ["jpeg"])
 _gsva_formats = _uniform_formats("function_gsva", "formats", ["png"])
-# function_result 消费 function_go_kegg/function_gsea 的图(跨 rule 消费,
-# 变体期望挂在消费 rule 名下;每 rule 一个 parse 期变量)
 _result_go_fmts = _uniform_formats("function_result", "go_kegg_formats", ["png"])
 _result_gsea_fmts = _uniform_formats("function_result", "gsea_formats", ["jpeg"])
 
@@ -95,7 +93,6 @@ rule function_go_kegg:
     input:
         deseq2_result = indir + "/{genome}/{contrast}/TEcount/{contrast}.TEcount_Gene.name.tsv",
     output:
-        # ② 按格式展开:每种格式一个输出文件(base 不带扩展名)
         func_go_plot = [outdir + "/{genome}/{contrast}/go_back_to_back." + fmt
                         for fmt in _go_kegg_formats],
         func_kegg_plot = [outdir + "/{genome}/{contrast}/kegg_back_to_back." + fmt
@@ -118,7 +115,7 @@ rule function_go_kegg:
         lfc_cut = lambda wildcards: config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("function_go_kegg", {}).get("lfc_cut", 1) or 1,
         p_cut = lambda wildcards: config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("function_go_kegg", {}).get("p_cut", 0.05) or 0.05,
         top = lambda wildcards: config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("function_go_kegg", {}).get("top", 10) or 10,
-        formats = _go_kegg_formats,   # ③ 转发(跨 genome 一致,见 _uniform_formats)
+        formats = _go_kegg_formats,
     conda:
         "../function.yaml"
     container:
@@ -157,14 +154,14 @@ rule function_go_kegg:
                 cmd += ["--format", str(fmt)]
 
             script = receipt_script(f"go_kegg_{wildcards.genome}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"go_kegg.sh")
             with open(script, 'w') as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'GO/KEGG analysis completed successfully for {wildcards.genome} and {wildcards.contrast}'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -191,7 +188,6 @@ rule function_gsea:
     input:
         unpack(get_input_for_function_gsea)
     output:
-        # ② 按格式展开:每种格式一个输出文件(base 不带扩展名)
         func_gsea_plot = [outdir + "/{genome}/{contrast}/GSEA/TEcount_Gene_GSEA." + fmt
                           for fmt in _gsea_formats],
         func_gsea_csv = outdir + "/{genome}/{contrast}/GSEA/TEcount_Gene_GSEA.csv"
@@ -203,7 +199,7 @@ rule function_gsea:
         mem_mb=rule_res("function_gsea").get("mem_mb", 8000),
     params:
         gsea_script = ROOT_DIR + "/modules/function/bin/gsea.r",
-        formats = _gsea_formats,   # ③ 转发(跨 genome 一致,见 _uniform_formats)
+        formats = _gsea_formats,
     conda:
         "../function.yaml"
     container:
@@ -224,7 +220,7 @@ rule function_gsea:
                 raise ValueError(f"Group pair {wildcards.contrast} not found in comparisons configuration.")
             sample_outdir = os.path.dirname(str(output.func_gsea_plot[0]))
             script = receipt_script(f"gsea_{wildcards.contrast}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"gsea.sh")
             graph_title = wildcards.contrast
 
@@ -246,7 +242,7 @@ rule function_gsea:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'GSEA analysis was completed successfully for {wildcards.genome} and {wildcards.contrast}'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -258,17 +254,14 @@ def get_input_for_function_gsva(wildcards):
     """Resolve inputs for function_gsva: featureCounts counts matrix + GMT file."""
     logger.debug(f"[get_input_for_function_gsva] called with wildcards: {wildcards}")
     in_dict = {}
-    # featureCounts merged counts (PE + SE combined)
     counts_file = counts_dir + f"/{wildcards.genome}/{wildcards.genome}_featureCounts.tsv"
     in_dict['counts'] = counts_file
-    # GMT gene set file
     gmt = config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("function_gsva", {}).get("gmt", None)
     if not gmt or not os.path.exists(gmt):
         raise ValueError(
             f"GSVA requires a GMT file. {gmt} is not exists, please set Params.function.{wildcards.genome}.function_gsva.gmt in config."
         )
     in_dict['gmt'] = gmt
-    # GTF for gene ID → gene name conversion
     gtf = genome.get("references", {}).get(wildcards.genome, {}).get("gtf")
     if not gtf:
         raise ValueError(f"GTF not found for genome {wildcards.genome} in config.genome.references.")
@@ -295,7 +288,6 @@ rule function_gsva:
         unpack(get_input_for_function_gsva)
     output:
         gsva_scores = outdir + "/{genome}/gsva/gsva_scores.tsv",
-        # ② 按格式展开:每种格式一个输出文件(base 不带扩展名)
         gsva_heatmap = [outdir + "/{genome}/gsva/gsva_heatmap." + fmt
                         for fmt in _gsva_formats],
     log:
@@ -308,7 +300,7 @@ rule function_gsva:
         norm_script = ROOT_DIR + "/modules/function/bin/normalization.py",
         gsva_script = ROOT_DIR + "/modules/function/bin/gsva.py",
         species = lambda wildcards: config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("function_gsva", {}).get("species", "mouse") or "mouse",
-        formats = _gsva_formats,   # ③ 转发(跨 genome 一致,见 _uniform_formats)
+        formats = _gsva_formats,
     conda:
         "../function.yaml"
     container:
@@ -324,7 +316,6 @@ rule function_gsva:
             gsva_outdir = os.path.dirname(str(output.gsva_scores))
             os.makedirs(gsva_outdir, exist_ok=True)
 
-            # Step 1: Normalize featureCounts → TPM matrix
             tpm_matrix = os.path.join(gsva_outdir, "expression_tpm.tsv")
             norm_cmd = [
                 "python", params.norm_script,
@@ -334,7 +325,6 @@ rule function_gsva:
                 "--gtf", input.gtf,
                 "--convert-gene-name",
             ]
-            # Step 2: Run GSVA on normalized matrix
             species_name = params.species
             gsva_cmd = [
                 "python", params.gsva_script,
@@ -346,7 +336,7 @@ rule function_gsva:
             for fmt in params.formats:
                 gsva_cmd += ["--format", str(fmt)]
             script = receipt_script(f"gsva_{wildcards.genome}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(gsva_outdir, f"gsva.sh")
             with open(script, 'w') as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -354,7 +344,7 @@ rule function_gsva:
                 f.write(" ".join(shlex.quote(str(x)) for x in gsva_cmd) + "\n")
                 f.write(f"echo 'GSVA analysis was completed successfully for {wildcards.genome} !'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -364,7 +354,5 @@ rule function_gsva:
 
 rule function_result:
     input:
-        # 消费端按 raster-first 约定解析同一变体(modules.md #9):
-        # png 优先,否则取第一个光栅格式,否则取第一个格式
         go_kegg = outdir + "/{genome}/{contrast}/go_back_to_back." + _raster_pick(_result_go_fmts),
         gsea = outdir + "/{genome}/{contrast}/GSEA/TEcount_Gene_GSEA." + _raster_pick(_result_gsea_fmts)

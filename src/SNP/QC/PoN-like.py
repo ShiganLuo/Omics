@@ -10,9 +10,6 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s"
 )
 
-# -------------------------
-# 工具函数
-# -------------------------
 def run_cmd(cmd):
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
@@ -36,9 +33,6 @@ def extract_sites(vcf: Path) -> list[str]:
     return sites
 
 
-# -------------------------
-# 1) 主函数：生成 PON
-# -------------------------
 def generate_pon(
         vcfs: list[Path],
         outdir: Path,
@@ -69,27 +63,22 @@ def generate_pon(
         sites = extract_sites(vcf)
         all_sites.extend(sites)
 
-    # 合并计数
     counter = Counter(all_sites)
 
-    # 保存 all_sites.counts.txt
     count_path = outdir / "all_sites.counts.txt"
     with open(count_path, "w") as f:
         for site, cnt in counter.most_common():
             f.write(f"{cnt} {site}\n")
     logging.info(f"写入: {count_path}")
 
-    # 选择 PON
     pon_sites = [s for s, cnt in counter.items() if cnt >= freq_threshold]
 
-    # 写入 pon_sites.txt
     pon_txt = outdir / "pon_sites.txt"
     with open(pon_txt, "w") as f:
         for s in pon_sites:
             f.write(s + "\n")
     logging.info(f"写入: {pon_txt}")
 
-    # 写入 BED-like
     pon_bed = outdir / "pon_sites.bed"
     with open(pon_bed, "w") as f:
         for s in pon_sites:
@@ -102,9 +91,6 @@ def generate_pon(
     return pon_bed
 
 
-# -------------------------
-# 2) 搜索 norm.vcf.gz（按分组过滤）
-# -------------------------
 def collect_norm_vcfs(
         indir: Path,
         samples: List[str],
@@ -157,16 +143,14 @@ def remove_pon_from_vcfs(vcfs: List[Path], pon_bed: Path, outdir: Path):
         out_vcf = outdir / (vcf.stem + ".noPON.vcf.gz")
         logging.info(f"从 {vcf.name} 去除 PoN 位点 -> {out_vcf.name}")
 
-        # bcftools view -T ^pon_sites.bed sample.vcf.gz -Oz -o sample.noPON.vcf.gz
         run_cmd([
             "bcftools", "view",
-            "-T", f"^{pon_bed}",   # ^表示排除 BED 位点
+            "-T", f"^{pon_bed}",
             str(vcf),
             "-Oz",
             "-o", str(out_vcf)
         ])
 
-        # tabix 索引
         run_cmd([
             "tabix", "-p", "vcf", str(out_vcf)
         ])

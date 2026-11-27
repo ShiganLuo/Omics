@@ -14,12 +14,8 @@ function starPrepare(){
     echo "--genomeSAindexNbases: ${result}"
 }
 export -f starPrepare
-# fa=/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/transcripts.fa
-# read_length=150
-# starPrepare ${fa} ${read_length}
 fa=$1
 read_length=$2
-# starPrepare ${fa} ${read_length}
 
 
 

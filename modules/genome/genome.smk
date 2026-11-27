@@ -39,7 +39,7 @@ rule chromosome_sizes:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start chromosome_sizes at {current_time}")
             script = receipt_script(f"chromosome_sizes_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(os.path.dirname(output.chrom_sizes), f"chromosome_sizes.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
@@ -47,7 +47,7 @@ rule chromosome_sizes:
                 f.write(f"cut -f1,2 {input.fasta}.fai > {output.chrom_sizes}\n")
                 f.write(f"echo 'chromosome_sizes completed for genome at {current_time}'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -102,7 +102,7 @@ rule extract_smallrna:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start extract_smallrna at {current_time}")
             script = receipt_script(f"extract_smallrna_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(params.outdir, f"extract_smallrna.sh")
             os.makedirs(params.outdir, exist_ok=True)
             with open(script, "w") as f:
@@ -117,7 +117,7 @@ rule extract_smallrna:
                 f.write(f"    --bedtools {params.bedtools} \\\n")
                 f.write(f"echo 'extract_smallrna completed successfully at {current_time}'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -160,7 +160,7 @@ rule genome_index:
             rule_logger.info(f"Start genome_index at {current_time}")
             os.makedirs(params.outdir, exist_ok=True)
             script = receipt_script(f"genome_index_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(params.outdir, "genome_index.sh")
             cmd = [
                 params.samtools, "faidx", input.fasta
@@ -171,7 +171,7 @@ rule genome_index:
                 f.write(f"echo 'genone_index for {input.fasta} was successfuly build for {input.fasta}' \n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

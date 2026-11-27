@@ -13,18 +13,15 @@ import os
 import sys
 from pathlib import Path
 
-# Add mimseq source to path (parent of mimseq package)
 MIMSEQ_PARENT = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 if MIMSEQ_PARENT not in sys.path:
     sys.path.insert(0, MIMSEQ_PARENT)
 
-# Add bin/ to path for serialize module
 BIN_DIR = os.path.dirname(os.path.dirname(__file__))
 if BIN_DIR not in sys.path:
     sys.path.insert(0, BIN_DIR)
 
 from serialize import save_tRNA_state
-# Import mimseq as a package
 import mimseq.tRNAtools as tRNAtools_module
 import mimseq.ssAlign as ssAlign_module
 
@@ -52,12 +49,10 @@ def run_tRNAtools(
 ) -> None:
     """Run tRNA tools: parse tRNA, generate SNP index and GSNAP indices."""
 
-    # Ensure out has trailing /
     if not out.endswith("/"):
         out = out + "/"
     os.makedirs(out, exist_ok=True)
 
-    # Set up logging
     logging.basicConfig(
         format="%(asctime)s [%(levelname)-5.5s] %(message)s",
         level=logging.INFO,
@@ -69,7 +64,6 @@ def run_tRNAtools(
 
     log.info("Starting tRNAtools module")
 
-    # If species is specified, set reference paths from mimseq data
     if species:
         mimseq_data_dir = data_dir if data_dir else os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "mimseq", "data"
@@ -95,7 +89,6 @@ def run_tRNAtools(
         else:
             raise ValueError(f"Unknown species: {species}")
 
-    # Parse tRNA and modifications, generate SNP index
     (
         coverage_bed,
         snp_tolerance_out,
@@ -114,15 +107,12 @@ def run_tRNAtools(
         snp_tolerance, cluster, cluster_id, posttrans, pretrnas, local_mod,
     )
 
-    # Parse tRNA structure
     ssAlign_module.structureParser()
 
-    # Generate GSNAP indices
     map_round = 1
     genome_index_path, genome_index_name, snp_index_path, snp_index_name = \
         tRNAtools_module.generateGSNAPIndices(species, name, out, map_round, snp_tolerance, cluster)
 
-    # Save state for downstream modules
     save_tRNA_state(
         outdir=out,
         tRNA_dict=tRNA_dict,
@@ -138,7 +128,6 @@ def run_tRNAtools(
         cluster_perPos_mismatchMembers=cluster_perPos_mismatchMembers,
     )
 
-    # Save GSNAP index paths
     from serialize import save_json
     save_json({
         "genome_index_path": genome_index_path,

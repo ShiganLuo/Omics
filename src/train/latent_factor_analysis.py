@@ -19,14 +19,13 @@ def latent_factor_modeling_with_alignment(
     同时运行 NMF / PCA / FA，并将 PCA/FA 方向对齐到 NMF。
     返回结果包含 factors / loadings / extra
     """
-    X = df_resid.T.copy()  # 行=样本, 列=基因
+    X = df_resid.T.copy()
 
     if scale_gene:
         X = (X - X.mean(axis=0)) / (X.std(axis=0) + 1e-8)
 
     results = {}
 
-    # ------------------------ 1) NMF ------------------------
     X_pos = X - X.min().min() + 1e-8
     nmf_model = NMF(n_components=n_components, init="nndsvda",
                     random_state=nmf_random_state, max_iter=2000)
@@ -44,7 +43,6 @@ def latent_factor_modeling_with_alignment(
 
     baseline_lv1 = nmf_factors["LV1"]
 
-    # ------------------------ 2) PCA ------------------------
     pca_model = PCA(n_components=n_components, random_state=nmf_random_state)
     pca_factors_arr = pca_model.fit_transform(X)
     pca_loadings_arr = pca_model.components_.T
@@ -54,7 +52,6 @@ def latent_factor_modeling_with_alignment(
     pca_loadings = pd.DataFrame(pca_loadings_arr, index=X.columns,
                                 columns=[f"LV{i+1}" for i in range(n_components)])
 
-    # 对齐方向
     common = pca_factors.index.intersection(baseline_lv1.index)
     corr = np.corrcoef(pca_factors.loc[common, "LV1"],
                        baseline_lv1.loc[common])[0, 1]
@@ -66,7 +63,6 @@ def latent_factor_modeling_with_alignment(
                       "loadings": pca_loadings.copy(),
                       "extra": {"explained_variance_ratio": pca_model.explained_variance_ratio_}}
 
-    # ------------------------ 3) Factor Analysis ------------------------
     fa_model = FactorAnalysis(n_components=n_components)
     fa_factors_arr = fa_model.fit_transform(X)
     fa_loadings_arr = fa_model.components_.T
@@ -86,7 +82,6 @@ def latent_factor_modeling_with_alignment(
                      "loadings": fa_loadings.copy(),
                      "extra": {}}
 
-    # ------------------------ 4) 可选 0-1 缩放 ------------------------
     if scale_output is not None:
         for method in ["nmf", "pca", "fa"]:
             if scale_output in ["factors", "both"]:
@@ -106,12 +101,10 @@ def save_latent_results(results, outdir):
         res["loadings"].to_csv(os.path.join(outdir, f"{method}_loadings.csv"))
         extra = res["extra"]
         if extra:
-            # 以单行保存
             pd.DataFrame([extra]).to_csv(os.path.join(outdir, f"{method}_extra.csv"), index=False)
 
 
 if __name__ == "__main__":
-    # ------------------------ 6) 调用示例 ------------------------
     df_resid = pd.read_csv("/home/luosg/Data/genomeStability/output/result/matrix/log2tpm229_514_resid.tsv",sep="\t",index_col=0)
     results = latent_factor_modeling_with_alignment(df_resid, n_components=5,
                                                     scale_gene=True, scale_output="both")

@@ -8,8 +8,6 @@ from typing import List, Dict, Literal, Optional
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
@@ -43,7 +41,6 @@ def enrich_go_kegg_analysis(gene_list: List[str], organism: Literal['human', 'mo
     )
     df_kegg = enr_kegg.results
     results_dict['KEGG'] = df_kegg
-    # 保存结果表
     for key, df in results_dict.items():
         df.to_csv(os.path.join(outdir, f'{key}_enrichment.csv'), index=False)
     print(f"富集分析完成，结果保存在文件夹: {outdir}")
@@ -107,12 +104,10 @@ def plot_enrichment_bar(df: pd.DataFrame, out_base: str, top_n=10, kind='GO',
     plt.close()
 
 if __name__ == "__main__":
-    # --- 使用示例 ---
     df = pd.read_csv("/data/pub/zhousha/20260411_MERIPseq/output/exomePeak/con_sig_diff_peak_name.xls", sep="\t")
     gene_list = df["gene_name"].dropna().unique().tolist()
     outdir = "/data/pub/zhousha/20260411_MERIPseq/output/exomePeak/plot/py"
     results = enrich_go_kegg_analysis(gene_list, outdir=outdir, organism="mouse")
-    # 分别绘图(out_base 不带扩展名;每种格式一份)
     for key, df in results.items():
         kind = 'KEGG' if key == 'KEGG' else 'GO'
         plot_enrichment_bar(df, os.path.join(outdir, f'{key}_top10'), top_n=10,

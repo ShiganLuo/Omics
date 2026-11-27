@@ -44,10 +44,8 @@
 get_metadata <- function(type = "rna-seq") {
   fastq_files <- system.file("extdata/fastq", package = "hephaestus")
   list.files(fastq_files)
-  # sample
   sample <- c("WT1", "WT2", "KO1", "KO2")
   group <- c("WT", "WT", "KO", "KO")
-  # input
   input_r1 <- c(
     file.path(fastq_files, "WT1.input.R1.fastq.gz"),
     file.path(fastq_files, "WT2.input.R1.fastq.gz"),

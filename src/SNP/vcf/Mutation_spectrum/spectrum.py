@@ -4,7 +4,6 @@ import seaborn as sns
 from collections import Counter
 from Bio import SeqIO
 
-# -------- 基本突变顺序 --------
 BASE_MUT_ORDER = ["C>A","C>G","C>T","T>A","T>C","T>G"]
 
 def load_reference_genome(fasta_file):
@@ -25,7 +24,6 @@ def get_trinucleotide(ref_seq, chrom, pos, ref, alt):
     tri = seq[pos0-1:pos0+2]
     ref_base = ref.upper()
     alt_base = alt.upper()
-    # pyrimidine 方向统一
     if ref_base in ["A","G"]:
         complement = str.maketrans("ACGT","TGCA")
         tri = tri.translate(complement)[::-1]
@@ -51,7 +49,6 @@ def build_group_dataframe(all_counts, sample_groups):
             group_counts[group] = Counter()
         group_counts[group] += counts
     
-    # 按 6 类基本突变顺序整理 trinucleotide
     tri_list = []
     for base_mut in BASE_MUT_ORDER:
         for tri in sorted(set().union(*[c.keys() for c in group_counts.values()])):
@@ -70,7 +67,6 @@ def plot_stacked_bar(tri_df, output_file):
     tri_df.plot(kind="bar", stacked=True, figsize=(20,6))
     plt.ylabel("Mutation count")
     plt.xlabel("Trinucleotide context")
-    # plt.title("Mutation Spectrum (Stacked by Group)")
     plt.xticks(rotation=90)
     plt.tight_layout()
     plt.savefig(output_file, dpi=300)
@@ -80,7 +76,6 @@ def plot_heatmap(tri_df, output_file):
     """绘制热图"""
     plt.figure(figsize=(12,8))
     sns.heatmap(tri_df, cmap="Reds", annot=False)
-    # plt.title("Mutation Spectrum Heatmap")
     plt.ylabel("Trinucleotide context")
     plt.xlabel("Group")
     plt.tight_layout()
@@ -102,7 +97,6 @@ def mutation_spectrum_analysis(vcf_files, sample_groups, ref_fasta, output_prefi
     return tri_df
 
 if __name__ == "__main__":
-    # 样本名: VCF 文件
     vcf_files = {
         "KSR_1": "/data/pub/zhousha/20260207_Exome/output/Mutation/mutation/gatk/somatic/mutect2-vcf/E14-1_vs_KSR-1/E14-1_vs_KSR-1.vcf.gz",
         "KSR_2": "/data/pub/zhousha/20260207_Exome/output/Mutation/mutation/gatk/somatic/mutect2-vcf/E14-1_vs_KSR-2/E14-1_vs_KSR-2.vcf.gz",
@@ -110,7 +104,6 @@ if __name__ == "__main__":
         "TLSC_2": "/data/pub/zhousha/20260207_Exome/output/Mutation/mutation/gatk/somatic/mutect2-vcf/E14-1_vs_TLSC-2/E14-1_vs_TLSC-2.vcf.gz"
     }
     
-    # 样本分组
     sample_groups = {
         "KSR_1": "KSR",
         "KSR_2": "KSR",

@@ -12,10 +12,9 @@ function star_index(){
     --genomeDir ${genome_index} \
     --genomeFastaFiles ${genome_fa} \
     --sjdbGTFfile ${genome_gtf} \
-    --sjdbOverhang ${read_lenth} # readLength-1
+    --sjdbOverhang ${read_lenth}
 }
 export -f star_index
-#### example
 genome_index=/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/star
 genome_fa=/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa
 genome_gtf=/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf
@@ -56,10 +55,3 @@ function star_align(){
     --quantMode GeneCounts
 }
 export -f star_align
-#### example
-# genome_index=/ChIP_seq_2/Data/F24A040011431_HOMnkgoT_0115/data/index/99
-# index_core=25
-# read1=/ChIP_seq_2/Data/F24A040011431_HOMnkgoT_0115/data/serumA/serumA_1_val_1.fq.gz
-# read2=/ChIP_seq_2/Data/F24A040011431_HOMnkgoT_0115/data/serumA/serumA_2_val_2.fq.gz
-# outPrefix=/ChIP_seq_2/Data/F24A040011431_HOMnkgoT_0115/output/star/serumA
-# star_align ${genome_index} ${index_core} ${read1} ${read2} ${outPrefix}

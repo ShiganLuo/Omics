@@ -214,7 +214,6 @@ def plot_per_method(pairs: List[Tuple[str, str]], col: str, method: str,
 def plot_overview(pairs: List[Tuple[str, str]], out_base: str,
                   formats: Optional[Sequence[str]]) -> List[str]:
     """Cross-method overview: one summary value per method per sample."""
-    # Read each method's summary TSV: first numeric column's mean as the summary.
     methods = []
     vals = []
     for method, tsv in pairs:
@@ -224,11 +223,10 @@ def plot_overview(pairs: List[Tuple[str, str]], out_base: str,
             header = next(reader, None)
             if not header:
                 continue
-            # pick the first numeric column
             j = None
             for k in range(len(header)):
                 col = [r[k] for r in reader if k < len(r)]
-                fh.seek(0); next(csv.reader(fh, delimiter="\t"))  # reset
+                fh.seek(0); next(csv.reader(fh, delimiter="\t"))
                 if col and sum(_isnum(x) for x in col) / len(col) > 0.8:
                     j = k
                     break

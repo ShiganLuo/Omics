@@ -6,15 +6,6 @@ indir = config.get("indir", "input")
 bam_suffix = config.get("bam_suffix", "")
 samples = config.get("samples", [])
 control_samples = config.get("control_samples", [])
-# CNVkit calling mode (Params.cnvkit.<rule_name>.mode, resolved by node.py
-# for "auto"):
-#   paired - per tumor/normal pair, each tumor called against its own matched
-#            normal (rule cnvkit_paired)
-#   pooled - shared reference built from control_samples (rule cnvkit_reference
-#            + cnvkit_batch --reference)
-#   flat   - no reference at all (bare -n; uniform expected coverage)
-# 参数精确到 rule:method/mode 按 rule 独立配置(Params.cnvkit.<rule_name>.method
-# /.mode),无 module 级共享回退。
 _paired_design_raw = config.get("paired_design") or []
 if isinstance(_paired_design_raw, list):
     paired_design = {
@@ -29,9 +20,6 @@ targets_bed = config.get("genome", {}).get("targets")
 paired_tumors = list(paired_design.keys())
 
 
-# 每 rule 一个 parse 期变量(module 级共享读取已删除)。method/mode 写
-# Params.cnvkit.<rule_name> config 全量路径;配置形状(mode 枚举、
-# paired_design)由 schema(run.py)与 node.py 保证,模块只取值不审判。
 _cnvkit_reference_method = config.get("Params", {}).get("cnvkit", {}).get("cnvkit_reference", {}).get("method", "wgs")
 _cnvkit_reference_use_paired = config.get("Params", {}).get("cnvkit", {}).get("cnvkit_reference", {}).get("mode", "auto") == "paired"
 _cnvkit_batch_method = config.get("Params", {}).get("cnvkit", {}).get("cnvkit_batch", {}).get("method", "wgs")
@@ -39,7 +27,6 @@ _cnvkit_batch_use_paired = config.get("Params", {}).get("cnvkit", {}).get("cnvki
 _cnvkit_paired_method = config.get("Params", {}).get("cnvkit", {}).get("cnvkit_paired", {}).get("method", "wgs")
 _cnvkit_paired_use_paired = config.get("Params", {}).get("cnvkit", {}).get("cnvkit_paired", {}).get("mode", "auto") == "paired"
 
-# 结果聚合粒度跟随 cnvkit_paired(paired 模式按 tumor 聚合)。
 cnv_samples = paired_tumors if _cnvkit_paired_use_paired else list(samples)
 
 
@@ -78,7 +65,7 @@ rule cnvkit_reference:
             sample_outdir = os.path.dirname(str(output.ref))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"cnvkit_reference_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"cnvkit_reference.sh")
             cmd = [params.cnvkit, "batch"]
             cmd += [str(bam) for bam in input.control_bams]
@@ -93,7 +80,7 @@ rule cnvkit_reference:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -136,7 +123,7 @@ rule cnvkit_batch:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start cnvkit batch at {current_time}")
             script = receipt_script(f"cnvkit_batch_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(str(outdir), f"cnvkit_batch.sh")
             os.makedirs(str(outdir), exist_ok=True)
             os.makedirs(params.staging, exist_ok=True)
@@ -145,10 +132,6 @@ rule cnvkit_batch:
             if input.ref:
                 cmd += ["--reference", str(input.ref[0])]
             else:
-                # No control samples: pass a bare -n so CNVkit builds a FLAT
-                # reference (uniform expected coverage). Without it, batch
-                # refuses to run: "Option -n/--normal must be given to build
-                # a new reference if -r/--reference is not used."
                 cmd += ["-n"]
                 cmd += ["--method", params.method, "--fasta", str(input.fasta)]
                 if input.access:
@@ -159,12 +142,6 @@ rule cnvkit_batch:
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
-                # Relocate each sample's flat artifacts from the staging dir
-                # into the declared per-sample dirs (outdir/<sample_id>/) and
-                # STRIP bam_suffix: CNVkit names every artifact after the
-                # input BAM basename (<sid><bam_suffix>.cnr, plots
-                # <sid><bam_suffix>-scatter.png), while the declared outputs
-                # are <sid>.cnr / <sid>.cns.
                 for sid in samples:
                     f.write(f'mkdir -p "{outdir}/{sid}"\n')
                     f.write(f'for f in "{params.staging}/{sid}{bam_suffix}."* "{params.staging}/{sid}{bam_suffix}-"*; do\n')
@@ -176,11 +153,10 @@ rule cnvkit_batch:
                     f.write(f'if [ ! -s "{outdir}/{sid}/{sid}.cnr" ] || [ ! -s "{outdir}/{sid}/{sid}.cns" ]; then\n')
                     f.write(f'    echo "ERROR: declared output {outdir}/{sid}/{sid}.cnr or .cns missing/empty after cnvkit batch" >&2; exit 1\n')
                     f.write(f'fi\n')
-                # Drop staging dir remnants now that artifacts are relocated.
                 f.write(f'rm -rf "{params.staging}"\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -215,7 +191,6 @@ rule cnvkit_paired:
         access = lambda wildcards: [access] if access else [],
         targets = lambda wildcards: [targets_bed] if (_cnvkit_paired_method == "hybrid" and targets_bed) else [],
     output:
-        # [] when disabled (pooled/flat mode) — empty STRING is job-build-fatal.
         cnr = [outdir + "/{sample_id}/{sample_id}.cnr"] if _cnvkit_paired_use_paired else [],
         cns = [outdir + "/{sample_id}/{sample_id}.cns"] if _cnvkit_paired_use_paired else [],
     log:
@@ -242,16 +217,13 @@ rule cnvkit_paired:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start cnvkit batch (paired) for sample {wildcards.sample_id} at {current_time}")
             script = receipt_script(f"cnvkit_paired_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(str(outdir), wildcards.sample_id, f"cnvkit_paired.sh")
             os.makedirs(os.path.join(str(outdir), wildcards.sample_id), exist_ok=True)
             os.makedirs(params.staging, exist_ok=True)
             cmd = [
                 params.cnvkit, "batch",
                 str(input.tumor_bam),
-                # Matched normal: single -n file, CNVkit builds this pair's
-                # own reference from it (pooled reference must NOT be used
-                # here: -r and -n are mutually exclusive in batch).
                 "--normal", str(input.normal_bam),
                 "--method", params.method, "--fasta", str(input.fasta),
             ]
@@ -263,14 +235,6 @@ rule cnvkit_paired:
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
-                # Relocate the pair's flat artifacts into outdir/<sample_id>/
-                # AND strip bam_suffix from every name: CNVkit names all
-                # artifacts after the input BAM basename
-                # (<sid><bam_suffix>.cnr / <sid><bam_suffix>-scatter.png),
-                # while the declared and node.py-registered outputs are
-                # <sid>.cnr / <sid>.cns. A plain mv keeps the suffix and the
-                # job then dies on "Missing output files" after a batch run
-                # that logged nothing but success.
                 sid = wildcards.sample_id
                 f.write(f'for f in "{params.staging}/{sid}{bam_suffix}."* "{params.staging}/{sid}{bam_suffix}-"*; do\n')
                 f.write(f'    if [ -e "$f" ]; then\n')
@@ -279,15 +243,12 @@ rule cnvkit_paired:
                 f.write(f'    fi\n')
                 f.write(f'done\n')
                 f.write(f'rm -rf "{params.staging}"\n')
-                # The batch exit code alone does not prove the declared
-                # outputs exist; fail loudly here instead of leaving it to
-                # Snakemake's cause-less "Missing output files".
                 f.write(f'if [ ! -s "{outdir}/{sid}/{sid}.cnr" ] || [ ! -s "{outdir}/{sid}/{sid}.cns" ]; then\n')
                 f.write(f'    echo "ERROR: declared output {outdir}/{sid}/{sid}.cnr or .cns missing/empty after cnvkit batch" >&2; exit 1\n')
                 f.write(f'fi\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

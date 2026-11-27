@@ -20,7 +20,6 @@ parser.add_argument('-l', type=int, nargs=1, metavar='<LENGTH>',
                     help='Minimum peptide length. Default: 1')
 
 
-#Default arguments
 methionineSpecific = False
 minimumLength = 1
 edgeConsider = False
@@ -44,7 +43,7 @@ def getTEProteins(row):
 	if (len(dnasequence) <= (minimumLength*3)):		
 		return('None')
 	else:
-		frames = [1,2,3] #In this case, we only consider the first three frames of the RNA molecule
+		frames = [1,2,3]
 		pre_coding_dna = Seq(dnasequence, generic_dna)
 		pre_coding_dna = pre_coding_dna.complement()
 		pre_dnasequence = str(pre_coding_dna)
@@ -85,10 +84,9 @@ def getTEProteins(row):
 						proteinstart.append(positioncounterprot)
 						proteinend.append(positioncounterprot + (len(fullprotein)*3) - 1)
 					
-				positioncounter = positioncounter + ((len(protein) + 1) * 3) #The +1 accounts for the stop codons that are stripped in splitting this
+				positioncounter = positioncounter + ((len(protein) + 1) * 3)
 			
 			if proteinsfound:
-				#Extract relevant fields from description
 	
 				rawuniqid = description.split('|')[0]
 				uniqid = rawuniqid.split('>')[1]

@@ -18,7 +18,6 @@ import argparse
 import csv
 import gzip
 
-# ---------- 通用 ----------
 
 def open_text(path):
     if path.endswith(".gz"):
@@ -80,7 +79,6 @@ def sample_ad_dp_af(sm):
     return ref_ad, alt_ad, dp_i, af_f
 
 
-# ---------- anchors ----------
 
 def cmd_anchors(args):
     dna_keys = set()
@@ -108,7 +106,6 @@ def cmd_anchors(args):
     print(f"anchors: dna={len(dna_keys)} rna={len(rna_keys)} -> {args.out_tsv}")
 
 
-# ---------- classify 辅助装载 ----------
 
 def load_vcf_by_pos(path):
     bypos = {}
@@ -183,10 +180,10 @@ def load_intervals(paths):
                     continue
                 try:
                     if f[0].startswith("chr") or not f[0][0].isdigit():
-                        ivals.append((f[0], int(f[1]), int(f[2])))      # BED
+                        ivals.append((f[0], int(f[1]), int(f[2])))
                     else:
                         pos = int(f[1])
-                        ivals.append((f[0], pos - 1, pos))               # VCF
+                        ivals.append((f[0], pos - 1, pos))
                 except (ValueError, IndexError):
                     continue
     return ivals
@@ -196,7 +193,6 @@ def in_window(ivals, chrom, pos, w):
     return any(c == chrom and s - w <= pos <= e + w for (c, s, e) in ivals)
 
 
-# ---------- classify ----------
 
 OUT_HEADER = [
     "sample", "chrom", "pos", "ref", "alt", "anchor",
@@ -272,7 +268,6 @@ def cmd_classify(args):
         gsrc = germline.get(key, "") or strain.get(key, "")
 
         if anchor == "dna":
-            # ---- 表1: D 轴恒 HIT-pass, 判 R 轴 ----
             d_af, d_alt, d_dp = dna_vals(srec)
             rna_status, r_filter = "not_detected", "."
             r_ad, r_dp, r_af = p_alt, p_dp, (p_alt / p_dp if p_dp else 0.0)
@@ -280,7 +275,7 @@ def cmd_classify(args):
             if rrec is not None:
                 rna_status, r_filter = "detected", rrec["filter"]
                 c_ad, c_dp, c_af = rna_vals_from_call(rrec)
-                if found:                     # pileup 数值优先(M3 是 VAF 测量来源)
+                if found:
                     r_ad, r_dp, r_af = p_alt, p_dp, (p_alt / p_dp if p_dp else 0.0)
                 else:
                     r_ad, r_dp, r_af = c_ad, c_dp, c_af
@@ -304,7 +299,6 @@ def cmd_classify(args):
                          ";".join(art) if art else ".", gsrc,
                          label])
         else:
-            # ---- 表2: R 轴恒 HIT-pass, 判 D 轴; 锚级伪影先剔除 ----
             art = rna_artifacts(key, rrec)
             c_ad, c_dp, c_af = rna_vals_from_call(rrec or {"samples": {"s0": {}}})
             if found:
@@ -340,15 +334,12 @@ def cmd_classify(args):
     print(f"classify {args.sample}: tables -> {args.out_dna}, {args.out_rna}")
 
 
-# ---------- summary ----------
 
 def cmd_summary(args):
     labels = ["D1R1", "D1R2", "D1R3", "D1R4", "D1R6", "D1R5",
               "D2R1", "D3R1", "D6R1", "D5R1", "D0R1", "R1-ANCHOR-REJ"]
-    # Aggregate per sample across ALL input tables (dna_anchored + rna_anchored)
-    # so each sample ends up as a single wide row.
-    counts_by_sample = {}   # sample -> {label: count}
-    sample_order = []       # preserve first-appearance order
+    counts_by_sample = {}
+    sample_order = []
     for t in args.tables:
         with open_text(t) as fh:
             for r in csv.DictReader(fh, delimiter="\t"):

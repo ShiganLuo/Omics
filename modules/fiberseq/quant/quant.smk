@@ -3,16 +3,11 @@ include: "../../common/common.smk"
 
 indir = config.get("indir", "common/4_elements")
 outdir = config.get("outdir", "fiberseq_analysis/quant")
-# hap element BEDs live with the phased BAMs (modules/fibertools
-# ft_split_hap/ft_extract_hap write into the phased dir), not in indir
 hap_dir = config.get("hap_dir") or indir
 logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
-# 参数精确到 rule:Params.fiberseq_quant.<rule_name>.<key> 由消费 rule 自己读
-# (config 全量路径);本模块当前无 Params 消费点(quant_matrix.py
-# CLI 无参数化选项),故无 module 级共享读取——不要加回。
 
 wildcard_constraints:
     hap = "hap[12]",
@@ -51,10 +46,7 @@ rule fiberseq_quant_run:
             sample_outdir = os.path.dirname(str(output.quant))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"fiberseq_quant_run_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
-            # timestamped copy stays in log/cmd as history; the outdir copy
-            # (no timestamp, overwritten each run) documents the current command
-            # next to the results it produced
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"fiberseq_quant_run_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.script, "run",
@@ -73,7 +65,7 @@ rule fiberseq_quant_run:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "fiberseq_quant_run for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -114,10 +106,7 @@ rule fiberseq_quant_hap:
             sample_outdir = os.path.dirname(str(output.quant))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"fiberseq_quant_hap_{wildcards.hap}_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
-            # timestamped copy stays in log/cmd as history; the outdir copy
-            # (no timestamp, overwritten each run) documents the current command
-            # next to the results it produced
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"fiberseq_quant_hap_{wildcards.hap}_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.script, "run",
@@ -135,7 +124,7 @@ rule fiberseq_quant_hap:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "fiberseq_quant_hap for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -177,7 +166,7 @@ rule fiberseq_quant_merge:
             group_outdir = outdir + "/matrix"
             os.makedirs(group_outdir, exist_ok=True)
             script = receipt_script(f"fiberseq_quant_merge_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(group_outdir, "fiberseq_quant_merge.sh")
             cmd = [
                 "python", params.script, "merge",
@@ -191,7 +180,7 @@ rule fiberseq_quant_merge:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "fiberseq_quant_merge at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

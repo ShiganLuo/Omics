@@ -194,7 +194,6 @@ def main():
     intervals = defaultdict(list)
     meta = {}
 
-    # First pass: parse GTF and collect rRNA intervals
     with open(args.gtf, "r") as f:
         for line in f:
             if line.startswith("#"):

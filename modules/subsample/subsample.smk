@@ -1,9 +1,6 @@
 include: "../common/common.smk"
 
 
-# temp 规范(modules.md):本模块的中间文件用 maybe_temp(path, "subsample") 包裹,
-# 是否标 temp 由 Params.subsample.keep_intermediates 决定(缺省 True=兜底保留)。
-# subsample 产物未注册为交付物(node.py 不注册),是下游比对/QC 的中间 fastq。
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -22,7 +19,7 @@ def get_subsample_n(wildcards):
     """Return subsample count: 100k for abundant, 0 (all) for others."""
     if is_abundant(wildcards.sample_id):
         return subsample_n
-    return 0  # 0 means pass through all reads
+    return 0
 
 rule subsample_fastq:
     input:
@@ -58,7 +55,6 @@ rule subsample_fastq:
             os.makedirs(outdir_sample, exist_ok=True)
 
             if params.n == 0:
-                # Non-abundant: pass through
                 rule_logger.info(f"Sample {wildcards.sample_id} is not abundant, passing through")
                 for src, dst in [(input.r1, output.r1), (input.r2, output.r2)]:
                     if os.path.lexists(dst):
@@ -68,43 +64,37 @@ rule subsample_fastq:
                     except OSError:
                         shutil.copy2(src, dst)
             else:
-                # Abundant: subsample using seqtk
                 rule_logger.info(f"Sample {wildcards.sample_id} is abundant, subsampling to {params.n} reads (seed={params.seed})")
 
-                # Decompress, subsample, recompress
                 tmp_r1 = os.path.join(outdir_sample, f"{wildcards.sample_id}_1.tmp.fq")
                 tmp_r2 = os.path.join(outdir_sample, f"{wildcards.sample_id}_2.tmp.fq")
                 sub_r1 = os.path.join(outdir_sample, f"{wildcards.sample_id}_1.sub.fq")
                 sub_r2 = os.path.join(outdir_sample, f"{wildcards.sample_id}_2.sub.fq")
 
-                # Decompress
-                if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                if SCRIPT_ONLY:
                     script_only_touch(output)
                 else:
                     shell(f"zcat {input.r1} > {tmp_r1}")
-                if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                if SCRIPT_ONLY:
                     script_only_touch(output)
                 else:
                     shell(f"zcat {input.r2} > {tmp_r2}")
-                # Subsample with same seed for R1 and R2
-                if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                if SCRIPT_ONLY:
                     script_only_touch(output)
                 else:
                     shell(f"seqtk sample -s {params.seed} {tmp_r1} {params.n} > {sub_r1} 2>> {log_path}")
-                if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                if SCRIPT_ONLY:
                     script_only_touch(output)
                 else:
                     shell(f"seqtk sample -s {params.seed} {tmp_r2} {params.n} > {sub_r2} 2>> {log_path}")
-                # Compress output
-                if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                if SCRIPT_ONLY:
                     script_only_touch(output)
                 else:
                     shell(f"gzip -c {sub_r1} > {output.r1}")
-                if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+                if SCRIPT_ONLY:
                     script_only_touch(output)
                 else:
                     shell(f"gzip -c {sub_r2} > {output.r2}")
-                # Cleanup
                 for f in [tmp_r1, tmp_r2, sub_r1, sub_r2]:
                     if os.path.exists(f):
                         os.remove(f)

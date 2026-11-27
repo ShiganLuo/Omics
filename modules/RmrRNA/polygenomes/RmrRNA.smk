@@ -43,7 +43,7 @@ rule extract_rRNA:
             rule_logger = setup_logger("extract_rRNA", log_file=log_path)
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             script = receipt_script(f"extract_rRNA.{wildcards.genome}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = f"{outdir}/{wildcards.genome}/extract_rRNA.sh"
             cmd = ["python", params.extract_rRNA_script, 
                     "--fasta", input.fasta, 
@@ -57,7 +57,7 @@ rule extract_rRNA:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'extract_rRNA for genome {wildcards.genome} completed'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

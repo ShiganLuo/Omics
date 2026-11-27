@@ -36,7 +36,7 @@ except ImportError as e:  # pragma: no cover
     )
     raise
 
-PlotFormat = str  # png/pdf/svg/...; validated by matplotlib at save time
+PlotFormat = str
 
 TOP_COLORS = {
     "simple_circle": "#3498DB",
@@ -84,7 +84,6 @@ def load_summary(path: str, sample_id: str) -> pd.DataFrame:
     try:
         df = pd.read_csv(path, sep="\t")
     except pd.errors.EmptyDataError:
-        # Empty summary.txt: no ecDNA reconstructed for this sample
         return pd.DataFrame(columns=["sample_id", "circ_id", "chr_origin",
                                      "size_mb", "label", "topology"])
     df.columns = [str(c).strip() for c in df.columns]
@@ -123,12 +122,10 @@ def load_ecdna_bed(path: str, sample_id: str) -> pd.DataFrame:
         df = pd.read_csv(path, sep="\t", comment="#", header=None,
                          dtype=str)
     except pd.errors.EmptyDataError:
-        # All-comment / empty file: no ecDNA passed the filter
         df = pd.DataFrame()
     if df.empty:
         return pd.DataFrame(columns=["sample_id", "chrom", "start", "end",
                                      "circ_id", "coverage", "proportion"])
-    # Expected: chr start end circ_id fragment_id strand coverage proportions
     df = df.iloc[:, [0, 1, 2, 3, 6, 7]] if df.shape[1] >= 8 else df
     df.columns = ["chrom", "start", "end", "circ_id", "coverage", "proportion"]
     df.insert(0, "sample_id", sample_id)
@@ -200,7 +197,7 @@ def plot_per_sample(summary: pd.DataFrame, ecdna: pd.DataFrame,
     ax = axes[0]
     sizes_kb = summary["size_mb"] * 1000.0
     import numpy as np
-    bins = 10.0 ** np.linspace(0, 3, 25)  # 1 kb .. 1 Mb log bins
+    bins = 10.0 ** np.linspace(0, 3, 25)
     ax.hist(sizes_kb.clip(lower=0.5), bins=bins, color="#3498DB",
             edgecolor="white", linewidth=0.4)
     ax.set_xscale("log")
@@ -221,7 +218,6 @@ def plot_per_sample(summary: pd.DataFrame, ecdna: pd.DataFrame,
     save_fig(fig, out_prefix, image_formats)
     plt.close(fig)
 
-    # ecDNA region table (full coordinates)
     table_path = f"{out_prefix}_ecdna_regions.tsv"
     ecdna_out = ecdna[["sample_id", "region", "circ_id", "coverage",
                        "proportion"]] if not ecdna.empty else ecdna
@@ -254,7 +250,6 @@ def plot_compare(all_summary: pd.DataFrame, all_ecdna: pd.DataFrame,
     x = np.arange(len(sample_order))
     width = 0.38
 
-    # Panel 1: cycle / ecDNA counts
     ax = axes[0]
     total = [int((all_summary["sample_id"] == s).sum()) for s in sample_order]
     ecdna_n = [int((all_ecdna["sample_id"] == s).sum()) for s in sample_order]
@@ -271,7 +266,6 @@ def plot_compare(all_summary: pd.DataFrame, all_ecdna: pd.DataFrame,
     ax.set_title("Reconstructed cycles per sample")
     ax.legend(fontsize=8)
 
-    # Panel 2: size distribution overlay
     ax = axes[1]
     bins = 10.0 ** np.linspace(0, 3, 25)
     cmap = plt.cm.tab10
@@ -287,7 +281,6 @@ def plot_compare(all_summary: pd.DataFrame, all_ecdna: pd.DataFrame,
     ax.set_title("Cycle size distribution")
     ax.legend(fontsize=8)
 
-    # Panel 3: topology composition (stacked, per sample)
     ax = axes[2]
     topologies = sorted(all_summary["topology"].unique())
     bottom = np.zeros(len(sample_order))
@@ -310,7 +303,6 @@ def plot_compare(all_summary: pd.DataFrame, all_ecdna: pd.DataFrame,
     save_fig(fig, out_prefix, image_formats)
     plt.close(fig)
 
-    # Shared / unique ecDNA regions (keyed by full coordinate region string)
     regions = all_ecdna[["sample_id", "region", "circ_id", "coverage",
                          "proportion"]]
     table_path = f"{out_prefix}_ecdna_regions.tsv"

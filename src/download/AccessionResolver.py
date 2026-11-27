@@ -11,7 +11,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Accession prefix → type mapping
 _ACCESSION_PREFIXES = {
     "GSM": "geo", "GSE": "geo", "GPL": "geo",
     "SRX": "sra", "SRR": "sra", "SRS": "sra",
@@ -98,7 +97,6 @@ class AccessionResolver:
         accs = self.resolve()
         result: Dict[str, List[str]] = {"geo": [], "sra": [], "biosample": []}
         for acc in accs:
-            # SAMN is 4-char prefix, others are 3-char
             prefix = acc[:4] if acc.startswith("SAMN") else acc[:3]
             acc_type = _ACCESSION_PREFIXES.get(prefix, "other")
             if acc_type not in result:
@@ -152,7 +150,6 @@ class AccessionResolver:
                             gsms.add(val.strip())
                     return gsms
 
-        # Fallback: plain text, one ID per line
         with open(path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()

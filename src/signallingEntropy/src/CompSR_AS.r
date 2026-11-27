@@ -18,7 +18,7 @@ CompNS <- function(p.v){
   tmp.idx <- which(p.v>0);
   if(length(tmp.idx)>1){
     S <-  - sum( p.v[tmp.idx]*log(p.v[tmp.idx]) )/log(length(tmp.idx));
-  }else { ### one degree nodes have zero entropy, avoid singularity.
+  }else {
     S <- 0;
   }
   return(S);
@@ -35,7 +35,7 @@ CompMaxSR <- function(adj.m){
   ap_o <- arpack(fa, options=list(n=nrow(adj.m),nev=1,which="LM",maxiter=10000),sym=TRUE);
   v <- ap_o$vectors;
   lambda <- ap_o$values;
-  maxSR <- log(lambda); ### maximum entropy
+  maxSR <- log(lambda);
   return(maxSR);
 }
 
@@ -51,13 +51,6 @@ CompSR.ne <- function(p_m){
   return(list(sr=mean(NS.v),ns=NS.v))
 }
 
-### CompSR
-### MAIN function for computing the global entropy normalised by the maximum
-### comparable to lines 102-123 from CompSR.R (Teschendorff)
-### INPUT:
-### p_m: probability matrix combining already the gene expression profile exp.v and the adjacency matrix adj.m
-### exp.v: a genome-wide expression vector of a sample with names labeling the genes (also annotated to entrez gene IDs) of same length as rows of adj.m.
-### maxSR: optionally, the maximum entropy rate of the network.
 
 ### OUTPUT: a list of four objects
 ### sr: the entropy rate of the sample (normalised between 0 and 1 if maxSR was provided).
@@ -124,23 +117,19 @@ CompSR <- function(p_m,maxSR=NULL){
 #' @importFrom Matrix t rowSums
 #' @export
 comp_sr_optimized <- function(p_m, max_sr = NULL) {
-  # 1. 类型检查与转换
   if (!inherits(p_m, "Matrix") && !is.matrix(p_m)) {
     p_m <- methods::as(p_m, "dgCMatrix")
   }
 
-  # 预处理：转置矩阵用于 ARPACK 迭代 (pi * P = pi  =>  P' * pi' = pi')
   pm_t <- Matrix::t(p_m)
   n <- nrow(pm_t)
 
-  # 2. 使用 ARPACK 求解平稳分布 (Stationary Distribution)
-  # 优化：统一参数设置，增加 ncv 提升大矩阵收敛稳定性
   ap_o <- igraph::arpack(
     function(x, extra = NULL) as.numeric(pm_t %*% x),
     options = list(
       n = n,
       nev = 1,
-      ncv = max(10, min(n, 20)), # 动态调整搜索空间
+      ncv = max(10, min(n, 20)),
       which = "LM",
       maxiter = 20000,
       tol = 1e-10
@@ -148,19 +137,14 @@ comp_sr_optimized <- function(p_m, max_sr = NULL) {
     sym = FALSE
   )
 
-  # 提取并归一化特征向量 pi
   inv_v <- abs(as.numeric(ap_o$vectors))
   inv_v <- inv_v / sum(inv_v)
 
-  # 3. 计算局部熵 (Local Entropy)
   if (inherits(p_m, "sparseMatrix")) {
-    # 稀疏矩阵优化：仅对非零元素计算 log(p)
     log_pm <- p_m
     log_pm@x <- log(log_pm@x)
-    # 计算 row-wise Shannon entropy: -sum(p * log p)
     s_v <- -Matrix::rowSums(p_m * log_pm, na.rm = TRUE)
   } else {
-    # 稠密矩阵处理
     log_pm <- p_m
     idx <- p_m > 0
     log_pm[idx] <- log(p_m[idx])
@@ -168,10 +152,8 @@ comp_sr_optimized <- function(p_m, max_sr = NULL) {
     s_v <- -Matrix::rowSums(p_m * log_pm, na.rm = TRUE)
   }
 
-  # 4. 汇总结果
   sr_val <- sum(inv_v * s_v)
 
-  # 归一化处理
   if (!is.null(max_sr)) {
     sr_val <- sr_val / max_sr
   }

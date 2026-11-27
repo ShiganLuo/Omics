@@ -7,16 +7,12 @@ def annTree(annFile:str):
     annTree function: create a IntervalTree for the annotation file(gtf format).
     """
     print("annotationTree function")
-    # Read the annotation file into a DataFrame
     ann_df = pd.read_csv(annFile, sep="\t", header=None,comment='#')
-    # print(ann_df.head())
-    # Create an IntervalTree for the annotation regions
     tree = {}
     for _, row in ann_df.iterrows():
         chr = row[0]
         feature = row[2]
         if chr not in tree:
-            # print(row[0])
             tree[chr] = IntervalTree()
             gene_id = row[8].split('"')[1]
             start = row[3]
@@ -39,13 +35,11 @@ def query_annotation(targetFile:str, tree: Dict[str, IntervalTree],outfile:str):
     results = []
     for _, row in df_unique.iterrows():
         chr, start, end = row[0], row[1], row[2]
-        start = start + 1 # Convert to 1-based index
+        start = start + 1
         if chr in tree:
             print(chr)
             intervals = tree[chr].overlap(start, end)
             for interval in intervals:
-                # Expand all fields of annotation information
-                #The interval.data parameter type depends on the type of the third parameter when building the tree interval
                 annotation_data = interval.data 
                 result_row = {
                     'chr': chr,
@@ -67,9 +61,6 @@ if __name__ == "__main__":
     infile = args.input
     outfile = args.output
     annfile = args.gtf
-    # df_target = pd.read_csv(infile, sep="\t", header=None)
-    # df_unique = df_target.drop_duplicates(subset=df_target.columns[:3].tolist())
-    # df_unique.to_csv(outfile, sep="\t", index=False, header=False)
     print("------begin annotation------")
     Tree = annTree(annfile)
     query_annotation(infile, Tree, outfile)

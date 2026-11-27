@@ -1,21 +1,10 @@
 include: "../common/common.smk"
 
-# ---------------------------------------------------------------------------
-# sigtest: per-feature two-group significance testing with star labels
-# and bracket-annotated bar plots.
-#
-# Consumes one long table (feature x group x value) via config key
-# "sigtest_table" (a file path). Group-level module: no {sample_id}
-# wildcard, log goes to logdir directly (subworkflow passes
-# {logdir}/group for group-level modules).
-# ---------------------------------------------------------------------------
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 ROOT_DIR = config.get("ROOT_DIR", ".")
 
 sigtest_params = config.get("Params", {}).get("sigtest", {})
-# Contrast names come from the subworkflow (derived from its comparisons);
-# the panel rule expands over them at parse time (scanpy_result pattern).
 sigtest_contrasts = [str(c) for c in (config.get("contrasts") or [])]
 
 # Required: the long table to test. Raise at DAG-build time (input
@@ -29,10 +18,6 @@ def _sigtest_table(wildcards):
     )
 
 
-# Plot formats (modules.md #9 / subworkflow.md formats 规范): list of
-# matplotlib savefig formats, one output file per entry; [] = no figure
-# (absorbs the old no_plot boolean). Format legality is schema's job
-# (run.py); the module only normalizes str -> single-element list.
 _plot_formats = (sigtest_params.get("plot", {}) or {}).get("formats")
 if _plot_formats is None:
     _plot_formats = ["png"]
@@ -45,10 +30,6 @@ rule sigtest_run:
         table = _sigtest_table,
     output:
         tsv = outdir + "/{contrast}/significance_test.tsv",
-        # per-feature figures live in the significance_bars/ subdir and are
-        # tracked by the done marker (modules.md: no directory() outputs);
-        # an all-in overview figure (<= overview-threshold features) is
-        # written as significance_bars_overview.{fmt} beside it
         plots = ([outdir + "/{contrast}/significance_bars.done"]
                  if _plot_formats else []),
     log:
@@ -77,14 +58,12 @@ rule sigtest_run:
             sample_outdir = os.path.dirname(str(output.tsv))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"sigtest_run_{wildcards.contrast}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, "sigtest_run.sh")
             cmd = [
                 "python", params.sigtest_script,
                 "-i", str(input.table),
                 "-o", sample_outdir,
-                # per-contrast feature column (e.g. TE subfamily vs family
-                # level rides on ONE long table) with the global fallback
                 "-f", (params.p.get("feature_col_by_contrast", {})
                        .get(str(wildcards.contrast))
                        or params.p.get("feature_col") or "feature"),
@@ -95,8 +74,6 @@ rule sigtest_run:
                 "-a", str(0.05 if params.p.get("alpha") is None else params.p.get("alpha")),
                 "-y", params.p.get("ylabel") or "value",
             ]
-            # per-contrast group pair when provided (multi-contrast runs),
-            # falling back to the global Params.sigtest.groups
             groups = (params.p.get("groups_by_contrast", {}).get(str(wildcards.contrast))
                       or params.p.get("groups") or [])
             if len(groups) == 2:
@@ -107,10 +84,8 @@ rule sigtest_run:
                 cmd += ["--annotate-ns"]
             if params.p.get("no_errorbars"):
                 cmd += ["--no-errorbars"]
-            # one --formats flag per requested format; empty list = no figure
             for fmt in params.formats:
                 cmd += ["--formats", str(fmt)]
-            # render worker processes for the per-feature figures
             cmd += ["--threads", str(threads)]
             legend = params.p.get("legend") or []
             if len(legend) == 2:
@@ -126,7 +101,7 @@ rule sigtest_run:
                 f.write('echo "sigtest completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(str(x) for x in cmd))
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

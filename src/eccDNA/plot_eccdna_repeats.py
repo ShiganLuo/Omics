@@ -72,7 +72,6 @@ def main(argv: list[str] | None = None) -> int:
     fig, axes = plt.subplots(2, 2, figsize=(13, 10))
     ax_a, ax_b, ax_c, ax_d = axes.ravel()
 
-    # ---- A: breakpoint repeat-hit rate vs window ------------------------ #
     any_rows = [r for r in win if r["key"] == "any"]
     windows = sorted({int(r["window_bp"]) for r in any_rows})
     nulls = ["local", "circle_interior", "genome"]
@@ -98,7 +97,6 @@ def main(argv: list[str] | None = None) -> int:
     ax_a.legend(fontsize=8)
     ax_a.grid(alpha=0.3)
 
-    # ---- B: families flanking breakpoints ------------------------------- #
     loc_rows = [r for r in fam_bp if r["null"] == "local"
                 and float(r["obs_locus_frac"]) >= 0.10]
     loc_rows.sort(key=lambda r: -float(r["enrichment"]))
@@ -119,7 +117,6 @@ def main(argv: list[str] | None = None) -> int:
     ax_b.set_title(f"B  repeat families within ±500 bp of breakpoints")
     ax_b.grid(alpha=0.3, axis="x")
 
-    # ---- C: families on eccDNA bodies ---------------------------------- #
     body = [r for r in enrich
             if int(r["ecdna_bp"]) >= args.min_family_bp
             and float(r["enrichment"]) > 0]
@@ -142,7 +139,6 @@ def main(argv: list[str] | None = None) -> int:
                    f"(≥{args.min_family_bp // 1000} kb)")
     ax_c.grid(alpha=0.3, axis="x")
 
-    # ---- D: microhomology thresholds ----------------------------------- #
     th = [r["threshold"] for r in mh]
     obs_n = [float(r["obs_n"]) for r in mh]
     null_n = [float(r["null_mean_n"]) for r in mh]

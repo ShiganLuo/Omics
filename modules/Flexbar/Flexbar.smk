@@ -39,7 +39,7 @@ rule flexbar_demultiplex:
             sample_outdir = os.path.join(params.outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"flexbar_demultiplex_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"flexbar_demultiplex.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -49,7 +49,7 @@ rule flexbar_demultiplex:
                 f.write(f"pigz -c {params.outdir}/{wildcards.sample_id}.demux_1.fastq > {output.demux}\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

@@ -44,7 +44,7 @@ rule neodisambiguate:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start neodisambiguate for sample {wildcards.sample_id} ({wildcards.genomeA} vs {wildcards.genomeB}) at {current_time}")
             script = receipt_script(f"neodisambiguate_{wildcards.sample_id}_{wildcards.genomeA}_{wildcards.genomeB}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             pair_dir = str(params.pair_dir)
             staged_dir = os.path.join(pair_dir, "inputs")
             os.makedirs(staged_dir, exist_ok=True)
@@ -68,7 +68,7 @@ rule neodisambiguate:
                 f.write(' '.join(cmd) + '\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

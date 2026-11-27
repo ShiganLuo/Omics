@@ -33,7 +33,6 @@ if str(_PARENT_DIR.parent) not in sys.path:
 
 from common.util.LogUtil import setup_logger
 
-# Lazy imports to avoid circular dependency at module load time
 _GSM_metadata = None
 _generate_meta_input = None
 
@@ -45,9 +44,6 @@ EDirectFormat = Literal["json", "docsum", "runinfo"]
 Record = Dict[str, str]
 
 
-# ============================================================================
-# Proxy helpers
-# ============================================================================
 
 def _parse_proxy_url() -> Optional[tuple]:
     """
@@ -122,9 +118,6 @@ def _restore_proxy_env(saved: Dict[str, Optional[str]]) -> None:
             os.environ[k] = v
 
 
-# ============================================================================
-# General utilities
-# ============================================================================
 
 def get_text_value(
     element: Optional[ET.Element],
@@ -255,9 +248,6 @@ def read_nonempty_lines(filepath: str) -> List[str]:
         ]
 
 
-# ============================================================================
-# GEO text parser
-# ============================================================================
 
 def extract_geo_info(
     filepath: str,
@@ -283,10 +273,6 @@ def extract_geo_info(
     with open(filepath, "r", encoding="utf-8") as handle:
         text = handle.read()
 
-    # Split entries such as:
-    #
-    # 1. ...
-    # 2. ...
     entry_blocks = re.split(
         r"^\s*\d+\.",
         text,
@@ -344,9 +330,6 @@ def extract_geo_info(
     return results
 
 
-# ============================================================================
-# GEO JSON parser
-# ============================================================================
 
 def parse_geo_summary_json(
     filepath: str,
@@ -378,12 +361,6 @@ def parse_geo_summary_json(
         logger.warning("文件为空: %s", filepath)
         return results
 
-    # EDirect 的输出有时表现为：
-    #
-    # 1. ...
-    # 2. ...
-    #
-    # 因此保留这种 block-based parsing。
     entry_blocks = re.split(
         r"^\s*\d+\.",
         text,
@@ -438,9 +415,6 @@ def parse_geo_summary_json(
     return results
 
 
-# ============================================================================
-# GEO XML parser
-# ============================================================================
 
 def parse_geo_summary_xml(
     file_path: str,
@@ -497,7 +471,6 @@ def parse_geo_summary_xml(
             "Accession",
         )
 
-        # 这里只处理 GSE
         if not accession.startswith("GSE"):
             continue
 
@@ -559,7 +532,6 @@ def parse_geo_summary_xml(
                 "Title",
             )
 
-            # 只保留 GSM
             if not gsm_id.startswith("GSM"):
                 continue
 
@@ -588,9 +560,6 @@ def parse_geo_summary_xml(
     return results
 
 
-# ============================================================================
-# Batch parsing
-# ============================================================================
 
 def batch_extract_info(
     folder_path: str,
@@ -663,9 +632,6 @@ def batch_extract_info(
     return all_results
 
 
-# ============================================================================
-# EDirect command-line implementation
-# ============================================================================
 
 def run_edirect_command(
     id: str,
@@ -789,7 +755,6 @@ def run_edirect_command(
         )
         return False
 
-    # 保留原来的随机延迟，降低连续请求频率。
     time.sleep(random.uniform(0.5, 1.5))
 
     logger.info(
@@ -886,9 +851,6 @@ def run_edirect_command_bio(
         format,
     )
 
-    # Enable SOCKS5 proxy for BioPython urllib via PySocks.
-    # Must ALSO clear proxy env vars: urllib reads them and fails on
-    # the socks5:// scheme it doesn't understand.
     _orig_sock = _enable_socks_for_urllib()
     _saved_env = _clear_proxy_env()
 
@@ -896,9 +858,6 @@ def run_edirect_command_bio(
         for attempt in range(1, max_retries + 1):
 
             try:
-                # ------------------------------------------------------------
-                # ESearch
-                # ------------------------------------------------------------
                 search_handle = Entrez.esearch(
                     db=database,
                     term=id,
@@ -924,9 +883,6 @@ def run_edirect_command_bio(
                     )
                     return False
 
-                # ------------------------------------------------------------
-                # EFetch
-                # ------------------------------------------------------------
                 fetch_handle = Entrez.efetch(
                     db=database,
                     id=id_list,
@@ -939,9 +895,6 @@ def run_edirect_command_bio(
                 finally:
                     fetch_handle.close()
 
-                # ------------------------------------------------------------
-                # Write output
-                # ------------------------------------------------------------
                 if isinstance(data, bytes):
                     with output_path.open(
                         "wb"
@@ -967,7 +920,6 @@ def run_edirect_command_bio(
                     outfile,
                 )
 
-                # NCBI 请求之间保留间隔。
                 time.sleep(0.35)
 
                 return True
@@ -1013,9 +965,6 @@ def run_edirect_command_bio(
         _restore_proxy_env(_saved_env)
 
 
-# ============================================================================
-# RunInfo parser
-# ============================================================================
 
 RUNINFO_COLUMNS = [
     "Run",
@@ -1070,7 +1019,6 @@ def parse_runinfo_file(
         )
         return []
 
-    # 缺少的字段补为空字符串
     for column in RUNINFO_COLUMNS:
         if column not in df.columns:
             logger.warning(
@@ -1134,9 +1082,6 @@ def runinfo_formatted(
     return all_results
 
 
-# ============================================================================
-# Duplicate removal
-# ============================================================================
 
 def remove_duplicate(
     filepath: str,
@@ -1184,9 +1129,6 @@ def remove_duplicate(
     )
 
 
-# ============================================================================
-# GSE batch download + parse
-# ============================================================================
 
 def collect_gse_runinfo(
     gse_ids: List[str],
@@ -1234,9 +1176,6 @@ def collect_gse_runinfo(
 
     successful_files: List[str] = []
 
-    # ------------------------------------------------------------------------
-    # Step 1: download
-    # ------------------------------------------------------------------------
 
     for gse in gse_ids:
 
@@ -1299,9 +1238,6 @@ def collect_gse_runinfo(
         )
         return []
 
-    # ------------------------------------------------------------------------
-    # Step 2: parse all downloaded files ONCE
-    # ------------------------------------------------------------------------
 
     if format == "json":
 
@@ -1361,11 +1297,7 @@ def collect_gse_runinfo(
         )
         return []
 
-    # ------------------------------------------------------------------------
-    # Step 3: optional de-duplication
-    # ------------------------------------------------------------------------
 
-    # 按不同模式使用对应的唯一标识。
     unique_key = None
 
     if format == "json":
@@ -1410,9 +1342,6 @@ def collect_gse_runinfo(
 
         all_results = deduplicated_results
 
-    # ------------------------------------------------------------------------
-    # Step 4: write exactly once
-    # ------------------------------------------------------------------------
 
     write_tsv(
         all_results,
@@ -1423,9 +1352,6 @@ def collect_gse_runinfo(
     return all_results
 
 
-# ============================================================================
-# GSE → downstream files pipeline
-# ============================================================================
 
 def _get_gsm_ids_from_gse(
     gse_id: str,
@@ -1454,14 +1380,10 @@ def _get_gsm_ids_from_gse(
 
     logger.info("正在查询 GSE 下的 GSM 样本: %s", gse_id)
 
-    # Enable SOCKS5 proxy for BioPython urllib via PySocks.
-    # Must ALSO clear proxy env vars: urllib reads them and fails on
-    # the socks5:// scheme it doesn't understand.
     _orig_sock = _enable_socks_for_urllib()
     _saved_env = _clear_proxy_env()
 
     try:
-        # First search to get total count
         handle = Entrez.esearch(
             db="gds",
             term=f"{gse_id}[Accession]",
@@ -1475,7 +1397,6 @@ def _get_gsm_ids_from_gse(
             logger.warning("GDS 中未找到: %s", gse_id)
             return []
 
-        # Second search to get all UIDs
         handle = Entrez.esearch(
             db="gds",
             term=f"{gse_id}[Accession]",
@@ -1489,7 +1410,6 @@ def _get_gsm_ids_from_gse(
             logger.warning("GDS 中未找到: %s", gse_id)
             return []
 
-        # Fetch summaries to get accessions, filter for GSM
         gsm_ids: List[str] = []
         for batch_start in range(0, len(all_uids), 200):
             batch = all_uids[batch_start:batch_start + 200]
@@ -1505,7 +1425,7 @@ def _get_gsm_ids_from_gse(
                 if acc.startswith("GSM"):
                     gsm_ids.append(acc)
 
-        gsm_ids = list(dict.fromkeys(gsm_ids))  # Remove duplicates while preserving order
+        gsm_ids = list(dict.fromkeys(gsm_ids))
         logger.info(
             "GSE %s 下找到 %d 个 GSM 样本",
             gse_id,
@@ -1634,7 +1554,6 @@ def fetch_gse_files(
     if fastq_dir is None:
         fastq_dir = os.path.join(outdir, "fastq")
 
-    # Step 1: Get all GSM IDs under this GSE
     gsm_ids = _get_gsm_ids_from_gse(gse_id, email=email)
     if not gsm_ids:
         logger.error("GSE %s 下未找到 GSM 样本，无法继续", gse_id)
@@ -1658,7 +1577,6 @@ def fetch_gse_files(
             html_dir=html_dir,
         )
 
-    # Step 2: Download GSM metadata
     gsm_mod = _lazy_import_gsm_metadata()
     logger.info("开始下载 GSM 元数据: %d 个样本", len(gsm_ids))
     gsm_mod.download_batch(
@@ -1673,7 +1591,6 @@ def fetch_gse_files(
     gsm_meta = gsm_mod.extract_gsm_batch(html_dir, gsm_metadata_csv, gsm_order=gsm_ids)
     logger.info("GSM 元数据已保存: %s", gsm_metadata_csv)
 
-    # Step 3: Download SRA metadata
     all_srx: set = set()
     if "SRA" in gsm_meta.columns:
         all_srx.update(
@@ -1696,7 +1613,6 @@ def fetch_gse_files(
     else:
         logger.warning("GSM 元数据中未找到 SRA 关联，跳过 SRA 下载")
 
-    # Step 4: Generate meta_input.tsv
     if os.path.exists(gsm_metadata_csv) and os.path.exists(sra_metadata_csv):
         meta_mod = _lazy_import_generate_meta_input()
         os.makedirs(fastq_dir, exist_ok=True)
@@ -1725,9 +1641,6 @@ def fetch_gse_files(
     )
 
 
-# ============================================================================
-# CLI
-# ============================================================================
 
 def parser_args() -> argparse.Namespace:
     """
@@ -1833,9 +1746,6 @@ def parser_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-# ============================================================================
-# Main
-# ============================================================================
 
 def main() -> None:
     """
@@ -1948,7 +1858,6 @@ def main() -> None:
             logger.error("GSE ID 列表为空")
             return
 
-        # Process each GSE ID
         for gse_id in gse_ids:
             gse_id = gse_id.strip()
             if not gse_id:

@@ -5,8 +5,6 @@ outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
 interval = config.get("reference", {}).get("interval")
 known_sites = config.get("reference", {}).get("known_sites", [])
-# 参数精确到 rule:javaOptions/tmp-dir 按 rule 独立配置(Params.gatk.<rule_name>
-# .javaOptions/.tmp-dir),无 module 级共享。
 
 def get_input_HaplotypeCaller(wildcards):
     """
@@ -67,7 +65,7 @@ rule HaplotypeCaller:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start HaplotypeCaller for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
             script = receipt_script(f"HaplotypeCaller_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/HaplotypeCaller.sh")
             cmd = [
                 params.gatk, "--java-options", f'"{params.javaOptions}"', "HaplotypeCaller",
@@ -82,7 +80,7 @@ rule HaplotypeCaller:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'HaplotypeCaller completed successfully for sample {wildcards.sample_id} genome {wildcards.genome}'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -143,7 +141,7 @@ rule filterHaplotypeCallerVcf:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start filterHaplotypeCallerVcf for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
             script = receipt_script(f"filterHaplotypeCallerVcf_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/filterHaplotypeCallerVcf.sh")
             cmd1 = [
                 params.gatk, "--java-options", f'"{params.javaOptions}"', "VariantFiltration",
@@ -168,7 +166,7 @@ rule filterHaplotypeCallerVcf:
                 f.write(" ".join(cmd2) + "\n")
                 f.write(f"echo 'filterHaplotypeCallerVcf completed successfully for sample {wildcards.sample_id} genome {wildcards.genome}'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

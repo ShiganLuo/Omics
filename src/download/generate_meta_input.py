@@ -2,7 +2,6 @@ import os
 import pandas as pd
 from typing import List, Optional
 
-# Identifier columns in gsm_metadata; excluded from design construction
 _ID_COLS = {"GSM", "GSE", "SRA", "BioSample"}
 
 
@@ -35,10 +34,8 @@ def generate_meta_input(
     gsm = pd.read_csv(gsm_meta_path)
     sra = pd.read_csv(sra_meta_path)
 
-    # merge: gsm.SRA == sra.SRX
     merged = gsm.merge(sra, left_on=gsm_sra_col, right_on=sra_srx_col, how="inner")
 
-    # --- build design group from all non-id columns in gsm_metadata ---
     design_cols = [c for c in gsm.columns if c not in _ID_COLS]
 
     def build_group(row):
@@ -51,7 +48,6 @@ def generate_meta_input(
 
     merged["__group"] = merged.apply(build_group, axis=1)
 
-    # assign rep number within each group (by GSM, technical reps share rep number)
     rep_map = {}
     for group, sub in merged.groupby("__group"):
         seen = {}
@@ -67,7 +63,6 @@ def generate_meta_input(
         lambda r: f'{r["__group"]}.rep{rep_map[(r["__group"], r[gsm_key])]}', axis=1
     )
 
-    # --- build fastq paths + output ---
     records = []
     for _, row in merged.iterrows():
         data_id = row[data_id_col]

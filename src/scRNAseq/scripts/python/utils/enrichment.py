@@ -34,13 +34,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# ── TE BED parser ─────────────────────────────────────────────────────
 
 def parse_te_bed(bed_path: str) -> dict[str, tuple[str, str]]:
     """Parse TE BED: gene_id -> (family_id, class_id)."""
     result: dict[str, tuple[str, str]] = {}
     with open(bed_path, encoding="utf-8") as fh:
-        fh.readline()  # header
+        fh.readline()
         for line in fh:
             parts = line.strip().split("\t")
             if len(parts) < 7:
@@ -51,7 +50,6 @@ def parse_te_bed(bed_path: str) -> dict[str, tuple[str, str]]:
     return result
 
 
-# ── GO/KEGG enrichment ───────────────────────────────────────────────
 
 def run_go_kegg_for_deg(deg_csv: Path, go_kegg_script: str,
                         container: str, lfc_cut: float, p_cut: float,
@@ -106,7 +104,6 @@ def run_go_kegg_all(deg_dir: Path, go_kegg_script: str,
     return count
 
 
-# ── TE subfamily analysis ─────────────────────────────────────────────
 
 def te_subfamily_analysis(deg_csv: Path, te_map: dict[str, tuple[str, str]],
                           lfc_cut: float, p_cut: float,
@@ -127,17 +124,14 @@ def te_subfamily_analysis(deg_csv: Path, te_map: dict[str, tuple[str, str]],
         logger.warning("  Invalid DEG CSV: %s", deg_csv)
         return False
 
-    # Map TE genes to family/class
     df["family_id"] = df["gene"].map(lambda g: te_map.get(g, ("", ""))[0])
     df["class_id"] = df["gene"].map(lambda g: te_map.get(g, ("", ""))[1])
 
-    # Filter out unmapped genes
     mapped = df[df["family_id"] != ""].copy()
     if len(mapped) == 0:
         logger.info("  No TE genes mapped: %s", deg_csv)
         return False
 
-    # Aggregate by family
     family_stats = []
     for fam, grp in mapped.groupby("family_id"):
         n_total = len(grp)
@@ -159,20 +153,17 @@ def te_subfamily_analysis(deg_csv: Path, te_map: dict[str, tuple[str, str]],
     logger.info("  TE subfamily summary: %d families, %d with sig genes",
                 len(fam_df), (fam_df.n_sig > 0).sum())
 
-    # Filter for plotting: families with sig genes or high mean_baseMean
     plot_df = fam_df[(fam_df.n_sig > 0) | (fam_df.mean_baseMean > 0.01)].copy()
     if len(plot_df) < 3:
         plot_df = fam_df.nlargest(16, "mean_baseMean").copy()
 
     plot_df = plot_df.sort_values("mean_log2FC")
 
-    # ── Plot 1: family-level log2FC bar chart ──
     fig, ax = plt.subplots(figsize=(10, max(4, 0.35 * len(plot_df))))
     colors = ["#d62728" if v > 0 else "#1f77b4" for v in plot_df["mean_log2FC"]]
     ax.barh(plot_df["family"], plot_df["mean_log2FC"], color=colors)
     ax.axvline(0, color="black", lw=0.5)
 
-    # Mark families with sig genes
     for _, row in plot_df[plot_df.n_sig > 0].iterrows():
         idx = list(plot_df.family).index(row.family)
         ax.text(row.mean_log2FC, idx, f" {row.n_sig}sig",
@@ -184,7 +175,6 @@ def te_subfamily_analysis(deg_csv: Path, te_map: dict[str, tuple[str, str]],
     fig.savefig(out_dir / "te_subfamily_log2FC.png", dpi=300, bbox_inches="tight")
     plt.close(fig)
 
-    # ── Plot 2: class-level summary ──
     class_stats = mapped.groupby("class_id").agg(
         n_genes=("gene", "count"),
         mean_lfc=("log2FC", "mean"),
@@ -201,7 +191,6 @@ def te_subfamily_analysis(deg_csv: Path, te_map: dict[str, tuple[str, str]],
         fig.savefig(out_dir / "te_class_log2FC.png", dpi=300, bbox_inches="tight")
         plt.close(fig)
 
-    # Save full DEG with family/class annotation
     mapped.to_csv(out_dir / "te_deg_annotated.csv", index=False)
 
     return True
@@ -225,14 +214,12 @@ def run_te_subfamily_all(te_dir: Path, te_bed: str,
     return count
 
 
-# ── CLI ───────────────────────────────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser(
         description="Post-DEG enrichment analysis")
     sub = parser.add_subparsers(dest="command")
 
-    # go-kegg subcommand
     p_go = sub.add_parser("go-kegg", help="GO/KEGG enrichment for gene DEGs")
     p_go.add_argument("--deg-dir", type=Path, required=True,
                        help="Gene DEG dir (deg_pseudobulk_gene)")
@@ -244,7 +231,6 @@ def main():
     p_go.add_argument("--p-cut", type=float, default=0.05)
     p_go.add_argument("--skip-existing", action="store_true")
 
-    # te-subfamily subcommand
     p_te = sub.add_parser("te-subfamily", help="TE subfamily aggregation for TE DEGs")
     p_te.add_argument("--te-dir", type=Path, required=True,
                        help="TE DEG dir (deg_pseudobulk_te)")

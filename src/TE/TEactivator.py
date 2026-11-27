@@ -20,7 +20,6 @@ comparisons = [
 
 def load_deseq(path):
     df = pd.read_csv(path, sep="\t")
-    # keep standard columns
     return df
 
 def count_sig(df, padj_col="padj", lfc_col="log2FoldChange", padj=0.05, lfc=1.0):
@@ -31,12 +30,10 @@ def count_sig(df, padj_col="padj", lfc_col="log2FoldChange", padj=0.05, lfc=1.0)
     return up, dn
 
 def te_activation_score(te_df, padj=0.05, lfc=0.58):
-    # score = (TE_up - TE_down) / (TE_up + TE_down + 1)
     up, dn = count_sig(te_df, padj=padj, lfc=lfc)
     return (up - dn) / (up + dn + 1), up, dn
 
 def gene_activation_score(gene_df, padj=0.05, lfc=0.58):
-    # gene perturbation magnitude
     up, dn = count_sig(gene_df, padj=padj, lfc=lfc)
     return (up + dn), up, dn
 
@@ -64,7 +61,6 @@ for comp in comparisons:
 summary = pd.DataFrame(rows)
 summary.to_csv(os.path.join(OUT_DIR, "te_activation_summary.csv"), index=False)
 
-# 1) Dual-axis barplot: TE up/down and gene perturbation
 plt.figure(figsize=(8, 4.8))
 ax = plt.gca()
 x = np.arange(len(summary))
@@ -83,7 +79,6 @@ plt.tight_layout()
 plt.savefig(os.path.join(OUT_DIR, "te_vs_gene_perturbation.png"), dpi=300)
 plt.close()
 
-# 2) Scatter: TE activation score vs gene perturbation
 plt.figure(figsize=(5.2, 4.8))
 sns.scatterplot(
     data=summary,
@@ -100,7 +95,6 @@ plt.tight_layout()
 plt.savefig(os.path.join(OUT_DIR, "te_activation_scatter.png"), dpi=300)
 plt.close()
 
-# 3) Stacked proportions: TE_up vs TE_down proportion
 prop = summary[["comparison", "TE_up", "TE_down"]].copy()
 prop["total"] = prop["TE_up"] + prop["TE_down"]
 prop["TE_up_frac"] = prop["TE_up"] / prop["total"].replace(0, np.nan)

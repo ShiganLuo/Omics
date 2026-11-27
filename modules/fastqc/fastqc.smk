@@ -21,12 +21,10 @@ def get_fastqc_input(wildcards):
     return: A list of input file paths for the STAR alignment step. 
     """
     logger.info(f"[get_fastqc_input] called with wildcards: {wildcards}")
-    # 构造可能的输入路径
     paired_r1 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_1.fq.gz"
     paired_r2 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_2.fq.gz"
     single = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.single.fq.gz"
 
-    # 检查文件实际存在情况
     if wildcards.sample_id in paired_samples:
         logger.info(f"双端测序：{[paired_r1, paired_r2]}")
         logger.info(f"双端测序：{[paired_r1, paired_r2]}")
@@ -51,7 +49,7 @@ rule fastqc:
     params:
         fastqc = config.get("Procedure", {}).get("fastqc") or "fastqc"
     threads: rule_res("fastqc").get("threads", 2)
-    benchmark: logdir + "/{sample_id}/fastqc.benchmark.tsv",  # raw/trimmed 实例共写,rule_res 同键 fastqc,合并归桶正确
+    benchmark: logdir + "/{sample_id}/fastqc.benchmark.tsv",
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(
             "fastqc", input_size=input_size_mb(input),
@@ -80,7 +78,7 @@ rule fastqc:
             ] + list(input)
 
             script = receipt_script(f"fastqc_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"fastqc.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -88,7 +86,7 @@ rule fastqc:
                 f.write(f"touch {output.flag}\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

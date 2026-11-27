@@ -47,7 +47,6 @@ rule scTE_build_index:
             plain_script = os.path.join(params.index_dir, "scTE_build_index.sh")
             rule_logger.info(f"Building scTE index for genome {params.genome} with mode {params.mode}")
             if params.gene_gtf and params.te_bed:
-                # Resource-based: build from local gene GTF + TE BED
                 cmd = [
                     params.scte_build,
                     "-gene", params.gene_gtf,
@@ -57,7 +56,6 @@ rule scTE_build_index:
                     "-g", "other",
                 ]
             else:
-                # Download-based: fetch by genome name
                 cmd = [
                     params.scte_build,
                     "-g", params.genome,
@@ -71,7 +69,7 @@ rule scTE_build_index:
                 f.write(f'echo "scTE index built at {output.index} successfully"\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(command_script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -91,9 +89,6 @@ def get_input_for_scTE_quantify(wildcards):
     else:
         in_dict["scTE_index"] = _scTE_index
     return in_dict
-# ---------------------------------------------------------------------------
-# Per-sample quantify
-# ---------------------------------------------------------------------------
 rule scTE_quantify:
     """Quantify TE expression from Cell Ranger BAM for one sample."""
     input:
@@ -140,7 +135,7 @@ rule scTE_quantify:
                 f.write(" ".join(str(item) for item in cmd) + "\n")
                 f.write(f'echo "scTE quantification for sample {wildcards.sample_id} completed successfully"\n')
             shutil.copyfile(command_script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

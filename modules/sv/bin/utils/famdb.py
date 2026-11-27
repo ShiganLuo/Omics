@@ -58,7 +58,6 @@ import h5py
 
 logger = logging.getLogger("famdb")
 
-# Common species aliases -> NCBI taxid (extend as needed)
 SPECIES_TAXID = {
     "human": 9606,
     "homo sapiens": 9606,
@@ -133,7 +132,6 @@ def parse_stages(attr) -> Optional[Set[int]]:
     stages: Set[int] = set()
     for m in re.finditer(r"(\d+)\[", str(attr)):
         stages.add(int(m.group(1)))
-    # single-number form means "that stage only"
     if not stages:
         m = re.fullmatch(r"\s*(\d+)\s*", str(attr))
         if m:
@@ -170,7 +168,6 @@ def resolve_h5_input(path: str, tmp_dir: Optional[str]) -> Tuple[str, Optional[P
     target_dir.mkdir(parents=True, exist_ok=True)
     target = target_dir / stem
 
-    # Dfam FamDB h5 compresses ~7x; require 10x + 1 GB margin
     need = p.stat().st_size * 10 + (1 << 30)
     have = _free_bytes(target_dir)
     if have < need:
@@ -221,7 +218,7 @@ def enumerate_family_paths(h5: h5py.File) -> List[str]:
         for key in group:
             if key.startswith("DF"):
                 out.append(f"{prefix}/{key}")
-            else:  # numeric bucket group
+            else:
                 _walk(group[key], f"{prefix}/{key}")
 
     _walk(h5["Families/DF"], "Families/DF")
@@ -291,7 +288,7 @@ def curate_library(h5path: str, taxid: int, min_len: int, use_stages: bool,
     n_total = len(paths)
 
     accs = [(p.rsplit("/", 1)[-1], p) for p in paths]
-    accs.sort(key=lambda x: x[0])  # deterministic: first-wins dedupe by accession
+    accs.sort(key=lambda x: x[0])
 
     threads = max(1, min(threads, 16))
     chunks: List[List[Tuple[str, str]]] = []
@@ -332,13 +329,6 @@ def clade_name(taxid: int) -> str:
     return str(taxid)
 
 
-# Sentinel subfamilies per species alias: a curated species library MUST
-# contain at least one family from each of these (active-clade marker
-# names). A library lacking them was built against the wrong lineage
-# branch (observed 2026-10-29: mouse_te_lib.fa carried only
-# Amniota/Vertebrata-level families and silently classified every mouse
-# insertion as noise). Checked at build time (refuse to write) and usable
-# by consumers via validate_library().
 SENTINEL_SUBFAMILIES = {
     "mouse": [["L1Md", "L1M", "L1Mus"], ["B1_Mm", "B1_Mus", "B1"],
               ["B2_Mm", "B2"], ["IAP"], ["ETn", "MERVL"]],
@@ -358,7 +348,7 @@ def validate_library(records, species_alias: str) -> List[str]:
     checksum for sequence-level corruption.
     """
     groups = SENTINEL_SUBFAMILIES.get(species_alias)
-    if not groups:  # unmapped species: no sentinels known, nothing to check
+    if not groups:
         return []
     headers = [h.lower() for h, _ in records]
     missing = []
@@ -406,8 +396,6 @@ def main(argv=None) -> int:
         logger.error("no families matched taxon %d — wrong taxid or unsupported file?", taxid)
         return 1
 
-    # refuse to write a wrong-branch library: every sentinel group of the
-    # species must be present (build-time half of the integrity check)
     alias = next((a for a, t in SPECIES_TAXID.items()
                   if t == taxid and " " not in a), str(taxid))
     missing = validate_library(records, alias)

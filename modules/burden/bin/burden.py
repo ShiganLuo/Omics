@@ -48,9 +48,6 @@ import pandas as pd
 from LogUtil import setup_logger
 from vep_ann import VEP_Annotation
 
-# Protein-impacting / core-splice consequences counted toward TMB when the
-# VCF carries VEP CSQ annotations (Ensembl VEP predicted consequences:
-# https://www.ensembl.org/info/genome/variation/prediction/predicted_data.html).
 INCLUDE_CONSEQUENCES = {
     "transcript_ablation",
     "splice_acceptor_variant", "splice_donor_variant",
@@ -60,8 +57,6 @@ INCLUDE_CONSEQUENCES = {
     "missense_variant", "protein_altering_variant",
 }
 
-# Per-type output columns. Names are already unique across types so the
-# aggregate step can outer-join every table on "sample" without renaming.
 SNV_INDEL_HEADER = [
     "sample", "snv_count", "indel_count", "tmb_count", "frameshift_count",
     "tmb_per_mb", "snv_per_mb", "indel_per_mb", "territory_mb", "denominator",
@@ -74,7 +69,6 @@ CNV_HEADER = [
 ]
 SV_TYPES = ["DEL", "DUP", "INV", "INS", "BND"]
 
-# Single source of truth for CLI defaults and programmatic calls alike.
 DEFAULT_MIN_VAF = 0.05
 DEFAULT_SIZE_MB = 34.0
 DEFAULT_GTF_FEATURE = "exon"
@@ -84,14 +78,9 @@ DEFAULT_VEP_SPECIES = "mus_musculus"
 DEFAULT_VEP_ASSEMBLY = "GRCm39"
 
 
-# Module-level logger; reconfigured in main() with the CLI log file (same
-# singleton object, stream on stdout).
 logger = setup_logger("Burden", stream=sys.stdout)
 
 
-# ---------------------------------------------------------------------------
-# Shared helpers
-# ---------------------------------------------------------------------------
 
 def _open_text(path: str | Path) -> IO[str]:
     """Open a plain or gzip-compressed text file for reading.
@@ -190,7 +179,7 @@ def _bed_territory_bp(bed_file: str | Path, universe: set[str]) -> int:
             chrom = fields[0]
             if chrom not in universe:
                 continue
-            start = int(fields[1]) + 1  # BED is 0-based half-open -> 1-based
+            start = int(fields[1]) + 1
             end = int(fields[2])
             if end >= start:
                 per_chrom.setdefault(chrom, []).append((start, end))
@@ -349,9 +338,6 @@ def _require_input(path: Optional[str], what: str) -> None:
     logger.debug(f"{what} input OK: {path}")
 
 
-# ---------------------------------------------------------------------------
-# snv-indel: TMB / indel burden
-# ---------------------------------------------------------------------------
 
 def _parse_csq(info_field: str) -> list[str]:
     """Return the list of VEP CSQ entries (allele|Consequence|...) from INFO.
@@ -675,8 +661,6 @@ def run_snv_indel(vcf: str,
     _require_input(vcf, "somatic SNV/InDel VCF")
     universe = _chrom_universe(include_sex)
 
-    # Annotation + meaningful-variant filtering (default on): annotate the
-    # filtered VCF with VEP first, then count from the annotated copy.
     source_vcf = vcf
     if annotate:
         vep_out = str(Path(out).parent / f"{sample}.vep.vcf")
@@ -689,7 +673,6 @@ def run_snv_indel(vcf: str,
         analysis.annotate_sv_vep(vcf, vep_out)
         source_vcf = vep_out
 
-    # Denominator: captured territory > GTF feature length > fixed size.
     territory = resolve_territory(size_mb=size_mb, targets_bed=targets_bed,
                                    gtf=gtf, gtf_feature=gtf_feature,
                                    universe=universe)
@@ -725,9 +708,6 @@ def run_snv_indel(vcf: str,
     ]])
 
 
-# ---------------------------------------------------------------------------
-# sv: structural-variant burden
-# ---------------------------------------------------------------------------
 
 def count_sv(vcf: str | Path) -> dict[str, int]:
     """Count somatic structural variants by INFO/SVTYPE bucket.
@@ -797,9 +777,6 @@ def run_sv(vcf: str, sample: str, out: str) -> None:
     ]])
 
 
-# ---------------------------------------------------------------------------
-# cnv: copy-number burden
-# ---------------------------------------------------------------------------
 
 @dataclass
 class CnvSummary:
@@ -944,9 +921,6 @@ def run_cnv(cns: str, sample: str, out: str,
     ]])
 
 
-# ---------------------------------------------------------------------------
-# aggregate: merge per-sample tables
-# ---------------------------------------------------------------------------
 
 def run_aggregate(out: str,
                   snv_tables: Optional[Sequence[str]] = None,
@@ -982,8 +956,6 @@ def run_aggregate(out: str,
         logger.info(f"aggregate: {label}: {len(tables)} table(s)")
         if tables:
             frame = pd.concat(tables, ignore_index=True)
-            # One row per sample per type is the contract; keep the last on
-            # accidental duplicate submissions instead of exploding the join.
             dup = frame["sample"].duplicated().sum()
             if dup:
                 logger.warning(f"{label}: {dup} duplicate sample row(s) dropped")
@@ -1000,9 +972,6 @@ def run_aggregate(out: str,
                merged.fillna("").astype(str).values.tolist())
 
 
-# ---------------------------------------------------------------------------
-# CLI
-# ---------------------------------------------------------------------------
 
 def _add_common(parser: argparse.ArgumentParser) -> None:
     """Attach the options shared by every per-sample subcommand.

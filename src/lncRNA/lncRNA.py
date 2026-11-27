@@ -62,7 +62,6 @@ def estimate_transport(
     df[gene_type_col] = df[df_gene_col].map(df_anno.set_index(anno_gene_col)[gene_type_col])
     df = df[(df[gene_type_col] == "lncRNA") | (df[gene_type_col] == "protein_coding")]
     df[gene_type_col] = df[gene_type_col].map({"lncRNA": "lncRNA", "protein_coding": "mRNA"})
-    # select unchanged genes in cell samples
     df = df[(df[cell_samples.experiment].mean(axis=1) > 0) & (df[cell_samples.control].mean(axis=1) > 0)]
     df["fold_change"] = df[cell_samples.experiment].mean(axis=1) / (df[cell_samples.control].mean(axis=1))
     df = df[(df["fold_change"] > 0.5) & (df["fold_change"] < 2.0)]

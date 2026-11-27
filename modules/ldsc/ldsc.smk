@@ -10,9 +10,6 @@ gwas = config.get("Params", {}).get("ldsc", {}).get("gwas", {}) or {}
 traits = sorted(gwas.keys())
 BIN = ROOT_DIR + "/modules/ldsc/bin"
 
-# 参数精确到 rule:annot_prefix 按 rule 各自配置
-# (Params.ldsc.ldsc_annot.annot_prefix / Params.ldsc.ldsc_h2_cts.annot_prefix;
-# 无 module 级共享回退)。
 _annot_prefix_ldsc_annot = config.get("Params", {}).get("ldsc", {}).get("ldsc_annot", {}).get("annot_prefix", "peaks") or "peaks"
 _annot_prefix_ldsc_h2_cts = config.get("Params", {}).get("ldsc", {}).get("ldsc_h2_cts", {}).get("annot_prefix", "peaks") or "peaks"
 
@@ -52,7 +49,7 @@ rule ldsc_annot:
             group_outdir = outdir + "/annot"
             os.makedirs(group_outdir, exist_ok=True)
             script = receipt_script(f"ldsc_annot_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(group_outdir, f"ldsc_annot.sh")
             cmd = [
                 "python", params.script,
@@ -69,7 +66,7 @@ rule ldsc_annot:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "ldsc_annot at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -110,7 +107,7 @@ rule ldsc_munge:
             trait_outdir = outdir + f"/{wildcards.trait}"
             os.makedirs(trait_outdir, exist_ok=True)
             script = receipt_script(f"ldsc_munge_{wildcards.trait}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(trait_outdir, f"ldsc_munge.sh")
             cmd = [
                 params.munge,
@@ -127,7 +124,7 @@ rule ldsc_munge:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "ldsc_munge for {wildcards.trait} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -168,7 +165,7 @@ rule ldsc_h2_cts:
             trait_outdir = outdir + f"/{wildcards.trait}"
             os.makedirs(trait_outdir, exist_ok=True)
             script = receipt_script(f"ldsc_h2_cts_{wildcards.trait}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(trait_outdir, f"ldsc_h2_cts.sh")
             cmd = [
                 params.ldsc,
@@ -183,7 +180,7 @@ rule ldsc_h2_cts:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "ldsc_h2_cts for {wildcards.trait} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

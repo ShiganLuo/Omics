@@ -14,7 +14,6 @@ def download_diff(all:str,downloaded:str,outfile:str):
             f.write(str(elem) + '\n')
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="A script to find which run ID hasn't been downloaded.")
-    # 定义命令行参数 
     parser.add_argument('--all', type=str, required=True, help='Path to input file contain all runId')
     parser.add_argument('--downloaded', type=str, required=True, help='Path to input file contain downloaded runId')
     parser.add_argument('--output', type=str, required=True, help='Path to output file')

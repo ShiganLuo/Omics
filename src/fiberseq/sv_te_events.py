@@ -193,7 +193,6 @@ def perm_enrichment(rows: List[dict], fai_path: str, n_perm: int, seed: int,
     len_map = dict(lengths)
     rng = np.random.default_rng(seed)
 
-    # prebuild per-chrom TE arrays once (chrom, starts[], ends[], classes[])
     per_chrom_starts: Dict[str, np.ndarray] = {}
     per_chrom_ends: Dict[str, np.ndarray] = {}
     per_chrom_cls: Dict[str, List[str]] = {}

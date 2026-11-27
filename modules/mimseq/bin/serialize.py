@@ -54,7 +54,6 @@ def load_json(path: str) -> Any:
     return obj
 
 
-# Specific save/load functions for mimseq state
 
 def save_tRNA_state(
     outdir: str,
@@ -84,7 +83,6 @@ def save_tRNA_state(
     save_pickle(Inosine_clusters, os.path.join(state_dir, "Inosine_clusters.pkl"))
     save_pickle(cluster_perPos_mismatchMembers, os.path.join(state_dir, "cluster_perPos_mismatchMembers.pkl"))
 
-    # Save simple values as JSON
     meta = {
         "coverage_bed": coverage_bed,
         "snp_tolerance": snp_tolerance,

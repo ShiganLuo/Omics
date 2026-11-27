@@ -31,10 +31,6 @@ import sys
 from pathlib import Path
 from typing import Dict, List, NamedTuple, Optional, Sequence, Tuple
 
-# ---------------------------------------------------------------------------
-# setup_logger copied verbatim from src/common/util/LogUtil.py (module bin
-# scripts are self-contained; provenance: Omics repo LogUtil, 2026-11).
-# ---------------------------------------------------------------------------
 from typing import TextIO  # noqa: E402
 
 
@@ -95,7 +91,7 @@ class RegionStats(NamedTuple):
     n_per_sample: Dict[str, int]
     clusters: List[int]
     sizes: Dict[int, int]
-    counts: Dict[Tuple[int, str], int]  # (cluster, sample) -> n
+    counts: Dict[Tuple[int, str], int]
 
 
 def read_run(run_dir: Path) -> Dict[str, RegionStats]:
@@ -302,7 +298,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     else:
         sample_order = sorted({s for st in canon.values() for s in st.n_per_sample})
 
-    # ---- figures: canonical run, regions with >=2 clusters ----------------
     fig_dir = args.outdir / "figures"
     fig_dir.mkdir(parents=True, exist_ok=True)
     copied = 0
@@ -317,7 +312,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         shutil.copy2(src, fig_dir / src.name)
         copied += 1
 
-    # ---- summary tables + overview figure ---------------------------------
     sum_dir = args.outdir / "summary"
     sum_dir.mkdir(parents=True, exist_ok=True)
     write_loci_summary(canon, sum_dir / "loci_summary.tsv")

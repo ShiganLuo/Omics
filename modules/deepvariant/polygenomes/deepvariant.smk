@@ -54,7 +54,7 @@ rule deepvariant_run:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start DeepVariant for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
             script = receipt_script(f"deepvariant_{wildcards.genome}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/deepvariant.sh")
             cmd1 = [
                 params.deepvariant,
@@ -74,7 +74,7 @@ rule deepvariant_run:
                 f.write(" ".join(cmd2) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell("bash {plain_script} >> {log} 2>&1")

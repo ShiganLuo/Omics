@@ -23,7 +23,6 @@ def enrich_go_kegg(gene_list: List[str], organism: Literal['human', 'mouse'] = '
     os.makedirs(outdir, exist_ok=True)
     results_dict = {}
     
-    # --- GO 富集分析 ---
     go_categories = ['GO_Biological_Process_2021',
                      'GO_Cellular_Component_2021',
                      'GO_Molecular_Function_2021']
@@ -39,7 +38,6 @@ def enrich_go_kegg(gene_list: List[str], organism: Literal['human', 'mouse'] = '
         df = enr.results
         results_dict[cat] = df
         
-        # 可视化 top_n
         if not df.empty:
             top_df = df.sort_values('Adjusted P-value').head(top_n)
             plt.figure(figsize=(8,6))
@@ -50,7 +48,6 @@ def enrich_go_kegg(gene_list: List[str], organism: Literal['human', 'mouse'] = '
             plt.savefig(os.path.join(outdir, f'{cat}_top{top_n}.png'))
             plt.close()
     
-    # --- KEGG 富集分析 ---
     kegg_cat = 'KEGG_2021_Human' if organism.lower()=='human' else 'KEGG_2019_Mouse'
     enr_kegg = gp.enrichr(
         gene_list=gene_list,
@@ -72,7 +69,6 @@ def enrich_go_kegg(gene_list: List[str], organism: Literal['human', 'mouse'] = '
         plt.savefig(os.path.join(outdir, f'KEGG_top{top_n}.png'))
         plt.close()
     
-    # 保存结果表
     for key, df in results_dict.items():
         df.to_csv(os.path.join(outdir, f'{key}_enrichment.csv'), index=False)
     
@@ -80,7 +76,6 @@ def enrich_go_kegg(gene_list: List[str], organism: Literal['human', 'mouse'] = '
     return results_dict
 
 if __name__ == "__main__":
-    # --- 使用示例 ---
     df = pd.read_csv("/data/pub/zhousha/20260411_MERIPseq/output/exomePeak/con_sig_diff_peak_name.xls", sep="\t")
     gene_list = df["gene_name"].dropna().unique().tolist()
     results = enrich_go_kegg(gene_list,outdir="/data/pub/zhousha/20260411_MERIPseq/output/exomePeak/plot/py", organism="mouse", top_n=10)

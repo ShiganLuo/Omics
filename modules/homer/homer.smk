@@ -5,7 +5,6 @@ logdir = config.get("logdir", "log")
 indir = config.get("indir", "input")
 samples = config.get("samples", [])
 
-# Genome references
 fasta = config.get("genome", {}).get("fasta", "")
 gtf = config.get("genome", {}).get("gtf", "")
 
@@ -51,7 +50,7 @@ rule homer_annotatepeaks:
             rule_logger.info(f"Start HOMER annotatePeaks for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.annotation))
             script = receipt_script(f"homer_annotatepeaks_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"homer_annotatepeaks.sh")
             cmd = [
                 params.annotatePeaks,
@@ -67,7 +66,7 @@ rule homer_annotatepeaks:
                 f.write(success_echo + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

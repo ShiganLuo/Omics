@@ -7,16 +7,7 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 samples = config.get("samples", [])
 genome_cfg = config.get("genome", {})
 
-# tracks: [{label, dir, suffix}] — one track group per entry; per-sample bw
-# paths expand to {dir}/{sample_id}/{sample_id}{suffix}. Wired by each
-# subworkflow from its own bw-producing rules; not a user-facing key.
 _track_defs = config.get("tracks", []) or []
-# regions: BED rows or a [NAME=]chrom:start-end list (auto-detected per row)
-# 参数精确到 rule:regions/formats/sample_order/sample_group_dict 挂 regionplot
-# 名下(Params.regionplot.regionplot.*,单 plot rule 消费;无 module 级共享回退),
-# config 全量路径读取。regionplot_result 聚合 regionplot 输出文件名,
-# 面板名与格式展开同一 rule 键。
-# 每 rule 一个 parse 期变量
 _regions = config.get("Params", {}).get("regionplot", {}).get("regionplot", {}).get("regions", None)
 _sample_order = config.get("Params", {}).get("regionplot", {}).get("regionplot", {}).get("sample_order", None) or list(samples)
 if isinstance(_sample_order, str):
@@ -141,14 +132,12 @@ rule regionplot:
             panel_outdir = os.path.dirname(str(output.plots[0]))
             os.makedirs(panel_outdir, exist_ok=True)
             script = receipt_script(f"regionplot_{wildcards.panel}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(panel_outdir, "regionplot.sh")
 
-            # regions file copy delivered beside the plots (traceability)
             import shutil as _shutil
             _shutil.copyfile(str(input.regions), str(output.bed))
 
-            # track table: label<TAB>sample<TAB>bw, group-major then sample order
             track_tsv = os.path.join(panel_outdir, "track_table.tsv")
             with open(track_tsv, "w") as fh:
                 fh.write("label\tsample_id\tbw_path\n")
@@ -157,7 +146,6 @@ rule regionplot:
                         bw = f"{t['dir']}/{s}/{s}{t['suffix']}"
                         fh.write(f"{t['label']}\t{s}\t{bw}\n")
 
-            # group map (only when any sample carries a group)
             group_map_arg = ""
             if params.group_dict:
                 gm = os.path.join(panel_outdir, "group_map.tsv")
@@ -189,7 +177,7 @@ rule regionplot:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "regionplot for {wildcards.panel} at {current_time} completed successfully"\n')
             _shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

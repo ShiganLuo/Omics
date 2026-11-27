@@ -8,7 +8,7 @@ def read_gmt(file):
         for line in f:
             parts = line.strip().split("\t")
             gene_set_name = parts[0]
-            genes = parts[2:]  # GMT第3列开始是基因
+            genes = parts[2:]
             gene_sets[gene_set_name] = genes
     return gene_sets
 
@@ -31,7 +31,6 @@ def plot_heatmap_with_colgroup(
 
     fig, ax = plt.subplots(figsize=figsize)
 
-    # 右侧颜色条
     cbar_ax = fig.add_axes([0.88, 0.25, 0.03, 0.7])
     sns.heatmap(
         data,
@@ -44,13 +43,11 @@ def plot_heatmap_with_colgroup(
         linecolor='gray'
     )
 
-    # 列分组颜色
     col_groups = pd.Series(col_group_map)
     unique_groups = col_groups.unique()
     palette = sns.color_palette("Set2", n_colors=len(unique_groups))
     group_colors = dict(zip(unique_groups, palette))
 
-    # x轴标签染色
     for xtick_label in ax.get_xticklabels():
         label = xtick_label.get_text()
         if label in col_groups:
@@ -58,16 +55,14 @@ def plot_heatmap_with_colgroup(
             xtick_label.set_rotation(45)
             xtick_label.set_horizontalalignment('right')
 
-    # 调整子图区域，留出下边距和右边距
     fig.subplots_adjust(bottom=0.2, right=0.78, top=0.95)
 
-    # 绘制分组图例，位于右侧颜色条下方，每个分组占一行
     legend_handles = [plt.Line2D([0], [0], color=color, lw=6) for color in group_colors.values()]
     fig.legend(
         handles=legend_handles,
         labels=list(group_colors.keys()),
         loc='center right',
-        bbox_to_anchor=(1.0, 0.15),  # 下方偏移
+        bbox_to_anchor=(1.0, 0.15),
         ncol=1,
         frameon=False,
         title=""

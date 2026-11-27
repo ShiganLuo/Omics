@@ -16,9 +16,6 @@ rule all:
     input:
         outfiles
 
-# ============================================================
-# Step 1: Align with minimap2
-# ============================================================
 minimap2_config = {
     "resources": config.get("resources", {}),
     "indir": indir,
@@ -45,11 +42,6 @@ module minimap2:
 logger.info(f"minimap2_config: {minimap2_config}")
 use rule minimap2_align from minimap2 as LRtranscriptome_minimap2_align
 
-# ============================================
-# Sex check (coverage on sex chromosomes)
-# ============================================
-# Wired unconditionally over the alignment BAMs; node.py registers the
-# sexcheck outputs (subworkflow.md QC wiring).
 sexcheck_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -70,7 +62,6 @@ sexcheck_config = {
         "sex_chroms": (config.get("genome", {}) or {}).get("references", {})
             .get(config.get("genome", {}).get("default"), {})
             .get("sex_chroms"),
-        # RNA-mode marker lookup (XIST / Y-linked genes) reads the annotation
         "gtf": genome_ref.get("gtf")
     },
     "Params": {
@@ -84,12 +75,6 @@ logger.info(f"sexcheck_config: {sexcheck_config}")
 use rule sexcheck_idxstats from sexcheck as LRtranscriptome_sexcheck_idxstats
 use rule sexcheck from sexcheck as LRtranscriptome_sexcheck
 
-# ============================================
-# QC Summary (cross-sample metric aggregation)
-# ============================================
-# Wired unconditionally; node.py registers the qc_summary outputs (see
-# subworkflow.md QC wiring spec). Only stages with qc_summary parsers are
-# declared; unregistered stages stay best-effort scans.
 qc_summary_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -111,9 +96,6 @@ module qc_summary:
 logger.info(f"qc_summary_config: {qc_summary_config}")
 use rule qc_summary from qc_summary as LRtranscriptome_qc_summary
 
-# ============================================================
-# Step 2-4: StringTie long-read pipeline (assemble + merge + quant)
-# ============================================================
 longread_config = {
     "resources": config.get("resources", {}),
     "indir": minimap2_config["outdir"],

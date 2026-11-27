@@ -22,8 +22,4 @@ if __name__ == "__main__":
     outfile = args.output
     threshold = args.threshold
 
-    # infile = "/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/RNASNP202503TEcount.cntTable"
-    # outfile = "/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/RNASNP202503TEcount_common.cntTable"
-    # print(infile)
-    # print(outfile)
     commonExpression(infile,outfile,threshold)

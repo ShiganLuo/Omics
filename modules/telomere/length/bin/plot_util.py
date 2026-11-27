@@ -11,18 +11,15 @@ from typing import Any, Dict, List, Optional, Sequence
 
 import matplotlib
 
-matplotlib.use("Agg")  # headless-safe for pipelines; set before any pyplot import
+matplotlib.use("Agg")
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else is
-# rejected fast (规范 #9). Kept as a plain set so this helper stays dependency-light.
 VALID_FORMATS = {
     "png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg", "jpeg", "pgf",
     "raw", "rgba",
 }
 
-# dpi only applies to raster formats; vector formats ignore it (规范 #9).
 _RASTER_FORMATS = {"png", "tif", "tiff", "jpg", "jpeg", "raw", "rgba"}
 
 

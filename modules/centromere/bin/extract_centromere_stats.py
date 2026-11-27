@@ -124,10 +124,8 @@ def find_satellite_blocks(records: list[dict], species: str,
     sat_keywords = set()
     for patterns in families.values():
         sat_keywords.update(p.upper() for p in patterns)
-    # Also include generic satellite
     sat_keywords.add("SATELLITE")
 
-    # Group satellite hits by contig
     contig_hits: dict[str, list[tuple[int, int, str]]] = defaultdict(list)
     for rec in records:
         cf = rec["class_family"].upper()
@@ -142,7 +140,6 @@ def find_satellite_blocks(records: list[dict], species: str,
     blocks = []
     for contig, hits in contig_hits.items():
         hits.sort(key=lambda x: x[0])
-        # Cluster hits into blocks
         current_block = [hits[0]]
         for hit in hits[1:]:
             if hit[0] - current_block[-1][1] <= max_gap:
@@ -164,7 +161,6 @@ def find_satellite_blocks(records: list[dict], species: str,
                         "n_regions": len(current_block),
                     })
                 current_block = [hit]
-        # Last block
         if current_block:
             block_start = current_block[0][0]
             block_end = current_block[-1][1]
@@ -223,7 +219,6 @@ def write_stats(rm_out: str, output: str, species: str,
         for cf, total in sorted(class_totals.items(), key=lambda x: -x[1])[:15]:
             f.write(f"  {cf:40s}  {class_counts[cf]:>8,} regions  {total:>12,} bp\n")
 
-        # Per-contig satellite blocks
         blocks = find_satellite_blocks(records, species, max_gap, min_block_len)
         f.write(f"\n=== Per-Contig Satellite Blocks (>= {min_block_len:,} bp, gap <= {max_gap:,} bp) ===\n\n")
         if blocks:
@@ -235,7 +230,6 @@ def write_stats(rm_out: str, output: str, species: str,
                     types_str += f" (+{len(b['sat_types'])-5} more)"
                 f.write(f"{b['contig']:<20} {b['start']:>12,} {b['end']:>12,} {b['length']:>12,} {b['n_regions']:>8}  {types_str}\n")
 
-            # Summary
             total_block_bp = sum(b["length"] for b in blocks)
             f.write(f"\n  Total satellite block bp: {total_block_bp:,}\n")
             f.write(f"  Number of blocks: {len(blocks)}\n")

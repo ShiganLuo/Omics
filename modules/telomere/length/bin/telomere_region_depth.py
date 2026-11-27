@@ -37,11 +37,6 @@ import matplotlib.pyplot as plt
 logger = setup_logger("telomere_region_depth", stream=sys.stdout)
 
 
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
-# Below this recovery fraction, region-based alignment depth is deemed unusable
-# for telomere length (reads are missing, not absent).
 DEFAULT_MIN_RECOVERY = 0.5
 
 
@@ -81,7 +76,7 @@ def mean_aligned_depth(bam: pysam.AlignmentFile, contig: str, start: int,
         if read.is_unmapped or read.is_secondary or read.is_supplementary:
             continue
         rs = read.reference_start
-        re_ = read.reference_end  # exclusive
+        re_ = read.reference_end
         if re_ is None:
             continue
         ov = min(re_, stop) - max(rs, start)
@@ -178,7 +173,7 @@ def main() -> None:
                         help="Output figure format(s), repeatable (default: png)")
     args = parser.parse_args()
 
-    log = logger  # module-level default (stdout)
+    log = logger
     if args.log:
         Path(args.log).parent.mkdir(parents=True, exist_ok=True)
         log = setup_logger("telomere_region_depth", log_file=args.log,
@@ -195,14 +190,12 @@ def main() -> None:
         md, n = mean_aligned_depth(bam, contig, start, stop)
         depths.append(RegionDepth(contig, start, stop, rclass, md, n, stop - start))
 
-    # control baseline
     control_depth: Optional[float] = None
     if args.control:
         c_contig, c_start, c_stop = parse_region(args.control)
         control_depth, _ = mean_aligned_depth(bam, c_contig, c_start, c_stop)
     bam.close()
 
-    # per-class aggregation (length-weighted)
     by_class: dict[str, list[RegionDepth]] = {}
     for d in depths:
         by_class.setdefault(d.region_class, []).append(d)
@@ -211,7 +204,6 @@ def main() -> None:
         tot_len = sum(d.length for d in ds)
         class_mean[rclass] = sum(d.mean_depth * d.length for d in ds) / tot_len
 
-    # write per-region TSV
     tsv = out / f"{args.sample_name}_telomere_region_depth.tsv"
     with tsv.open("w") as fh:
         fh.write("contig\tstart\tstop\tclass\tlength\tmean_depth\tn_reads\n")
@@ -219,7 +211,6 @@ def main() -> None:
             fh.write(f"{d.contig}\t{d.start}\t{d.stop}\t{d.region_class}\t{d.length}\t"
                      f"{d.mean_depth:.4f}\t{d.n_reads}\n")
 
-    # write stats + verdict
     stats = out / f"{args.sample_name}_telomere_region_depth_stats.txt"
     lines = [f"Sample: {args.sample_name}",
              f"BAM: {args.bam}",
@@ -231,14 +222,13 @@ def main() -> None:
         lines.append(f"  {'control':16s} {control_depth:8.3f}x   (euchromatic baseline)")
     lines.append("")
 
-    # recovery of the most telomeric class (heuristic: name contains 'core'/'telomere_core')
     tel_class = None
     for cand in ("telomere_core", "tel_core", "core"):
         if cand in class_mean:
             tel_class = cand
             break
     if tel_class is None and class_mean:
-        tel_class = min(class_mean, key=lambda k: class_mean[k])  # lowest depth class
+        tel_class = min(class_mean, key=lambda k: class_mean[k])
 
     verdict: list[str] = []
     if control_depth and tel_class:
@@ -263,7 +253,6 @@ def main() -> None:
 
     lines.extend(["", "结论 / Verdict:"] + verdict)
     stats.write_text("\n".join(lines) + "\n")
-    # Figure 4: alignment-bias diagnostic (multi-format)
     _pb = str(out / f"{args.sample_name}_telomere_region_depth_diagnostic")
     for _p in plot_depth_diagnostic(depths, class_mean, control_depth, tel_class,
                                     args.sample_name, _pb, args.formats):

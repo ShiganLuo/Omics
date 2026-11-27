@@ -49,8 +49,6 @@ from src.common.util.FiberlibUtil import (  # noqa: E402
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
@@ -158,7 +156,6 @@ def run(args: argparse.Namespace) -> int:
         cls = r.name
         pooled, fiber_mean = msp_coverage_fraction(
             ov[0], r.chrom, r.start, r.end, args.msp_min_len)
-        # counts use the region core only
         core_s, core_e = r.start, r.end
         msp_cov = len({x.name for x in ov[0]
                        if x.start < core_e and x.end > core_s})
@@ -184,13 +181,8 @@ def run(args: argparse.Namespace) -> int:
         if mcpg == mcpg:
             class_mcpg[cls].append(mcpg)
 
-        # rolling profile across region +/- flank (TRUE window, not the
-        # clipped sweep anchor: bins/positions must match whole-file runs;
-        # records outside the clipped anchor simply contribute nothing)
         ws, we = r.start - args.flank, r.end + args.flank
         acc_sig = block_signal(ov[0], r.chrom, ws, we, uniq_fibers=True)
-        # per-base cpg mark density (marks are 1bp blocks, so per-base sum
-        # per bin == blocks overlapping the bin, matching the region formula)
         meth_sig = (block_signal(ov[2], r.chrom, ws, we, uniq_fibers=False)
                     if use_cpg else None)
         nbins = max(1, (we - ws) // args.bin)

@@ -10,7 +10,6 @@ single_samples = config.get("sample_params", {}).get("single_samples", [])
 aligner = config.get("Params", {}).get("workflow", {}).get("aligner") or "star"
 trimmer = config.get('Params', {}).get('workflow', {}).get('trimmer') or "trim_galore"
 
-# Genome reference resolution — nested default + references pattern
 genome = config.get("genome", {}).get("default")
 genome_ref = config.get("genome", {}).get("references", {}).get(genome, {}) if genome else {}
 
@@ -50,11 +49,7 @@ UmiTools_extract_config = {
             "extract_method": config.get('Procedure',{}).get('extract_method') or 'string'
         },
         "Params": {
-            # 参数精确到 rule:整段透传(Params.umi_tools.<rule>.<key>,rule 子段
-            # 透明传递;模块内置默认同原转发默认)
             "umi_tools": config.get('Params',{}).get('umi_tools', {}),
-            # keep_intermediates 透传(modules.md temp 规范):umi fastq 中间产物
-            # 受字段控制,缺省 True=保留;CLIP 模板定 false(用完即删)
             "UmiTools": {
                 "keep_intermediates": config.get('Params',{}).get('UmiTools',{}).get('keep_intermediates', True)
             },
@@ -66,7 +61,6 @@ module UmiTools_extract:
 logger.info(f"UmiTools_extract_config: {UmiTools_extract_config}")
 use rule UmiTools_extract_single from UmiTools_extract as CLIP_UmiTools_extract_single
 use rule UmiTools_extract_paired from UmiTools_extract as CLIP_UmiTools_extract_paired
-# --- trimmer 选择 (UMI 流程,trimmomatic 模块不支持 UMI mode): cutadapt / trim_galore ---
 trimmed_dir = f"{outdir}/cutadapt"
 if trimmer == "cutadapt":
     cutadapt_config = {
@@ -82,7 +76,6 @@ if trimmer == "cutadapt":
             "cutadapt": config.get('Procedure',{}).get('cutadapt')
         },
         "Params": {
-            # 参数精确到 rule:Params.cutadapt.<rule>.<key>(模块读点)
             "cutadapt": config.get('Params',{}).get("cutadapt", {}),
         }
     }
@@ -109,7 +102,6 @@ else:
             "trim_galore": config.get('Procedure',{}).get('trim_galore')
         },
         "Params": {
-            # 参数精确到 rule:Params.trim_galore.<rule>.<key>(模块读点)
             "trim_galore": config.get('Params',{}).get("trim_galore", {}),
         }
     }
@@ -156,9 +148,6 @@ if aligner == 'hisat2':
                 "hisat2": config.get('Procedure',{}).get('hisat2')
             },
             "Params": {
-                # 参数精确到 rule:整段透传(Params.hisat2.<rule>.<key>);
-                # keep_intermediates 随段直达(maybe_temp 读
-                # Params.hisat2.keep_intermediates,缺省 True=保留)
                 "hisat2": config.get('Params',{}).get('hisat2', {})
             },
             "genome": {
@@ -187,9 +176,6 @@ elif aligner == 'star':
                 "STAR": config.get('Procedure',{}).get('STAR')
             },
             "Params": {
-                # 参数精确到 rule:整段透传(Params.star.<rule>.<key>),修复
-                # star_align 参数从未传入模块的死配置;keep_intermediates 随段
-                # 直达(maybe_temp 读 Params.star.keep_intermediates,缺省 True=保留)
                 "star": config.get('Params',{}).get('star', {})
             },
             "genome": {
@@ -218,11 +204,7 @@ umi_tools_dedup_config = {
             "umi_tools": config.get('Procedure',{}).get('umi_tools')
         },
         "Params": {
-            # 参数精确到 rule:整段透传(Params.umi_tools.<rule>.<key>)
             "umi_tools": config.get('Params',{}).get('umi_tools', {}),
-            # keep_intermediates 透传(modules.md temp 规范):dedup bam/bai 中间
-            # 产物受字段控制,缺省 True=保留;CLIP 模板定 false(交付物是
-            # PureCLIP/bedtools 结果)。若交付物流程复用本模块,缺省 true 保证不误删
             "UmiTools": {
                 "keep_intermediates": config.get('Params',{}).get('UmiTools',{}).get('keep_intermediates', True)
             },
@@ -235,12 +217,6 @@ logger.info(f"umi_tools_dedup_config: {umi_tools_dedup_config}")
 use rule umi_tools_dedup_for_star from UmiTools_dedup as CLIP_umi_tools_dedup_for_star
 use rule umi_tools_dedup_for_hisat2 from UmiTools_dedup as CLIP_umi_tools_dedup_for_hisat2
 
-# ============================================
-# Sex check (coverage on sex chromosomes)
-# ============================================
-# Wired unconditionally over the alignment BAMs; node.py registers the
-# sexcheck outputs (subworkflow.md QC wiring).
-# aligner-conditional BAM source (config dicts are both defined above)
 _sexcheck_bam_dir = star_config["outdir"] if aligner == "star" else hisat2_config["outdir"]
 sexcheck_config = {
     "resources": config.get("resources", {}),
@@ -262,7 +238,6 @@ sexcheck_config = {
         "sex_chroms": (config.get("genome", {}) or {}).get("references", {})
             .get(config.get("genome", {}).get("default"), {})
             .get("sex_chroms"),
-        # RNA-mode marker lookup (XIST / Y-linked genes) reads the annotation
         "gtf": (config.get("genome", {}) or {}).get("references", {})
             .get(config.get("genome", {}).get("default"), {})
             .get("gtf")
@@ -278,12 +253,6 @@ logger.info(f"sexcheck_config: {sexcheck_config}")
 use rule sexcheck_idxstats from sexcheck as CLIP_sexcheck_idxstats
 use rule sexcheck from sexcheck as CLIP_sexcheck
 
-# ============================================
-# QC Summary (cross-sample metric aggregation)
-# ============================================
-# Wired unconditionally; node.py registers the qc_summary outputs (see
-# subworkflow.md QC wiring spec). Only stages with qc_summary parsers are
-# declared; unregistered stages stay best-effort scans.
 qc_summary_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -302,9 +271,6 @@ qc_summary_config = {
     },
     "qc_anchor_samples": {},
 }
-# trimming QC: stage key follows the selected trimmer (三种去接头报告格式与
-# 命名各异,各自解析器都已接入;trimmomatic 不支持 UMI,见上方分支);锚点
-# 条件注入,PE/SE 命名不同的按样本类型拆
 if trimmer == "cutadapt":
     qc_summary_config["qc_dirs"]["cutadapt"] = trimmed_dir
     if paired_samples:
@@ -369,11 +335,6 @@ module bedtools:
 logger.info(f"bedtools_config: {bedtools_config}")
 use rule iCLIP_bedtools from bedtools as CLIP_bedtools
 
-# ============================================================
-# Region-focused multi-sample track stacking plots (modules/regionplot)
-#   Consumes this workflow's bigwigs; gated by Params.regionplot in
-#   node.py (subworkflow wiring is unconditional per repo convention).
-# ============================================================
 regionplot_params = config.get("Params", {}).get("regionplot", {})
 regionplot_config = {
     "ROOT_DIR": ROOT_DIR,

@@ -39,15 +39,9 @@ logger = logging.getLogger("run_heatmap")
 
 PlotFormat = str
 
-# deeptools plotHeatmap --plotFileFormat full set (probed from the deeptools
-# SIF); anything else fails fast at parse time instead of dying inside
-# plotHeatmap (modules.md #9). NOTE: this is the TOOL's set, not matplotlib's.
 VALID_FORMATS = ("png", "eps", "pdf", "svg", "plotly")
 
 
-# ============================================================
-# GTF attribute parsing (shared by TSS and gene extraction)
-# ============================================================
 
 def _parse_gtf_attribute(attr_str, key):
     """Extract a value from GTF attributes string."""
@@ -58,9 +52,6 @@ def _parse_gtf_attribute(attr_str, key):
     return None
 
 
-# ============================================================
-# BED region generation from GTF
-# ============================================================
 
 def generate_tss_bed(gtf_path, output_path, flank=1000, feature="transcript"):
     """Generate TSS BED from GTF. Returns output_path."""
@@ -137,9 +128,6 @@ def generate_genes_bed(gtf_path, output_path, gene_names, match_by="gene_name",
     return output_path
 
 
-# ============================================================
-# Subprocess helpers
-# ============================================================
 
 def run_cmd(cmd):
     logger.info(f"Running: {' '.join(cmd)}")
@@ -149,13 +137,9 @@ def run_cmd(cmd):
         sys.exit(1)
 
 
-# ============================================================
-# Main
-# ============================================================
 
 def main():
     p = argparse.ArgumentParser("Run computeMatrix + plotHeatmap")
-    # Input
     p.add_argument("--ip-bigwig", required=True)
     p.add_argument("--input-bigwig", default="")
     p.add_argument("--regions", default="", help="Pre-made BED file (mutually exclusive with --gtf)")
@@ -166,7 +150,6 @@ def main():
                    metavar="FMT",
                    help="Image format (png/eps/pdf/svg/plotly — deeptools "
                         "plotFileFormat set). Repeatable. Default: png.")
-    # GTF-based region generation
     p.add_argument("--gtf", default="", help="GTF annotation file (generates regions on the fly)")
     p.add_argument("--region-mode", default="", choices=["tss", "genes", ""],
                    help="Region generation mode: tss or genes")
@@ -176,7 +159,6 @@ def main():
                    choices=["gene_name", "gene_id", "family_id", "class_id"],
                    help="GTF attribute to match gene names")
     p.add_argument("--merge", action="store_true", help="Merge features into single region per gene")
-    # computeMatrix params
     p.add_argument("--computeMatrix", default="computeMatrix")
     p.add_argument("--mode", default="reference-point")
     p.add_argument("--reference-point", default="center")
@@ -190,7 +172,6 @@ def main():
     p.add_argument("--top-n", type=int, default=0)
     p.add_argument("--threads", type=int, default=4)
     p.add_argument("--no-missing-as-zero", action="store_true")
-    # plotHeatmap params
     p.add_argument("--plotHeatmap", default="plotHeatmap")
     p.add_argument("--title", default="")
     p.add_argument("--color-map", default="YlOrRd")
@@ -198,12 +179,10 @@ def main():
     p.add_argument("--width", type=int, default=8)
     p.add_argument("--what-to-show", default="plot, heatmap and colorbar")
     p.add_argument("--dpi", type=int, default=300)
-    # Keep intermediate files
     p.add_argument("--keep-matrix", default="", help="If set, save matrix.gz to this path")
     p.add_argument("--keep-regions-bed", default="", help="If set, save generated BED to this path")
     args = p.parse_args()
 
-    # --- Image formats (fail fast; tool set, not matplotlib's) ---
     image_formats = args.formats if args.formats else ["png"]
     bad = [f for f in image_formats if f not in VALID_FORMATS]
     if bad:
@@ -211,12 +190,10 @@ def main():
             f"Unsupported image format(s): {', '.join(bad)}; "
             f"valid: {', '.join(VALID_FORMATS)}")
 
-    # --- Resolve regions BED ---
     regions_file = args.regions
     generated_bed = None
 
     if args.gtf and args.region_mode:
-        # Generate BED from GTF on the fly
         if args.keep_regions_bed:
             bed_path = args.keep_regions_bed
         else:
@@ -234,7 +211,6 @@ def main():
         logger.error("Either --regions or --gtf + --region-mode is required.")
         sys.exit(1)
 
-    # --- Select top N peaks ---
     top_bed = None
     if args.top_n > 0:
         logger.info(f"Selecting top {args.top_n} peaks by score")
@@ -243,8 +219,6 @@ def main():
                        shell=True, check=True)
         regions_file = top_bed
 
-    # --- computeMatrix ---
-    # Include gene name or mode in matrix path to avoid overwrites when running in parallel
     matrix_label = args.gene_names[0] if args.gene_names else args.region_mode or "regions"
     matrix_path = args.keep_matrix or tempfile.mktemp(suffix=f"_{matrix_label}_matrix.gz")
     signals = [args.ip_bigwig]
@@ -277,8 +251,6 @@ def main():
     run_cmd(cm_cmd)
     logger.info(f"Matrix: {matrix_path}")
 
-    # --- plotHeatmap (once per requested format; matrix computed once) ---
-    # Label: use sample name from ratio bigwig filename
     sample_label = os.path.splitext(os.path.basename(args.ip_bigwig))[0].replace("_IP_over_Input", "")
     for fmt in image_formats:
         out_path = f"{args.output}.{fmt}"
@@ -300,7 +272,6 @@ def main():
         run_cmd(ph_cmd)
         logger.info(f"Heatmap: {out_path}")
 
-    # --- Cleanup ---
     if not args.keep_matrix and os.path.exists(matrix_path):
         os.unlink(matrix_path)
     if top_bed and os.path.exists(top_bed):

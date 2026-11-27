@@ -6,9 +6,6 @@ import glob
 import matplotlib.patches as mpatches
 from scipy.stats import chi2_contingency
 import numpy as np
-# -----------------------------
-# 函数1：统计单个 CSV 文件 Func.refGene 突变类型
-# -----------------------------
 def count_mutation_types(file_path: Union[str, Path]) -> pd.Series:
     df = pd.read_csv(file_path)
     if 'Func.refGene' not in df.columns:
@@ -16,9 +13,6 @@ def count_mutation_types(file_path: Union[str, Path]) -> pd.Series:
     return df['Func.refGene'].value_counts()
 
 
-# -----------------------------
-# 函数2：统计多样本，支持单样本
-# -----------------------------
 def count_mutation_types_multiple(files: List[Union[str, Path]]) -> pd.DataFrame:
     all_counts = []
     sample_names = []
@@ -35,9 +29,6 @@ def count_mutation_types_multiple(files: List[Union[str, Path]]) -> pd.DataFrame
     return df_counts.fillna(0).astype(int)
 
 
-# -----------------------------
-# 函数3：绘图（支持 x 轴彩色标签 + 样本分组图例）
-# -----------------------------
 def plot_mutation_distribution_multi(
         df_counts: pd.DataFrame,
         xlabels: List[str] = None,
@@ -59,10 +50,8 @@ def plot_mutation_distribution_multi(
 
     fig, ax = plt.subplots(figsize=figsize)
 
-    # ======== 右侧预留空间给图例 ========
     fig.subplots_adjust(right=1 - legend_width,bottom=0.2)
 
-    # 堆叠柱状图
     df_prop.T.plot(
         kind="bar",
         stacked=True,
@@ -75,9 +64,6 @@ def plot_mutation_distribution_multi(
 
     n_samples = df_counts.shape[1]
 
-    # -------------------------------
-    # X 轴标签设置
-    # -------------------------------
     if xlabels is None:
         xlabels = df_counts.columns.tolist()
 
@@ -86,9 +72,6 @@ def plot_mutation_distribution_multi(
 
     xlabel_colors = ["black"] * n_samples
 
-    # -------------------------------
-    # 根据分组上色
-    # -------------------------------
     if groups is not None:
         if len(groups) != n_samples:
             raise ValueError("groups 长度必须与样本数量一致")
@@ -100,13 +83,9 @@ def plot_mutation_distribution_multi(
 
         xlabel_colors = [group_colors[g] for g in groups]
 
-    # 设置 x 轴颜色
     for label, c in zip(ax.get_xticklabels(), xlabel_colors):
         label.set_color(c)
 
-    # -------------------------------
-    # 第一个图例：突变类型
-    # -------------------------------
     mutation_types = df_prop.index.tolist()
     cmap = plt.get_cmap("tab20")
     mutation_patches = [
@@ -125,9 +104,6 @@ def plot_mutation_distribution_multi(
     )
     ax.add_artist(legend1)
 
-    # -------------------------------
-    # 第二个图例：样本分组
-    # -------------------------------
     if groups is not None:
         unique_groups = sorted(set(groups))
         group_patches = [
@@ -145,18 +121,16 @@ def plot_mutation_distribution_multi(
         )
     if comparisons is not None and p_values is not None:
         ymax = df_prop.sum(axis=0).max()
-        y_offset = 0.06 * ymax  # 每条横线的垂直间隔
-        line_height = 0.02 * ymax  # 横线高度
+        y_offset = 0.06 * ymax
+        line_height = 0.02 * ymax
 
         for idx, (comp_name, items) in enumerate(comparisons.items()):
             if len(items) < 2:
                 continue
 
-            # 获取柱子中心位置
             x_pos = []
             for it in items:
                 if group_map is not None and it in group_map:
-                    # 组内样本均值位置
                     cols = group_map[it]
                     x_center = sum([df_counts.columns.get_loc(c) for c in cols])/len(cols)
                     x_pos.append(x_center)
@@ -167,14 +141,11 @@ def plot_mutation_distribution_multi(
             x_end = max(x_pos)
             y = 1.05*ymax + idx*y_offset
 
-            # 横线
             ax.plot([x_start, x_end], [y, y], color='black', linewidth=1.2)
 
-            # 竖线短线连接到柱子上
             ax.plot([x_start, x_start], [y - line_height, y], color='black', linewidth=1.2)
             ax.plot([x_end, x_end], [y - line_height, y], color='black', linewidth=1.2)
 
-            # 星号标记
             p = p_values.get(comp_name, 1)
             if p < 0.001:
                 sig_label = "***"
@@ -216,15 +187,12 @@ def chi2_tests(df_counts: pd.DataFrame, comparisons: Dict[str, List[str]],
     print(df_prop)
     for comp_name, items in comparisons.items():
         if group_map is not None:
-            # items 可能是组名
             samples = []
             for item in items:
                 if item in group_map:
-                    # 跨组比较：取组内样本平均比例
                     cols = group_map[item]
                     samples.append(df_prop[cols].mean(axis=1))
                 else:
-                    # 单样本
                     samples.append(df_prop[item])
             table = pd.concat(samples, axis=1)
             table.columns = items
@@ -234,7 +202,6 @@ def chi2_tests(df_counts: pd.DataFrame, comparisons: Dict[str, List[str]],
         if table.shape[1] < 2:
             raise ValueError(f"比较 {comp_name} 必须至少包含两个样本/组合")
 
-        # 卡方检验
         chi2, p, _, _ = chi2_contingency(table)
         p_values[comp_name] = p
 
@@ -261,11 +228,9 @@ def proportion_permutation_test(df_counts: pd.DataFrame,
     rng = np.random.default_rng(random_state)
     p_values = {}
     
-    # 计算比例
     df_prop = df_counts.div(df_counts.sum(axis=0), axis=1)
     
     for comp_name, items in comparisons.items():
-        # 提取样本比例
         samples = []
         for item in items:
             if group_map is not None and item in group_map:
@@ -274,17 +239,14 @@ def proportion_permutation_test(df_counts: pd.DataFrame,
             else:
                 samples.append(df_prop[item])
         
-        # 构造一个矩阵，行=功能区，列=样本/组合
         table = pd.concat(samples, axis=1)
         
-        # 统计差异：这里用每列平均值的差异总和作为 statistic
         obs_stat = 0
         n_cols = table.shape[1]
         for i in range(n_cols):
             for j in range(i+1, n_cols):
                 obs_stat += np.sum(np.abs(table.iloc[:, i] - table.iloc[:, j]))
         
-        # permutation
         combined = table.values.flatten()
         count = 0
         for _ in range(n_permutations):
@@ -316,18 +278,16 @@ if __name__ == "__main__":
     print(df_counts)
     xlabels = [Path(f).parent.parent.name for f in files_sorted]
 
-    # 假设你根据文件名区分人（GRCh38）和鼠（GRCm39）
     groups = ["Human" if "GRCh38" in f else "Mouse" for f in files_sorted]
     print(groups)
-    # 可自定义颜色（也可以不传，会自动生成）
     group_colors = {
         "Human": "red",
         "Mouse": "blue"
     }
     comparisons = {
-        "Mouse": ["TLSC","ciTotiSC"],    # 组内比较
-        "Human": ["ci8CLC","hTBLC"],            # 组内比较
-        "Mouse_vs_Human": ["Mouse","Human"]     # 跨组比较，取组总和
+        "Mouse": ["TLSC","ciTotiSC"],
+        "Human": ["ci8CLC","hTBLC"],
+        "Mouse_vs_Human": ["Mouse","Human"]
     }
     groups_map = {
         "Mouse": ["TLSC","ciTotiSC"],

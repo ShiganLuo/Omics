@@ -48,7 +48,6 @@ def classify(info):
     claim = str(info.get("SVCLAIM", "")).upper()
     svtype = str(info.get("SVTYPE", "")).upper()
     is_cnv = ("D" in claim) or svtype == "CNV"
-    # 无 SVCLAIM 的记录按断点证据兜底(如 BND),但纯 CNV 记录除外
     is_sv = ("J" in claim) or svtype == "BND" or \
         ("SVCLAIM" not in info and svtype != "CNV")
     return is_cnv, is_sv

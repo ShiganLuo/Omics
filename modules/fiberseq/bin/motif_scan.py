@@ -46,15 +46,12 @@ from src.common.util.FiberlibUtil import read_bed, write_tsv  # noqa: E402
 BASES = ("A", "C", "G", "T")
 COMPLEMENT = {"A": "T", "C": "G", "G": "C", "T": "A", "N": "N"}
 
-# Encode A/C/G/T -> 0..3; anything else (N and other IUPAC codes) -> 4,
-# which is scored as -2.0 exactly like the legacy scalar loop.
 _BASE_LUT = np.full(256, 4, dtype=np.uint8)
 for _i, _b in enumerate(BASES):
     _BASE_LUT[ord(_b)] = _i
 
-_CHUNK_BP = 2_000_000  # pseudo-sequence base budget per worker chunk
+_CHUNK_BP = 2_000_000
 
-# Globals inherited by forked workers (avoids re-pickling per task).
 _FASTA_PATH: Optional[str] = None
 _MOTIFS: List[Tuple[str, np.ndarray]] = []
 _THRESHOLD: float = 0.8
@@ -189,7 +186,7 @@ def _scan_chunk(region_chunk: List[Tuple[str, int, int, str]]) -> List[list]:
     seg_ends_a = seg_starts_a + np.asarray(seg_lens, dtype=np.int64)
 
     buckets: List[List[list]] = [[] for _ in region_chunk]
-    for name, ppm in _MOTIFS:  # MEME file order (matches legacy row order)
+    for name, ppm in _MOTIFS:
         scores = pwm_log_odds(ppm)
         L = scores.shape[0]
         for strand, sc in (("+", scores), ("-", revcomp_scores(scores))):
@@ -232,7 +229,7 @@ def run(args: argparse.Namespace) -> int:
     logger.info(f"Loaded {len(motifs)} motifs: {list(motifs)}")
 
     regions = read_bed(str(args.regions))
-    fasta = pysam.FastaFile(str(args.fasta))  # validates FASTA + index early
+    fasta = pysam.FastaFile(str(args.fasta))
     fasta.close()
     _FASTA_PATH = str(args.fasta)
     _MOTIFS = list(motifs.items())

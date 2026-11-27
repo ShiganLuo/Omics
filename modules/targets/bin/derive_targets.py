@@ -77,9 +77,8 @@ def merge_regions(regions, min_gap):
 def intersect_or_majority(per_sample, fraction):
     """Combine per-sample region lists into consensus covered intervals."""
     from collections import defaultdict
-    idx = defaultdict(list)  # (chrom, bucket) -> per-base vote lists are heavy;
-    # instead count regions overlapping via interval sweep on union boundaries
-    events = defaultdict(list)  # chrom -> list of (pos, delta)
+    idx = defaultdict(list)
+    events = defaultdict(list)
     for regions in per_sample:
         for chrom, start, end in regions:
             events[chrom].append((start, 1))
@@ -95,7 +94,6 @@ def intersect_or_majority(per_sample, fraction):
                 consensus.append((chrom, prev_pos, pos))
             depth += delta
             prev_pos = pos
-    # merge touching intervals from the sweep
     out = []
     for chrom, start, end in sorted(consensus):
         if out and out[-1][0] == chrom and start <= out[-1][2]:

@@ -13,12 +13,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Add mimseq source to path
 MIMSEQ_PARENT = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 if MIMSEQ_PARENT not in sys.path:
     sys.path.insert(0, MIMSEQ_PARENT)
 
-# Add bin/ to path for serialize module
 BIN_DIR = os.path.dirname(os.path.dirname(__file__))
 if BIN_DIR not in sys.path:
     sys.path.insert(0, BIN_DIR)
@@ -29,10 +27,6 @@ import mimseq.mmQuant as mmQuant_module
 
 log = logging.getLogger(__name__)
 
-# Plot formats forwarded to the vendored mimseq plotting code through the
-# MIMSEQ_PLOT_FORMATS env var (read around ggsave()/savefig in mimseq/*.R and
-# mimseq/tRNAmap.py; default "pdf" preserves upstream behaviour). Valid set =
-# the R ggsave device set (every entry is also a matplotlib savefig format).
 PLOT_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg", "jpeg")
 
 
@@ -62,12 +56,10 @@ def run_coverage(
 ) -> None:
     """Run coverage calculation and plotting."""
 
-    # Ensure out has trailing /
     if not out.endswith("/"):
         out = out + "/"
     os.makedirs(out, exist_ok=True)
 
-    # Set up logging
     logging.basicConfig(
         format="%(asctime)s [%(levelname)-5.5s] %(message)s",
         level=logging.INFO,
@@ -79,25 +71,19 @@ def run_coverage(
 
     log.info("Starting coverage module")
 
-    # Load states
     align_state = load_align_state(out)
     coverageData = align_state["coverageData"]
 
-    # Load filtered coverage if available
     filtered_cov_path = os.path.join(out, "state", "filtered_cov.pkl")
     filtered_cov = load_pickle(filtered_cov_path) if os.path.exists(filtered_cov_path) else []
 
-    # Load cluster state
     cluster_state = load_cluster_state(out)
     unsplitCluster_lookup = cluster_state["unsplitCluster_lookup"]
 
-    # Run coverage calculation
     sorted_aa = getCoverage_module.getCoverage(coverageData, out, control_cond, filtered_cov, unsplitCluster_lookup)
 
-    # Plot coverage
     getCoverage_module.plotCoverage(out, mito_trnas, sorted_aa)
 
-    # CCA analysis
     if cca:
         cca_dir = os.path.join(out, "CCAanalysis")
         cca_file = os.path.join(cca_dir, "AlignedDinucProportions.csv")
@@ -106,7 +92,6 @@ def run_coverage(
         else:
             log.warning(f"CCA data file not found ({cca_file}), skipping CCA plot")
 
-    # Modification plots (non-fatal — mods data may not exist yet with remap=True)
     script_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "mimseq")
     mods_dir = os.path.join(out, "mods")
     if os.path.isdir(mods_dir) and os.listdir(mods_dir):

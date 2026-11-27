@@ -14,8 +14,6 @@ logger = logging.getLogger(__name__)
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
@@ -45,7 +43,6 @@ def Double_bar(df: pd.DataFrame, out_base: str,
     colors_map = {"gene": plt.cm.Dark2, "TE": plt.cm.Pastel1}
 
     total_bars = sum(df[df["group"] == g].shape[0] for g in groups)
-    # 最小宽度保证少量数据也不太窄
     fig_width = max(fig_width, total_bars * 0.5)
     fig_height = max(fig_height, 6)
 
@@ -66,18 +63,16 @@ def Double_bar(df: pd.DataFrame, out_base: str,
         colors = colors_map[group](np.linspace(0, 1, n))
         for i, (feat, cnt) in enumerate(zip(group_df["feature"], group_df["count"])):
             ax.bar(start + i, cnt, color=colors[i])
-            # 相对 y_max 偏移，自动适应
             ax.text(start + i, cnt + 0.02 * y_max, f"{cnt:.0f}", ha="center", va="bottom", fontsize=9,rotation=60)
 
         xticks.extend(range(start, start + n))
         xlabels.extend(group_df["feature"])
 
-        # group 横线，文字用 transform 固定在轴坐标系
         ax.hlines(y=y_max * 0.95, xmin=start, xmax=start + n - 1, color="black", linewidth=1.5)
         ax.text(start + (n - 1)/2, 0.96, group, ha="center", va="bottom",
                 fontsize=12, transform=ax.get_xaxis_transform())
 
-        start += n + 2  # 每组间隔
+        start += n + 2
 
     ax.set_xticks(xticks)
     ax.set_xticklabels(xlabels, rotation=45, ha="right", fontsize=10)
@@ -85,7 +80,6 @@ def Double_bar(df: pd.DataFrame, out_base: str,
     ax.set_ylim(0, y_max)
     ax.set_ylabel("Average Count", fontsize=12)
 
-    # 动态底部留白，防止 xlabels 被遮挡
     bottom_margin = max(0.2, min(0.3, 0.05 * total_bars))
     plt.subplots_adjust(bottom=bottom_margin)
 
@@ -117,9 +111,8 @@ def process_group(
     """
     logger.info(f"Processing group with samples: {samples}, min_count: {min_count}, top_n: {top_n}")
     df = df.copy()
-    df["is_TE"] = df.iloc[:,0].str.contains(r":")  # 含冒号视为TE
-    df.to_csv("debug_input.csv", index=False)  # 输出中间文件，便于调试
-    # 先处理基因
+    df["is_TE"] = df.iloc[:,0].str.contains(r":")
+    df.to_csv("debug_input.csv", index=False)
     gene_df = df[~df["is_TE"]].copy()
     gene_df["feature"] = gene_df.iloc[:,0]
     gene_df = gene_df[samples + ["feature"]]
@@ -130,11 +123,10 @@ def process_group(
     gene_df = gene_df.sort_values("count", ascending=False).head(top_n)
 
 
-    # 处理TE
     te_df = df[df["is_TE"]].copy()
     te_df["feature"] = te_df.iloc[:,0].str.split(":").str[extract_te_index]
     te_df = te_df[samples + ["feature"]]
-    te_df = te_df.groupby("feature")[samples].sum().reset_index()  # 同亚家族合并
+    te_df = te_df.groupby("feature")[samples].sum().reset_index()
     te_df = te_df[te_df[samples].apply(lambda x: all(x > min_count), axis=1)]
     te_df["count"] = te_df[samples].mean(axis=1)
     te_df["group"] = "TE"

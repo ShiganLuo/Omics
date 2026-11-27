@@ -3,11 +3,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 def somatic_mutation_analysis_by_group(
-    vcf_files,           # 样本名: VCF 文件字典
-    sample_groups,       # 样本名:组字典，例如 {"SL_3":"SL","SL_5":"SL"}
-    output_prefix,       # 输出前缀
-    qual_threshold=30,   # 质量阈值
-    filter_pass=True,    # 是否只保留 FILTER==PASS
+    vcf_files,
+    sample_groups,
+    output_prefix,
+    qual_threshold=30,
+    filter_pass=True,
     save_csv=True
 ):
     """
@@ -20,20 +20,13 @@ def somatic_mutation_analysis_by_group(
     all_df = []
     for sample, vcf_file in vcf_files.items():
         df = pd.read_csv(vcf_file, sep="\t")
-        # 过滤 SNV
         df = df[(df['REF'].str.len()==1) & (df['ALT'].str.len()==1)]
-        # if filter_pass:
-        #     df = df[df['FILTER']=='PASS']
-        # df = df[df['QUAL']>qual_threshold]
         df['Sample'] = sample
         df['Group'] = sample_groups[sample]
         all_df.append(df)
 
     df_grouped = pd.concat(all_df, ignore_index=True)
 
-    # -----------------------------
-    # 1. 基因区域分布
-    # -----------------------------
     gene_func_count = df_grouped.groupby(['Group','ExonicFunc','GeneName']).size().reset_index(name='Count')
     exonic_func_count = df_grouped.groupby(['Group','ExonicFunc']).size().reset_index(name='Count')
 
@@ -47,9 +40,6 @@ def somatic_mutation_analysis_by_group(
     plt.savefig(f"{output_prefix}_mutation_by_exonicfunc_grouped.png", dpi=300)
     plt.close()
 
-    # -----------------------------
-    # 2. 重复序列分布分析
-    # -----------------------------
     df_grouped['RepeatStatus'] = df_grouped['Repeat'].apply(lambda x: 'Repeat' if pd.notna(x) else 'Non-Repeat')
     repeat_count = df_grouped.groupby(['Group','RepeatStatus']).size().reset_index(name='Count')
 
@@ -62,9 +52,6 @@ def somatic_mutation_analysis_by_group(
     plt.savefig(f"{output_prefix}_mutation_repeat_distribution_grouped.png", dpi=300)
     plt.close()
 
-    # -----------------------------
-    # 3. 疾病/功能通路富集分析
-    # -----------------------------
     def plot_top_terms_grouped(df, col, title, filename, top_n=20):
         df_exp = df[['Group', col]].dropna()
         df_exp = df_exp.assign(Term=df_exp[col].str.split(';')).explode('Term')
@@ -86,9 +73,6 @@ def somatic_mutation_analysis_by_group(
     kegg_count = plot_top_terms_grouped(df_grouped, 'KEGG_PATHWAY', 'KEGG Pathway', f"{output_prefix}_kegg_top20_grouped.png")
     reactome_count = plot_top_terms_grouped(df_grouped, 'REACTOME_PATHWAY', 'Reactome Pathway', f"{output_prefix}_reactome_top20_grouped.png")
 
-    # -----------------------------
-    # 保存统计表
-    # -----------------------------
     if save_csv:
         gene_func_count.to_csv(f"{output_prefix}_gene_func_count_grouped.csv", index=False)
         repeat_count.to_csv(f"{output_prefix}_repeat_count_grouped.csv", index=False)

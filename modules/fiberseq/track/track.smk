@@ -33,7 +33,6 @@ rule fiberseq_track_run:
         sif("../fiberseq.yaml", "fiberseq_track_run")
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/fiberseq_track.py",
-        # 参数精确到 rule:Params.fiberseq_track.fiberseq_track_run.<key>(config 全量路径读取)
         bin = config.get("Params", {}).get("fiberseq_track", {}).get("fiberseq_track_run", {}).get("bin", 10),
     run:
         log_path = str(log)
@@ -45,10 +44,7 @@ rule fiberseq_track_run:
             sample_outdir = os.path.dirname(str(output.acc_bw))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"fiberseq_track_run_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
-            # timestamped copy stays in log/cmd as history; the outdir copy
-            # (no timestamp, overwritten each run) documents the current command
-            # next to the results it produced
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"fiberseq_track_run_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.script,
@@ -67,7 +63,7 @@ rule fiberseq_track_run:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "fiberseq_track_run for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

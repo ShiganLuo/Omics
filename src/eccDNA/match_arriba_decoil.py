@@ -31,7 +31,7 @@ import logging
 import os
 import sys
 
-LogUtil = None  # set up below; scripts in this repo use src.common.util.LogUtil
+LogUtil = None
 
 logging.basicConfig(
     level=logging.INFO,
@@ -172,7 +172,7 @@ def main(argv: list[str] | None = None) -> int:
     for fusion in fusions:
         for side, bp in (("breakpoint1", fusion["bp1"]), ("breakpoint2", fusion["bp2"])):
             hits = match_breakpoint_to_fragments(bp, fragments, args.window)
-            for hit in hits[:5]:  # cap per-breakpoint reporting at 5 nearest fragments
+            for hit in hits[:5]:
                 row = {
                     "fusion_genes": f"{fusion['gene1']}--{fusion['gene2']}",
                     "fusion_source": fusion["source"],
@@ -213,9 +213,6 @@ def main(argv: list[str] | None = None) -> int:
             if "passed" in agg["sources"]:
                 evidence = "fusion_breakpoint_on_ecDNA"
             else:
-                # discarded-only hits come from Arriba's min_support rejects
-                # (hundreds of thousands of noise chimeras); treat as
-                # noise-prone, do not claim expression from these alone.
                 evidence = "discarded_only_noise_prone"
             fh.write(f"{circ_id}\t{len(agg['fusions'])}\t{agg['min_distance']}\t"
                      f"{';'.join(sorted(agg['fusions']))}\t{';'.join(sorted(agg['sources']))}\t"

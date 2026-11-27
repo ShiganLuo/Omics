@@ -47,7 +47,6 @@ def _run_cmd_p36(cmd: List[str]) -> str:
 
     logger.info(f"Running: {cmd_str}")
 
-    # Precheck: is command available?
     if shutil.which(cmd_bin) is None:
         logger.error(f"Command not found: '{cmd_bin}'")
         logger.error("Please make sure it is installed and in $PATH")
@@ -62,7 +61,6 @@ def _run_cmd_p36(cmd: List[str]) -> str:
         stdout_bytes, stderr_bytes = result.communicate()
         retcode = result.returncode
 
-        # decode bytes to str
         stdout = stdout_bytes.decode("utf-8") if stdout_bytes else ""
         stderr = stderr_bytes.decode("utf-8") if stderr_bytes else ""
 
@@ -112,10 +110,6 @@ def _sanitized_env(cmd: List[str]) -> dict:
     if cfg_tmp:
         os.makedirs(cfg_tmp, exist_ok=True)
         env["TMPDIR"] = cfg_tmp
-    # Per-process resource caps (方案 A clamp): common.smk's rule_res clamps
-    # declared mem_mb/threads against these. Snakemake module configs are
-    # hand-assembled per module and carry no resource_caps, so the caps also
-    # travel via env; both channels hold the same value from this configfile.
     if isinstance(_cfg, dict) and _cfg.get("resource_caps"):
         env["OMICS_RESOURCE_CAPS"] = _json.dumps(_cfg["resource_caps"])
     return env
@@ -132,14 +126,11 @@ def _run_cmd(cmd:List, cwd: Optional[str] = None) -> str:
 
     logger.info(f"Running: {cmd_str}")
 
-    # precheck：is command available?
     if shutil.which(cmd_bin) is None:
         logger.error(f"Command not found: '{cmd_bin}'")
         logger.error("Please make sure it is installed and in $PATH")
         raise RuntimeError(f"Command not found: {cmd_bin}")
 
-    # 受管子进程(自成进程组,见 ProcessUtil 设计约定)。
-    # 不变量:函数返回或抛出时不留活子进程——finally 里统一收口。
     p = launch_managed(cmd, cwd=cwd, env=_sanitized_env(cmd))
     try:
         stdout, stderr = p.communicate()
@@ -148,16 +139,12 @@ def _run_cmd(cmd:List, cwd: Optional[str] = None) -> str:
 
     if p.returncode != 0:
         if p.returncode in (-2, 130):
-            # 子进程死于 SIGINT(rc=-2)或按约定以 130 退出 = 人为中断,
-            # 走 KeyboardInterrupt 统一路径,不要伪装成"命令执行失败"。
             raise KeyboardInterrupt(
                 f"child process interrupted by SIGINT (rc={p.returncode}): {cmd_str}"
             ) from None
         logger.error(f"Command failed with return code {p.returncode}")
         logger.error(f"STDOUT:\n{stdout or '[empty]'}")
         logger.error(f"STDERR:\n{stderr or '[empty]'}")
-        # cause 携带 stdout/stderr:run.py --test 的 _missing_outputs_only
-        # 依赖 __cause__ 判定 MissingOutputException,勿改其类型。
         raise RuntimeError(
             f"Command execution failed: {cmd_str}"
         ) from subprocess.CalledProcessError(
@@ -206,13 +193,10 @@ def _run_cmds_parallel(cmds: List) -> List[str]:
                     logger.info(f"Process {i} output:\n{stdout}")
                 results.append(stdout)
     finally:
-        # 不变量:函数返回或抛出时不留活子进程(异常路径=分级终止,
-        # 见 ProcessUtil 设计约定)。
         terminate_all_children(logger=logger)
 
     if failed:
         if any(processes[idx].returncode in (-2, 130) for idx, _, _ in failed):
-            # 有子进程死于 SIGINT = 人为中断,走 KeyboardInterrupt 统一路径。
             raise KeyboardInterrupt(
                 f"parallel child interrupted by SIGINT "
                 f"(rc={[processes[idx].returncode for idx, _, _ in failed]})"

@@ -28,7 +28,6 @@ cat_fastqc <- function(x,
     fastqc <- "/opt/fastqc/0.11.9/bin/fastqc"
     hp_check_file(fastqc)
   }
-  # x可以是Hephaestus对象，也可以是一个fastq文件路径
   if (class(x) == "Hephaestus") {
     board <- x@board
     fastq <- c(
@@ -51,7 +50,6 @@ cat_fastqc <- function(x,
     input <- x
   }
   outdir <- hp_set_path(outdir)
-  # prefix <- cat_filename(input)
   prefix <- basename(gsub(".fastq.gz|.fq.gz", "", input))
   output <- file.path(outdir, paste0(prefix, "_fastqc.html"))
   adata <- data.frame(prefix = prefix,
@@ -69,14 +67,12 @@ cat_fastqc <- function(x,
       ncores <- 20
     }
     log_info("Data quality assessment on {n} files using {ncores} threads")
-    # tic(msg = "Data quality assessment")
     system2(
       command = fastqc,
       args = c("--outdir", outdir,
                "--threads", ncores,
                input)
     )
-    # toc()
   }
   if (class(x) == "Hephaestus") {
     for (i in fastq) {
@@ -134,13 +130,9 @@ cat_trim_galore <- function(x = NULL,
     hp_check_file(cutadapt)
   }
 
-  # outdir
   outdir <- hp_set_path(file.path(x@outdir, "clean"))
-  # board
   board <- x@board
-  # sample name
   sample_name <- x$sample
-  # input
   input_r1 <- board$input_r1
   input_r2 <- board$input_r2
   input_basename <- paste(sample_name, "input", sep = "_")
@@ -148,7 +140,6 @@ cat_trim_galore <- function(x = NULL,
     file.path(outdir, paste(input_basename, "val_1.fq.gz", sep = "_"))
   input_clean_r2 <-
     file.path(outdir, paste(input_basename, "val_2.fq.gz", sep = "_"))
-  # ip
   if (all(c("ip_r1", "ip_r2") %in% colnames(board))) {
     ip_r1 <- board$ip_r1
     ip_r2 <- board$ip_r2
@@ -170,9 +161,6 @@ cat_trim_galore <- function(x = NULL,
   r2 <- c(input_r2, ip_r2)
   clean_r1 <- c(input_clean_r1, ip_clean_r1)
   clean_r2 <- c(input_clean_r2, ip_clean_r2)
-  # PREFERRED_NAME_val_1.fq(.gz) and PREFERRED_NAME_val_2.fq(.gz)
-  # sample_name_input_val_1.fq.gz
-  # sample_name_ip_val_1.fq.gz
   for (i in seq_along(basename)) {
     temp_r1 <- r1[i]
     temp_r2 <- r2[i]
@@ -181,9 +169,6 @@ cat_trim_galore <- function(x = NULL,
       system2(
         command = trim_galore,
         args = c(
-          # "--fastqc",
-          # "--fastqc_args",
-          # fastqc_args,
           "--basename",
           basename[i],
           "--cores",
@@ -237,7 +222,6 @@ cat_samtools <-
       hp_check_file(samtools)
     }
     match.arg(arg = command, choices = c("view", "sort", "index"))
-    # veiw
     if (command == "view") {
       system2(
         command = samtools,
@@ -258,7 +242,6 @@ cat_samtools <-
         )
       )
     }
-    # sort
     if (command == "sort") {
       system2(
         command = samtools,
@@ -270,7 +253,6 @@ cat_samtools <-
                  sam)
       )
     }
-    # index
     if (command == "index") {
       system2(command = samtools,
               args = c(command,
@@ -303,13 +285,11 @@ cat_hisat2 <- function(x,
                        ncores = 5,
                        workers = "auto",
                        outdir = "./align") {
-  # software
   if (is.null(hisat2)) {
     hisat2 <- "/opt/hisat2/0.2.2/bin/hisat2"
     hp_check_file(hisat2)
   }
 
-  # index
   if (is.null(index)) {
     if (species == "human") {
       index <- "/DATA/public/index/hisat2/homo_sapiens/GRCh38.p13/genome"
@@ -320,16 +300,12 @@ cat_hisat2 <- function(x,
   hp_check_file(paste0(index, ".1.ht2"))
 
   if (class(x) == "Hephaestus") {
-    # outdir
     outdir <- hp_set_path(file.path(x@outdir, "align"))
-    # sample name
     sample <- x$sample
-    # input
     input_clean_r1 <- x@board$input_clean_r1
     input_clean_r2 <- x@board$input_clean_r2
     input_sample <- paste(sample, "input", sep = "_")
     input_sam <- file.path(outdir, paste0(input_sample, ".sam"))
-    # ip
     if (all(c("ip_clean_r1", "ip_clean_r1") %in% colnames(x@board))) {
       ip_clean_r1 <- x@board$ip_clean_r1
       ip_clean_r2 <- x@board$ip_clean_r2
@@ -348,9 +324,6 @@ cat_hisat2 <- function(x,
   } else {
     stop("I'm not hephaestus!")
   }
-  # print(clean_r1)
-  # print(clean_r2)
-  # Set a "plan" for how the code should run.
   n <- length(sam[!file.exists(sam)])
   if (n > 0) {
     if (workers == "auto" && n <= 4) {
@@ -362,12 +335,10 @@ cat_hisat2 <- function(x,
     log_info("Use {workers} workers, each assigned {ncores} cores...")
     plan(multisession, workers = workers)
   }
-  # This does run in parallel!
   future_walk(
     .x = seq_along(sample),
     .f = function(i) {
       if (!file.exists(sam[i])) {
-        # log_info("{sample[i]} start aligning to genomes...")
         system2(
           command = hisat2,
           args = c(
@@ -391,8 +362,6 @@ cat_hisat2 <- function(x,
       }
     }
   )
-  # log_tictoc("{n} samples aligned completed!")
-  # mapping rate
   input_mapping_rate <- sapply(input_sample, function(i) {
     mapping_rate <-
       read.table(file = file.path(outdir, paste0(i, ".summary.txt")),
@@ -440,25 +409,19 @@ cat_sambamba <- function(x,
                          format = "bam",
                          remove_duplicates = FALSE,
                          workers = "auto") {
-  # software
   if (is.null(sambamba)) {
     sambamba <- "/opt/sambamba/1.0/bin/sambamba"
     hp_check_file(sambamba)
   }
 
-  # config
   if (class(x) == "Hephaestus") {
-    # outdir
     outdir <- hp_set_path(file.path(x@outdir, "align"))
-    # sample name
     sample <- x$sample
-    # quality
     if (!is.null(quality)) {
       quality_label <- paste0(".quality", quality)
     } else {
       quality_label <- NULL
     }
-    # input
     input_sample <- paste(sample, "input", sep = "_")
     input_sam <-
       file.path(outdir, paste0(input_sample, ".sam"))
@@ -472,7 +435,6 @@ cat_sambamba <- function(x,
                          ".rmdup"
                        },
                        ".sorted.bam"))
-    # ip
     if ("ip_sam" %in% colnames(x@board)) {
       ip_sample <- paste(sample, "ip", sep = "_")
       ip_sam <- file.path(outdir, paste0(ip_sample, ".sam"))
@@ -500,7 +462,6 @@ cat_sambamba <- function(x,
     stop("I'm not hephaestus!")
   }
 
-  # Set a "plan" for how the code should run.
   n <- length(sorted_bam[!file.exists(sorted_bam)])
   if (n > 0) {
     if (workers == "auto" && n <= 4) {
@@ -512,19 +473,14 @@ cat_sambamba <- function(x,
     log_info("Use {workers} workers...")
     plan(multisession, workers = workers)
   }
-  # run
   furrr::future_walk(
     .x = seq_along(sample),
     .f = function(i) {
-      # sam to bam
       if (!file.exists(bam[i])) {
-        # log_info("Convert {sample[i]} SAM file to BAM file...")
         system2(
           command = sambamba,
           args = c(
             "view",
-            # "--nthreads",
-            # ncores,
             "--format",
             format,
             if (!is.null(quality)) {
@@ -540,7 +496,6 @@ cat_sambamba <- function(x,
           stderr = NULL
         )
       }
-      # remove duplicate
       if (remove_duplicates) {
         x <- bam[i]
         rmdup_bam <- gsub(pattern = ".bam",
@@ -548,13 +503,10 @@ cat_sambamba <- function(x,
                           x = x)
         bam[i] <- rmdup_bam
         if (!file.exists(rmdup_bam)) {
-          # log_info("Remove {sample[i]} duplicates...")
           system2(
             command = sambamba,
             args = c("markdup",
                      "--remove-duplicates",
-                     # "--nthreads",
-                     # ncores,
                      x,
                      rmdup_bam),
             stdout = NULL,
@@ -562,14 +514,10 @@ cat_sambamba <- function(x,
           )
         }
       }
-      # bam sorted
       if (!file.exists(sorted_bam[i])) {
-        # log_info("Start to sort {sample[i]} BAM genomic coordinates...")
         system2(
           command = sambamba,
           args = c("sort",
-                   # "--nthreads",
-                   # ncores,
                    bam[i]),
           stdout = NULL,
           stderr = NULL
@@ -577,7 +525,6 @@ cat_sambamba <- function(x,
       }
     }
   )
-  # log_tictoc("{n} samples process completed!")
 
   x@board$input_bam <- input_sorted_bam
   if ("ip_sam" %in% colnames(x@board)) {
@@ -616,7 +563,6 @@ cat_align <- function(x = NULL,
                       ncores = 8,
                       workers = "auto",
                       outdir = "./align") {
-  # hisat2
   x <-
     cat_hisat2(
       x = x,
@@ -627,7 +573,6 @@ cat_align <- function(x = NULL,
       ncores = ncores,
       workers = workers
     )
-  # sambamba
   x <- cat_sambamba(
     x = x,
     sambamba = sambamba,
@@ -769,7 +714,6 @@ cat_rmats <- function(x = NULL,
     rmats <- "/opt/rmats/4.1.2/bin/rmats.py"
     hp_check_file(rmats)
   }
-  # Get python path
   if (is.null(python)) {
     python <- file.path(dirname(rmats), "python")
     hp_check_file(python)
@@ -799,8 +743,6 @@ cat_rmats <- function(x = NULL,
         "/DATA/public/genome/mus_musculus/GRCm39/gencode.vM31.annotation.gtf"
     }
   }
-  # Preprocessing
-  # b1
   if (!is.null(control)) {
     if (all(file.exists(control))) {
       b1 <- file.path(outdir, "b1.txt")
@@ -820,7 +762,6 @@ cat_rmats <- function(x = NULL,
       )
     }
   }
-  # b2
   if (!is.null(treatment)) {
     if (all(file.exists(treatment))) {
       b2 <- file.path(outdir, "b2.txt")
@@ -842,7 +783,6 @@ cat_rmats <- function(x = NULL,
   }
   summary_file <- file.path(outdir, "rmats_summary.tsv")
   if (!file.exists(summary_file)) {
-    # rmats
     system2(
       command = python,
       args = c(
@@ -871,7 +811,6 @@ cat_rmats <- function(x = NULL,
       )
     )
 
-    # Organize results
     as_events <- c("SE", "A5SS", "A3SS", "MXE", "RI")
     adata <- map_dfr(as_events, function(x) {
       read.delim(file.path(outdir,
@@ -986,8 +925,6 @@ cat_rmats <- function(x = NULL,
       file.path(outdir, "mapping_bam_location_with_depth.txt")
     summary_file <- file.path(outdir, "dapars2_summary.csv")
     if (!file.exists(summary_file)) {
-      # pre-processing
-      # run
       log_info("Convert Bam files into bedgraph format using bedtools...")
       depth_list <- lapply(bam, function(i) {
         if (is.null(sample_name)) {
@@ -1068,7 +1005,6 @@ cat_rmats <- function(x = NULL,
           chr_list
         )
       )
-      # summary results
       chr <- read.table(chr_list)[, 1]
       adata <- lapply(chr, function(x) {
         read.delim(file.path(
@@ -1155,17 +1091,7 @@ cat_rmats <- function(x = NULL,
       samtools <- "/opt/samtools/1.16.1/bin/samtools"
       hp_check_file(samtools)
     }
-    # if (!is.null(x) && class(x) == "Hephaestus") {
-    #   bam <- x$align_data$bam
-    #   outdir <- file.path(x$outdir, "dapars")
-    # } else {
-    #   bam <- x
-    # }
     wig_path <- hp_set_path(file.path(outdir, "wig"))
-    # script_dir <-
-    #   system.file("script/dapars", package = "hephaestus")
-    # extdata <-
-    #   system.file("extdata/dapars2", package = "hephaestus")
     if (species == "human") {
       annotated_3utr <-
         file.path("/home/lixy/R/x86_64-pc-linux-gnu-library/4.3/hephaestus/inst/extdata/dapars2/hg38.vM43.3UTR.annotation.bed")
@@ -1173,8 +1099,6 @@ cat_rmats <- function(x = NULL,
       annotated_3utr <-
         file.path("/home/lixy/R/x86_64-pc-linux-gnu-library/4.3/hephaestus/inst/extdata/dapars2/mm10.vM25.3UTR.annotation.bed")
     }
-      # pre-processing
-      # run
       log_info("Convert Bam files into bedgraph format using bedtools...")
       control_wigs <- sapply(control_bams, function(i) {
         s_sample_name <- control_sample_names[which(i == control_bams)]
@@ -1200,10 +1124,8 @@ cat_rmats <- function(x = NULL,
         }
         return(wig_filename)
       })
-      # treatment
       treatment_wigs <- sapply(treatment_bams, function(i) {
         s_sample_name <- treatment_sample_names[which(i == treatment_bams)]
-        # wig_filename <- paste0(s_sample_name, ".wig")
         wig_filename <-
           file.path(wig_path, paste0(s_sample_name, ".wig"))
         if (!file.exists(wig_filename)) {
@@ -1267,29 +1189,6 @@ cat_rmats <- function(x = NULL,
       }
       adata <- read.delim(dapars_results_path)
 
-      # system2(command = python,
-      #         args = c(
-      #           "./inst/script/dapars/DaPars_main.py",
-      #           # file.path(script_dir, "DaPars_main.py"),
-      #           dapars2_configure_file_path
-      #         ))
-      #   # summary results
-      #   chr <- read.table(chr_list)[, 1]
-      #   adata <- lapply(chr, function(x) {
-      #     read.delim(file.path(
-      #       outdir,
-      #       paste0("results_", x),
-      #       paste0("dapars2_result_temp.", x, ".txt")
-      #     ))
-      #   })
-      #   adata <- Reduce(f = rbind, x = adata)
-      #   sample_name_index <- 5:ncol(adata)
-      #   if (is.null(sample_name)) {
-      #     colnames(adata)[sample_name_index] <- x$metadata$sample
-      #   } else {
-      #     colnames(adata)[sample_name_index] <- sample_name
-      #   }
-      #
       gene_info <- str_split_fixed(adata$Gene, "\\|", 4)
       adata <- adata |>
         mutate(
@@ -1331,15 +1230,12 @@ fastp <- function(software = NULL,
                   ncores = 3,
                   log = NULL,
                   ...) {
-  # Use Sun's Lab server default software location
   if (is.null(software)) {
     software <- "/opt/fastp/0.23.2/bin/fastp"
   }
-  # check command path
   if (!file.exists(software)) {
     stop(paste0("Command path not found: ", software))
   }
-  # Run external command, and wait until finishes
   log_info("Start running external command:")
   results <- run(
     command = software,
@@ -1391,21 +1287,17 @@ hisat2 <- function(software = NULL,
                    summary_file = NULL,
                    log = NULL,
                    ...) {
-  # Use Sun's Lab server default software location
   if (is.null(software)) {
     software <- "/opt/hisat2/0.2.2/bin/hisat2"
   }
-  # Check command path
   if (!file.exists(software)) {
     stop(paste0("Command path not found: ", software))
   }
-  # Pre-processing
   if (is.null(input_r2)) {
     input <- pv("-U", input_r1)
   } else {
     input <- c("-1", input_r1, "-2", input_r2)
   }
-  # Run external command, and wait until finishes
   log_info("Start running external command:")
   results <- run(
     command = software,
@@ -1452,17 +1344,13 @@ samtools <- function(software = NULL,
                      quality = NULL,
                      log = NULL,
                      ...) {
-  # Use Sun's Lab server default software location
   if (is.null(software)) {
     software <- "/opt/samtools/1.16.1/bin/samtools"
   }
-  # check command path
   if (!file.exists(software)) {
     stop(paste0("Command path not found: ", software))
   }
-  # Run external command, and wait until finishes
   log_info("Start running external command:")
-  # view
   if (command == "view") {
     results <- run(
       command = software,
@@ -1483,7 +1371,6 @@ samtools <- function(software = NULL,
       ...
     )
   }
-  # sort
   if (command == "sort") {
     results <- run(
       command = software,
@@ -1498,7 +1385,6 @@ samtools <- function(software = NULL,
       ...
     )
   }
-  # index
   if (command == "index") {
     results <- run(
       command = software,
@@ -1546,16 +1432,13 @@ picard <- function(software = NULL,
                    remove_duplicates = TRUE,
                    log = NULL,
                    ...) {
-  # Use Sun's Lab server default software location
   if (is.null(software)) {
     software <- "/opt/picard/2.27.5/bin/picard"
   }
-  # check command path
   if (!file.exists(software)) {
     stop(paste0("Command path not found: ", software))
   }
   remove_duplicates <- ifelse(remove_duplicates, "true", "false")
-  # Run external command, and wait until finishes
   log_info("Start running external command:")
   results <- run(
     command = software,
@@ -1599,15 +1482,12 @@ featurecounts <- function(software = NULL,
                           paired = TRUE,
                           ncores = ncores,
                           ...) {
-  # Use Sun's Lab server default software location
   if (is.null(software)) {
     software <- "/opt/subread/2.0.3/bin/featureCounts"
   }
-  # Check command path
   if (!file.exists(software)) {
     stop(paste0("Command path not found: ", software))
   }
-  # Run external command, and wait until finishes
   log_info("Start running external command:")
   results <- run(
     command = software,
@@ -1639,15 +1519,12 @@ stringtie <- function(software = NULL,
                       ncores = 5,
                       log = NULL,
                       ...) {
-  # Use Sun's Lab server default software location
   if (is.null(software)) {
     software <- "/opt/stringtie/2.2.1/bin/stringtie"
   }
-  # check command path
   if (!file.exists(software)) {
     stop(paste0("Command path not found: ", software))
   }
-  # Run external command, and wait until finishes
   log_info("Start running external command:")
   results <- run(
     command = software,
@@ -1684,20 +1561,14 @@ hp_control_quality <- function(x,
                                software = NULL,
                                ncores = 3,
                                workers = "auto") {
-  # Extract data
   method <- "fastp"
-  # outdir
   outdir <- hp_set_path(file.path(x@outdir, "clean"))
-  # board
   board <- x@board
-  # sample name
   sample_name <- x$sample
-  # input
   input_r1 <- extract_column(board, "input_r1")
   input_r2 <- extract_column(board, "input_r2")
   ip_r1 <- extract_column(board, "ip_r1")
   ip_r2 <- extract_column(board, "ip_r2")
-  # output
   input_clean_r1 <-
     generate_output(board,
                     "input_r1",
@@ -1752,7 +1623,6 @@ hp_control_quality <- function(x,
   ip_json <-
     generate_output(board,
                     "ip_r1", outdir, sample_name, "ip", method, "json")
-  # Combine
   combine_r1 <- c(input_r1, ip_r1)
   combine_r2 <- c(input_r2, ip_r2)
   combine_clean_r1 <-
@@ -1762,7 +1632,6 @@ hp_control_quality <- function(x,
   combine_html <- c(input_html, ip_html)
   combine_json <- c(input_json, ip_json)
 
-  # Execute program
   need_to_run <- combine_r1[!file.exists(combine_clean_r1)]
   n <- length(need_to_run)
   if (n > 0) {
@@ -1775,7 +1644,6 @@ hp_control_quality <- function(x,
     log_info("Use {workers} workers, each assigned {ncores} cores...")
     plan(multisession, workers = workers)
   }
-  # This does run in parallel!
   future_walk(
     .x = which(combine_r1 %in% need_to_run),
     .f = function(i) {
@@ -1794,7 +1662,6 @@ hp_control_quality <- function(x,
     },
     .options = furrr_options(seed = TRUE)
   )
-  # Return object
   board <-
     insert_column(board, "input_r1", "input_clean_r1", input_clean_r1)
   board <-
@@ -1837,7 +1704,6 @@ hp_align_read <- function(x,
                           remove_duplicates = FALSE,
                           ncores = 5,
                           workers = "auto") {
-  # index
   if (is.null(index)) {
     if (species == "human") {
       index <- "/DATA/public/index/hisat2/homo_sapiens/GRCh38.p13/genome"
@@ -1847,20 +1713,14 @@ hp_align_read <- function(x,
   }
   hp_check_file(paste0(index, ".1.ht2"))
 
-  # Extract data
   method <- "hisat2"
-  # outdir
   outdir <- hp_set_path(file.path(x@outdir, "align"))
-  # board
   board <- x@board
-  # sample name
   sample_name <- x$sample
-  # input
   input_clean_r1 <- extract_column(board, "input_clean_r1")
   input_clean_r2 <- extract_column(board, "input_clean_r2")
   ip_clean_r1 <- extract_column(board, "ip_clean_r1")
   ip_clean_r2 <- extract_column(board, "ip_clean_r2")
-  # output
   input_sam <-
     generate_output(board,
                     "input_clean_r1",
@@ -1958,7 +1818,6 @@ hp_align_read <- function(x,
                     "ip",
                     method,
                     "summary.txt")
-  # Combine
   combine_clean_r1 <-
     c(input_clean_r1, ip_clean_r1)
   combine_clean_r2 <-
@@ -1970,8 +1829,6 @@ hp_align_read <- function(x,
   combine_rmdup_sorted_bam <-
     c(input_rmdup_sorted_bam, ip_rmdup_sorted_bam)
   combine_metric <- c(input_metric, ip_metric)
-  # print(combine_sorted_bam)
-  # Execute program
   if (remove_duplicates) {
     need_to_run <-
       combine_clean_r1[!file.exists(combine_rmdup_sorted_bam)]
@@ -1989,11 +1846,9 @@ hp_align_read <- function(x,
     log_info("Use {workers} workers, each assigned {ncores} cores...")
     plan(multisession, workers = workers)
   }
-  # This does run in parallel!
   future_walk(
     .x = which(combine_clean_r1 %in% need_to_run),
     .f = function(i) {
-      # align
       if (!file.exists(combine_sam[i])) {
         results <- hisat2(
           software = hisat2,
@@ -2005,17 +1860,6 @@ hp_align_read <- function(x,
           summary_file = combine_summary[i]
         )
       }
-      # sam to bam
-      # if (!file.exists(combine_bam[i])) {
-      #   results <- samtools(
-      #     software = samtools,
-      #     command = "view",
-      #     input = combine_sam[i],
-      #     output = combine_bam[i],
-      #     quality = quality
-      #   )
-      # }
-      # bam sorted
       if (!file.exists(combine_sorted_bam[i])) {
         results <- samtools(
           software = samtools,
@@ -2027,7 +1871,6 @@ hp_align_read <- function(x,
                             command = "index",
                             input = combine_sorted_bam[i],)
       }
-      # rmdup
       print(combine_rmdup_sorted_bam[i])
       if (!file.exists(combine_rmdup_sorted_bam[i]) &&
           remove_duplicates) {
@@ -2044,8 +1887,6 @@ hp_align_read <- function(x,
     },
     .options = furrr_options(seed = TRUE)
   )
-  # Return object
-  # mapping rate
   if ("input_clean_r1" %in% colnames(x@board)) {
     input_mapping_rate <- sapply(input_summary, function(i) {
       mapping_rate <-
@@ -2124,31 +1965,23 @@ hp_quantify_gene <- function(x,
     }
   }
   hp_check_file(gtf)
-  # Extract data
   method <- "featurecounts"
-  # outdir
   outdir <- hp_set_path(file.path(x@outdir, "counts"))
-  # board
   board <- x@board
-  # sample name
   sample_name <- x$sample
-  # input
   input_bam <- extract_column(board, "input_sorted_bam")
   if (all(c("input_r1", "input_r2") %in% colnames(board))) {
     paired <- TRUE
   } else {
     paired <- FALSE
   }
-  # output
   read_counts <-
     file.path(outdir, paste0("counts.", method, ".txt"))
   log <- file.path(outdir, paste0("counts.", method, ".log"))
-  # Execute program
   n <- length(input_bam)
   log_info("{n} samples start quantify gene...")
   log_info("Use {ncores} cores...")
 
-  # This does run in parallel!
   if (!file.exists(read_counts)) {
     results <- featurecounts(
       software = featurecounts,
@@ -2160,7 +1993,6 @@ hp_quantify_gene <- function(x,
       log = log
     )
   }
-  # Return object
   log_adata <- read.delim(log)
   start <-
     str_locate_all(log_adata, "\\(")[[1]][-c(1, 2, 3),][, 2] + 1
@@ -2232,7 +2064,6 @@ hp_compare_difference <- function(x,
       "_vs_",
       control, ".dds.rds"
     )))
-    # 差异基因
     res <-
       DESeq2::results(dds, contrast = c("group", treatment, control))
 
@@ -2287,47 +2118,3 @@ hp_compare_difference <- function(x,
 
 
 
-# detect_significant_APA <- function(data,
-#                                    control_cols,
-#                                    treatment_cols,
-#                                    fdr_threshold = 0.05,
-#                                    mean_diff_threshold = 0.2,
-#                                    mean_fold_change_threshold = 1.5) {
-#   # Calculate PDUIs for control and treatment samples
-#   control_pd_uis <- rowMeans(data[, control_cols])
-#   treatment_pd_uis <- rowMeans(data[, treatment_cols])
-#
-#   # Calculate PDUI differences and fold-changes
-#   pd_diff <- treatment_pd_uis - control_pd_uis
-#   pd_fold_change <- treatment_pd_uis / control_pd_uis
-#
-#   # Perform Fisher's exact test
-#   fisher_p_values <- mapply(function(control_row, treatment_row) {
-#     matrix_data <- matrix(c(control_row["wiL"],
-#                             treatment_row["wiL"],
-#                             control_row["wiS"],
-#                             treatment_row["wiS"]), nrow = 2)
-#     fisher.test(matrix_data)$p.value
-#   }, data[, control_cols], data[, treatment_cols], SIMPLIFY = TRUE)
-#
-#   # Adjust p-values using Benjamini-Hochberg procedure
-#   adjusted_p_values <- p.adjust(fisher_p_values, method = "BH")
-#
-#   # Apply criteria
-#   significant_APA <- adjusted_p_values <= fdr_threshold &
-#     pd_diff >= mean_diff_threshold &
-#     pd_fold_change >= mean_fold_change_threshold
-#
-#   # Create output data frame
-#   output_data <- data.frame(
-#     gene = rownames(data),
-#     control_pd_ui = control_pd_uis,
-#     treatment_pd_ui = treatment_pd_uis,
-#     fold_change = pd_fold_change,
-#     p_value = fisher_p_values,
-#     adjusted_p_value = adjusted_p_values
-#   )
-#
-#   # Return significant APA events
-#   return(output_data[significant_APA, ])
-# }

@@ -26,26 +26,23 @@ class SampleInfo:
     organism: str = "UNKNOWN"
     contaminated_organism: Optional[str] = None
     layout: Layout = Layout.UNKNOWN
-    fastq_1: Optional[str] = None # Path to the first FASTQ file (for SE or PE)
-    fastq_2: Optional[str] = None # Path to the second FASTQ file (for PE)
+    fastq_1: Optional[str] = None
+    fastq_2: Optional[str] = None
     workflow: Optional[str] = None
     group: Optional[str] = None
     design: Optional[str] = None
-    assay: Optional[str] = None  # Sequencing assay type: WGS / Exome / Panel / RNA-seq etc.
-    data_type: Optional[str] = None  # Data type: DNA / RNA. Drives raw staging routing
-                                     # (DNA rows link into {outdir}/DNA/common/1_raw_data,
-                                     # RNA rows into {outdir}/RNA/common/1_raw_data);
-                                     # empty = shared {outdir}/common/1_raw_data.
-    strain: Optional[str] = None  # Mouse strain (e.g. 129P2_OlaHsd) for strain-aware germline filtering
-    pacbio_bam: Optional[str] = None # PacBio BAM file
-    pacbio_pbi: Optional[str] = None # PacBio index file
-    bam: Optional[str] = None # BAM file
-    bai: Optional[str] = None # BAM index file
-    ms_file: Optional[str] = None # Mass Spectrometry file (.raw, .mzML, .mgf, etc.)
-    fastq_dir: Optional[str] = None # Directory containing FASTQ files for scRNA-seq
-    cellranger_dir: Optional[str] = None # Directory containing Cell Ranger output for scRNA-seq
-    sample_prefix: Optional[str] = None # Prefix for FASTQ files in the directory for scRNA-seq
-    tissue: Optional[str] = None # Tissue type for scRNA-seq grouping (e.g. PBMC, brain)
+    assay: Optional[str] = None
+    data_type: Optional[str] = None
+    strain: Optional[str] = None
+    pacbio_bam: Optional[str] = None
+    pacbio_pbi: Optional[str] = None
+    bam: Optional[str] = None
+    bai: Optional[str] = None
+    ms_file: Optional[str] = None
+    fastq_dir: Optional[str] = None
+    cellranger_dir: Optional[str] = None
+    sample_prefix: Optional[str] = None
+    tissue: Optional[str] = None
 
 @dataclass
 class DesignPair:

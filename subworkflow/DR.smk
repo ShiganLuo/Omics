@@ -9,22 +9,20 @@ outdir = config.get("Params", {}).get("workflow", {}).get("outdir", "output")
 logdir = config.get("Params", {}).get("workflow", {}).get("logdir", "logs")
 genome_paired_samples = config.get("sample_params", {}).get("genome_paired_samples", {})
 genome_single_samples = config.get("sample_params", {}).get("genome_single_samples", {})
-dr_pairs = config.get("sample_params", {}).get("dr_pairs", {})          # {dna: rna}
+dr_pairs = config.get("sample_params", {}).get("dr_pairs", {})
 drclass_samples = config.get("sample_params", {}).get("drclass_samples", {})
 dna_paired_samples = config.get("sample_params", {}).get("dna_paired_samples", [])
 dna_single_samples = config.get("sample_params", {}).get("dna_single_samples", [])
-dna_indir = config.get("Params", {}).get("workflow", {}).get("dna_indir", "")         # DNA 原始 fastq 根
+dna_indir = config.get("Params", {}).get("workflow", {}).get("dna_indir", "")
 trimmer = config.get('Params', {}).get('workflow', {}).get('trimmer') or "trim_galore"
 aligner_TEtranscripts = config.get('Params', {}).get('workflow', {}).get('aligner_TEtranscripts') or "star"
 outfiles = config.get("outfiles", [])
 default_genome = config.get("genome", {}).get("default")
 genome_ref = config.get("genome", {}).get("references", {}).get(default_genome, {}) if default_genome else {}
 genomes = set(genome_paired_samples.keys()).union(set(genome_single_samples.keys()))
-# per-genome all-samples map (TEtranscripts/StringTie/arriba/report) and the
-# mixed maps for XenofilteR host/contaminant separation (RNAseq.smk 同款)
 genome_samples = {}
 for _g, _s in genome_paired_samples.items():
-    genome_samples[_g] = list(_s)  # copy: never mutate config's own lists
+    genome_samples[_g] = list(_s)
 for _g, _s in genome_single_samples.items():
     genome_samples.setdefault(_g, []).extend(_s)
 _all_paired = {s for ss in genome_paired_samples.values() for s in ss}
@@ -37,18 +35,6 @@ rule all:
     input:
         outfiles
 
-# ############################################
-# 链 0: DNA 体细胞链(data_type=DNA 行) — 复刻 Mutation.smk 全部分析功能,
-#       assay 列(WGS/Exome/Panel)驱动 CNVkit --seq-method 与捕获区域 targets,
-#       不假定 DNA 测序类型:
-#       fastqc->cutadapt->bwa-mem2->samtools->gatk_prepare(markdup)->targets
-#       ->gatk_somatic->msi->gatk_germline->somatic_spectrum(+signature)
-#       ->fragment_size->manta(germline+somatic SV)->cnvkit->burden
-#       ->sexcheck->qc_summary
-# 输出全部落在 {outdir}/DNA/ 下, 与链 1 的 {outdir}/RNA/ 互不干扰.
-# 输入 = node.py runDR 写入的 raw 整理根 dna_indir(meta data_type=DNA 行的
-# 软链落点 {outdir}/DNA/common/1_raw_data/, 命名 <ID>_{1,2}.fq.gz).
-# ############################################
 
 dna_raw_dir = dna_indir
 
@@ -70,7 +56,6 @@ module fastqc_raw:
     config: fastqc_raw_config
 use rule fastqc from fastqc_raw as DR_DNA_fastqc_raw
 
-# --- trimmer 三选一 (RNA 侧同款): cutadapt / trimmomatic / trim_galore ---
 dna_trimmed_dir = f"{outdir}/DNA/common/2_trimmed_fastq"
 if trimmer == "cutadapt":
     dna_cutadapt_config = {
@@ -85,7 +70,6 @@ if trimmer == "cutadapt":
             "cutadapt": config.get('Procedure', {}).get('cutadapt')
         },
         "Params": {
-            # 参数精确到 rule:Params.cutadapt.<rule>.<key>(模块读点)
             "cutadapt": config.get('Params', {}).get("cutadapt", {}),
         },
     }
@@ -108,8 +92,6 @@ elif trimmer == "trimmomatic":
             "trimmomatic": config.get('Procedure', {}).get('trimmomatic')
         },
         "Params": {
-            # 参数精确到 rule:整段透传(adapter_pe 挂 trimmomatic_Paired,
-            # adapter_se 挂 trimmomatic_Single 各自 rule 子键)
             "trimmomatic": config.get('Params', {}).get("trimmomatic", {}),
         },
     }
@@ -133,7 +115,6 @@ else:
             "trim_galore": config.get('Procedure', {}).get('trim_galore')
         },
         "Params": {
-            # 参数精确到 rule:Params.trim_galore.<rule>.<key>(与 RNAseq.json 一致)
             "trim_galore": config.get('Params', {}).get("trim_galore", {}),
         },
     }
@@ -181,8 +162,6 @@ bwa_mem2_confg = {
         "index_prefix": genome_ref.get("bwaMem2_index_prefix")
     },
     "Params": {
-        # temp 规范(modules.md):用户 Params.bwa-mem2.keep_intermediates 透传到
-        # 模块读点 Params.bwa-mem2.keep_intermediates(缺省 True=兜底保留)
         "bwa-mem2": {
             "keep_intermediates": config.get("Params", {}).get("bwa-mem2", {}).get("keep_intermediates", True)
         }
@@ -234,7 +213,6 @@ gatk_prepare_config = {
                 "RGPU": config.get("addReadsGroup", {}).get("RGPU")
             }
         },
-        # temp 规范(modules.md):addReadsGroup 中间 bam/bai 受字段控制
         "gatk_prepare": {
             "keep_intermediates": config.get("Params", {}).get("gatk_prepare", {}).get("keep_intermediates", True)
         }
@@ -296,7 +274,6 @@ gatk_somatic_config = {
                 "panel_of_normals": config.get("Params", {}).get("gatk", {}).get("Mutect2", {}).get("panel_of_normals")
             }
         },
-        # temp 规范(modules.md):somaticMutect2 中间 vcf/stats 受字段控制
         "gatk_somatic": {
             "keep_intermediates": config.get("Params", {}).get("gatk_somatic", {}).get("keep_intermediates", True)
         }
@@ -309,9 +286,6 @@ use rule somaticMutect2 from gatk_somatic as DR_DNA_somaticMutect2
 use rule germline_resource_strain from gatk_somatic as DR_DNA_germline_resource_strain
 use rule filterMutectCalls from gatk_somatic as DR_DNA_filterMutectCalls
 
-# ============================================
-# MSI (msisensorpro, Mutation.smk 同款)
-# ============================================
 msi_pairs = {
     rec["experimental"]: rec["control"]
     for rec in config.get("sample_params", {}).get("paired_design", [])
@@ -363,8 +337,6 @@ gatk_germline_config = {
         "targets": _targets_bed
     },
     "Params": {
-        # temp 规范(modules.md):HaplotypeCaller raw vcf 受字段控制;DR 的 raw.vcf.gz
-        # 是 DRclass 交付物,模板不设字段(缺省 True=兜底保留),wrap 本身安全
         "gatk_germline": {
             "keep_intermediates": config.get("Params", {}).get("gatk_germline", {}).get("keep_intermediates", True)
         }
@@ -375,11 +347,6 @@ module gatk_germline:
     config: gatk_germline_config
 use rule * from gatk_germline as DR_DNA_germline_*
 
-# ============================================
-# Somatic Mutation Spectrum + Signature (Mutation.smk 同款)
-# ============================================
-# Wired unconditionally; node.py registers the spectrum output only when
-# design pairs exist (outfiles drive the DAG).
 somatic_spectrum_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -395,9 +362,6 @@ somatic_spectrum_config = {
         "signature_matrix": genome_ref.get("signature_matrix"),
     },
     "signature": config.get("Params", {}).get("somatic_spectrum", {}).get("signature", {}),
-    # spectrum.smk reads config.plot.formats / config.signature.formats at the
-    # module-config top level (see modules/spectrum/spectrum.json); forward the
-    # workflow-side Params.somatic_spectrum.plot the same way as signature
     "plot": config.get("Params", {}).get("somatic_spectrum", {}).get("plot", {}),
 }
 module somatic_spectrum:
@@ -409,11 +373,6 @@ use rule somatic_signature_refit from somatic_spectrum as DR_DNA_somatic_signatu
 use rule somatic_signature_nmf from somatic_spectrum as DR_DNA_somatic_signature_nmf
 use rule spectrum_result from somatic_spectrum as DR_DNA_spectrum_result
 
-# ============================================
-# Fragment Size Analysis (cfDNA, Mutation.smk 同款)
-# ============================================
-# Wired unconditionally; node.py controls whether it runs by registering
-# (or omitting) the fragment-size outputs (Params.fragment_size.enabled).
 fragment_size_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -437,11 +396,6 @@ use rule samtools_stats from fragment_size as DR_DNA_samtools_stats
 use rule getFragmentSize from fragment_size as DR_DNA_getFragmentSize
 use rule plotFragmentSize from fragment_size as DR_DNA_plotFragmentSize
 
-# ============================================
-# SV Detection with Manta (cfDNA, Mutation.smk 同款)
-# ============================================
-# Wired unconditionally; node.py controls whether it runs by registering
-# (or omitting) the Manta outputs (Params.manta.enabled).
 manta_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -470,10 +424,6 @@ logger.info(f"manta_config: {manta_config}")
 use rule manta_config_germline from manta as DR_DNA_manta_config_germline
 use rule manta_run_germline from manta as DR_DNA_manta_run_germline
 
-# Somatic (tumor/normal) SV calling via the same manta module, instantiated
-# with a separate outdir/logdir. Wired unconditionally; node.py registers the
-# somaticSV output only when matched-normal design pairs exist (mirroring the
-# somatic SNV / Mutect2 pair judgment), which drives the DAG.
 manta_somatic_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -502,12 +452,6 @@ logger.info(f"manta_somatic_config: {manta_somatic_config}")
 use rule manta_config_somatic from manta_somatic as DR_DNA_manta_config_somatic
 use rule manta_run_somatic from manta_somatic as DR_DNA_manta_run_somatic
 
-# ============================================
-# CNV Detection with CNVkit (cfDNA, Mutation.smk 同款)
-# ============================================
-# Wired unconditionally; node.py controls whether it runs by registering
-# (or omitting) the CNVkit outputs (Params.cnvkit.enabled; control_samples
-# additionally registers the reference panel output).
 control_samples = config.get("sample_params", {}).get("control_samples", [])
 cnvkit_config = {
     "resources": config.get("resources", {}),
@@ -543,13 +487,6 @@ use rule cnvkit_reference from cnvkit as DR_DNA_cnvkit_reference
 use rule cnvkit_batch from cnvkit as DR_DNA_cnvkit_batch
 use rule cnvkit_paired from cnvkit as DR_DNA_cnvkit_paired
 
-# ============================================
-# Mutation Burden (SNV/InDel TMB + SV + CNV, Mutation.smk 同款)
-# ============================================
-# Wired unconditionally; node.py controls whether it runs by registering
-# (or omitting) the burden outputs (Params.burden.enabled). The three
-# sample -> file maps are filled by node.py from the somatic/cnv outputs
-# above; hand-filled config entries win.
 burden_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -578,11 +515,6 @@ use rule burden_sv from burden as DR_DNA_burden_sv
 use rule burden_cnv from burden as DR_DNA_burden_cnv
 use rule burden_aggregate from burden as DR_DNA_burden_aggregate
 
-# ============================================
-# Sex check (coverage on sex chromosomes, Mutation.smk 同款)
-# ============================================
-# Wired unconditionally over the markdup BAMs; node.py registers the
-# sexcheck outputs (subworkflow.md QC wiring).
 sexcheck_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -613,12 +545,6 @@ logger.info(f"sexcheck_config: {sexcheck_config}")
 use rule sexcheck_idxstats from sexcheck as DR_DNA_sexcheck_idxstats
 use rule sexcheck from sexcheck as DR_DNA_sexcheck
 
-# ============================================
-# QC Summary (cross-sample metric aggregation, Mutation.smk 同款)
-# ============================================
-# Wired unconditionally; node.py registers the qc_summary outputs so the
-# aggregation always runs for the delivered output set (subworkflow.md
-# 「QC 汇总与 report 模块规范」).
 qc_summary_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -644,17 +570,12 @@ qc_summary_config = {
         "msi": "{sample}/{sample}_msi_pro.tsv",
         "sexcheck": "sexcheck.tsv",
     },
-    # MSI anchors exist only for the tumor sample of each design pair
     "qc_anchor_samples": {
         "msi": [rec["experimental"] for rec in config.get("sample_params", {}).get("paired_design", []) if rec.get("experimental")],
     },
 }
-# hs_metrics anchor + plot exist only for exome/hybrid runs (targets BED
-# resolved by node.py); WGS runs keep the stage unanchored and best-effort.
 if _targets_bed:
     qc_summary_config["qc_anchors"]["hs_metrics"] = "{sample}/{sample}.hs_metrics.txt"
-# trimming QC: stage key follows the selected trimmer (三种去接头报告格式与
-# 命名各异,各自解析器都已接入);锚点条件注入,PE/SE 命名不同的按样本类型拆
 if trimmer == "cutadapt":
     qc_summary_config["qc_dirs"]["cutadapt"] = dna_trimmed_dir
     if dna_paired_samples:
@@ -682,28 +603,8 @@ module qc_summary:
 logger.info(f"qc_summary_config: {qc_summary_config}")
 use rule qc_summary from qc_summary as DR_DNA_qc_summary
 
-# (DNA 链报告由文件末尾的 DR_report 模块统一覆盖 —— 不再借用
-#  Mutation_report; 规范: modules.md 报告模块, 每个 Workflow 一个
-#  自己的 _report 模块。)
 
 
-# ############################################
-# 链 1: RNA 链 — 复刻 RNAseq.smk 全部分析功能:
-#       trimmer(cutadapt/trimmomatic/trim_galore) -> TE 定量(hisat2|star
-#       -> TEtranscripts) -> 定量(star -> featureCounts) -> 差异(DESeq2)
-#       -> 富集(function GO/KEGG/GSEA/GSVA) -> 组装(hisat2 -> StringTie)
-#       -> 融合(RmrRNA -> bowtie2 -> star chimera -> markdup -> arriba)
-#       -> RNA SNP(star -> XenofilteR -> markdup -> gatk_RNAseq)
-#       -> sexcheck + qc_summary(报告由文件末尾 DR_report 统一覆盖)
-# 输出全部落在 {outdir}/RNA/ 下 (目录编号对齐 RNAseq.smk,带 RNA 前缀),
-# 与链 0 的 {outdir}/DNA/ 互不干扰。
-# 注: MetaUtil 按 meta data_type 列把 RNA 行软链整理到
-#     {outdir}/RNA/common/1_raw_data/ 且命名为 <ID>_{1,2}.fq.gz,
-#     直接消费 (indir 已被 node.py runDR 改写指向那里)。
-# star 索引单独一个模块实例, index 写到 {outdir}/RNA/genome/index/{genome},
-# 各 align 实例通过 index_dir 指向同一目录 (RNAseq.smk 的多实例模式)。
-# RNA 差异对比:design 派生视图过滤 RNA 行对比(comparisons_rna)。
-# ############################################
 
 rna_star_config_for_index = {
     "ROOT_DIR": ROOT_DIR,
@@ -720,7 +621,6 @@ module rna_star_for_index:
     config: rna_star_config_for_index
 use rule star_index from rna_star_for_index as DR_RNA_star_index
 
-# --- trimmer 三选一 (RNAseq.smk 同款): cutadapt / trimmomatic / trim_galore ---
 rna_trimmed_dir = f"{outdir}/RNA/common/2_trimmed_fastq"
 if trimmer == "cutadapt":
     rna_cutadapt_config = {
@@ -734,7 +634,6 @@ if trimmer == "cutadapt":
             "cutadapt": config.get('Procedure', {}).get('cutadapt')
         },
         "Params": {
-            # 参数精确到 rule:Params.cutadapt.<rule>.<key>(模块读点)
             "cutadapt": config.get('Params', {}).get("cutadapt", {}),
         },
         "resources": config.get("resources", {}),
@@ -757,8 +656,6 @@ elif trimmer == "trimmomatic":
             "trimmomatic": config.get('Procedure', {}).get('trimmomatic')
         },
         "Params": {
-            # 参数精确到 rule:整段透传(adapter_pe 挂 trimmomatic_Paired,
-            # adapter_se 挂 trimmomatic_Single 各自 rule 子键)
             "trimmomatic": config.get('Params', {}).get("trimmomatic", {}),
         },
         "resources": config.get("resources", {}),
@@ -782,7 +679,6 @@ else:
             "trim_galore": config.get('Procedure', {}).get('trim_galore')
         },
         "Params": {
-            # 参数精确到 rule:Params.trim_galore.<rule>.<key>(与 RNAseq.json 一致)
             "trim_galore": config.get('Params', {}).get("trim_galore", {}),
         },
         "resources": config.get("resources", {}),
@@ -794,7 +690,6 @@ else:
     use rule trimming_Paired from rna_trim_galore as DR_RNA_trim_galore_Paired
     use rule trimming_Single from rna_trim_galore as DR_RNA_trim_galore_Single
 
-# --- TE 定量: 比对器二选一 (hisat2 | star) -> TEtranscripts (TEcount/TElocal) ---
 if aligner_TEtranscripts == 'hisat2':
     rna_hisat2_config_for_TEtranscripts = {
         "ROOT_DIR": ROOT_DIR,
@@ -845,9 +740,6 @@ elif aligner_TEtranscripts == 'star':
             "star": config.get('Procedure', {}).get('star')
         },
         "Params": {
-            # 参数精确到 rule:Params.star.star_align.<key>(源读
-            # STAR_TEtranscripts.star_align 新键,config 全量路径读取,
-            # 无旧扁平键回退),缺省值保持 RNAseq.smk 同款默认
             "star": {
                 "keep_intermediates": config.get('Params', {}).get('STAR_TEtranscripts', {}).get('keep_intermediates', True),
                 "star_align": {
@@ -869,7 +761,6 @@ elif aligner_TEtranscripts == 'star':
 else:
     raise ValueError(f"Unsupported aligner_TEtranscripts: {aligner_TEtranscripts}")
 
-### gene and TE expression quantification using TEtranscripts
 rna_TEtranscripts_config = {
     "indir": rna_te_align_outdir,
     "outdir": f"{outdir}/RNA/counts/TEtranscripts",
@@ -897,7 +788,6 @@ module rna_TEtranscripts:
 logger.debug(f"rna_TEtranscripts_config: {rna_TEtranscripts_config}")
 use rule * from rna_TEtranscripts as DR_RNA_te_*
 
-# --- 基因定量: star -> featureCounts (GSVA/定量表) ---
 rna_star_config_for_featureCounts = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -925,7 +815,6 @@ module rna_star_for_featureCounts:
 logger.debug(f"rna_star_config_for_featureCounts: {rna_star_config_for_featureCounts}")
 use rule star_align from rna_star_for_featureCounts as DR_RNA_star_align_for_featureCounts
 
-### gene expression quantification using featureCounts (for GSVA downstream)
 rna_featureCounts_config = {
     "indir": rna_star_config_for_featureCounts["outdir"],
     "outdir": f"{outdir}/RNA/counts/featureCounts",
@@ -955,8 +844,6 @@ use rule featureCounts_single_noMultiple from rna_featureCounts as DR_RNA_featur
 use rule featureCounts_merge from rna_featureCounts as DR_RNA_featureCounts_merge
 use rule featureCounts_result from rna_featureCounts as DR_RNA_featureCounts_result
 
-### differential expression analysis using DESeq2
-# comparisons = design 派生视图过滤 RNA 行对比(与 node.py runDR 同规则)
 comparisons_view = design_comparisons(
     config.get("sample_params", {}).get("design") or {},
     config.get("sample_params", {}).get("organism_samples") or {})
@@ -992,7 +879,6 @@ use rule DESeq2_TElocal_manhattan from rna_DESeq2 as DR_RNA_DESeq2_TElocal_manha
 use rule DESeq2_TElocal_locus_boxplot from rna_DESeq2 as DR_RNA_DESeq2_TElocal_locus_boxplot
 use rule DESeq2_TElocal_subfamily_bar from rna_DESeq2 as DR_RNA_DESeq2_TElocal_subfamily_bar
 
-### functional enrichment analysis using function module
 rna_function_config = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -1016,7 +902,6 @@ use rule function_go_kegg from rna_function as DR_RNA_function_go_kegg
 use rule function_gsea from rna_function as DR_RNA_function_gsea
 use rule function_gsva from rna_function as DR_RNA_function_gsva
 
-### transcript assembly using StringTie (hisat2 -> StringTie)
 rna_hisat2_config_for_StringTie = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -1058,8 +943,6 @@ rna_StringTie_config = {
     "OUTDIR_ROOT": outdir,
     "sample_groups": config.get("sample_params", {}).get("sample_groups"),
     "Params": {
-        # wholesale section so formats (and future keys) reach the module;
-        # StringTie.smk reads Params.StringTie.formats
         "StringTie": config.get("Params", {}).get("StringTie", {}),
     },
     "genome": config.get('genome', {}),
@@ -1074,7 +957,6 @@ module rna_StringTie:
 use rule * from rna_StringTie as DR_RNA_stringtie_*
 logger.debug(f"rna_StringTie_config: {rna_StringTie_config}")
 
-### fusion analysis: RmrRNA + bowtie2 -> star chimera -> markdup -> arriba
 rna_rmrRNA_config = {
     "indir": rna_trimmed_dir,
     "outdir": f"{outdir}/RNA/genome",
@@ -1141,8 +1023,6 @@ rna_star_config_for_fusion = {
         "STAR": config.get('Procedure', {}).get('STAR')
     },
     "Params": {
-        # 参数精确到 rule:Params.star.star_align.<key>(源读 STAR_fusion.star_align
-        # 新键,config 全量路径读取,无旧扁平键回退),缺省值保持 RNAseq.smk 同款默认
         "star": {
             "keep_intermediates": config.get('Params', {}).get('STAR_fusion', {}).get('keep_intermediates', True),
             "star_align": {
@@ -1210,7 +1090,6 @@ rna_arriba_config = {
             "d": config.get('Params', {}).get('arriba', {}).get('d'),
             "E": config.get('Params', {}).get('arriba', {}).get('E'),
             "p": config.get('Params', {}).get('arriba', {}).get('p'),
-            # figure formats (arriba.smk reads Params.arriba.formats)
             "formats": config.get('Params', {}).get('arriba', {}).get('formats')
         }
     },
@@ -1225,9 +1104,6 @@ module rna_arriba:
 use rule * from rna_arriba as DR_RNA_fusion_*
 logger.debug(f"rna_arriba_config: {rna_arriba_config}")
 
-# --- RNA SNP calling: star -> XenofilteR -> markdup -> gatk_RNAseq ---
-# star_for_SNP 用 mixed 样本表 (每个基因组下全部样本), XenofilteR 按
-# sample_contamination (host/contaminant) 分离污染 reads (RNAseq.smk 同款)。
 rna_star_config_for_SNP = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -1243,7 +1119,6 @@ rna_star_config_for_SNP = {
     "Procedure": {
         "star": config.get('Procedure', {}).get('STAR_SNP')
     },
-    # RNAseq.smk 同款:整段透传 + star.keep_intermediates 从 STAR_SNP 显式映射
     "Params": {**(config.get('Params') or {}),
                "star": {**((config.get('Params') or {}).get('star') or {}),
                         "keep_intermediates": (config.get('Params') or {}).get('STAR_SNP', {}).get('keep_intermediates', True)}},
@@ -1324,14 +1199,7 @@ module rna_gatk_RNAseq:
 use rule * from rna_gatk_RNAseq as DR_RNA_SNP_*
 logger.debug(f"rna_gatk_RNAseq_config: {rna_gatk_RNAseq_config}")
 
-# --- report generation: 见文件末尾 DR_report 模块(DR 自有报告,统一覆盖
-#     DNA/RNA 两链 + DR 独特分析;不再借用 RNAseq_report) ---
 
-# ============================================
-# Sex check (RNA marker-expression mode, RNAseq.smk 同款)
-# ============================================
-# 参考 RNAseq.smk:挂在 fusion 链 markdup BAM 上; Params.sexcheck_RNAseq
-# 段映射到模块读点 Params.sexcheck (data_type=RNA 选择 marker 表达逻辑)。
 rna_sexcheck_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -1354,18 +1222,15 @@ rna_sexcheck_config = {
         "samtools": config.get("Procedure", {}).get("samtools")
     },
     "genome": {
-        # multi-genome workflow: per-genome sex contigs {genome: [x, y]}
         "sex_chroms_map": {
             g: (refs.get("sex_chroms") or [None, None])[:2]
             for g, refs in (config.get("genome", {}) or {}).get("references", {}).items()
         },
-        # RNA-mode marker lookup per genome {genome: gtf}
         "gtf_map": {
             g: refs.get("gtf")
             for g, refs in (config.get("genome", {}) or {}).get("references", {}).items()
             if refs.get("gtf")
         },
-        # per-sample genome assignment (pure sample_id keys)
         "samples": {
             s: g
             for g in list(genome_paired_samples) + list(genome_single_samples)
@@ -1383,9 +1248,6 @@ logger.info(f"rna_sexcheck_config: {rna_sexcheck_config}")
 use rule sexcheck_idxstats from rna_sexcheck as DR_RNA_sexcheck_idxstats
 use rule sexcheck from rna_sexcheck as DR_RNA_sexcheck
 
-# ============================================
-# QC Summary (RNA cross-sample metric aggregation, RNAseq.smk 同款)
-# ============================================
 rna_qc_summary_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -1402,7 +1264,6 @@ rna_qc_summary_config = {
         "sexcheck": "sexcheck.tsv",
     },
 }
-# trimming QC: stage key follows the selected trimmer (RNA 侧 discovery-only)
 if trimmer == "cutadapt":
     rna_qc_summary_config["qc_dirs"]["cutadapt"] = rna_trimmed_dir
 elif trimmer == "trimmomatic":
@@ -1415,11 +1276,6 @@ module rna_qc_summary:
 logger.info(f"rna_qc_summary_config: {rna_qc_summary_config}")
 use rule qc_summary from rna_qc_summary as DR_RNA_qc_summary
 
-# ############################################
-# 链 2: DRclass module (M3 pileup -> 状态机 -> O1/O2/O3)
-# samples 表由 node.py runDR 显式生成(全部具体文件路径, DNA/RNA 产物对齐到
-# 链 0/链 1 的输出目录), 无目录扫描.
-# ############################################
 
 drclass_config = {
     "ROOT_DIR": ROOT_DIR,
@@ -1442,15 +1298,6 @@ module DRclass:
 use rule * from DRclass as DR_drclass_*
 logger.debug(f"drclass_config: {drclass_config}")
 
-# ############################################
-# 链 3: TransEffect module (转录效应分析, 3.2.2.3 第四节):
-#       DRclass O1 位点 + featureCounts 表达矩阵 + CNVkit 段
-#       -> RNA 支持位点 VAF / RNA-DNA 比值 / 变异基因 Δ'(组内对照+随机 null)
-#       / CNV 剂量一致性 / 稳定性程序基因反向检验 + 4 图
-# 样本 = DRclass 已分类样本; sample_group_dict/gmt 由 node.py runDR 写入
-# Params.TransEffect(node.py 仅在 Params.TransEffect.enabled 时注册输出,
-# 输出决定流程走向)。
-# ############################################
 
 teffect_config = {
     "resources": config.get("resources", {}),
@@ -1482,17 +1329,7 @@ use rule teffect_analyze from TransEffect as DR_teffect_analyze
 use rule teffect_figures from TransEffect as DR_teffect_figures
 logger.debug(f"teffect_config: {teffect_config}")
 
-# ############################################
-# Final Report: DR 自有报告模块 (modules/DR_report)
-# 覆盖 DNA 链 + RNA 链 + DR 独特分析(burden / DRclass / TransEffect),
-# 不再借用 Mutation_report / RNAseq_report 的 generate_report(规范:
-# modules.md「报告模块(_report)」,每个 Workflow 一个自己的 _report 模块)。
-# Wired unconditionally; node.py 只在 Params.report.enabled 时注册交付物
-# (downstream enabled pulls the upstream DAG)。
-# ############################################
 
-# RNA 链差异对比(design 派生,形状 {organism: {contrast_key: {...}}});
-# 报告覆盖默认基因组的 RNA 树。
 dr_report_contrasts = list(
     (comparisons_rna.get(default_genome) or {}).keys()
 )
@@ -1511,15 +1348,12 @@ DR_report_config = {
     "single_samples": sorted(_all_single),
     "paired_design": config.get("sample_params", {}).get("paired_design", []),
     "contrasts": dr_report_contrasts,
-    # 上游根目录(subworkflow.md 衔接规则:引用 xxx_config["outdir"])
     "dna_dir": f"{outdir}/DNA",
     "rna_dir": f"{outdir}/RNA",
     "drclass_dir": drclass_config["outdir"],
     "teffect_dir": teffect_config["outdir"],
     "burden_dir": burden_config["outdir"],
-    # RNA 树的 genome 目录标签(计数/DE/功能/融合/转录本子路径)
     "genome_label": default_genome or "",
-    # 注册输出 -> 报告模块内的 DAG 锚(Mutation_report 同款锚定模式)
     "outfiles": outfiles,
     "Params": {
         "report": config.get("Params", {}).get("report", {}),

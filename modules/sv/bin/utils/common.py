@@ -54,7 +54,6 @@ def _run_cmd(cmd:List, cwd: Optional[str] = None,logger: logging.Logger = logger
 
     logger.info(f"Running: {cmd_str}")
 
-    # precheck：is command available?
     if shutil.which(cmd_bin) is None:
         logger.error(f"Command not found: '{cmd_bin}'")
         logger.error("Please make sure it is installed and in $PATH")

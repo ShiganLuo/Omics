@@ -9,48 +9,21 @@ indir = config.get("indir", "data/protein_inference")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
 samples = config.get("samples", [])
-# 指令派生名(input: 按方法取聚合目标;config 原名 quantification_method),
-# 赋值写 config 全量路径 Params.workflow.quantification_method。
 quantification_method = (config.get("Params", {}).get("workflow", {}).get("quantification_method") or "lfq").lower()
 mzml_dir = config.get("mzml_dir", "")
 
-# PSM-level filtered idXML (5_psm_fdr). ProteomicsLFQ documents its -ids as
-# PSM-level identifications and performs protein inference itself; feeding it
-# pre-inferred proteins (indir, 6_protein_inference) makes it warn that the
-# inference will be invalidated.
 psm_fdr_indir = config.get("psm_fdr_indir", "") or indir
 
-# Search database (target+decoy fasta): ProteomicsLFQ needs protein sequences
-# for coverage. Wired from the decoy_database output / user decoy_fasta.
 search_fasta = config.get("genome", {}).get("search_fasta", "")
 
-# Experimental design TSV (OpenMS design format) shared by ProteomicsLFQ and
-# ProteinQuantifier; wired from Params.workflow.expdesign at subworkflow level.
 expdesign = config.get("expdesign", "")
 
-# Get parameters
-# 参数精确到 rule(2026-11 规范):config 全量路径字面链,共享读点拆成
-# 每 rule 一个 parse 期变量,键挂在消费 rule 名下,无 module 级共享回退:
-#   Params.tmt.<rule_name>.<key>            # IsobaricAnalyzer 提取/通道映射
-#   Params.protein_quant.<rule_name>.<key>  # 汇总参数(lfq/dia/tmt 各自独立)
-#   Params.protein_fdr.<rule_name>.<key>    # protein FDR(lfq/dia)
-#   Params.<rule_name>.add_triqler_output   # triqler 输出开关(lfq/dia)
-#   Params.<rule_name>.quantify_decoys      # decoy 定量(lfq/dia)
-# 旧键 method/average/best_charge_and_score/channel_mass_tolerance/
-# channel_annotation 为兼容回退键,随 module 级共享读取一并删除。
 
-# add_triqler_output(Params.<rule_name>.add_triqler_output)、quantify_decoys
-# (Params.<rule_name>.quantify_decoys):lfq/dia 两 rule 共享 → 每 rule 独立键,
-# output 展开与 CLI 转发共用 parse 期变量。
 _add_triqler_lfq = config.get("Params", {}).get("quantification_lfq", {}).get("add_triqler_output", False)
 _add_triqler_dia = config.get("Params", {}).get("quantification_dia", {}).get("add_triqler_output", False)
 _quantify_decoys_lfq = config.get("Params", {}).get("quantification_lfq", {}).get("quantify_decoys", False)
 _quantify_decoys_dia = config.get("Params", {}).get("quantification_dia", {}).get("quantify_decoys", False)
 
-# ProteomicsLFQ protein summarization options (ProteinQuantification subsection
-# of ProteomicsLFQ / top-N options of ProteinQuantifier):
-# Params.protein_quant.<rule_name>.<key>,每 rule 一个 parse 期变量。lfq/dia 经
-# _plfq_summarization_cmd 转发;tmt 只消费 top/top_aggregate/best_charge_and_fraction。
 _quant_method_lfq = config.get("Params", {}).get("protein_quant", {}).get("quantification_lfq", {}).get("quantification_method", "feature_intensity")
 _inference_lfq = config.get("Params", {}).get("protein_quant", {}).get("quantification_lfq", {}).get("protein_inference", "aggregation")
 _top_n_lfq = config.get("Params", {}).get("protein_quant", {}).get("quantification_lfq", {}).get("top", 3)
@@ -72,18 +45,11 @@ for _inf_rule, _inf_val in (("quantification_lfq", _inference_lfq),
             "supported: use 'aggregation' or 'bayesian'"
         )
 
-# Protein FDR options (ProteomicsLFQ -proteinFDR/-picked_proteinFDR):
-# Params.protein_fdr.<rule_name>.fdr/picked,lfq/dia 两 rule 共享 → 每 rule 独立。
 _protein_fdr_lfq = config.get("Params", {}).get("protein_fdr", {}).get("quantification_lfq", {}).get("fdr", None)
 _protein_fdr_picked_lfq = config.get("Params", {}).get("protein_fdr", {}).get("quantification_lfq", {}).get("picked", False)
 _protein_fdr_dia = config.get("Params", {}).get("protein_fdr", {}).get("quantification_dia", {}).get("fdr", None)
 _protein_fdr_picked_dia = config.get("Params", {}).get("protein_fdr", {}).get("quantification_dia", {}).get("picked", False)
 
-# TMT / isobaric extraction options (IsobaricAnalyzer):
-# Params.tmt.<rule_name>.<key>。type 被 quantification_tmt_reporter、
-# quantification_tmt 两 rule 共享 → 每 rule 独立键;其余仅
-# quantification_tmt_reporter 消费,同样挂 rule 名下。旧键
-# channel_mass_tolerance/channel_annotation 为兼容回退键,已删除。
 _tmt_type_reporter = config.get("Params", {}).get("tmt", {}).get("quantification_tmt_reporter", {}).get("type", "tmt16plex")
 _reporter_mass_shift = config.get("Params", {}).get("tmt", {}).get("quantification_tmt_reporter", {}).get("reporter_mass_shift", 0.003)
 _isotope_correction = config.get("Params", {}).get("tmt", {}).get("quantification_tmt_reporter", {}).get("isotope_correction", True)
@@ -115,7 +81,6 @@ def _plfq_summarization_cmd(quant_method, protein_inference, top_n, top_aggregat
         cmd.append("-PeptideQuantification:quantify_decoys")
     return cmd
 
-# 每 rule 一个 parse 期变量(lfq/dia 共享构造拆分)
 _plfq_cmd_lfq = _plfq_summarization_cmd(
     _quant_method_lfq, _inference_lfq, _top_n_lfq, _top_aggregate_lfq,
     _best_caf_lfq, _protein_fdr_lfq, _protein_fdr_picked_lfq, _quantify_decoys_lfq)
@@ -156,7 +121,7 @@ rule quantification_lfq:
             rule_logger.info(f"Start LFQ quantification at {current_time}")
             os.makedirs(outdir, exist_ok=True)
             script = receipt_script(f"quantification_lfq_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"quantification_lfq.sh")
             cmd = [
                 params.proteomicslfq,
@@ -177,7 +142,7 @@ rule quantification_lfq:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f"echo 'LFQ quantification completed at {current_time}'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -190,8 +155,6 @@ rule quantification_tmt_reporter:
         mzml = mzml_dir + "/{sample_id}/{sample_id}.mzML",
         idxml = indir + "/{sample_id}/{sample_id}_protein.idXML",
     output:
-        # intermediate: consumed by quantification_tmt only (registered outputs
-        # are the per-plex/long protein tables), Params.quantification.keep_intermediates
         reporter = maybe_temp(outdir + "/{sample_id}/{sample_id}.reporter.consensusXML", "quantification"),
         mapped = maybe_temp(outdir + "/{sample_id}/{sample_id}.mapped.consensusXML", "quantification"),
     log:
@@ -219,7 +182,7 @@ rule quantification_tmt_reporter:
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"quantification_tmt_reporter_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"quantification_tmt_reporter.sh")
             extract_cmd = [
                 params.isobaric_analyzer,
@@ -251,7 +214,7 @@ rule quantification_tmt_reporter:
                 f.write(" ".join(shlex.quote(str(x)) for x in map_cmd) + "\n")
                 f.write(f"echo 'Isobaric reporter extraction for {wildcards.sample_id} completed at {current_time}'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -266,16 +229,7 @@ rule quantification_tmt:
         protein_groups = expand(indir + "/{sample_id}/{sample_id}_protein.idXML",
                                 sample_id=samples)
     output:
-        # Per-plex protein tables stay SEPARATE: FileMerger folds the 16
-        # channel maps of every plex into 16 shared maps named
-        # "mergedConsensusXMLFile", which destroys sample identity (pooled
-        # abundances, mzTab PSM->file mapping and MSstatsConverter design
-        # matching all break on it). Each plex is quantified on its own
-        # mapped consensusXML + its own protein inference; the per-plex CSVs
-        # are then stacked into one long table (sample x channel x protein).
         proteins_long = outdir + "/tmt_protein_abundances.csv",
-        # intermediate per-plex tables: stacked into proteins_long within the
-        # same job (registered output), Params.quantification.keep_intermediates
         consensus_tables = [maybe_temp(p, "quantification") for p in expand(outdir + "/{sample_id}/{sample_id}_proteins.csv", sample_id=samples)],
         **({"mztab": outdir + "/tmt_quantification.mzTab"}
            if config.get("expdesign", "") else {}),
@@ -303,7 +257,7 @@ rule quantification_tmt:
             rule_logger.info(f"Start TMT quantification at {current_time}")
             os.makedirs(outdir, exist_ok=True)
             script = receipt_script(f"quantification_tmt_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"quantification_tmt.sh")
             quant_cmds = []
             csvs = []
@@ -325,10 +279,6 @@ rule quantification_tmt:
                     cmd += ["-mztab", per_mztab]
                 quant_cmds.append(" ".join(shlex.quote(str(x)) for x in cmd))
                 csvs.append(per_csv)
-            # Stack the per-plex tables into one long table:
-            # plex,sample,channel,protein,n_proteins,protein_score,n_peptides,abundance
-            # abundance_<k> maps to TMT channel k in IsobaricAnalyzer's fixed
-            # order (126, 127N, 127C, ..., 134N for tmt16plex).
             channels = {
                 "tmt16plex": ["126", "127N", "127C", "128N", "128C", "129N",
                               "129C", "130N", "130C", "131N", "131C", "132N",
@@ -376,8 +326,6 @@ rule quantification_tmt:
                 "out.close()\n"
             )
             stack_cmd = (
-                # arg order MUST match stack_py's parsing:
-                #   argv[1]=out, argv[2]=channels(csv), argv[3:]=plex dirs
                 "python3 -c {} {} {} {}".format(
                     shlex.quote(stack_py),
                     shlex.quote(str(output.proteins_long)),
@@ -392,7 +340,7 @@ rule quantification_tmt:
                 f.write(stack_cmd + "\n")
                 f.write(f"echo 'TMT quantification completed at {current_time}'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -433,7 +381,7 @@ rule quantification_dia:
             rule_logger.info(f"Start DIA quantification at {current_time}")
             os.makedirs(outdir, exist_ok=True)
             script = receipt_script(f"quantification_dia_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"quantification_dia.sh")
             cmd = [
                 params.proteomicslfq,
@@ -454,7 +402,7 @@ rule quantification_dia:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f"echo 'DIA quantification completed at {current_time}'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -462,12 +410,6 @@ rule quantification_dia:
             rule_logger.error(f"Error during DIA quantification: {str(e)}\n")
             raise RuntimeError(f"Error during DIA quantification: {str(e)}\n")
 
-# Panel rule: which quantification products the workflow registers is decided
-# by node.py through the output paths it writes into outfiles; this rule only
-# aggregates the products of the configured quantification method.
-# tmt: the merged-design mzTab needs an experimental design (plex -> channel
-# -> condition mapping); without one the per-plex protein tables and the long
-# abundance table are the deliverables.
 _RESULT_MZTAB = {
     "tmt": outdir + "/tmt_quantification.mzTab" if config.get("expdesign", "") else outdir + "/tmt_protein_abundances.csv",
     "lfq": outdir + "/lfq_quantification.mzTab",

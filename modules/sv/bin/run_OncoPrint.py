@@ -12,8 +12,6 @@ from utils.VEP_SV import read_vep_tab
 from utils.SV_TYPE_plot import plot_group_type_comparison
 logger = setup_logger(__name__)
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
@@ -112,7 +110,6 @@ def prepare_oncoprint_data(
         .reset_index()
     )
 
-    # pivot 成 OncoPrint 矩阵
     matrix = df.pivot(index=gene_col, columns="sample", values="svtype")
     if sample_order is not None:
         matrix = matrix.reindex(columns=sample_order)
@@ -182,10 +179,8 @@ def Deseq2_oncoprint_data(
 
         df = pd.read_csv(file, sep=sep)
 
-        # Standardize gene name
         df[deseq2_gene_col] = df[deseq2_gene_col].astype(str).str.capitalize()
 
-        # Filter genes and padj
         df_filtered = df[
             df[deseq2_gene_col].isin(gene_set) &
             (df[padj_col] < padj_threshold if padj_threshold is not None else True)
@@ -195,12 +190,10 @@ def Deseq2_oncoprint_data(
             f"{condition}: {df_filtered.shape[0]} genes passed padj < {padj_threshold}"
         )
 
-        # Keep only necessary columns
         df_filtered = df_filtered[[deseq2_gene_col, log2fc_col]].drop_duplicates(
             subset=deseq2_gene_col
         )
 
-        # Rename column to condition name
         df_filtered = df_filtered.rename(
             columns={
                 deseq2_gene_col: oncoprint_gene_col,
@@ -208,7 +201,6 @@ def Deseq2_oncoprint_data(
             }
         )
         df_filtered[condition] = 2 ** df_filtered[condition]
-        # Merge
         result_df = result_df.merge(
             df_filtered,
             on=oncoprint_gene_col,
@@ -219,9 +211,6 @@ def Deseq2_oncoprint_data(
     return result_df
 
 
-# =========================
-# statistical test utilities
-# =========================
 def compute_pvalue(
     table: np.ndarray,
     method: str = "chi2"
@@ -336,9 +325,6 @@ def compute_significance(
 
 
 
-# =========================
-# OncoPrint visualization
-# =========================
 def plot_oncoprint(
     matrix: pd.DataFrame,
     out_prefix: str,
@@ -398,7 +384,6 @@ def plot_oncoprint(
             "OTHER": "#95A5A6",
         }
 
-    # Collect all SV types present
     all_types = set()
     for val in matrix.values.flat:
         if pd.notna(val):
@@ -414,7 +399,6 @@ def plot_oncoprint(
 
     fig = plt.figure(figsize=figsize)
 
-    # Use fixed ratios: main grid gets most space, margins are small
     gs = fig.add_gridspec(
         2, 2,
         width_ratios=[4, 1],
@@ -426,16 +410,11 @@ def plot_oncoprint(
     ax_main = fig.add_subplot(gs[1, 0])
     ax_right = fig.add_subplot(gs[1, 1])
 
-    # ========== Main grid ==========
-    # Use imshow-friendly coordinate system:
-    #   row 0 = top gene, row n-1 = bottom gene
-    #   col 0 = left sample, col n-1 = right sample
-    # We place rectangles at integer (col, row) centers.
     default_color = "#ECF0F1"
     ax_main.set_facecolor("#FAFAFA")
 
-    for i in range(n_genes):          # row index (top=0)
-        for j in range(n_samples):    # col index
+    for i in range(n_genes):
+        for j in range(n_samples):
             ax_main.add_patch(plt.Rectangle(
                 (j - 0.5, i - 0.5), 1, 1,
                 facecolor=default_color, edgecolor="white", linewidth=0.5,
@@ -451,7 +430,6 @@ def plot_oncoprint(
             for k, sv_type in enumerate(types):
                 sv_type = sv_type.strip()
                 color = sv_colors.get(sv_type, sv_colors.get("OTHER", "#95A5A6"))
-                # Stack: k=0 at bottom, k=n-1 at top of the cell
                 y_lo = i - 0.5 + k / n_types
                 height = 1.0 / n_types
                 ax_main.add_patch(plt.Rectangle(
@@ -460,7 +438,7 @@ def plot_oncoprint(
                 ))
 
     ax_main.set_xlim(-0.5, n_samples - 0.5)
-    ax_main.set_ylim(n_genes - 0.5, -0.5)    # row 0 at top
+    ax_main.set_ylim(n_genes - 0.5, -0.5)
     ax_main.set_xticks(range(n_samples))
     ax_main.set_xticklabels(samples, rotation=45, ha="right", fontsize=8)
     ax_main.set_yticks(range(n_genes))
@@ -469,11 +447,10 @@ def plot_oncoprint(
     ax_main.set_ylabel("")
     ax_main.tick_params(axis="both", length=0)
 
-    # ========== Right margin: mutation frequency per gene ==========
     mut_counts = matrix.notna().sum(axis=1)
     mut_freq = mut_counts / n_samples * 100
 
-    ax_right.set_ylim(n_genes - 0.5, -0.5)    # same orientation as main
+    ax_right.set_ylim(n_genes - 0.5, -0.5)
     ax_right.barh(range(n_genes), mut_freq, color="#2C76FF", height=0.6)
     ax_right.set_xlim(0, 100)
     ax_right.set_xlabel("%", fontsize=8)
@@ -484,10 +461,9 @@ def plot_oncoprint(
     ax_right.spines["right"].set_visible(False)
     ax_right.invert_xaxis()
 
-    # ========== Top margin: mutation count per sample ==========
     sample_counts = matrix.notna().sum(axis=0)
 
-    ax_top.set_xlim(-0.5, n_samples - 0.5)    # same orientation as main
+    ax_top.set_xlim(-0.5, n_samples - 0.5)
     ax_top.bar(range(n_samples), sample_counts, color="#2C76FF", width=0.6)
     ax_top.set_xticks([])
     ax_top.tick_params(axis="x", length=0)
@@ -496,7 +472,6 @@ def plot_oncoprint(
     ax_top.spines["top"].set_visible(False)
     ax_top.spines["right"].set_visible(False)
 
-    # ========== Legend ==========
     legend_types = [t for t in sv_colors if t in all_types]
     if not legend_types:
         legend_types = list(all_types)
@@ -567,14 +542,12 @@ def main():
     args = parser_args()
     outdir = args.outdir
     os.makedirs(outdir, exist_ok=True)
-    # -f/--image_format is repeatable; absent = default ["png"]
     image_formats = args.image_format if args.image_format else ["png"]
     tab_files = json.loads(args.groups_json)
     if not isinstance(tab_files, dict) or not tab_files:
         raise ValueError("--groups-json must be a non-empty JSON object {name: path}")
     sample_order = list(tab_files.keys())
 
-    # Build oncoprint matrix
     oncoprint_file = os.path.join(outdir,"oncoprint_matrix.csv")
 
     oncoprint_matrix = prepare_oncoprint_data(
@@ -586,7 +559,6 @@ def main():
     oncoprint_matrix.to_csv(oncoprint_file)
     logger.info(f"Oncoprint matrix saved to: {oncoprint_file}")
 
-    # Plot OncoPrint
     plot_oncoprint(
         matrix=oncoprint_matrix,
         out_prefix=os.path.join(outdir, "oncoprint"),
@@ -597,7 +569,6 @@ def main():
     if not isinstance(condition_files, dict):
         raise ValueError("--deseq2-json must be a JSON object {condition: path}")
 
-    # DESeq2 fold change summary
     result_df = Deseq2_oncoprint_data(
         condition_files=condition_files,
         oncoprint_file=oncoprint_file,
@@ -607,7 +578,6 @@ def main():
     result_df.to_csv(out_csv, index=False)
     logger.info(f"DESeq2 fold change table saved to: {out_csv}")
 
-    # Plot
     result_df = result_df.dropna()
     for fmt in image_formats:
         out_plot = os.path.join(outdir, f"deseq2_oncoprint_fold_change_all.{fmt}")

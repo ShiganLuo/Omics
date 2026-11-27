@@ -120,7 +120,7 @@ rule hifiasm_assemble:
                 f.write(f'echo "hifiasm assembly for {wildcards.sample_id} was completed successfully"\n')
             rule_logger.info("Executing: " + cmd_str)
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -203,7 +203,7 @@ rule hifiasm_qc:
                 f.write(f'echo "hifiasm qc for {wildcards.sample_id} was completed successfully"\n')
             rule_logger.info("Executing: " + cmd_str)
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

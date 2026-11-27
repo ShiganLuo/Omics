@@ -4,19 +4,9 @@ include: "../common/common.smk"
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 samples = config.get("samples", []) or []
-# tumor -> normal design pairs (same shape as Params.workflow.paired_design
-# consumed by gatk_somatic/msi: {"experimental": t, "control": n})
 paired_design = config.get("paired_design", []) or []
-# Registered workflow outputs (node.py outfiles, passed through by the
-# subworkflow). Used as DAG anchors: every registered file under a consumed
-# directory becomes a tracked input so this report runs AFTER its producers
-# and re-runs when a section output is refreshed (qc_summary's qc_anchors
-# semantics). Optional stages that were never registered contribute nothing,
-# so no MissingInputException.
 outfiles = config.get("outfiles") or []
 
-# Upstream result directories — subworkflow passes xxx_config["outdir"]
-# values (subworkflow.md chaining rule); the script tolerates absent dirs.
 qc_dir = config.get("qc_summary") or os.path.join(outdir, "QC/qc_summary")
 somatic_dir = config.get("somatic_dir") or os.path.join(outdir, "variation/somatic_snv_indel")
 spectrum_dir = config.get("spectrum_dir") or os.path.join(outdir, "stability/spectrum")
@@ -26,10 +16,6 @@ fragment_dir = config.get("fragment_dir") or os.path.join(outdir, "results/fragm
 
 REPORT_SCRIPT = os.path.join(ROOT_DIR, "modules", "Mutation_report", "bin", "generate_report.py")
 
-# formats(模块 md #9 / subworkflow.md formats 规范):报告自有图(体细胞调用
-# 柱状图)的导出格式;str 收成单元素列表(格式合法性由 schema 声明)。报告图
-# 为条件产出,不逐一声明 output——由 figures/manifest.tsv 兜底(报告模块规范)。
-# 参数精确到 rule:config 全量路径字面链 Params.report.generate_report.<key>。
 _formats = config.get("Params", {}).get("report", {}).get("generate_report", {}).get("formats") or ["png"]
 if isinstance(_formats, str):
     _formats = [_formats]
@@ -57,17 +43,11 @@ rule generate_report:
     workbook (one sheet per module + file inventory). Optional sections
     degrade to 'not run' notes when their upstream dirs are absent."""
     input:
-        # QC summary table + every registered output under the consumed
-        # dirs anchor this report after their producing rules (DAG
-        # ordering + invalidation; the script itself re-discovers files
-        # on disk and degrades to 'not run' notes for absent stages)
         anchors = _report_anchors(),
         qc_tsv = qc_dir + "/qc_summary.tsv",
     output:
         report = outdir + "/Mutation_report.pptx",
         excel = outdir + "/Mutation_report.xlsx",
-        # 报告自有图导出清单(报告模块规范:figures/<name>.<fmt> 为条件产出,
-        # 不逐一声明;manifest.tsv 让 DAG 与磁盘保持一致)
         manifest = outdir + "/figures/manifest.tsv",
     log:
         logdir + "/Mutation_report/generate_report.log"
@@ -88,7 +68,7 @@ rule generate_report:
         pipeline = config.get("Params", {}).get("report", {}).get("generate_report", {}).get("pipeline") or "Mutation",
         genome = config.get("Params", {}).get("report", {}).get("generate_report", {}).get("genome") or "",
         date = config.get("Params", {}).get("report", {}).get("generate_report", {}).get("date") or "",
-        formats = _formats,   # ③ 转发
+        formats = _formats,
         pairs = [
             (rec.get("experimental"), rec.get("control"))
             for rec in paired_design
@@ -129,14 +109,14 @@ rule generate_report:
                 cmd += ["--format", str(fmt)]
 
             script = receipt_script(f"generate_report_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(report_dir or ".", "generate_report.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
                 f.write('echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

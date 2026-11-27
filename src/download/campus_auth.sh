@@ -48,7 +48,6 @@
 
 set -u
 
-# cron runs with a minimal env; ensure HOME resolves even there
 : "${HOME:=$(getent passwd "$(id -un)" | cut -d: -f6)}"
 
 PROBE_URL="${PROBE_URL:-https://www.baidu.com}"
@@ -57,14 +56,13 @@ EPORTAL="http://netauth.nankai.edu.cn:801/eportal"
 CRED_FILE="${HOME}/.campus_auth"
 STATE_FILE="${HOME}/.campus_auth.state"
 PA_KEY_HEX="50616e6162697440313032345f6b6579"   # AES-128 key "Panabit@1024_key"
-FAIL_PAUSE=1800                                 # pause after 3 login failures
+FAIL_PAUSE=1800
 
 log() { printf '[%s] %s\n' "$(date '+%F %T')" "$*"; }
 
 usage() { awk 'NR>1 && !/^#/ {exit} NR>1 {sub(/^# ?/,""); print}' "$0"; }
 
 my_ip() {
-    # IP as seen by the campus gateway (source IP on the default route)
     ip -4 route get 223.5.5.5 2>/dev/null | awk '{for (i=1;i<=NF;i++) if ($i=="src") {print $(i+1); exit}}'
 }
 
@@ -98,7 +96,6 @@ save_creds_to_file() {
 }
 
 resolve_creds() {
-    # fills CRED_USER / CRED_PASS: CLI args > cred file > interactive prompt
     CRED_USER="${ARG_USER:-}"; CRED_PASS="${ARG_PASS:-}"
     if [[ -n "$CRED_USER" && -n "$CRED_PASS" ]]; then
         save_creds_to_file "$CRED_USER" "$CRED_PASS"
@@ -132,11 +129,11 @@ login_allowed() {
     return 0
 }
 
-write_state() {     # $1=fails $2=state — single writer for STATE_FILE
+write_state() {
     printf 'fails=%s\nlast=%s\nstate=%s\n' "$1" "$(date +%s)" "$2" > "$STATE_FILE"
 }
 
-record_result() {   # $1 = 0 success, 1 failure; preserves state= key
+record_result() {
     local n state
     state=$(sed -n 's/^state=//p' "$STATE_FILE" 2>/dev/null | tail -1)
     if [[ "$1" == "0" ]]; then
@@ -184,9 +181,6 @@ VECTORS
 }
 
 detect_portal() {
-    # Sets GATEWAY (panabit|drcom) and PORTAL_BASE. When unauthenticated the
-    # intercept redirect names the portal; when already online there is no
-    # redirect, so fall back to PA_PORTAL (force-login case).
     local hdr loc
     hdr=$(curl -s --noproxy '*' --max-time 8 -D- -o /dev/null 'http://www.baidu.com' 2>/dev/null)
     loc=$(grep -i '^Location:' <<<"$hdr" | head -1 | tr -d '\r' | awk '{print $2}')
@@ -212,7 +206,6 @@ panabit_login() {
         return 1
     fi
 
-    # auth_type comes from the gateway's own policy (falls back to "panabit")
     auth_type=$(curl -s --noproxy '*' --max-time 8 \
         "${PORTAL_BASE}/api?route=portal&action=load_portal_conf&ip=${ip}&mac=${mac}&device=pc" 2>/dev/null \
         | python3 -c 'import json,sys
@@ -225,7 +218,6 @@ except Exception: print("panabit")' 2>/dev/null)
         --data "u8name=${CRED_USER}" \
         "${PORTAL_BASE}/api?route=webauth&action=user_login&auth_type=${auth_type}&ip=${ip}&mac=${mac}&code=$(pa_aes_encode '')&username=${CRED_USER}&password=$(pa_aes_encode "$CRED_PASS")&remember_me=0" 2>/dev/null)
 
-    # portal responds in GB2312; convert once to UTF-8, then parse
     local resp_u
     resp_u=$(printf '%s' "$resp" | iconv -f GB2312 -t UTF-8 -c 2>/dev/null)
     rcode=$(printf '%s' "$resp_u" | python3 -c 'import json,sys
@@ -298,7 +290,6 @@ do_logout() {
     esac
 }
 
-# ---- argument parsing (options and command may appear in any order) ----
 COMMAND="check"
 ARG_USER=""; ARG_PASS=""
 while (($#)); do
@@ -339,7 +330,7 @@ case "$COMMAND" in
         fi
         if [[ "$st" == "offline" ]]; then
             if ! login_allowed; then
-                :   # cooldown: already logged by login_allowed
+                :
             elif do_login; then
                 record_result 0
                 online && log "verified ONLINE after login" || log "login ok but probe still failing"

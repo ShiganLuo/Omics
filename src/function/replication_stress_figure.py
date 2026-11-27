@@ -45,56 +45,38 @@ ROOT = Path("/data/pub/zhousha/Totipotent20251031/output/pluripotent2totipotent/
 COUNTS_DIR = ROOT / "counts" / "TEtranscripts"
 TPM_DIR = ROOT / "function"
 OUT_DIR = ROOT / "function" / "replication_stress"
-# Gene-level quantification for module scores: 'cpm' (from raw counts) or
-# 'tpm' (precomputed function/{species}/gsva/expression_tpm.tsv). TE reads
-# fraction always comes from the counts matrix (TPM tables have no TE rows).
 QUANT = os.environ.get("RS_QUANT", "cpm")
 if QUANT == "tpm":
     OUT_DIR = OUT_DIR / "tpm_version"
 EXCLUDE = {
-    "TLSC2",  # RNA-degradation library artifact, see thesis figure S1
-    # GSE175615 fibroblasts are total-RNA (Ribo-Zero) libraries, not poly(A)-
-    # comparable; thesis fibroblast controls are HDF n=4 (GSE307377) and
-    # WT MEF n=3 (GSE266445), both poly(A).
+    "TLSC2",
     "hFibroblasts1", "hFibroblasts2", "hFibroblasts3",
     "mFibroblasts1", "mFibroblasts2",
 }
 
-# Gene sets live in the shared geneset assets; replication_stress_{human,mouse}.gmt
-# holds exactly the seven authoritative modules used here (Reactome + MSigDB
-# Hallmark, see file header rows for source ids). Figure name == GMT row name.
 GENESET_DIR = Path("/data/pub/zhousha/Totipotent20251031/workflow/Omics/assests/geneset")
 GENESET_FILES = {"GRCm39": "replication_stress_mouse.gmt", "GRCh38": "replication_stress_human.gmt"}
-# Causal chain: TE pressure -> fork stalling -> (sensing/protection/
-# restart = stress response) -> DSB -> p53 output. Proliferation = confound control.
 MODULE_ORDER = [
-    # replication-stress response arm (sensing -> protection -> tolerance -> restart)
     "ATR activation (Reactome)",
     "Fork protection / Fanconi anemia (Reactome)",
     "Translesion synthesis (Reactome)",
     "Fork restart / HRR (Reactome)",
-    # damage arm (lesion readouts)
     "DNA double strand break response (Reactome)",
     "p53 pathway (Hallmark)",
-    # confound control
     "Proliferation load (E2F/G2M, Hallmark)",
 ]
 B_MODULE = "ATR activation (Reactome)"
 C_MODULE = "p53 pathway (Hallmark)"
 PANEL_MODULES = [B_MODULE, C_MODULE]
-# Groups expected to increase in this order (fibroblast -> pluripotent ->
-# totipotent-like); used only for the response-module ordering check.
 ORDERINGS = {"GRCm39": ["mFibroblasts", "mESC", "ciTotiSC"],
              "GRCh38": ["hFibroblasts", "hESC", "hTBLC"]}
 
-# Group resolution: raw.json first, fibroblasts fall back to name prefix.
 GROUP_COLORS = {
     "mFibroblasts": "#7f7f7f", "hFibroblasts": "#bdbdbd",
     "mESC": "#1f77b4", "hESC": "#1f77b4", "prEpiSC": "#9ecae1",
     "TLSC": "#2ca02c", "ciTotiSC": "#d62728",
     "ci8CLC": "#ff7f0e", "hTBLC": "#d62728",
 }
-# Column order: fibroblast -> pluripotent -> intermediate/8C-like -> totipotent-like.
 SPECIES_LAYOUT = {
     "GRCm39": {
         "order": ["mFibroblasts", "mESC", "TLSC", "ciTotiSC"],
@@ -133,8 +115,6 @@ def load_counts(species: str) -> pd.DataFrame:
     mask = pd.read_csv(raw_path, sep="\t", usecols=[0]).iloc[:, 0].astype(str)
     if len(mask) != len(df):
         raise ValueError(f"row-count mismatch: {name_path} vs {raw_path}")
-    # The name file collapses TE ids to their first segment; restore the raw id
-    # where the raw file marks a TE row (contains ':'), keeping the row order.
     df.index = [
         raw_id if ":" in raw_id else sym
         for raw_id, sym in zip(mask, df.index.astype(str))
@@ -376,7 +356,6 @@ def main() -> None:
                                        mods[module], ordering, expr=expr))
     pd.DataFrame(rob_rows).to_csv(OUT_DIR / "robustness.tsv", sep="\t", index=False)
 
-    # Export derived values for transparency.
     out_tbl = []
     for species, d in data.items():
         t = d["scores"].T.join(d["te_frac"].rename("te_reads_pct")).join(d["group"].rename("group"))
@@ -388,26 +367,23 @@ def main() -> None:
     gs = fig.add_gridspec(2, 3, width_ratios=[2.6, 0.5, 1.0], wspace=0.05, hspace=0.32)
     gs_left = gs[:, 0].subgridspec(2, 1, height_ratios=[14, 0.7], hspace=0.0)
     ax_hm = fig.add_subplot(gs_left[0])
-    ax_strip = fig.add_subplot(gs_left[1])  # no sharex: shared axis re-draws ticks
-    # Column 1 is a spacer; the colorbar hugs the heatmap's right edge.
+    ax_strip = fig.add_subplot(gs_left[1])
     pos = ax_hm.get_position()
     ax_cb = fig.add_axes([pos.x1 + 0.006, pos.y0, 0.012, pos.height])
     ax_b = fig.add_subplot(gs[0, 2])
     ax_c = fig.add_subplot(gs[1, 2])
 
-    # ---- Panel A: module heatmap (z-score, one scale for the whole figure).
     hm = pd.concat([data[s]["scores"] for s in SPECIES_LAYOUT], axis=1)
     vmax = 2.0
     im = ax_hm.imshow(np.clip(hm.values, -vmax, vmax), aspect="auto",
                       cmap="RdBu_r", vmin=-vmax, vmax=vmax)
     ax_hm.set_yticks(range(hm.shape[0]))
     ax_hm.set_yticklabels(hm.index, fontsize=9)
-    ax_hm.set_xticks([])  # no sample ticks/labels; the group strip labels replace them
+    ax_hm.set_xticks([])
     ax_strip.set_xticks([])
     ax_hm.set_ylabel("module score (z)", fontsize=10)
     for spine in ax_hm.spines.values():
         spine.set_visible(False)
-    # Species divider. Labels in axes fraction (imshow inverts the y axis).
     n_mouse = data["GRCm39"]["scores"].shape[1]
     ax_hm.axvline(n_mouse - 0.5, color="black", lw=1.2)
     frac_mouse = n_mouse / hm.shape[1]
@@ -418,7 +394,6 @@ def main() -> None:
     cb = fig.colorbar(im, cax=ax_cb)
     cb.set_label("module score (z, per-species)", fontsize=9)
 
-    # Group colour strip under the heatmap.
     ax_strip.set_ylim(0, 1)
     ax_strip.set_yticks([])
     ax_strip.set_xticks([])
@@ -428,7 +403,6 @@ def main() -> None:
     for x, g in enumerate(groups_all):
         ax_strip.add_patch(Rectangle((x - 0.5, 0.15), 1.0, 0.7,
                                      facecolor=GROUP_COLORS.get(g, "#cccccc"), edgecolor="none"))
-    # One horizontal label centred under each group block.
     start = 0
     for x in range(1, len(groups_all) + 1):
         if x == len(groups_all) or groups_all.iloc[x] != groups_all.iloc[start]:
@@ -462,7 +436,6 @@ def main() -> None:
     ax_b.set_title("Replication-stress response tracks TE load", fontsize=10)
     ax_c.set_title("DNA damage response vs TE load", fontsize=10)
 
-    # One legend for both scatter panels; marker colours equal point colours.
     handles = [Patch(facecolor=GROUP_COLORS[g], edgecolor="white", label=g)
                for g in ["mFibroblasts", "hFibroblasts", "mESC", "hESC", "prEpiSC",
                          "TLSC", "ci8CLC", "ciTotiSC", "hTBLC"]]

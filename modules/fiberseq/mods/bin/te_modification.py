@@ -46,8 +46,6 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, TextIO, Tuple
 
-# Self-contained module bin scripts import the module-private helper
-# (verbatim src/common copies) — modules.md 脚本撰写规范 #0.
 from _fiberlib import ChromSweep, setup_logger
 
 logger = setup_logger("TeModification", stream=sys.stdout)
@@ -243,10 +241,6 @@ def run(args: argparse.Namespace) -> int:
     logger.info(
         f"TE bed: {len(loci)} loci; min_fibers={args.min_fibers}; samples={sample_ids}"
     )
-    # per-locus per-sample tables (fresh copies: values are sample-specific);
-    # ALWAYS parse the sorted copy te_path — parsing args.te here would give
-    # a different row order than `loci` (sort_te_bed may have sorted), and the
-    # writers below join them BY INDEX.
     per_sample: Dict[str, List[TeLocus]] = {}
     for sid, mod_bed, msp_bed in zip(sample_ids, mod_beds, msp_beds):
         sample_loci = read_te_bed(te_path)
@@ -256,8 +250,6 @@ def run(args: argparse.Namespace) -> int:
         logger.info(f"sample {sid}: {n_cov}/{len(sample_loci)} loci covered "
                     f"(>= {args.min_fibers} fibers)")
 
-    # per-locus long table for sigtest: all annotation levels as columns,
-    # the tested level is sigtest's -f choice (one sweep serves both)
     n_rows, n_subfam = write_long_table(
         loci, per_sample, sample_ids, sample_group,
         args.min_fibers, args.out_long,
@@ -265,7 +257,6 @@ def run(args: argparse.Namespace) -> int:
     logger.info(f"Wrote per-locus long table: {args.out_long} "
                 f"({n_rows} rows, {n_subfam} subfamilies)")
 
-    # per-locus table (all samples wide + annotation) for top-loci ranking
     loci_out = Path(args.out_loci)
     with open(loci_out, "w") as fh:
         fh.write("chrom\tstart\tend\tsubfamily\tfamily\tclass\t"

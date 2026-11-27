@@ -3,7 +3,6 @@ include: "../common/common.smk"
 MODULE_DIR = os.path.join(ROOT_DIR, "modules", "annovar")
 logger.info(f"Annovar module directory: {MODULE_DIR}")
 
-# need test
 include: "../common/common.smk"
 
 indir = config.get("indir", "input")
@@ -37,7 +36,7 @@ rule TEcoutCPM:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start TEcoutCPM run at {current_time}")
             script = receipt_script(f"TEcoutCPM_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"TEcoutCPM.sh")
             cmd = [params.Rscript, params.script, "-i", input.infile, "-o", output.outfile]
             with open(script, 'w') as f:
@@ -45,7 +44,7 @@ rule TEcoutCPM:
                 f.write(' '.join(cmd) + '\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -81,7 +80,7 @@ rule commonExpression:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start commonExpression at {current_time}")
             script = receipt_script(f"commonExpression_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"commonExpression.sh")
             cmd = [
                 "python", params.script,
@@ -94,7 +93,7 @@ rule commonExpression:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -130,7 +129,7 @@ rule getBed:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start getBed at {current_time}")
             script = receipt_script(f"getBed_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"getBed.sh")
             cmd = [
                 "python", params.script,
@@ -144,7 +143,7 @@ rule getBed:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -164,7 +163,7 @@ rule vcfIntersectBed:
         log = outdir + "/log/human/{sample_id}/vcfIntersectBed.log"
     conda:
         config.get('conda', {}).get('RNA-SNP') or 'annovar.yaml'
-    threads: rule_res("vcfIntersectBed").get("threads", 4)  #防止同时执行太多，爆内存
+    threads: rule_res("vcfIntersectBed").get("threads", 4)
     benchmark: outdir + "/log/human/{sample_id}/vcfIntersectBed.benchmark.tsv",
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(
@@ -178,7 +177,7 @@ rule vcfIntersectBed:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start vcfIntersectBed for sample {wildcards.sample_id} at {current_time}")
             script = receipt_script(f"vcfIntersectBed_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/vcfIntersectBed.sh")
             cmd = [
                 "bedtools", "intersect",
@@ -191,7 +190,7 @@ rule vcfIntersectBed:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -211,7 +210,7 @@ rule annovar_convert:
     params:
         convert = "/opt/annovar/convert2annovar.pl",
         perl = config["Procedure"]["perl"]
-    threads: rule_res("annovar_convert").get("threads", 4)  #防止同时执行太多，爆内存
+    threads: rule_res("annovar_convert").get("threads", 4)
     benchmark: outdir + "/log/human/{sample_id}/annovar_convert.benchmark.tsv",
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(
@@ -229,7 +228,7 @@ rule annovar_convert:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start annovar_convert run for sample {wildcards.sample_id} at {current_time}")
             script = receipt_script(f"annovar_convert_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/annovar_convert.sh")
             cmd = [params.perl, params.convert, "-format", "vcf4", "-withfreq", input.vcf, ">", output.avinput, "2>", log_path]
             with open(script, 'w') as f:
@@ -237,7 +236,7 @@ rule annovar_convert:
                 f.write(' '.join(cmd) + '\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -259,10 +258,9 @@ rule annovar_table:
     params:
         db = config.get('annovar', {}).get('human', {}).get('db'),
         buildver = config.get('annovar', {}).get('human', {}).get('buildver'),
-        # annotate = "/opt/annovar/annotate_variation.pl",
         table = config.get("Procedure", {}).get("table_annovar") or "table_annovar.pl",
         out = outdir + "/annovar/human/{sample_id}/{sample_id}"
-    threads: rule_res("annovar_table").get("threads", 4)  #防止同时执行太多，爆内存
+    threads: rule_res("annovar_table").get("threads", 4)
     benchmark: outdir + "/log/human/{sample_id}/annovar_table.benchmark.tsv",
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(
@@ -280,7 +278,7 @@ rule annovar_table:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start annovar_table run for sample {wildcards.sample_id} at {current_time}")
             script = receipt_script(f"annovar_table_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/annovar_table.sh")
             cmd = [params.perl, params.table, input.avinput, params.db, "-buildver", params.buildver, "-out", params.out, "-remove", "-protocol", "refGene", "-operation", "g", "-nastring", ".", "-csvout"]
             with open(script, 'w') as f:
@@ -288,7 +286,7 @@ rule annovar_table:
                 f.write(' '.join(cmd) + '\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

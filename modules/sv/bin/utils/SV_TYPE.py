@@ -121,28 +121,21 @@ def generate_plot_input(df, bins=50):
     }
     default_color = "#999999"
 
-    # 1. 预处理：移除长度 <= 0 的数据
     df_clean = df[df['svlen'] > 0].copy()
     
-    # 2. 在对数空间定义箱边缘 (Log-spaced bins)
     min_log = np.log10(df_clean['svlen'].min())
     max_log = np.log10(df_clean['svlen'].max())
     bin_edges = np.logspace(min_log, max_log, bins + 1)
     
-    # 计算箱的中点 (用于 X 轴绘图)
     bin_mids = np.sqrt(bin_edges[:-1] * bin_edges[1:]) 
 
-    # 计算总样本量，用于计算比例
     total_count = len(df_clean)
 
     plot_data = []
     
-    # 3. 按类型分组计算
     for sv_type, group in df_clean.groupby('svtype'):
-        # 使用 np.histogram 计算每个箱子落入的频数
         counts, _ = np.histogram(group['svlen'], bins=bin_edges)
         
-        # 将频数转换为占总体的比例 (0-1 之间)
         proportions = counts / total_count
         
         plot_data.append({
@@ -187,21 +180,17 @@ def run_sv_stratification(vcf_file, output_dir, run_cmd_func=None):
 
     df = parse_pbsv_vcf(vcf_file)
 
-    # 3. 长度分层 (Binning)
     bins = [0, 500, 2000, 10000, 50000, np.inf]
     labels = ['50-500bp', '500bp-2kb', '2kb-10kb', '10kb-50kb', '>50kb']
     df['size_group'] = pd.cut(df['svlen'], bins=bins, labels=labels)
 
-    # A. 交叉矩阵 (Type vs Size)
     matrix = pd.crosstab(df['svtype'], df['size_group'])
     matrix.to_csv(out_path / "stratification_matrix.csv")
 
-    # B. 染色体分布
     chrom_dist = df['chrom'].value_counts().reset_index()
     chrom_dist.columns = ['Chromosome', 'Count']
     chrom_dist.to_csv(out_path / "chromosome_distribution.csv", index=False)
 
-    # C. 简报 JSON
     summary = {
         "vcf_source": str(vcf_path.absolute()),
         "total_count": len(df),
@@ -276,12 +265,10 @@ def extract_te_candidate_ins(
     logger = logging.getLogger(__name__)
     ins_count = 0
 
-    # Regular expressions for parsing INFO fields
     svlen_re = re.compile(r"SVLEN=([^;]+)")
     svtype_re = re.compile(r"SVTYPE=([^;]+)")
     end_re = re.compile(r"END=([^;]+)")
 
-    # Choose open function based on file suffix
     open_func = gzip.open if str(vcf_file).endswith(".gz") else open
 
     try:
@@ -300,17 +287,14 @@ def extract_te_candidate_ins(
                 alt = cols[4]
                 info = cols[7]
 
-                # 1. Parse SVTYPE
                 st_match = svtype_re.search(info)
                 svtype = st_match.group(1) if st_match else None
 
-                # 2. Determine insertion length
                 length = None
 
                 sl_match = svlen_re.search(info)
                 if sl_match:
                     try:
-                        # SVLEN may be negative or comma-separated
                         length = abs(int(float(sl_match.group(1).split(",")[0])))
                     except ValueError:
                         pass
@@ -323,17 +307,14 @@ def extract_te_candidate_ins(
                         except ValueError:
                             pass
 
-                # 3. Apply filters
                 if svtype != "INS":
                     continue
                 if length is None or not (min_len <= length <= max_len):
                     continue
 
-                # Skip symbolic ALT alleles
                 if alt.startswith("<"):
                     continue
 
-                # Write FASTA entry
                 header = f">{svid}_{chrom}_{pos}_len{length}"
                 f_out.write(f"{header}\n{alt}\n")
                 ins_count += 1

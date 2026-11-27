@@ -32,7 +32,7 @@ rule bcftools_sort:
             sample_outdir = os.path.dirname(str(output.vcf))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"bcftools_sort_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"bcftools_sort.sh")
             cmd = [
                 params.bcftools, "sort",
@@ -45,7 +45,7 @@ rule bcftools_sort:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'bcftools sort for {wildcards.sample_id} was completed successfully at {current_time}'")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -81,7 +81,7 @@ rule bcftools_index_csi:
             sample_outdir = os.path.dirname(str(output.csi))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"bcftools_index_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"bcftools_index.sh")
             cmd = [
                 params.bcftools, "index",
@@ -92,7 +92,7 @@ rule bcftools_index_csi:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'bcftools index for {wildcards.sample_id} was completed successfully at {current_time}'")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

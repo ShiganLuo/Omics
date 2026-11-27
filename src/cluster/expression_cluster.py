@@ -34,9 +34,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------------------------
-# Data structures
-# ---------------------------------------------------------------------------
 
 @dataclass
 class ClusterResult:
@@ -73,9 +70,6 @@ class ClusterResult:
         return pd.DataFrame({"Cluster": clusters, "n_genes": counts})
 
 
-# ---------------------------------------------------------------------------
-# Class 1: ExpressionPreprocessor
-# ---------------------------------------------------------------------------
 
 class ExpressionPreprocessor:
     """Load, filter, and transform gene expression matrices.
@@ -130,7 +124,6 @@ class ExpressionPreprocessor:
         self._batch: pd.Series | None = None
         self._transpose: bool = False
 
-    # ---- loading ----
 
     def load(
         self,
@@ -205,7 +198,6 @@ class ExpressionPreprocessor:
         self._batch = batch
         return self
 
-    # ---- internal pipeline ----
 
     def _process(self) -> None:
         """Run filter → VST/log → quantile_normalize → z-score pipeline."""
@@ -215,7 +207,6 @@ class ExpressionPreprocessor:
         logger.info(f"Processing: {n_rows} {row_label} x {n_cols} {col_label}")
         df = self._filter_low_expression(self._df, self.min_mean, self.min_samples)
 
-        # Auto-detect raw counts: majority of values are non-negative integers
         use_vst = self.vst
         if not use_vst and not self.combat:
             vals = df.values.ravel()
@@ -240,7 +231,6 @@ class ExpressionPreprocessor:
                 df = self._combat_correct(df, self._batch)
                 logger.info(f"Applied ComBat batch correction ({self._batch.nunique()} batches)")
             else:
-                # Default: quantile normalize non-count data
                 qn = self.quantile_normalize if self.quantile_normalize is not None else (not use_vst)
                 if qn:
                     df = self._quantile_normalize(df)
@@ -273,13 +263,10 @@ class ExpressionPreprocessor:
         pd.DataFrame
             Quantile-normalized matrix with same shape and index/columns.
         """
-        # sort each column, compute rank means across all columns
         sorted_vals = np.sort(df.values, axis=0)
         rank_means = sorted_vals.mean(axis=1)
 
-        # rank each column (1-based), then map ranks to means
         ranks = df.rank(method="min").astype(int).values
-        # clip to valid range (rank is 1-based, index is 0-based)
         ranks = np.clip(ranks, 1, len(rank_means))
         df_qn = pd.DataFrame(
             rank_means[ranks - 1],
@@ -319,64 +306,48 @@ class ExpressionPreprocessor:
             logger.warning("Only 1 batch; skipping correction")
             return df
 
-        # design matrix (intercept only, no biological covariates)
-        batch_design = pd.get_dummies(batch).loc[df.columns].values.astype(float)  # (n_samples, n_batch)
+        batch_design = pd.get_dummies(batch).loc[df.columns].values.astype(float)
 
-        # --- 1. OLS estimation of batch effects ---
-        B_hat = np.linalg.lstsq(batch_design, df.values.T, rcond=None)[0]  # (n_batch, n_genes)
-        grand_mean = B_hat.mean(axis=0)  # (n_genes,)
+        B_hat = np.linalg.lstsq(batch_design, df.values.T, rcond=None)[0]
+        grand_mean = B_hat.mean(axis=0)
 
-        # residual variance per gene
-        fitted = batch_design @ B_hat  # (n_samples, n_genes)
-        var_pooled = ((df.values.T - fitted) ** 2).mean(axis=0)  # (n_genes,)
+        fitted = batch_design @ B_hat
+        var_pooled = ((df.values.T - fitted) ** 2).mean(axis=0)
 
-        # --- 2. Standardize ---
-        # batch-specific mean and std
-        gamma_hat = B_hat - grand_mean  # (n_batch, n_genes) additive effect
+        gamma_hat = B_hat - grand_mean
         delta_hat = np.zeros((n_batch, n_genes))
         for i, b in enumerate(batches):
             idx = batch == b
-            batch_data = df.values[:, idx.values].T  # (n_samples_in_batch, n_genes)
+            batch_data = df.values[:, idx.values].T
             delta_hat[i] = batch_data.std(axis=0, ddof=1)
 
-        # avoid division by zero
         delta_hat = np.maximum(delta_hat, 1e-8)
 
-        # --- 3. Empirical Bayes shrinkage (method of moments) ---
         gamma_star = np.zeros_like(gamma_hat)
         delta_star = np.zeros_like(delta_hat)
 
         for i, b in enumerate(batches):
             n_b = (batch == b).sum()
 
-            # prior for gamma: Normal(g_bar, tau^2)
             g_bar = gamma_hat[i].mean()
             tau2 = gamma_hat[i].var()
 
-            # single-sample batch: no shrinkage possible, use raw estimate
             if n_b <= 1 or tau2 == 0 or var_pooled.min() == 0:
                 gamma_star[i] = gamma_hat[i]
                 delta_star[i] = delta_hat[i]
                 continue
 
-            # prior for delta: InverseGamma(lambda, rate)
-            # method of moments on log(delta^2)
             log_d2 = np.log(delta_hat[i] ** 2)
             d_bar = log_d2.mean()
             v = log_d2.var()
 
-            # posterior mean for gamma (shrinkage toward g_bar)
             gamma_star[i] = (n_b * gamma_hat[i] / var_pooled + g_bar / tau2) / \
                             (n_b / var_pooled + 1 / tau2)
 
-            # posterior for delta (shrinkage on log scale)
             v_star = 1.0 / (n_b / 2.0 + 1.0 / v) if v > 0 else 0
             d_star = (n_b / 2.0 * np.log(delta_hat[i] ** 2) + d_bar / v) * v_star if v > 0 else np.log(delta_hat[i] ** 2)
             delta_star[i] = np.exp(d_star / 2.0)
 
-        # --- 4. Apply correction ---
-        # ComBat formula:
-        # y_corrected = (y - gamma_star) / delta_star * sqrt(var_pooled) + grand_mean
         df_out = df.values.copy().astype(float)
         for i, b in enumerate(batches):
             idx = batch == b
@@ -384,7 +355,6 @@ class ExpressionPreprocessor:
             for j in idx_arr:
                 df_out[:, j] = (df.values[:, j] - gamma_star[i]) / delta_star[i] * np.sqrt(var_pooled) + grand_mean
 
-        # replace any NaN/inf from edge cases
         df_out = np.nan_to_num(df_out, nan=0.0, posinf=0.0, neginf=0.0)
         return pd.DataFrame(df_out, index=df.index, columns=df.columns)
 
@@ -405,14 +375,11 @@ class ExpressionPreprocessor:
         pd.Series
             Size factor per sample (index matches df.columns).
         """
-        # geometric mean per gene (across samples)
         log_counts = np.log(df.replace(0, np.nan))
         geo_means = log_counts.mean(axis=1)
         valid = geo_means.notna()
-        # ratio of each sample to geometric mean
         ratios = df.loc[valid].div(np.exp(geo_means[valid]), axis=0)
         size_factors = ratios.median(axis=0)
-        # clip to avoid division by near-zero
         size_factors = size_factors.clip(lower=1e-8)
         logger.info(f"Size factors: min={size_factors.min():.3f}, max={size_factors.max():.3f}")
         return size_factors
@@ -439,13 +406,10 @@ class ExpressionPreprocessor:
         pd.Series
             Fitted dispersion per gene (clipped to [1e-8, 10]).
         """
-        # normalize by size factors
         normed = df.div(size_factors, axis=1)
         mu = normed.mean(axis=1)
         var = normed.var(axis=1, ddof=1)
-        # method of moments dispersion
         alpha_raw = (var - mu) / (mu ** 2)
-        # clip negative dispersions (underdispersed -> Poisson-like)
         alpha_raw = alpha_raw.clip(lower=1e-8)
         return alpha_raw
 
@@ -470,7 +434,6 @@ class ExpressionPreprocessor:
         pd.Series
             Fitted (trended) dispersions per gene.
         """
-        # use genes with mu > 1 and alpha > 0 for fitting
         mask = (mu > 1) & (alpha > 0) & alpha.notna() & mu.notna()
         if mask.sum() < 10:
             logger.warning("Too few genes for trend fitting; using median dispersion")
@@ -480,13 +443,10 @@ class ExpressionPreprocessor:
         log_mu = np.log(mu[mask])
         log_alpha = np.log(alpha[mask])
 
-        # linear regression: log(α) = -log(μ) + c  =>  α = exp(c) / μ
-        # more generally: log(α) = a * log(μ) + b
         A = np.column_stack([log_mu.values, np.ones(mask.sum())])
         coeffs = np.linalg.lstsq(A, log_alpha.values, rcond=None)[0]
         a, b = coeffs
 
-        # fitted trend for all genes
         log_mu_all = np.log(mu.clip(lower=1e-8))
         alpha_fitted = np.exp(a * log_mu_all + b)
         alpha_fitted = alpha_fitted.clip(lower=1e-8, upper=10.0)
@@ -519,29 +479,22 @@ class ExpressionPreprocessor:
         pd.DataFrame
             VST-transformed matrix with same shape and index/columns.
         """
-        # ensure non-negative
         df = df.clip(lower=0)
 
-        # 1. Size factor normalization
         sf = ExpressionPreprocessor._estimate_size_factors(df)
         normed = df.div(sf, axis=1)
 
-        # 2. Gene-wise dispersions
         mu = normed.mean(axis=1)
         alpha_raw = ExpressionPreprocessor._estimate_dispersions(df, sf)
 
-        # 3. Fit dispersion trend
         alpha_fitted = ExpressionPreprocessor._fit_dispersion_trend(mu, alpha_raw)
 
-        # 4. Apply VST: f(x) = 2/√α * asinh(√(α * x))
-        #    Broadcast alpha (per gene) across samples
-        alpha_mat = alpha_fitted.values[:, np.newaxis]  # (n_genes, 1)
-        x = df.values  # (n_genes, n_samples)
+        alpha_mat = alpha_fitted.values[:, np.newaxis]
+        x = df.values
         sqrt_alpha = np.sqrt(alpha_mat)
         vst_vals = 2.0 / sqrt_alpha * np.arcsinh(sqrt_alpha * np.sqrt(x))
 
         result = pd.DataFrame(vst_vals, index=df.index, columns=df.columns)
-        # handle genes with zero dispersion (degenerate)
         result = result.replace([np.inf, -np.inf], 0).fillna(0)
         return result
 
@@ -561,7 +514,6 @@ class ExpressionPreprocessor:
         )
         return df_filtered
 
-    # ---- public properties ----
 
     @property
     def scaled(self) -> pd.DataFrame:
@@ -588,9 +540,6 @@ class ExpressionPreprocessor:
         return self.scaled.columns
 
 
-# ---------------------------------------------------------------------------
-# Class 2: DistanceCalculator
-# ---------------------------------------------------------------------------
 
 class DistanceCalculator:
     """Compute distances and perform clustering.
@@ -626,7 +575,6 @@ class DistanceCalculator:
         "binary", "minkowski", "cosine",
     )
 
-    # scipy pdist uses different names for some metrics
     _METRIC_ALIASES = {
         "manhattan": "cityblock",
     }
@@ -644,7 +592,6 @@ class DistanceCalculator:
         self.metric = metric
         self.minkowski_p = minkowski_p
 
-    # ---- low-level distance ----
 
     def pairwise(self, df: pd.DataFrame) -> np.ndarray:
         """Compute condensed pairwise distance matrix.
@@ -665,7 +612,6 @@ class DistanceCalculator:
             kwargs["p"] = self.minkowski_p
         return pdist(df.values, metric=pdist_metric, **kwargs)
 
-    # ---- clustering methods ----
 
     def hierarchical(
         self,
@@ -878,13 +824,11 @@ class DistanceCalculator:
         """
         from sklearn.cluster import SpectralClustering
 
-        # Build affinity matrix from pairwise distances
         pdist_metric = self._METRIC_ALIASES.get(self.metric, self.metric)
         dist = pdist(df.values, metric=pdist_metric)
         from scipy.spatial.distance import squareform
         dist_matrix = squareform(dist)
 
-        # Convert distance to affinity (Gaussian kernel)
         sigma = np.median(dist)
         affinity = np.exp(-dist_matrix ** 2 / (2 * sigma ** 2))
 
@@ -987,9 +931,6 @@ class DistanceCalculator:
         return pd.DataFrame(results)
 
 
-# ---------------------------------------------------------------------------
-# Class 3: ClusterPlotter
-# ---------------------------------------------------------------------------
 
 class ClusterPlotter:
     """Visualize clustering results.
@@ -1043,14 +984,12 @@ class ClusterPlotter:
             cluster_labels = cluster_labels[::step]
             logger.info(f"Heatmap subsampled to {df.shape[0]} rows")
 
-        # Subsample columns by variance (keep top variable features)
         if df.shape[1] > max_cols:
             variances = df.var(axis=0)
             top_cols = variances.nlargest(max_cols).index
             df = df[top_cols]
             logger.info(f"Heatmap subsampled to {df.shape[1]} columns (top variance)")
 
-        # z-score for display
         df_z = df.subtract(df.mean(axis=1), axis=0).div(df.std(axis=1), axis=0).fillna(0)
         if vmin is None:
             vmin = df_z.quantile(0.02).min()
@@ -1066,7 +1005,6 @@ class ClusterPlotter:
             gridspec_kw={"width_ratios": [0.05, 1], "wspace": 0.01},
         )
 
-        # cluster color bar
         unique = sorted(set(cluster_labels))
         palette = {c: plt.cm.tab20(i / max(len(unique), 1)) for i, c in enumerate(unique)}
         for i, cl in enumerate(cluster_labels):
@@ -1078,7 +1016,6 @@ class ClusterPlotter:
         ax_bar.set_yticks([])
         ax_bar.set_ylabel("Cluster", fontsize=8)
 
-        # heatmap
         sns.heatmap(
             df_z, ax=ax_heat, cmap=cmap, vmin=vmin, vmax=vmax,
             xticklabels=True, yticklabels=False, linewidths=0,
@@ -1257,7 +1194,6 @@ class ClusterPlotter:
         ax.set_xlabel("Sample" if labels is not None else "Gene index (or cluster size)")
         ax.set_ylabel("Distance")
 
-        # Color x-axis tick labels by cell type
         if cell_types is not None and labels is not None:
             unique_types = sorted(set(cell_types.values()))
             cmap = plt.cm.tab20
@@ -1270,7 +1206,6 @@ class ClusterPlotter:
                 if ct and ct in type_colors:
                     tick.set_color(type_colors[ct])
 
-            # Legend
             from matplotlib.patches import Patch
             legend_patches = [Patch(facecolor=type_colors[ct], label=ct) for ct in unique_types]
             ax.legend(
@@ -1320,9 +1255,6 @@ class ClusterPlotter:
         logger.info(f"Saved elbow plot to {output}")
 
 
-# ---------------------------------------------------------------------------
-# Pipeline orchestrator
-# ---------------------------------------------------------------------------
 
 def run_clustering(
     matrix: str | Path,
@@ -1345,12 +1277,9 @@ def run_clustering(
     heatmap: bool = True,
     dendrogram: bool = False,
     pca: bool = False,
-    # DBSCAN parameters
     dbscan_eps: float = 0.5,
     dbscan_min_samples: int = 5,
-    # Spectral parameters
     spectral_n_neighbors: int = 10,
-    # GMM parameters
     gmm_covariance: str = "full",
     cell_types: dict[str, str] | None = None,
 ) -> pd.DataFrame:
@@ -1372,14 +1301,12 @@ def run_clustering(
     output_dir.mkdir(parents=True, exist_ok=True)
     stem = prefix.name
 
-    # 1. Preprocess
     prep = ExpressionPreprocessor(
         min_mean=min_mean, log_transform=log_transform,
         vst=vst,
         quantile_normalize=quantile_normalize, zscore=zscore,
     ).load(matrix, transpose=transpose)
 
-    # 2. Distance + clustering
     calc = DistanceCalculator(metric=metric, minkowski_p=minkowski_p)
 
     if elbow:
@@ -1402,14 +1329,12 @@ def run_clustering(
     else:
         raise ValueError(f"Unknown method: {method}")
 
-    # save assignments
     assignments = result.to_dataframe(prep.gene_names)
     assignments.to_csv(output_dir / f"{stem}_cluster_assignments.tsv", sep="\t", index=False)
     summary = result.summary()
     summary.to_csv(output_dir / f"{stem}_cluster_summary.tsv", sep="\t", index=False)
     logger.info(f"Cluster sizes:\n{summary.to_string(index=False)}")
 
-    # 3. Visualization
     plotter = ClusterPlotter()
     if heatmap:
         plotter.heatmap(prep.raw, result.labels, output_dir / f"{stem}_heatmap.png")
@@ -1423,9 +1348,6 @@ def run_clustering(
     return assignments
 
 
-# ---------------------------------------------------------------------------
-# CLI
-# ---------------------------------------------------------------------------
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -1476,12 +1398,9 @@ Examples:
     parser.add_argument("--no-heatmap", action="store_true", help="Skip heatmap")
     parser.add_argument("--dendrogram", action="store_true", help="Dendrogram (hierarchical only)")
     parser.add_argument("--pca", action="store_true", help="PCA plot (samples in PC space)")
-    # DBSCAN parameters
     parser.add_argument("--dbscan-eps", type=float, default=0.5, help="DBSCAN eps (neighborhood size)")
     parser.add_argument("--dbscan-min-samples", type=int, default=5, help="DBSCAN min_samples")
-    # Spectral parameters
     parser.add_argument("--spectral-n-neighbors", type=int, default=10, help="Spectral n_neighbors")
-    # GMM parameters
     parser.add_argument("--gmm-covariance", default="full", choices=["full", "tied", "diag", "spherical"],
                         help="GMM covariance type")
 

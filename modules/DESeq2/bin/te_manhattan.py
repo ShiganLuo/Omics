@@ -61,15 +61,14 @@ except ImportError:
     from LogUtil import setup_logger
 logger = setup_logger(__name__, level=logging.INFO)
 matplotlib.use("Agg")
-PlotFormat = str  # any matplotlib savefig format: png, pdf, svg, ...
+PlotFormat = str
 
 
 CHROM_COLOR_ODD = "#4C72B0"
 CHROM_COLOR_EVEN = "#8DA0CB"
-# Burst/down loci are colored by direction: red = up, blue = down.
 BURST_COLOR_UP = "#C44E52"
 BURST_COLOR_DOWN = "#2166AC"
-DOWN_POINT_COLOR = "#1A4E8A"  # darker blue for background down points
+DOWN_POINT_COLOR = "#1A4E8A"
 HIGHLIGHT_PALETTE = [
     "#DD8452",
     "#55A868",
@@ -118,8 +117,6 @@ def load_locind(locind_path: str) -> pd.DataFrame:
             stack.extend([node.left, node.right])
     loci = pd.DataFrame(rows, columns=["locus_id", "chrom", "start", "end"])
     logger.info(f"Parsed {len(loci)} TE loci from {locind_path}")
-    # cache the parsed table next to the pickle: unpickling the TElocal
-    # index takes ~20-30 s per call, the parquet read ~0.3 s
     cache_path = locind_path + ".parquet"
     try:
         loci.to_parquet(cache_path)
@@ -304,7 +301,6 @@ def load_deseq_tpm(
     if not ctrl_samples or not exp_samples:
         raise ValueError(f"groups '{control}'/'{experiment}' not found in {group_tsv}")
 
-    # coordinates
     if loci_tsv is None:
         raise ValueError("need --loci-tsv (a TElocal .locInd file or a TSV) for locus coordinates")
     if loci_tsv.endswith(".locInd") or loci_tsv.endswith(".parquet"):
@@ -615,17 +611,14 @@ def detect_y_break(values: "np.ndarray", min_gap_frac: float = 0.10) -> Optional
     n = len(v)
     best: Optional[Tuple[float, float]] = None
     best_saving = 0.0
-    # candidate gaps: each consecutive-pair gap that leaves <=10% of
-    # points on one side
     for i in range(1, n):
         gap = v[i] - v[i - 1]
         if gap < min_gap_frac * span:
             continue
-        # smaller side size (points isolated beyond the gap)
         smaller = min(i, n - i)
         if smaller / n > tail_max_frac:
             continue
-        saving = (gap - min_gap_frac * span) / span  # collapse only the excess
+        saving = (gap - min_gap_frac * span) / span
         if saving > best_saving and saving >= min_saving_frac:
             best_saving = saving
             best = (float(v[i - 1]), float(v[i]))
@@ -676,19 +669,15 @@ def dodge_labels(
     if not items:
         return []
     fig = ax.figure
-    fig.canvas.draw()  # resolve positions before measuring extents
+    fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
-    leader_gap_pt = 12.0  # label base sits this far above the anchor
+    leader_gap_pt = 12.0
     texts: List["plt.Text"] = []
     leaders: List["plt.Line2D"] = []
-    # points->data scale for the vertical offset
     y0, y1 = ax.get_ylim()
     ax_bb = ax.get_window_extent(renderer=renderer)
     data_per_pt_y = (y1 - y0) / max(ax_bb.y1 - ax_bb.y0, 1.0)
-    tick_pt = 3.0  # short leader tick length below the label
-    # keep labels inside the axes horizontally: labels near the right
-    # edge switch to right-align (text extends leftward), near the left
-    # edge to left-align (text extends rightward)
+    tick_pt = 3.0
     x_lo, x_hi = ax.get_xlim()
     x_span = max(x_hi - x_lo, 1.0)
     fig.canvas.draw()
@@ -697,7 +686,6 @@ def dodge_labels(
     data_per_px_x = x_span / max(ax_bb0.x1 - ax_bb0.x0, 1.0)
     for x, y, label in items:
         ty = y + leader_gap_pt * data_per_pt_y
-        # approximate label half-width in data units for alignment choice
         half_w = len(label) * fontsize * 0.3 * data_per_px_x
         ha = "center"
         if x + half_w > x_hi:
@@ -709,9 +697,6 @@ def dodge_labels(
             ha=ha, va="bottom", fontsize=fontsize,
             color="#1A1A1A", clip_on=True, zorder=6,
         )
-        # short tick directly under the label (moves with it), NOT a long
-        # line to the anchor -- long verticals overlap each other and
-        # cross other labels when labels get pushed apart
         leader, = ax.plot(
             [x, x], [ty - tick_pt * data_per_pt_y, ty],
             lw=0.6, color="#555555", zorder=5, clip_on=True,
@@ -723,7 +708,6 @@ def dodge_labels(
     gap_px = push_pt * px_per_pt
 
     def sync_leaders() -> None:
-        # keep each tick glued to its (possibly pushed) label base
         for text, leader in zip(texts, leaders):
             lx, ly = text.get_position()
             leader.set_data([lx, lx], [ly - tick_pt * data_per_pt_y, ly])
@@ -740,8 +724,6 @@ def dodge_labels(
     base_boxes = boxes()
     offsets = [0.0] * len(texts)
 
-    # Pass 1: deterministic stacking inside x-overlap clusters (sweep by
-    # x0, split when the next label starts beyond the current x span).
     order = sorted(range(len(texts)), key=lambda i: base_boxes[i].x0)
     x_margin = 10.0
     clusters: List[List[int]] = []
@@ -760,7 +742,7 @@ def dodge_labels(
     frame_pad_px = frame_pad_pt * px_per_pt
     axes_top = ax.get_window_extent(renderer=renderer).y1 - frame_pad_px
     for cluster in clusters:
-        cluster.sort(key=lambda i: base_boxes[i].y0)  # bottom-most first
+        cluster.sort(key=lambda i: base_boxes[i].y0)
         prev_top = None
         for i in cluster:
             b = base_boxes[i]
@@ -770,8 +752,6 @@ def dodge_labels(
                 y0, y1 = b.y0 + offsets[i], b.y1 + offsets[i]
             prev_top = y1
         if prev_top > axes_top:
-            # stack would overflow the axes top: rebuild downward,
-            # clamping the topmost label inside the axes first
             cluster.sort(key=lambda i: base_boxes[i].y0, reverse=True)
             prev_bottom = None
             for i in cluster:
@@ -790,21 +770,12 @@ def dodge_labels(
         text.set_position((base_x, base_y + offsets[idx] * data_per_pt_y))
     sync_leaders()
 
-    # Pass 2: global pairwise collision sweep (catches cross-cluster
-    # overlaps created when different clusters adjusted against each
-    # other or the y ranks differ from x ranks). Pushes are boundary
-    # aware: when pushing the upper label up would cross the axes top,
-    # the lower label is pushed down instead (proportionally when both
-    # are tight) -- a naive always-up push plus a clamp step oscillates
-    # and never converges.
     axes_bb = ax.get_window_extent(renderer=renderer)
     pad_px = frame_pad_pt * px_per_pt
     axes_top, axes_bot = axes_bb.y1 - pad_px, axes_bb.y0 + pad_px
 
     for _ in range(60):
         cur_boxes = boxes()
-        # fixed obstacles drawn earlier (boundary count notes, hline
-        # labels) must not be overlapped by pushed labels
         obstacles = [
             t.get_window_extent(renderer=renderer)
             for t in ax.texts
@@ -815,9 +786,9 @@ def dodge_labels(
             for b_idx in range(a + 1, len(texts)):
                 ba, bb = cur_boxes[a], cur_boxes[b_idx]
                 if ba.x1 < bb.x0 or bb.x1 < ba.x0:
-                    continue  # no x overlap -> cannot collide
+                    continue
                 if ba.y1 < bb.y0 or bb.y1 < ba.y0:
-                    continue  # already separated vertically
+                    continue
                 upper, lower = (a, b_idx) if ba.y0 > bb.y0 else (b_idx, a)
                 need = cur_boxes[lower].y1 + gap_px - cur_boxes[upper].y0
                 if need <= 0:
@@ -829,7 +800,6 @@ def dodge_labels(
                 elif need <= room_dn:
                     shift(lower, -need)
                 elif room_up > 0 and room_dn > 0:
-                    # split the push between both sides, never past a bound
                     shift(upper, room_up)
                     shift(lower, -(need - room_up))
                 elif room_dn > 0:
@@ -837,11 +807,9 @@ def dodge_labels(
                 elif room_up > 0:
                     shift(upper, min(need, room_up))
                 else:
-                    continue  # no room anywhere: leave as-is (best effort)
+                    continue
                 moved = True
                 cur_boxes = boxes()
-        # label vs fixed obstacle: push the label away, respecting the
-        # axes bounds (choose the side with room, else the roomier side)
         for a in range(len(texts)):
             ba = cur_boxes[a]
             for ob in obstacles:
@@ -1015,7 +983,6 @@ def plot_manhattan(
     if image_formats is None:
         image_formats = ["png"]
 
-    # --- broken y axis: detect and collapse an empty band ------------
     break_lo = break_hi = None
     if y_break_auto:
         detected = detect_y_break(loci["value"].to_numpy())
@@ -1042,8 +1009,7 @@ def plot_manhattan(
             loci = loci.copy()
             loci["value"] = loci["value"].map(fold)
             if "signif" in loci.columns:
-                pass  # significance already folded into is_burst earlier
-            # fold the same band in fixed ylim / hlines if given
+                pass
             if ylim is not None:
                 ylim = (
                     float(ylim[0]) if ylim[0] <= break_lo else float(ylim[0]) - collapse,
@@ -1076,7 +1042,7 @@ def plot_manhattan(
         else:
             loci["is_pinned"] = False
     else:
-        y_min = y_max = 0.0  # sentinel; only referenced under `ylim is not None`
+        y_min = y_max = 0.0
         loci = loci.copy()
         loci["is_pinned"] = False
 
@@ -1087,9 +1053,6 @@ def plot_manhattan(
     ax_leg = ax
 
     chrom_names = resolve_chrom_order(list(loci["chrom"].unique()), chrom_order)
-    # marker area from the abundance column (e.g. baseMean) when present;
-    # default range keeps the original point sizes: background points
-    # scale up to the burst marker size (highlight_size + 1)
     if "size_value" in loci.columns:
         s_lo = point_size if size_smin is None else size_smin
         s_hi = highlight_size + 1.0 if size_smax is None else size_smax
@@ -1097,8 +1060,6 @@ def plot_manhattan(
     else:
         loci["marker_s"] = point_size
     background = loci[~loci["is_highlight"] & ~loci["is_burst"]]
-    # When significance is known, non-significant background points are
-    # gray so the significant ones stand out by color, not just direction.
     if "signif" in background.columns and signif_thresh is not None:
         bg_sig_mask = background["signif"] <= signif_thresh
     else:
@@ -1111,9 +1072,6 @@ def plot_manhattan(
         background = background.sample(n=max_points, random_state=seed)
     for idx, chrom in enumerate(chrom_names):
         sub = background[background["chrom"] == chrom]
-        # Down-regulated points (value < 0) get a solid blue so they stay
-        # readable against the pale alternating chromosome colors;
-        # non-significant points (when testable) are drawn gray.
         if bg_sig_mask is not None:
             sub_mask = bg_sig_mask.loc[sub.index]
             sig, nonsig = sub[sub_mask], sub[~sub_mask]
@@ -1138,8 +1096,6 @@ def plot_manhattan(
         )
 
     legend_handles: List[object] = []
-    # background point legend (proxy markers -- the actual scatters span
-    # many chromosome colors / sizes)
     if bg_sig_mask is not None:
         legend_handles.extend(
             [
@@ -1152,9 +1108,6 @@ def plot_manhattan(
             ]
         )
     highlight_family_names = sorted(loci.loc[loci["is_highlight"], "family"].astype(str).unique())
-    # significance encoded within family color: significant loci keep full
-    # opacity with a thin white edge, non-significant ones fade -- avoids
-    # the ugly dark-ring look while keeping significance readable
     hl_sig = None
     if "signif" in loci.columns and signif_thresh is not None:
         hl_sig = (loci["signif"] <= signif_thresh).fillna(False)
@@ -1228,9 +1181,6 @@ def plot_manhattan(
     ax.set_ylabel(ylabel)
 
     if break_lo is not None:
-        # broken-axis marker: a diagonal slash pair at the fold position
-        # on the y axis spine (data above break_hi was shifted down by
-        # the collapse width, so the fold sits at break_lo)
         marker_kw = dict(
             transform=ax.get_yaxis_transform(), clip_on=False, zorder=10,
             linewidth=1.2, color="black",
@@ -1247,7 +1197,7 @@ def plot_manhattan(
     ax.set_xlim(0, x_max)
     all_pos = [float(centers[c]) for c in chrom_names if c in centers]
     all_lab = [c for c in chrom_names if c in centers]
-    axes_width_pt = figsize[0] * 72.0 * 0.65  # conservative (y labels eat left margin)
+    axes_width_pt = figsize[0] * 72.0 * 0.65
     kept_pos, kept_lab = thin_tick_labels(all_pos, all_lab, x_max, axes_width_pt)
     if len(kept_lab) < len(all_lab):
         logger.info(
@@ -1267,9 +1217,6 @@ def plot_manhattan(
 
     label_items: List[Tuple[float, float, str]] = []
     if label_top > 0:
-        # Label with the locus id's first ':' segment (the rmsk
-        # transcript_id, e.g. AmnL2-1_dup1083), not `name` (repName,
-        # shared by thousands of loci).
         label_col = "locus_id" if "locus_id" in loci.columns else "name"
         marked = loci[loci["is_burst"] | loci["is_highlight"]]
         top = marked.reindex(
@@ -1283,8 +1230,6 @@ def plot_manhattan(
         dodge_labels(ax, label_items)
 
     if ax_leg is not None:
-        # fit the legend within the axes width: try ncol columns and
-        # reduce until the rendered legend box is no wider than the axes
         fig.canvas.draw()
         renderer = fig.canvas.get_renderer()
         ax_width_px = ax_leg.get_window_extent(renderer=renderer).width
@@ -1421,8 +1366,6 @@ def main(argv: Optional[List[str]] = None) -> None:
     os.makedirs(args.outdir, exist_ok=True)
 
     if args.deseq:
-        # DESeq2-driven mode: TPM computed internally from the result
-        # table's per-sample counts + group file + locus coordinates
         if not (args.group and args.control and args.experiment):
             raise ValueError("--deseq requires --group, --control and --experiment")
         loci = load_deseq_tpm(
@@ -1433,7 +1376,6 @@ def main(argv: Optional[List[str]] = None) -> None:
             loci_tsv=args.loci_tsv,
             signif_col=args.signif_col or "padj",
         )
-        # value column naming inside this mode
         if args.value_col != "value":
             logger.info(f"--deseq mode: --value-col '{args.value_col}' ignored, using delta TPM")
         if args.size_col is None:

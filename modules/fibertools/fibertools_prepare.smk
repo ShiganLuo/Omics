@@ -33,9 +33,6 @@ elif samtools view {bam_path} 2>/dev/null | head -100 | grep -q 'MM:Z:'; then
 fi
 """
 
-# Pre-detect m6A at DAG time (runs on host) for fire input routing.
-# DAG-time probe used by _has_m6a() only — per-rule SIF preference does not
-# apply here, so resolve via the generic module-level lookup.
 _fibertools_sif = sif("fibertools.yaml", "")
 
 def _has_m6a(sample_id):
@@ -44,8 +41,6 @@ def _has_m6a(sample_id):
     if not os.path.exists(bam):
         return False
     try:
-        # samtools follows the symlink to the raw data, so the bind must cover
-        # the real target's directory, not just the 1_raw_data staging dir.
         real_bam = os.path.realpath(bam)
         bam_dir = os.path.dirname(real_bam)
         cmd = ["apptainer", "exec", "--bind", f"{bam_dir}:{bam_dir}", _fibertools_sif, "samtools", "view", "-H", bam]
@@ -106,7 +101,7 @@ rule ft_predict_m6a:
                 f.write(f'    echo "m6A prediction completed for sample {wildcards.sample_id}"\n')
                 f.write('fi\n')
             shutil.copyfile(command_script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -137,7 +132,6 @@ rule ft_add_nucleosomes:
     input:
         bam = outdir + "/{sample_id}/{sample_id}.fiberseq.bam"
     output:
-        # intermediate controlled by Params.fibertools.keep_intermediates (modules.md temp spec)
         bam = maybe_temp(outdir + "/{sample_id}/{sample_id}.fiberseq.nuc.bam", "fibertools")
     log:
         logdir + "/{sample_id}/ft_add_nucleosomes.log"
@@ -175,7 +169,7 @@ rule ft_add_nucleosomes:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "Nucleosome calling completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -192,7 +186,6 @@ rule ft_fire:
     input:
         bam = get_input_for_ft_fire
     output:
-        # registered deliverable (node.py outfiles) - never wrapped per modules.md temp spec
         bam = outdir + "/{sample_id}/{sample_id}.fiberseq.fire.bam"
     log:
         logdir + "/{sample_id}/ft_fire.log"
@@ -233,7 +226,7 @@ rule ft_fire:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "FIRE calling completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

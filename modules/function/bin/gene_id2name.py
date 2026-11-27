@@ -102,7 +102,7 @@ def load_cache_if_valid(cache_path: str, gtf_signature: dict):
         with open(cache_path, "rb") as f:
             cache = pickle.load(f)
     except:
-        return None  # Corrupted cache
+        return None
 
     cached_sig = cache.get("signature", {})
     if cached_sig == gtf_signature:
@@ -193,17 +193,14 @@ def load_gtf_gene_map(gtf_path: str, cache_path="gene_map.pkl") -> dict:
     """
     gtf_signature = get_file_signature(gtf_path)
 
-    # Try loading from cache
     gene_map = load_cache_if_valid(cache_path, gtf_signature)
 
     if gene_map is not None:
         return gene_map
 
-    # Parse GTF
     logger.info("Parsing GTF (this may take a while)...")
     gene_map = parse_gtf_gene_map(gtf_path)
 
-    # Save cache
     save_cache(cache_path, gene_map, gtf_signature)
     logger.info(f"Cache written: {cache_path}")
 

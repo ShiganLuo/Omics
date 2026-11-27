@@ -7,14 +7,9 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 genome1_samples = config.get("genome1_samples", [])
 genome2_samples = config.get("genome2_samples", [])
 genome1, genome2 = config.get("genome_pairs", ["genome1", "genome2"])
-# formats(模块 md #9 / subworkflow.md formats 规范):matplotlib savefig 格式
-# 集,一种格式一个输出文件;str 收成单元素列表(格式合法性由 schema 声明)
 _formats = config.get("formats") or ["png"]
 if isinstance(_formats, str):
     _formats = [_formats]
-# 出图基名(不含扩展名;每种格式一个文件)。bin/HRT.py 只为样本列表非空的
-# 基因组出图,所以 output 的格式展开以列表为条件(module 级变量——output
-# 指令无法调用函数,见 decoil.smk 注释)
 _plot_bases = []
 if genome1_samples:
     _plot_bases.append(genome1 + "_2_" + genome2)
@@ -27,7 +22,6 @@ rule HRT:
         genome2_count = indir + "/" + genome2 + "/all_TEcount_name.tsv"
     output:
         report = outdir + "/CoCulture_report/CoCulture_report.html",
-        # ② 按格式展开:每种格式一个输出文件(base 不带扩展名)
         plots = [outdir + "/CoCulture_report/" + base + "." + fmt
                  for base in _plot_bases for fmt in _formats],
     log:
@@ -42,7 +36,7 @@ rule HRT:
         genome2 = genome2,
         genome1_samples = genome1_samples,
         genome2_samples = genome2_samples,
-        formats = _formats,   # ③ 转发
+        formats = _formats,
         HTR_script = ROOT_DIR + "/modules/CoCulture_report/HRT.py"
     conda:
         "CoCulture_report.yaml"
@@ -56,7 +50,7 @@ rule HRT:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start HRT run at {current_time}")
             script = receipt_script(f"HRT_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"HRT.sh")
             cmd = ["python", params.HTR_script,
                    "--genome1_count", input.genome1_count,
@@ -73,7 +67,7 @@ rule HRT:
                 f.write(' '.join(cmd) + '\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

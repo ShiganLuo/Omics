@@ -1,6 +1,5 @@
     # Fix scTE bugs: M<->MT mitochondrial naming mismatch
 
-    # 1. Fix splitAllChrs in base.py (BAM processing)
     SCTE_BASE=$(find /opt/conda/envs/scTE -path "*/site-packages/scTE/base.py" | head -1) && \
         /opt/conda/envs/scTE/bin/python -c "
 p='$SCTE_BASE'
@@ -25,14 +24,12 @@ else:
     print('base.py: already patched or different version')
 "
 
-    # 2. Fix scTE_build: chr_list and M<->MT normalization
     SCTE_BUILD=$(find /opt/conda/envs/scTE -path "*/bin/scTE_build" | head -1) && \
         /opt/conda/envs/scTE/bin/python -c "
 p='$SCTE_BUILD'
 with open(p) as f: src=f.read()
 changed = False
 
-# Fix chr_list to include both M and MT
 old1 = \"chr_list = [str(k) for k in list(range(1,50))] + ['X','Y','M']\"
 new1 = \"chr_list = [str(k) for k in list(range(1,50))] + ['X','Y','M', 'MT']\"
 if old1 in src:
@@ -40,7 +37,6 @@ if old1 in src:
     print('fixed chr_list')
     changed = True
 
-# Fix readGtf: normalize M<->MT
 old2 = \"            if chrom.replace('chr','') not in chr_list:\\n                continue\"
 new2 = \"            _chr = chrom.replace('chr','')\\n            if _chr not in chr_list:\\n                if _chr == 'M' and 'MT' in chr_list:\\n                    pass\\n                elif _chr == 'MT' and 'M' in chr_list:\\n                    pass\\n                else:\\n                    continue\"
 if old2 in src:
@@ -48,7 +44,6 @@ if old2 in src:
     print('fixed readGtf chr check')
     changed = True
 
-# Fix TE processing: normalize M<->MT
 old3 = \"            if chr not in chr_list:\\n                continue\"
 new3 = \"            if chr not in chr_list:\\n                if chr == 'M' and 'MT' in chr_list:\\n                    pass\\n                elif chr == 'MT' and 'M' in chr_list:\\n                    pass\\n                else:\\n                    continue\"
 if old3 in src:
@@ -63,15 +58,12 @@ else:
     print('scTE_build: already patched or no matching text')
 "
 
-    # 3. Fix scTE_build: handle custom TE BED with header + 7-column format
-    #    (chrom/start/end/strand/gene_id/family_id/class_id, e.g. rheMac10_rmsk_TE.bed)
     SCTE_BUILD=$(find /opt/conda/envs/scTE -path "*/bin/scTE_build" | head -1) && \
         /opt/conda/envs/scTE/bin/python -c "
 p='$SCTE_BUILD'
 with open(p) as f: src=f.read()
 changed = False
 
-# A. Chromosome scanning: parse header for column indices
 old1 = r'''        for line in o:
             if '.gz' in tefilename:
                 line = line.decode('ascii')
@@ -95,7 +87,6 @@ if old1 in src:
     print('TE BED patch A: chr scan header-aware')
     changed = True
 
-# B. _process_tes_legacy: init _te_hdr + header-aware column lookup
 old2a = r'''    noverlap = []
     total_te = 0'''
 new2a = r'''    noverlap = []
@@ -125,7 +116,6 @@ if old2 in src:
     print('TE BED patch B: _process_tes_legacy header-aware')
     changed = True
 
-# C. _build_inclusive_index: header-aware column lookup
 old3 = r'''        TEs = genelist(tefilename, format={
             'force_tsv': True,
             'loc': 'location(chr=column[0], left=column[1], right=column[2])',

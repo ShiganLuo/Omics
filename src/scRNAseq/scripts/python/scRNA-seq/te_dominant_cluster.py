@@ -110,8 +110,6 @@ def main():
             cell_type=("cell_type", lambda s: s.value_counts().index[0]))
         cl["te_frac"] *= 100
 
-        # ---- v2 eligibility gates (anti denominator-collapse) ------------
-        # 绝对 TE 计数:防止"基因程序塌缩 → TE% 被动抬高"的假 TE 主导
         df["te_abs"] = np.asarray(te_sum).ravel()
         cl["te_abs_med"] = df.groupby("leiden")["te_abs"].median()
         global_med_te = float(np.asarray(df["te_abs"]).ravel().mean() and
@@ -122,10 +120,10 @@ def main():
             return float(np.median(vals)) if len(vals) >= 30 else float("inf")
         cl["sib_te_med"] = cl.apply(_sib_te_med, axis=1)
         cl["eligible"] = (
-            (cl["te_abs_med"] >= 0.5 * cl["sib_te_med"])      # 不低于同谱系 siblings 一半
-            & (cl["te_abs_med"] >= 0.5 * global_med_te)        # 不低于全组织一半
-            & (cl["te_frac"] > 35)                             # TE% 门槛(原判据保留)
-            & (cl["n"] >= 100)                                 # 统计稳定
+            (cl["te_abs_med"] >= 0.5 * cl["sib_te_med"])
+            & (cl["te_abs_med"] >= 0.5 * global_med_te)
+            & (cl["te_frac"] > 35)
+            & (cl["n"] >= 100)
         )
         dom = cl[cl["eligible"]].sort_values("te_frac", ascending=False)
         rejected = cl[(cl["te_frac"] > 35) & ~cl["eligible"]]
@@ -141,7 +139,6 @@ def main():
 
         dom_clusters = set(dom.index)
 
-        # ---- fig1: UMAP by TE% + dominant outline -----------------------
         fig, axes = plt.subplots(1, 2, figsize=(12.8, 5.2))
         emb = auto.obsm["X_umap"]
         ax = axes[0]
@@ -153,7 +150,6 @@ def main():
         ax = axes[1]
         dom_mask = df["leiden"].isin(dom_clusters).values
         ax.scatter(emb[~dom_mask, 0], emb[~dom_mask, 1], s=1.2, c="#dddddd")
-        # red-yellow-blue categorical ramp
         cmap = mcolors.LinearSegmentedColormap.from_list(
             "ryb", ["#c0392b", "#e67e22", "#f4d03f", "#5dade2", "#2471a3"])
         for k, cl_id in enumerate(dom.index):
@@ -169,7 +165,6 @@ def main():
                     facecolor="white")
         plt.close(fig)
 
-        # ---- fig2a: TE% per cluster -----------------------------------
         fig, ax = plt.subplots(figsize=(7.2, 4.6))
         cl_sorted = cl.sort_values("te_frac", ascending=False)
         colors = ["#c0392b" if i in dom_clusters else "#b0b0b0"
@@ -189,7 +184,6 @@ def main():
                     facecolor="white")
         plt.close(fig)
 
-        # ---- fig2b: per-sample share ---------------------------------
         fig, ax = plt.subplots(figsize=(7.2, 4.6))
         n_dom = len(dom.index)
         bw = 0.8 / max(n_dom, 1)
@@ -217,10 +211,8 @@ def main():
                     facecolor="white")
         plt.close(fig)
 
-        # ---- fig3: TE class composition --------------------------------
         fig, ax = plt.subplots(figsize=(8.6, 4.8))
         classes = ["LTR", "LINE", "SINE", "DNA", "other"]
-        # red-yellow-blue ramp, consistent with the UMAP panels
         ccolors = ["#c0392b", "#e67e22", "#f4d03f", "#5dade2", "#2471a3"]
         all_te_names = [f for f in feats if f in te_cols]
         cls_of = {f: te_class(f) for f in all_te_names}
@@ -250,7 +242,6 @@ def main():
                     facecolor="white")
         plt.close(fig)
 
-        # ---- fig4: markers ---------------------------------------------
         rows = []
         for group, names in MARKERS.items():
             for g in names:
@@ -293,7 +284,6 @@ def main():
                           "n_cells"]).to_csv(
         f"{args.out_dir}/te_dominant_clusters.csv", index=False)
 
-    # ---- molecular evidence: top up TEs + ribosomal/histone down --------
     import glob as _glob
     for tissue in ("Uterus", "ovaries"):
         dom_ct = [r[2] for r in summary_rows if r[0] == tissue]

@@ -15,7 +15,6 @@ from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.util import Inches, Pt
 from PIL import Image as PILImage
 
-# Colors
 C_NAVY = RGBColor(0x18, 0x25, 0x43)
 C_ACCENT = RGBColor(0x00, 0x94, 0xD8)
 C_GREEN = RGBColor(0x00, 0xA8, 0x78)
@@ -146,7 +145,6 @@ def get_all_proportions():
     return results
 
 
-# ── Slides ──────────────────────────────────────────────────────────────
 
 def create_title_slide(prs):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
@@ -169,7 +167,6 @@ def create_workflow_slide(prs):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     _header(slide, "分析流程")
     
-    # Left: upstream
     _textbox(slide, 0.3, 0.9, 4.5, 0.3, "上游分析", 14, True, C_ACCENT)
     _bullets(slide, 0.3, 1.3, 4.5, 2, [
         "Cell Ranger: 10x Genomics标准基因表达定量",
@@ -179,7 +176,6 @@ def create_workflow_slide(prs):
         "工具：scRNAseq.py（mode: qc/merge/cluster/annotate）",
     ], 10)
     
-    # Right: downstream
     _textbox(slide, 5, 0.9, 4.5, 0.3, "下游二次过滤", 14, True, C_RED)
     _bullets(slide, 5, 1.3, 4.5, 2.5, [
         "1. Cluster QC分析",
@@ -196,7 +192,6 @@ def create_workflow_slide(prs):
         "   • --manual-annotation手动指定",
     ], 9)
     
-    # Bottom: parameters
     _textbox(slide, 0.3, 4.5, 9, 0.3, "过滤参数示例（因数据而异）", 11, True, C_ORANGE)
     _textbox(slide, 0.3, 4.8, 9, 0.6, 
              "Hystera: min_genes=800, min_counts=3000, max_pct_mt=20%\n"
@@ -210,17 +205,14 @@ def create_Uterus_proportions_slide(prs):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     _header(slide, "Hystera 细胞类型比例")
     
-    # CellRanger UMAP
     img_cr = HYSTERA_DIR / "plots" / "cellranger" / "cluster_annotate" / "umap_cell_type.png"
     _add_picture(slide, str(img_cr), 0.2, 0.8, 3, 2.2)
     _textbox(slide, 0.2, 3.0, 3, 0.2, "Cell Ranger", 10, True, C_ACCENT, PP_ALIGN.CENTER)
     
-    # scTE UMAP
     img_sc = HYSTERA_DIR / "plots" / "scTE" / "cluster_annotate" / "umap_cell_type.png"
     _add_picture(slide, str(img_sc), 3.4, 0.8, 3, 2.2)
     _textbox(slide, 3.4, 3.0, 3, 0.2, "scTE", 10, True, C_ACCENT, PP_ALIGN.CENTER)
     
-    # Proportion table
     data = [
         ["Cell Type", "CR %", "scTE %"],
         ["Stromal", "29.1", "29.8"],
@@ -248,17 +240,14 @@ def create_ovaries_proportions_slide(prs):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     _header(slide, "Ovaries 细胞类型比例")
     
-    # CellRanger UMAP
     img_cr = OVARIES_DIR / "plots" / "cellranger" / "cluster_annotate" / "umap_cell_type.png"
     _add_picture(slide, str(img_cr), 0.2, 0.8, 3, 2.2)
     _textbox(slide, 0.2, 3.0, 3, 0.2, "Cell Ranger", 10, True, C_ACCENT, PP_ALIGN.CENTER)
     
-    # scTE UMAP
     img_sc = OVARIES_DIR / "plots" / "scTE" / "cluster_annotate" / "umap_cell_type.png"
     _add_picture(slide, str(img_sc), 3.4, 0.8, 3, 2.2)
     _textbox(slide, 3.4, 3.0, 3, 0.2, "scTE", 10, True, C_ACCENT, PP_ALIGN.CENTER)
     
-    # Proportion table
     data = [
         ["Cell Type", "CR %", "scTE %"],
         ["Luteal", "22.8", "2.0"],
@@ -302,7 +291,6 @@ def create_new_celltypes_slide(prs):
     ]
     _table(slide, 0.3, 0.9, 9.4, 2, data, 9)
     
-    # Add dotplot
     img_path = HYSTERA_DIR / "plots" / "cellranger" / "cluster_annotate" / "dotplot_Uterus_cellranger_markers.png"
     if img_path.exists():
         _add_picture(slide, str(img_path), 0.3, 3.0, 9, 2.3)

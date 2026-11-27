@@ -431,7 +431,6 @@ cat_deseq2 <- function(x,
       "_vs_",
       control, "_dds.rds"
     )))
-    # 差异基因
     res <-
       DESeq2::results(dds, contrast = c("group", treatment, control))
 
@@ -493,7 +492,6 @@ hp_enrich <- function(adata,
                       outdir = NULL) {
   adata <- as.data.frame(adata)
   # TODO: require install org.Hs.eg.db or org.Mm.eg.db
-  # species
   org_db <- switch(species,
                    human = "org.Hs.eg.db",
                    mouse = "org.Mm.eg.db")
@@ -502,7 +500,6 @@ hp_enrich <- function(adata,
                      mouse = "mmu")
 
   log_info("{databases} database gene enrichment analysis...")
-  # GOBP
   if (databases == "GOBP") {
     x <- clusterProfiler::compareCluster(
       geneClusters = gene_clusters,
@@ -515,7 +512,6 @@ hp_enrich <- function(adata,
     )
   }
 
-  # KEGG
   if (databases == "KEGG") {
     gene <- all.vars(gene_clusters)[1]
     gid <-
@@ -617,21 +613,13 @@ hp_check_package <- function(..., error = TRUE) {
 hp_create_kegg <- function(json_path) {
   result <- fromJSON(file = json_path)
 
-  # Metabolism
   gene_sets <- data.frame()
   for (i in 1:8) {
-    # 1111
-    # i <- 1
-    # print("===================")
-    # print(result[["children"]][[i]]$name)
     for (a1 in 1:length(result[["children"]][[i]]$children)) {
-      # print(result[["children"]][[i]]$children[[a1]]$name)
       for (a2 in 1:length(result[["children"]][[i]]$children[[a1]]$children)) {
         if (length(
           result[["children"]][[i]]$children[[a1]]$children[[a2]]) == 2
           ) {
-          # level4 <-
-          #   result[["children"]][[i]]$children[[a1]]$children[[a2]]$name
           genes <-
             lapply(
               result[["children"]][[i]]$children[[a1]]$children[[a2]]$children,
@@ -643,12 +631,10 @@ hp_create_kegg <- function(json_path) {
           level2 <- result[["children"]][[i]]$children[[a1]]$name
           level3 <-
             result[["children"]][[i]]$children[[a1]]$children[[a2]]$name
-          # print(level3)
           temp_gene_sets <- data.frame(
             level1 = level1,
             level2 = level2,
             level3 = level3,
-            # level4 = level4,
             genes = genes
           )
           gene_sets <- rbind(gene_sets, temp_gene_sets)
@@ -770,12 +756,10 @@ hp_calculate_correlation <- function(x,
                                      ncores = 1,
                                      parallel_method = "furrr",
                                      ...) {
-  # Simplify input parameters
   if (is.null(feature_y)) {
     feature_y <- feature_x
   }
 
-  # Extract data matrix
   if (inherits(x, what = "Seurat")) {
     data_matrix <-
       GetAssayData(x, slot = slot, assay = asssay)
@@ -784,7 +768,6 @@ hp_calculate_correlation <- function(x,
   }
   data_matrix <- as.matrix(data_matrix)
 
-  # Generate pairwise combinations of features
   feature_combinations <-
     expand.grid(feature_x = feature_x, feature_y = feature_y)
   if (parallel_method == "plyr") {

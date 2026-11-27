@@ -5,7 +5,6 @@ import pandas as pd
 from expression_cluster import run_clustering
 
 
-# ── Species config ──────────────────────────────────────────────────────────
 SPECIES = {
     "GRCh38": {
         "EED": "/data/pub/zhousha/Totipotent20251031/data/EED/EED_GRCh38_featureCounts.tsv",
@@ -18,7 +17,6 @@ SPECIES = {
 }
 OUTPUT_DIR = "/data/pub/zhousha/Totipotent20251031/output/pluripotency2totipotency/RNAseq/cluster/featureCounts"
 
-# Early embryo patterns to exclude (keep stem cell lines)
 EMBRYO_PATTERNS = re.compile(
     r"Oocyte|Zygote|\d+-cell|Morula|blastocyst", re.IGNORECASE
 )
@@ -30,12 +28,10 @@ def infer_cell_type(sample_name: str) -> str:
     Examples: WIBR3_E8_hESC1 -> hESC, ci8CLC_r1 -> ci8CLC, mESC1 -> mESC
     """
     s = sample_name
-    # strip trailing replicate suffix
     s = re.sub(r"_r\d+$", "", s)
     s = re.sub(r"-\d+$", "", s)
     s = re.sub(r"_\d+$", "", s)
     s = re.sub(r"\d+$", "", s)
-    # strip known lab prefixes (WIBR3_E8_, etc.)
     s = re.sub(r"^[A-Z]+\d*_[A-Z]\d*_", "", s)
     return s
 
@@ -59,7 +55,6 @@ def load_species_counts(genome: str) -> pd.DataFrame:
     merged = pd.concat(frames, axis=1)
     merged = merged.groupby(level=0).sum()
 
-    # Filter: keep stem cell lines, exclude early embryo stages
     stem_cols = [c for c in merged.columns if not EMBRYO_PATTERNS.search(c)]
     excluded = [c for c in merged.columns if EMBRYO_PATTERNS.search(c)]
     merged = merged[stem_cols]

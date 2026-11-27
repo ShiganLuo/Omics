@@ -5,7 +5,6 @@ outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
 ROOT_DIR = config.get("ROOT_DIR", ".")
 
-# ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
 _spectrum_formats = (config.get("plot") or {}).get("formats") or ["png"]
 if isinstance(_spectrum_formats, str):
     _spectrum_formats = [_spectrum_formats]
@@ -70,7 +69,6 @@ rule somatic_spectrum:
     input:
         unpack(_spectrum_inputs)
     output:
-        # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
         stacked_bar = [outdir + "/somatic_spectrum_stacked_bar." + fmt for fmt in _spectrum_formats],
         heatmap = [outdir + "/somatic_spectrum_heatmap." + fmt for fmt in _spectrum_formats],
         spectrum_csv = outdir + "/somatic_spectrum.csv",
@@ -87,7 +85,7 @@ rule somatic_spectrum:
     params:
         spectrum_script = os.path.join(ROOT_DIR, "modules/spectrum/bin/spectrum.py"),
         outprefix = outdir + "/somatic_spectrum",
-        formats = _spectrum_formats,   # ③ 转发
+        formats = _spectrum_formats,
         cfg = _spectrum_cfg()
     conda:
         "spectrum.yaml"
@@ -103,7 +101,7 @@ rule somatic_spectrum:
             sample_outdir = os.path.dirname(str(output.stacked_bar[0]))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"somatic_spectrum_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, "somatic_spectrum.sh")
             experiment_vcf_map_file = os.path.join(sample_outdir, "experiment_vcf_map.tsv")
             with open(experiment_vcf_map_file, "w") as f:
@@ -134,7 +132,7 @@ rule somatic_spectrum:
                 f.write('echo "somatic spectrum completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -152,7 +150,6 @@ rule somatic_signature_refit:
         fractions = outdir + "/signature_refit_exposure_fractions.csv",
         families = outdir + "/signature_refit_family_exposures.csv",
         summary = outdir + "/signature_refit_summary.csv",
-        # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
         stacked_bar = [outdir + "/signature_refit_exposure_stacked_bar." + fmt for fmt in _sig_formats],
         heatmap = [outdir + "/signature_refit_exposure_heatmap." + fmt for fmt in _sig_formats],
         sig_cosine = [outdir + "/signature_refit_signature_cosine." + fmt for fmt in _sig_formats]
@@ -167,7 +164,7 @@ rule somatic_signature_refit:
     params:
         refit_script = os.path.join(ROOT_DIR, "modules/spectrum/bin/signature_refit.py"),
         outprefix = outdir + "/signature_refit",
-        formats = _sig_formats,   # ③ 转发
+        formats = _sig_formats,
         cfg = _spectrum_cfg()
     conda:
         "spectrum.yaml"
@@ -183,7 +180,7 @@ rule somatic_signature_refit:
             sample_outdir = os.path.dirname(str(output.exposures))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"somatic_signature_refit_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, "somatic_signature_refit.sh")
             sig = params.cfg["signature"]
             cmd = ["python", params.refit_script,
@@ -208,7 +205,7 @@ rule somatic_signature_refit:
                 f.write('echo "somatic signature refit completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -225,7 +222,6 @@ rule somatic_signature_nmf:
         signatures = outdir + "/signature_nmf_signatures.csv",
         exposures = outdir + "/signature_nmf_exposures.csv",
         rank_diagnostics = outdir + "/signature_nmf_rank_diagnostics.csv",
-        # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
         rank_plot = [outdir + "/signature_nmf_rank_diagnostics." + fmt for fmt in _sig_formats],
         stacked_bar = [outdir + "/signature_nmf_exposures_stacked_bar." + fmt for fmt in _sig_formats],
         cosmic_similarity = outdir + "/signature_nmf_cosmic_similarity.csv",
@@ -242,7 +238,7 @@ rule somatic_signature_nmf:
     params:
         nmf_script = os.path.join(ROOT_DIR, "modules/spectrum/bin/signature_nmf.py"),
         outprefix = outdir + "/signature_nmf",
-        formats = _sig_formats,   # ③ 转发
+        formats = _sig_formats,
         cfg = _spectrum_cfg()
     conda:
         "spectrum.yaml"
@@ -258,7 +254,7 @@ rule somatic_signature_nmf:
             sample_outdir = os.path.dirname(str(output.signatures))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"somatic_signature_nmf_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, "somatic_signature_nmf.sh")
             sig = params.cfg["signature"]
             cmd = ["python", params.nmf_script,
@@ -284,7 +280,7 @@ rule somatic_signature_nmf:
                 f.write('echo "somatic signature NMF completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

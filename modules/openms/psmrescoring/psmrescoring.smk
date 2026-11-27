@@ -9,11 +9,6 @@ outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
 samples = config.get("samples", [])
 
-# Get parameters
-# 参数精确到 rule(2026-11 规范):config 全量路径字面链,无 module 级共享回退:
-#   Params.psm_rescoring.search_engine                    # 引擎选择,每 rule 独立键
-#   Params.psm_rescoring.percolator.psm_rescoring.<key>   # 参数组单消费,挂 rule 名下
-#   Params.psm_rescoring.psm_feature_extractor.psm_rescoring.<key>
 
 def get_input_for_psm_rescoring(wildcards):
     """Get input files for PSM rescoring."""
@@ -59,11 +54,9 @@ rule psm_rescoring:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start PSM rescoring for sample {wildcards.sample_id} at {current_time}")
             script = receipt_script(f"psm_rescoring_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/psm_rescoring.sh")
             feat_idxml = os.path.join(outdir, f"{wildcards.sample_id}/{wildcards.sample_id}_features.idXML")
-            # PercolatorAdapter needs search-engine-specific features, which
-            # PSMFeatureExtractor adds between the search and the rescoring.
             feat_cmd = [
                 params.feature_extractor,
                 "-in", input.idxml,
@@ -71,8 +64,6 @@ rule psm_rescoring:
             ]
             if params.extra:
                 feat_cmd += str(params.extra).split()
-            # OpenMS 3.x PercolatorAdapter uses -trainFDR/-testFDR (no
-            # underscores); the legacy 2.x -feature option no longer exists.
             perc_cmd = [
                 params.percolator,
                 "-in", feat_idxml,
@@ -86,7 +77,7 @@ rule psm_rescoring:
                 f.write(" ".join(perc_cmd) + "\n")
                 f.write(f"echo 'PSM rescoring for {wildcards.sample_id} was completed successfully'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

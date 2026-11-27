@@ -76,7 +76,7 @@ def merged_query_intervals(regions_path: Path, margin: int
 def overlaps(spans: Sequence[Tuple[int, int]], start: int, end: int) -> bool:
     """Any interval in the sorted disjoint list overlapping [start, end)."""
     lo, hi = 0, len(spans)
-    while lo < hi:  # first span with span_end > start
+    while lo < hi:
         mid = (lo + hi) // 2
         if spans[mid][1] <= start:
             lo = mid + 1

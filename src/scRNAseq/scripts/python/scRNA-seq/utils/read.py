@@ -31,21 +31,17 @@ def sparsify(filename,sample):
     print('Loaded {0}'.format(filename))
     ad = anndata.AnnData(data, obs={'obs_names': cells}, var={'var_names': genes})
     del data
-    ad.obs['n_genes'] = (ad.X > 0).sum(axis=1).A1  # 计算每个细胞的基因数量
-    ad.obs['n_counts'] = ad.X.sum(axis=1).A1 #axis=1沿行方向
+    ad.obs['n_genes'] = (ad.X > 0).sum(axis=1).A1
+    ad.obs['n_counts'] = ad.X.sum(axis=1).A1
     ad.obs['sample'] = np.full(ad.n_obs, sample)
-    # ad.var_names_make_unique()
-    # ad.obs_names_make_unique()
     return ad
 # the output of cellranger
 def cellranger(filename,sample):
     ad = sc.read_10x_mtx(
-    filename,  # the directory with the `.mtx` file
-    var_names="gene_symbols",  # use gene symbols for the variable names (variables-axis index)
-    cache=True)  # write a cache file for faster subsequent reading
+    filename,
+    var_names="gene_symbols",
+    cache=True)
     ad.obs['sample'] = np.full(ad.n_obs, sample)
-    # ad.var_names_make_unique()
-    # ad.obs_names_make_unique()
     return ad
 # the output of scTE
 def scTE(filename,sample):
@@ -58,18 +54,10 @@ def scTE(filename,sample):
     ad = anndata.AnnData(data, obs={'obs_names': cells}, var={'var_names': genes})
     del data
     ad.obs['sample'] = np.full(ad.n_obs, sample)
-    # ad.obs['n_TE'] = (ad.X > 0).sum(axis=1).A1  # 计算每个细胞的转座子数量
-    # ad.obs['n_counts'] = ad.X.sum(axis=1).A1 #axis=1沿行方向
-    # ad.var_names_make_unique()
-    # ad.obs_names_make_unique()
     return ad
 
 if __name__ == '__main__':
     start = datetime.datetime.now()
-    # parser = argparse.ArgumentParser(description="A script to process cell cycle data.")
-    # parser.add_argument('--options', type=str, required=True, help='options to execute procedure')
-    # parser.add_argument('--input', type=str, required=True, help='Path to input file')
-    # parser.add_argument('--out', type=str, required=True, help='Path to out file')
     samples = ["GBM27","GBM28","GBM29"]
     for i in samples:
         SC_file = f"/home/lsg/Data/glioblastoma/output/cellranger/{i}/outs/filtered_feature_bc_matrix"

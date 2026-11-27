@@ -34,7 +34,7 @@ def parse_gtf_for_smallrna(gtf: Path, types: set) -> List[dict]:
                 continue
             genes.append({
                 "chrom": cols[0],
-                "start": int(cols[3]) - 1,  # BED is 0-based
+                "start": int(cols[3]) - 1,
                 "end": int(cols[4]),
                 "gene_id": _attr(attrs, "gene_id"),
                 "score": ".",
@@ -106,7 +106,6 @@ def main():
     bed_out = outdir / "smallrna_genes.bed"
     fasta_out = outdir / "smallrna_genes_flank.fa"
 
-    # 1. Parse GTF → BED
     types = set(args.types)
     print(f"[extract_smallrna] Filtering gene_type in {types}")
     genes = parse_gtf_for_smallrna(Path(args.gtf), types)
@@ -117,7 +116,6 @@ def main():
     write_bed(genes, bed_out)
     print(f"[extract_smallrna] BED → {bed_out}")
 
-    # 2. BED → FASTA (±flank)
     bed_to_fasta(bed_out, Path(args.fasta), Path(args.chrom_sizes), args.flank, fasta_out, args.bedtools)
     print(f"[extract_smallrna] FASTA (±{args.flank}bp) → {fasta_out}")
 

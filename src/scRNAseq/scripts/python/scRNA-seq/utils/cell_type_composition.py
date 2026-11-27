@@ -57,7 +57,6 @@ def plot_stacked_bar(pct_df: pd.DataFrame, title: str, out_png: Path):
         vals = pct_df[sample].values
         ax.barh(cell_types, vals, left=bottom, label=sample,
                 color=colors[sample], edgecolor="white", linewidth=0.3)
-        # 标注百分比（>5%才显示）
         for i, v in enumerate(vals):
             if v >= 5:
                 ax.text(bottom[i] + v / 2, i, f"{v:.0f}%",
@@ -80,7 +79,7 @@ def plot_stacked_bar(pct_df: pd.DataFrame, title: str, out_png: Path):
 def run_one(h5ad_path: str, out_dir: Path):
     path = Path(h5ad_path)
     name = path.stem.replace("_annotated", "").replace("_v2", "").replace("_v3", "")
-    label = path.stem  # e.g. Uterus_cellranger_v3_annotated
+    label = path.stem
 
     print(f"\n{'='*60}")
     print(f"Processing: {path.name}")
@@ -91,7 +90,6 @@ def run_one(h5ad_path: str, out_dir: Path):
 
     counts_df, pct_df = compute_composition(obs)
 
-    # 输出 TSV
     counts_tsv = out_dir / f"{label}_counts.tsv"
     pct_tsv = out_dir / f"{label}_pct.tsv"
     counts_df.to_csv(counts_tsv, sep="\t")
@@ -99,7 +97,6 @@ def run_one(h5ad_path: str, out_dir: Path):
     print(f"  -> {counts_tsv}")
     print(f"  -> {pct_tsv}")
 
-    # 画图
     png = out_dir / f"{label}_sample_composition.png"
     tissue = "Ovary" if "ovaries" in label.lower() else "Uterus"
     counter = "Cell Ranger" if "cellranger" in label.lower() else "scTE"

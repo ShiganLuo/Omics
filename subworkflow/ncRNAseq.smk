@@ -41,7 +41,6 @@ module fastqc_raw:
 logger.info(f"fastqc_raw_config: {fastqc_raw_config}")
 use rule fastqc from fastqc_raw as ncRNAseq_fastqc_raw
 
-# ── 0. Demultiplex: 3' adapter removal + PCR duplicate removal ───────────────
 if aligner in ["stat_3pass", "star_3pass_gene"]:
     demultiplexer_config = {
             "resources": config.get("resources", {}),
@@ -75,7 +74,6 @@ trim_galore_config = {
             "trim_galore": config.get('Procedure',{}).get('trim_galore')
         },
         "Params": {
-            # 参数精确到 rule:整段透传(Params.trim_galore.<rule>.<key>)
             "trim_galore": config.get('Params',{}).get("trim_galore", {})
         },
     }
@@ -86,7 +84,6 @@ logger.info(f"TrimGalore parameters: {trim_galore_config}")
 use rule trimming_Paired from trim_galore as ncRNAseq_trimming_Paired
 use rule trimming_Single from trim_galore as ncRNAseq_trimming_Single
 
-# ── 0.5 Subsample: seqtk subsample for abundant small RNAs ───────────────────
 if not config.get("Params", {}).get("ncRNAseq", {}).get("subsample", False):
     logger.info("Subsampling is disabled. Skipping subsample step.")
     final_fastq_outdir = trim_galore_config["outdir"]
@@ -141,7 +138,6 @@ module fastqc_trimmed:
 logger.info(f"fastqc_trimmed_config: {fastqc_trimmed_config}")
 use rule fastqc from fastqc_trimmed as ncRNAseq_fastqc_trimmed
 
-# ── 2. Align ─────────────────────────────────────────────────────────────────
 STAR = config.get("Procedure", {}).get("STAR") or "STAR"
 SAMTOOLS = config.get("Procedure", {}).get("samtools") or "samtools"
 BEDTOOLS = config.get("Procedure", {}).get("bedtools") or "bedtools"
@@ -209,7 +205,6 @@ if aligner == "hisat2":
     use rule addReadsGroup from gatk_prepare as ncRNAseq_addReadsGroup
     use rule MarkDuplicates from gatk_prepare as ncRNAseq_MarkDuplicates
 elif aligner == "star":
-    # ── STAR index for genome (auto-build when star_index_dir is null) ──
     if not star_index_dir:
         star_genome_idx_config = {
             "resources": config.get("resources", {}),
@@ -252,8 +247,6 @@ elif aligner == "star":
             "STAR": STAR
         },
         "Params": {
-            # 参数精确到 rule:Params.star.star_align.<key>(消费 rule star_align;
-            # config 全量路径读取,无旧扁平键回退),缺省值保持原转发默认
             "star": {
                 "star_align": {
                     "twopassMode": config.get('Params', {}).get('star', {}).get('star_align', {}).get('twopassMode'),
@@ -309,25 +302,11 @@ elif aligner == "star":
     use rule addReadsGroup from gatk_prepare as ncRNAseq_addReadsGroup
     use rule MarkDuplicates from gatk_prepare as ncRNAseq_MarkDuplicates
 elif aligner == "star_3pass":
-    # ================================================================
-    # Three-pass STAR alignment for canonical small RNA quantification
-    #
-    # Pass 1:  genome alignment (relaxed, multimapping allowed)
-    #          → extract reads overlapping small RNA genes
-    # Pass 2:  align extracted reads to canonical small RNA FASTA
-    #          (EndToEnd, clipped, strict read mismatch)
-    # Pass 3a: re-align canonically-mapped reads to genome (strict)
-    #          → extract those still overlapping small RNA genes
-    # Pass 3b: re-align unmapped reads from pass 2 to genome (strict)
-    # Merge:   combine pass3a canonical + pass3b reads
-    # ================================================================
 
-    # ── Resolve smallRNA derived paths BEFORE any config dict uses them ──
     smallrna_bed = f"{outdir}/genome/smallrna/smallrna_genes.bed"
     smallrna_fasta = f"{outdir}/genome/smallrna/smallrna_genes_flank.fa"
     smallrna_star_index_dir = f"{outdir}/genome/smallrna/index"
 
-    # ── STAR index for genome (auto-build when star_index_dir is null) ──
     if not star_index_dir or not os.path.exists(star_index_dir):
         star_genome_idx_config = {
             "resources": config.get("resources", {}),
@@ -355,7 +334,6 @@ elif aligner == "star_3pass":
 
         star_index_dir = f"{outdir}/genome/whole_genome/index"
 
-    # ── Import genome module (extract smallRNA BED/FASTA) ──────────────
     genome_sm_config = {
         "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
@@ -385,7 +363,6 @@ elif aligner == "star_3pass":
     use rule chromosome_sizes from genome_sm as ncRNAseq_chromosome_sizes
     use rule extract_smallrna from genome_sm as ncRNAseq_extract_smallrna
 
-    # ── STAR index for smallRNA FASTA (reuses star module) ─────────────
     smallrna_star_index_dir = config.get("genome", {}).get("references", {}).get(genome, {}).get("smallrna_star_index_dir")
     if not smallrna_star_index_dir or not os.path.exists(smallrna_star_index_dir):
         star_smallrna_idx_config = {
@@ -415,7 +392,6 @@ elif aligner == "star_3pass":
 
         smallrna_star_index_dir = f"{outdir}/genome/smallrna/index"
 
-    # ── Canonical three-pass alignment in one execution rule ─────────────
     star_3pass_config = {
         "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
@@ -468,26 +444,11 @@ elif aligner == "star_3pass":
         config: tailer_config
     use rule tailer_global from tailer as ncRNAseq_tailer_global
 elif aligner == "star_3pass_gene":
-    # ================================================================
-    # Three-pass STAR alignment with per-gene re-alignment
-    # (Ma et al, 2024 modification)
-    #
-    # Pass 1:  genome end-to-end alignment with 5' hard clip (10 nt)
-    #          -> facilitates alignment of reads with post-transcriptional
-    #             nucleotide modifications
-    # Extract: group aligned reads by gene, reconvert to per-gene FASTQ
-    #          using bedtools + samtools
-    # Pass 2:  per-gene local alignment to single-gene genomic sequences
-    # Merge:   combine per-gene BAMs into sample BAM
-    # Tailer:  gene-specific 3'-end info in global alignment mode
-    # ================================================================
 
-    # ── Resolve smallRNA derived paths ──────────────────────────────
     smallrna_bed = f"{outdir}/genome/smallrna/smallrna_genes.bed"
     smallrna_fasta = f"{outdir}/genome/smallrna/smallrna_genes_flank.fa"
     smallrna_star_index_dir = f"{outdir}/genome/smallrna/index"
 
-    # ── STAR index for genome (auto-build when star_index_dir is null) ──
     if not star_index_dir or not os.path.exists(star_index_dir):
         star_genome_idx_config = {
             "resources": config.get("resources", {}),
@@ -515,7 +476,6 @@ elif aligner == "star_3pass_gene":
 
         star_index_dir = f"{outdir}/genome/whole_genome/index"
 
-    # ── Import genome module (extract smallRNA BED/FASTA) ──────────────
     genome_sm_config = {
         "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
@@ -545,9 +505,6 @@ elif aligner == "star_3pass_gene":
     use rule chromosome_sizes from genome_sm as ncRNAseq_chromosome_sizes
     use rule extract_smallrna from genome_sm as ncRNAseq_extract_smallrna
 
-    # The upstream three-pass method still requires the canonical small-RNA
-    # reference index. Build it from the extracted branch-specific FASTA when
-    # an existing index was not supplied.
     configured_smallrna_index = config.get("genome", {}).get("references", {}).get(genome, {}).get("smallrna_star_index_dir")
     if configured_smallrna_index and os.path.exists(configured_smallrna_index):
         smallrna_star_index_dir = configured_smallrna_index
@@ -575,8 +532,6 @@ elif aligner == "star_3pass_gene":
             config: star_smallrna_idx_config
         use rule star_index from star_smallrna_idx as ncRNAseq_star_index_smallrna
 
-    # The branch reuses the canonical three-pass implementation, with the
-    # paper's end-to-end adaptation made explicit.
     p3g = config.get("Params", {}).get("star_3pass_gene", {})
     star_3pass_gene_upstream_config = {
         "resources": config.get("resources", {}),
@@ -607,7 +562,6 @@ elif aligner == "star_3pass_gene":
         config: star_3pass_gene_upstream_config
     use rule star_3p_align from star_3pass_gene_upstream as ncRNAseq_star3pg_upstream_align
 
-    # ── Strict post-final-BAM gene-specific local alignment ──────────────
     star_3pass_gene_config = {
         "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
@@ -641,12 +595,7 @@ elif aligner == "star_3pass_gene":
 else:
     raise ValueError(f"Unsupported aligner: {aligner}. Please choose 'hisat2', 'star', 'star_3pass', or 'star_3pass_gene'.")
 
-# ── 3. Quantify (featureCounts) ──────────────────────────────────────────────
-# Resolve the alignment output directory based on the chosen aligner.
 if aligner in ("star_3pass", "star_3pass_gene"):
-    # Gene-local BAM coordinates are incompatible with the whole-genome GTF.
-    # Keep featureCounts attached to the canonical final BAM; gene-specific
-    # BAMs are consumed only with their matching local annotations by Tailer.
     align_bam_dir = f"{outdir}/common/3_raw_bam"
 else:
     align_bam_dir = f"{outdir}/common/4_markdup_bam"
@@ -665,8 +614,6 @@ igv_config = {
         "bamCoverage": config.get("Procedure", {}).get("bamCoverage") or "bamCoverage"
     },
     "Params": {
-        # 参数精确到 rule:整段透传(normalizeUsing 在 bamCoverage/wig 各自
-        # rule 子键;未迁移的 binSize/offset/extendReads 仍是模块级扁平键)
         "bamCoverage": config.get("Params", {}).get("bamCoverage", {}),
     }
 }
@@ -677,11 +624,6 @@ logger.info(f"igv_config: {igv_config}")
 use rule samtools_dedup from igv as ncRNAseq_dedup
 use rule wig from igv as ncRNAseq_bigwig
 
-# ============================================================
-# Region-focused multi-sample track stacking plots (modules/regionplot)
-#   Consumes this workflow's bigwigs; gated by Params.regionplot in
-#   node.py (subworkflow wiring is unconditional per repo convention).
-# ============================================================
 regionplot_params = config.get("Params", {}).get("regionplot", {})
 regionplot_config = {
     "ROOT_DIR": ROOT_DIR,
@@ -750,7 +692,6 @@ use rule featureCounts_single_noMultiple from featureCounts as ncRNAseq_featureC
 use rule featureCounts_paired_noMultiple from featureCounts as ncRNAseq_featureCounts_paired
 use rule featureCounts_result from featureCounts as ncRNAseq_featureCounts_result
 
-# ── ncRNAseq report (all branches) ───────────────────────────────────────
 ncRNAseq_report_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -774,11 +715,6 @@ module ncRNAseq_report:
 logger.info(f"ncRNAseq_report_config: {ncRNAseq_report_config}")
 use rule generate_report from ncRNAseq_report as ncRNAseq_generate_report
 
-# ============================================
-# Sex check (coverage on sex chromosomes)
-# ============================================
-# Wired unconditionally over the alignment BAMs; node.py registers the
-# sexcheck outputs (subworkflow.md QC wiring).
 sexcheck_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -799,7 +735,6 @@ sexcheck_config = {
         "sex_chroms": (config.get("genome", {}) or {}).get("references", {})
             .get(config.get("genome", {}).get("default"), {})
             .get("sex_chroms"),
-        # RNA-mode marker lookup (XIST / Y-linked genes) reads the annotation
         "gtf": (config.get("genome", {}) or {}).get("references", {})
             .get(config.get("genome", {}).get("default"), {})
             .get("gtf")
@@ -815,12 +750,6 @@ logger.info(f"sexcheck_config: {sexcheck_config}")
 use rule sexcheck_idxstats from sexcheck as ncRNAseq_sexcheck_idxstats
 use rule sexcheck from sexcheck as ncRNAseq_sexcheck
 
-# ============================================
-# QC Summary (cross-sample metric aggregation)
-# ============================================
-# Wired unconditionally; node.py registers the qc_summary outputs (see
-# subworkflow.md QC wiring spec). Only stages with qc_summary parsers are
-# declared; unregistered stages stay best-effort scans.
 qc_summary_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,

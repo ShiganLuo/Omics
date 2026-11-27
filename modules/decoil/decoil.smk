@@ -48,9 +48,6 @@ bw_dir = config.get("bw_dir") or outdir
 vcf_suffix = config.get("vcf_suffix") or ".sv.vcf.gz"
 bw_suffix = config.get("bw_suffix") or ".bigwig"
 
-# Decoil rule params — per-rule subfields under Params.decoil
-# (reconstruct / plot / compare / igv), shared params at the parent level
-# (e.g. formats). Rule-level keys fall back to the parent field.
 decoil_params = config.get("Params", {}).get("decoil", {})
 
 def _rule_formats(section: str):
@@ -65,10 +62,6 @@ def _rule_formats(section: str):
         _formats = [_formats]
     return _formats
 
-# 图片格式:每种格式一个输出文件。output 展开与 params 转发取同一份列表
-# (decoil_plot 曾用 structure.formats 展开 output 而用 plot.formats 转发,
-# 两键不一致时声明产物与实际不符;decoil_compare 曾硬编码 .png 输出 —
-# 2026-11 一致性修正)。
 _plot_formats = _rule_formats("plot")
 _compare_formats = _rule_formats("compare")
 _structure_formats = _rule_formats("structure")
@@ -102,7 +95,6 @@ def get_input_for_decoil_reconstruct(wildcards):
     sid = wildcards.sample_id
     in_dict = {}
 
-    # BAM + BAI from indir
     if bam_substring:
         in_dict["bam"] = os.path.join(indir, sid, f"{sid}.{bam_substring}.bam")
         in_dict["bai"] = os.path.join(indir, sid, f"{sid}.{bam_substring}.bai")
@@ -110,14 +102,11 @@ def get_input_for_decoil_reconstruct(wildcards):
         in_dict["bam"] = os.path.join(indir, sid, f"{sid}.bam")
         in_dict["bai"] = os.path.join(indir, sid, f"{sid}.bai")
 
-    # External SV VCF (pbsv / sniffles upstream)
     in_dict["vcf"] = os.path.join(vcf_dir, sid, f"{sid}{vcf_suffix}")
 
-    # External coverage bigwig (decoil/coverage submodule upstream)
     in_dict["bw"] = os.path.join(bw_dir, sid, f"{sid}{bw_suffix}")
     fasta = config.get("genome", {}).get("fasta")
     gtf = config.get("genome", {}).get("gtf")
-    # Reference files (config-validated at module load)
     in_dict["ref"] = fasta
     in_dict["gtf"] = gtf
     if not fasta or not os.path.exists(fasta):
@@ -152,9 +141,7 @@ rule decoil_reconstruct:
     container:
         sif("decoil.yaml", "decoil_reconstruct")
     params:
-        # Tool executable
         decoil           = config.get("Procedure", {}).get("decoil") or "decoil",
-        # Decoil `reconstruct` flags (each parameter flat in params, not dict-packed)
         sv_caller        = reconstruct_param("sv_caller") or "sniffles1",
         min_sv_len       = reconstruct_param("min_sv_len"),
         fragment_min_cov = reconstruct_param("fragment_min_cov"),
@@ -184,15 +171,8 @@ rule decoil_reconstruct:
             )
             plain_script = os.path.join(sample_outdir, "decoil_reconstruct.sh")
 
-            # `decoil reconstruct` has no --threads flag (Decoil 2.x argparse
-            # rejects it), reads VCFs as plain text (no bgzip), and requires
-            # sniffles1-style fields (STRANDS/CHR2/END + FORMAT DR/DV) that
-            # pbsv does not emit. Convert the input VCF first — verified
-            # against decoil.sif 2.0.2 with a full reconstruction run.
             converted_vcf = os.path.join(sample_outdir, "decoil_input.vcf")
 
-            # `decoil reconstruct` is reconstruction-only — consumes pre-computed
-            # SV VCF and coverage bigwig. No internal sniffles call.
             cmd = [
                 params.decoil, "reconstruct",
                 "-b", input.bam,
@@ -233,7 +213,7 @@ rule decoil_reconstruct:
                 f.write(f'echo "script completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -286,7 +266,7 @@ rule decoil_plot:
             sample_vis_dir = os.path.dirname(str(output.regions_tsv))
             os.makedirs(sample_vis_dir, exist_ok=True)
             script = receipt_script(f"decoil_plot_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_vis_dir, f"decoil_plot_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.plot_script,
@@ -303,7 +283,7 @@ rule decoil_plot:
                 f.write(f'echo "script completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -350,7 +330,7 @@ rule decoil_compare:
             compare_dir = os.path.dirname(str(output.plots[0]))
             os.makedirs(compare_dir, exist_ok=True)
             script = receipt_script(f"decoil_compare_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(compare_dir, f"decoil_compare.sh")
             cmd = [
                 "python", params.plot_script,
@@ -369,7 +349,7 @@ rule decoil_compare:
                 f.write(f'echo "script completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -388,17 +368,10 @@ rule decoil_structure:
     input:
         summary              = outdir + "/{sample_id}/decoil/summary.txt",
         reconstruct_filtered = outdir + "/{sample_id}/decoil/reconstruct.ecDNA.filtered.bed",
-        # _required at DAG build: a null gtf here otherwise surfaces as the
-        # cryptic "Input and output files have to be specified as strings"
-        # instead of naming the missing config key.
         gtf                  = lambda wildcards: _require(config.get("genome", {}).get("gtf"), "genome.gtf", "decoil_structure"),
         bw                   = os.path.join(bw_dir, "{sample_id}", "{sample_id}" + bw_suffix),
     output:
         genes_tsv            = outdir + "/{sample_id}/visualization/decoil_structure_genes.tsv",
-        # NOTE: output cannot be a function (snakemake: "Only input files can
-        # be specified as functions") — formats are config-known at parse
-        # time, so expand the concrete file list here with plain string
-        # concatenation that keeps {sample_id} for wildcard resolution.
         structure                 = [outdir + "/{sample_id}/visualization/decoil_structure." + fmt
                                 for fmt in _structure_formats]
     log:
@@ -428,7 +401,7 @@ rule decoil_structure:
             sample_vis_dir = os.path.dirname(str(output.genes_tsv))
             os.makedirs(sample_vis_dir, exist_ok=True)
             script = receipt_script(f"decoil_structure_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_vis_dir, f"decoil_structure_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.structure_script,
@@ -450,7 +423,7 @@ rule decoil_structure:
                 f.write(f'echo "script completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -505,8 +478,6 @@ rule decoil_igv:
             sample_vis_dir = os.path.dirname(str(output.html))
             os.makedirs(sample_vis_dir, exist_ok=True)
 
-            # Render the config template with this sample's concrete paths,
-            # then let decoil_igv_config.py add bigwig/bed tracks + locus.
             base_cfg = dict(params.base_igv_config)
             config_json_path = str(params.config_json)
             tmp_base_json = os.path.join(sample_vis_dir, f"igv_base_{wildcards.sample_id}.json")
@@ -514,7 +485,7 @@ rule decoil_igv:
                 json.dump(base_cfg, f, indent=2)
 
             script = receipt_script(f"decoil_igv_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_vis_dir, f"decoil_igv_{wildcards.sample_id}.sh")
             cmd1 = [
                 "python", params.igv_config_script,
@@ -539,7 +510,7 @@ rule decoil_igv:
                 f.write(f'echo "script completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd1) + " && " + " ".join(cmd2))
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -584,7 +555,7 @@ rule decoil_ucsc:
             sample_vis_dir = os.path.dirname(str(output.track))
             os.makedirs(sample_vis_dir, exist_ok=True)
             script = receipt_script(f"decoil_ucsc_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_vis_dir, f"decoil_ucsc_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.track_script,
@@ -602,7 +573,7 @@ rule decoil_ucsc:
                 f.write(f'echo "script completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

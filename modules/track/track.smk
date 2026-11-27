@@ -7,7 +7,6 @@ logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 
-# IGV config shared by igv rules
 igv_config = config.get("igv", {})
 if not igv_config:
     logger.warning("IGV configuration is missing in config under 'igv'. IGV track rules will fail if triggered.")
@@ -40,7 +39,7 @@ rule ucsc_track_single:
             sample_outdir = os.path.dirname(str(output.track))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"ucsc_track_bedtools_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"ucsc_track_bedtools.sh")
 
             cmd = [
@@ -55,7 +54,7 @@ rule ucsc_track_single:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "ucsc_track_bedtools successfully completed !"'+ "\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -92,7 +91,7 @@ rule ucsc_track_iclip:
             sample_outdir = os.path.dirname(str(output.track))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"ucsc_track_iclip_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"ucsc_track_iclip.sh")
 
             cmd = [
@@ -108,7 +107,7 @@ rule ucsc_track_iclip:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "ucsc_track_iclip successfully completed !"'+ "\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -153,7 +152,7 @@ rule igv_track_single:
             os.makedirs(sample_outdir, exist_ok=True)
             config_json_path = str(params.config_json)
             script = receipt_script(f"igv_track_bedtools_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"igv_track_bedtools.sh")
 
             rule_logger.info(f"Writing IGV config JSON to {config_json_path}")
@@ -173,7 +172,7 @@ rule igv_track_single:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "igv_track_bedtools successfully completed !"'+ "\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -219,7 +218,7 @@ rule igv_track_iclip:
             os.makedirs(sample_outdir, exist_ok=True)
             config_json_path = str(params.config_json)
             script = receipt_script(f"igv_track_iclip_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"igv_track_iclip.sh")
 
             rule_logger.info(f"Writing IGV config JSON to {config_json_path}")
@@ -240,7 +239,7 @@ rule igv_track_iclip:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "igv_track_iclip successfully completed !"'+ "\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

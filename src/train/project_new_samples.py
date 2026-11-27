@@ -30,29 +30,25 @@ def project_new_samples(
         新样本投影得到的 LV 得分，行=样本，列=LV
     """
 
-    # 对齐基因
     common_genes = df_new.index.intersection(loadings.index)
     if len(common_genes) == 0:
         raise ValueError("新样本和载荷矩阵没有公共基因")
     
-    X_new = df_new.loc[common_genes].T.copy()      # 样本 x 基因
-    L = loadings.loc[common_genes].values          # 基因 x LV
+    X_new = df_new.loc[common_genes].T.copy()
+    L = loadings.loc[common_genes].values
 
-    # 可选 z-score
     if preproc_scale:
         mean_train = df_train.loc[common_genes].mean(axis=1)
         std_train = df_train.loc[common_genes].std(axis=1) + 1e-8
         X_new = (X_new - mean_train.values) / std_train.values
 
-    # 投影到 LV
-    projected = np.dot(X_new.values, L)            # 样本 x LV
+    projected = np.dot(X_new.values, L)
     projected_factors = pd.DataFrame(
         projected,
         index=X_new.index,
         columns=loadings.columns
     )
 
-    # LV1 方向对齐
     if lv1_ref is not None:
         common_samples = projected_factors.index.intersection(lv1_ref.index)
         corr = np.corrcoef(projected_factors.loc[common_samples, "LV1"],

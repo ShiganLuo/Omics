@@ -12,8 +12,6 @@ gtf = config.get("gtf")
 Procedure = config.get("Procedure", {})
 teffect_params = config.get("Params", {}).get("TransEffect", {}).get("teffect_analyze", {})
 
-# 输出决定流程走向(modules.md): program_overlap 及其图只在配置了 gmt 时声明,
-# node.py 同条件注册;未配置时 P5 分析整体跳过,不产生悬空输出。
 _has_gmt = bool(gmt)
 
 TEFFECT_TABLES = [
@@ -128,7 +126,7 @@ rule teffect_analyze:
                 f.write('echo "teffect analyze was completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script_path, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -178,7 +176,7 @@ rule teffect_figures:
                 f.write('echo "teffect figures was completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script_path, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

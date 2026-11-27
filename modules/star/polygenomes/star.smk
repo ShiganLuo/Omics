@@ -1,8 +1,6 @@
 include: "../../common/common.smk"
 
 import logging
-# temp 规范(modules.md):本模块的中间文件用 maybe_temp(path, "<key>") 包裹,
-# 是否标 temp 由 Params.<key>.keep_intermediates 决定(缺省 True=兜底保留)。
 
 
 outdir = config.get("outdir", "output")
@@ -59,7 +57,7 @@ rule star_index:
             sample_outdir = str(output.index_file)
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"star_index_{wildcards.genome}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"star_index_{wildcards.genome}.sh")
 
             cmd = [
@@ -67,15 +65,10 @@ rule star_index:
                 "--runThreadN", str(threads),
                 "--genomeDir", params.index_dir,
                 "--genomeFastaFiles", input.fasta]
-            # --genomeSAindexNbases: explicit config wins; otherwise auto-compute
-            # STAR's recommendation min(14, log2(genomeSize)/2 - 1), rounding
-            # down. Required for small genomes (ecDNA/plasmid/mito) — the
-            # default 14 seg-faults or loses reads at the mapping step.
             if params.genomeSAindexNbases:
                 sa_index_bases = int(params.genomeSAindexNbases)
                 rule_logger.info(f"Using genomeSAindexNbases from config: {sa_index_bases}")
             else:
-                # chunked byte scan: count non-header bytes (fast, ~500MB/s+)
                 genome_size = 0
                 with open(input.fasta, "rb") as _fh:
                     for _chunk in iter(lambda: _fh.read(1 << 24), b""):
@@ -90,7 +83,6 @@ rule star_index:
                 shutil.rmtree(params.outTmpDir, ignore_errors=True)
                 cmd.extend(["--outTmpDir", params.outTmpDir])
             if params.gtf and os.path.exists(params.gtf):
-                # STAR can't use --sjdbOverhang without an annotation file
                 cmd.extend(["--sjdbGTFfile", str(params.gtf)])
                 cmd.extend(["--sjdbOverhang", str(params.sjdbOverhang)])
                 rule_logger.info(f"Using sjdbGTFfile: {params.gtf}")
@@ -103,7 +95,7 @@ rule star_index:
                 f.write(" ".join(cmd) + "\n")
                 f.write("echo 'STAR index generation completed successfully.'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -134,7 +126,6 @@ def get_alignment_input(wildcards):
     return: A list of input file paths for the STAR alignment step.
     """
     logger.debug(f"[get_alignment_input] called with wildcards: {wildcards}")
-    # 构造可能的输入路径
     if fastq_sample_suffix:
         logger.debug(f"[get_alignment_input] fastq_sample_suffix is set to {fastq_sample_suffix}")
         if not isGenomeSubdir:
@@ -160,7 +151,6 @@ def get_alignment_input(wildcards):
             paired_r2 = f"{indir}/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}_2.fq.gz"
             single = f"{indir}/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}.single.fq.gz"
 
-    # 检查文件实际存在情况
     if wildcards.sample_id in genome_paired_samples.get(wildcards.genome, []):
         logger.debug(f"双端测序：{[paired_r1, paired_r2]}")
         if omics_type == "scRNAseq":
@@ -228,7 +218,7 @@ rule star_align:
         outSAMmultNmax = config.get("Params", {}).get("star", {}).get("star_align", {}).get("outSAMmultNmax") or -1,
         soloType = config.get("Params", {}).get("star", {}).get("star_align", {}).get("soloType", None),
         soloCBwhitelist = config.get("Params", {}).get("star", {}).get("star_align", {}).get("soloCBwhitelist", None),
-        soloBarcodeReadLength = config.get("Params", {}).get("star", {}).get("star_align", {}).get("soloBarcodeReadLength", 1), # may be 0
+        soloBarcodeReadLength = config.get("Params", {}).get("star", {}).get("star_align", {}).get("soloBarcodeReadLength", 1),
         limitSjdbInsertNsj = config.get("Params", {}).get("star", {}).get("star_align", {}).get("limitSjdbInsertNsj") or 1000000,
         outTmpDir = outdir + "/{genome}/{sample_id}/tmp_star"
     conda:
@@ -243,7 +233,7 @@ rule star_align:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             sample_outdir = os.path.dirname(str(output.bam))
             script = receipt_script(f"star_align_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = f"{sample_outdir}/star_align.sh"
             rule_logger.info(f"Start STAR alignment for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
             cmd1 = [
@@ -298,12 +288,11 @@ rule star_align:
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
                 f.write(" ".join(cmd3) + "\n")
-                # Touch unmapped output files if STAR didn't produce them
                 f.write(f"test -f {output.unmapped_r1} || touch {output.unmapped_r1}\n")
                 f.write(f"test -f {output.unmapped_r2} || touch {output.unmapped_r2}\n")
                 f.write(f"echo 'STAR alignment for {wildcards.sample_id} completed successfully.'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

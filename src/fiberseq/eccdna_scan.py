@@ -75,8 +75,6 @@ def find_concatemer_candidates(bam_path: str, min_mapq: int, min_period: int,
             dels = [size for op, size in cig if op == 2 and size >= min_period]
             if len(dels) < min_periods:
                 continue
-            # periodicity: dels sizes similar AND the walking position advances
-            # by ~circle length between consecutive dels
             pos = read.reference_start
             periods = []
             for op, size in cig:
@@ -221,7 +219,7 @@ def methylation_on_loci(loci: List[dict], paths: Dict[str, str]) -> List[dict]:
                 starts = [int(x) for x in f[11].split(",") if x]
                 blocks = list(zip(starts, [s + b for s, b in zip(starts, sizes)]))
                 if len(blocks) > 2:
-                    n_calls += len(blocks) - 2  # drop sentinels
+                    n_calls += len(blocks) - 2
                 read_names.add(f[3])
             locus[f"{key}_calls"] = n_calls
             locus[f"{key}_reads"] = len(read_names)

@@ -48,10 +48,10 @@ def Show_Markers(adata,out):
     top5.to_csv(f"{tableout}/{out}-top5_markers.csv",index=False,header =True)
     fig=plt.figure(figsize=(20,54),dpi=100)
     for i in  top5.columns: 
-        plt.subplot(4, 7, int(i)+1) #做一个3*3的图 range（9）从0开始，因需要从1开始，所以i+1
+        plt.subplot(4, 7, int(i)+1)
         sc.pl.rank_genes_groups_violin(adata, groups=str(i), n_genes=5,show=False)
         plt.tight_layout()
-        plt.axis = 'off' #关闭坐标 让图更美观
+        plt.axis = 'off'
     fig.savefig(f"{figure_path}/top5-markers.png")      
     
     adata.layers['scaled'] = sc.pp.scale(adata, copy=True).X
@@ -68,9 +68,6 @@ def Show_Markers(adata,out):
     plt.savefig(f"{figure_path}/{out}-genes-heatmap.png",dpi = 300)
     return adata
 def auto_omi(ad,out):
-#    sc.pl.dotplot(ad, marker_genes,groupby="leiden", standard_scale="var")
-#    plt.savefig("dot.png")
-# marker(SC)
     scsa=ov.single.pySCSA(adata=ad,
                         foldchange=1.5,
                         pvalue=0.01,
@@ -84,7 +81,6 @@ def auto_omi(ad,out):
     res=scsa.cell_anno(clustertype='leiden',
                 cluster='all',rank_rep=True)
     res.head()
-    # scsa.cell_anno_print()
     scsa.cell_auto_anno(ad,clustertype='leiden',
                         key='scsa_celltype_cellmarker')
     ov.utils.embedding(ad,
@@ -115,20 +111,20 @@ def handful_annotate(adata,out):
         groupby="leiden",
         var_names=marker_genes_in_data,
         dendrogram=True,
-        standard_scale="var",  # standard scale: normalize each gene to range from 0 to 1
+        standard_scale="var",
         figsize=(12, 10),
     )
     plt.tight_layout()
     plt.savefig(f"{figure_path}/{out}-dot.png",dpi = 300)
     for ct,gene in marker_genes_in_data.items():
-        print(f"{ct}:{gene}")  # print cell subtype name
+        print(f"{ct}:{gene}")
         if len(gene) > 0:
             sc.pl.umap(
                 adata,
                 color=marker_genes_in_data[ct],
                 vmin=0,
-                vmax="p99",  # set vmax to the 99th percentile of the gene count instead of the maximum, to prevent outliers from making expression in other cells invisible. Note that this can cause problems for extremely lowly expressed genes.
-                sort_order=False,  # do not plot highest expression on top, to not get a biased view of the mean expression among cells
+                vmax="p99",
+                sort_order=False,
                 frameon=False,
                 cmap="Reds",  
             )
@@ -137,22 +133,22 @@ def handful_annotate(adata,out):
     cluster2annotation = {
      '13': 'Oligodendrocytes',
      '15': 'Endothelial Cell',
-     '14': 'Macrophages',#Microglia 
+     '14': 'Macrophages',
      '5': 'Astrocytes',
      '16': 'Mast Cell',
-     '10': 'Astrocytes',#?
+     '10': 'Astrocytes',
      '4': 'Astrocytes',
      '9': 'Astrocytes',
-     '12': 'Astrocytes',#？
+     '12': 'Astrocytes',
      '3': 'Astrocytes',
      '5': 'Astrocytes',
-     '0': 'Neuron',#?
-     '7': 'Neuron',#?
+     '0': 'Neuron',
+     '7': 'Neuron',
      '6': 'Neuron',
      '8': 'Neuron',
      '2': 'Astrocytes',
-     '1': 'Neuron',#?
-     '11': 'Neuron',#?
+     '1': 'Neuron',
+     '11': 'Neuron',
     }
     adata.obs['major_celltype'] = adata.obs['leiden'].map(cluster2annotation).astype('category')
     ov.utils.embedding(adata,
@@ -164,13 +160,12 @@ def handful_annotate(adata,out):
     plt.savefig(f"{figure_path}/{out}-handfulann.png",dpi = 300)
     adata.write_h5ad(f"{h5ad}/{out}-ann.h5ad")
 def auto_cet(adata,out):
-    adata_celltypist = adata.copy()  # make a copy of our adata
-    adata_celltypist.X = adata.layers["count"]  # set adata.X to raw counts
+    adata_celltypist = adata.copy()
+    adata_celltypist.X = adata.layers["count"]
     sc.pp.normalize_per_cell(
         adata_celltypist, counts_per_cell_after=10**4
-    )  # normalize to 10,000 counts per cell
-    sc.pp.log1p(adata_celltypist)  # log-transform
-    # make .X dense instead of sparse, for compatibility with celltypist:
+    )
+    sc.pp.log1p(adata_celltypist)
     adata_celltypist.X = adata_celltypist.X.toarray()
     models.download_models(
     force_update=True, model=["Immune_All_Low.pkl", "Immune_All_High.pkl"]
@@ -217,19 +212,9 @@ def auto_cet(adata,out):
     plt.savefig(f"{figure_path}/{out}-3.jpg")
 if __name__ == '__main__':
     start = datetime.datetime.now()
-    # parser = argparse.ArgumentParser(description="A script to process cell cycle data.")
-    # parser.add_argument('--options', type=str, required=True, help='options to execute procedure')
-    # parser.add_argument('--input', type=str, required=True, help='Path to input file')
-    # parser.add_argument('--out', type=str, required=True, help='Path to out file')
     SC = sc.read_h5ad(f"{h5ad}/SC-bbknn.h5ad")
-    # TE = sc.read_h5ad(f"{h5ad}/TE-bbknn.h5ad")
-    # GBM = sc.read_h5ad(f"{h5ad}/GBM-0.3-bbknn.h5ad")
-    # ad_dict = {"SC":SC,"TE":TE,"GBM":GBM}
     ad_dict = {"SC":SC}
     for out,adata in ad_dict.items():
-        # auto_omi(adata,f"{out}-auto")
         handful_annotate(adata,out)
-        # Show_Markers(adata,out)
-        # auto_cet(adata,out)
     end = datetime.datetime.now()
     print("程序运行时间："+str((end-start).seconds/3600)+"h")

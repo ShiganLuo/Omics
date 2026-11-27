@@ -34,17 +34,12 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
-# pyGenomeTracks plotting runs headless inside containers
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.lines import Line2D  # noqa: E402
 
-# ----------------------------------------------------------------------------
-# Logging (behavior-compatible copy of src/common/util/LogUtil.setup_logger;
-# module bin scripts must stay self-contained)
-# ----------------------------------------------------------------------------
 
 
 def setup_logger(logger_name: str, log_file: Optional[str] = None) -> logging.Logger:
@@ -92,9 +87,6 @@ def _get_logger(log_file: Optional[Path] = None) -> logging.Logger:
 logger = _get_logger()
 
 
-# ----------------------------------------------------------------------------
-# Input parsing
-# ----------------------------------------------------------------------------
 
 def _sanitize_panel_name(name: str) -> str:
     """Make a region name safe as a path element (panel directory name)."""
@@ -142,7 +134,6 @@ def _parse_region_string(s: str) -> Tuple[str, int, int, str]:
     if end <= start:
         raise ValueError(f"region end <= start: {s!r}")
     if name == s:
-        # default name mirrors the BED default chrom_start_end shape
         name = f"{chrom}_{start}_{end}"
     return chrom, start, end, _sanitize_panel_name(name)
 
@@ -241,7 +232,7 @@ def parse_group_map(path: Optional[Path]) -> Dict[str, str]:
     if path is None or not Path(path).exists():
         return groups
     with open(path) as fh:
-        fh.readline()  # header
+        fh.readline()
         for line in fh:
             if not line.strip():
                 continue
@@ -251,12 +242,7 @@ def parse_group_map(path: Optional[Path]) -> Dict[str, str]:
     return groups
 
 
-# ----------------------------------------------------------------------------
-# Group colors and legend
-# ----------------------------------------------------------------------------
 
-# tab10 base palette; group members get lightness-ramped shades of the
-# group color so within-group samples stay visually related but separable.
 _BASE_COLORS = [
     "#1f77b4", "#d62728", "#2ca02c", "#9467bd", "#ff7f0e",
     "#8c564b", "#e377c2", "#17becf", "#bcbd22", "#7f7f7f",
@@ -308,7 +294,6 @@ def assign_group_colors(rows: List[Dict[str, str]], group_map: Dict[str, str]) -
         group_colors: group -> hex (for the legend); track_colors:
         ``(group, sample_id)`` -> hex (group base shaded per member index).
     """
-    # preserve first-appearance order of groups (rows are pre-sorted)
     group_order: List[str] = []
     member_index: Dict[Tuple[str, str], int] = {}
     member_count: Dict[str, int] = {}
@@ -328,7 +313,6 @@ def assign_group_colors(rows: List[Dict[str, str]], group_map: Dict[str, str]) -
     }
     track_colors: Dict[str, str] = {}
     for (grp, sid), idx in member_index.items():
-        # spread members within a group between -15% and +30% lightness
         n = max(member_count[grp] - 1, 1)
         factor = -0.15 + 0.45 * idx / n
         track_colors[f"{grp}\t{sid}"] = _shade(group_colors[grp], factor)
@@ -359,9 +343,6 @@ def write_legend(group_colors: Dict[str, str], out_png: Path, out_svg: Optional[
     plt.close(fig)
 
 
-# ----------------------------------------------------------------------------
-# pyGenomeTracks ini + rendering
-# ----------------------------------------------------------------------------
 
 def build_ini(rows: List[Dict[str, str]], group_map: Dict[str, str],
               track_colors: Dict[str, str], gtf: Optional[Path],
@@ -380,7 +361,6 @@ def build_ini(rows: List[Dict[str, str]], group_map: Dict[str, str],
     list of (sample_id, track_group, bw_path)
         The audit rows also written to track_sources.tsv by the caller.
     """
-    # group-major ordering: preserve the rule's pre-sorted row order
     lines: List[str] = ["[spacer]\nheight = 0.05\n"]
     audit: List[Tuple[str, str, str]] = []
     for row in rows:
@@ -443,7 +423,6 @@ def render_panel(outdir: Path, region: Tuple[str, int, int, str], rows: List[Dic
                       track_height, width_in, ini)
     written.append(ini)
 
-    # audit table: which bw fed which track line
     tsv = outdir / "track_sources.tsv"
     with open(tsv, "w") as fh:
         fh.write("sample_id\ttrack_group\tbw_path\n")
@@ -494,7 +473,6 @@ def run(args: argparse.Namespace) -> int:
     rows = parse_track_tsv(Path(args.track_tsv))
     group_map = parse_group_map(Path(args.group_map) if args.group_map else None)
 
-    # verify all bw inputs exist up front: pgT errors are cryptic otherwise
     missing = [r["bw_path"] for r in rows if not Path(r["bw_path"]).exists()]
     if missing:
         logger.error(f"missing bigWig inputs: {missing}")

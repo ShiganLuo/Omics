@@ -71,9 +71,6 @@ def meta_generate(
     
     pass
 if __name__ == "__main__":
-    # meta = "/data/pub/zhousha/20260411_RNAseq/data/meta/metadata_CNP0003135_experiment.tsv"
-    # outfile = "/data/pub/zhousha/20260411_RNAseq/data/fastq/md5sum.txt"
-    # export_md5(meta, outfile, col_number=3)
     meta = "/data/pub/zhousha/20260411_RNAseq/data/meta.tsv"
     outfile = "/data/pub/zhousha/20260411_RNAseq/data/meta_input.tsv"
     fqDir = "/data/pub/zhousha/20260411_RNAseq/data/fastq"

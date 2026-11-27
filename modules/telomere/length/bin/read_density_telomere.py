@@ -36,15 +36,10 @@ logger = setup_logger("read_density_telomere", stream=sys.stdout)
 
 
 
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
 TEL_KMER_FWD = "CCCTAA"
 TEL_KMER_REV = "TTAGGG"
-# Mouse: 20 chromosomes, diploid = 40 chromosome arms
 DEFAULT_N_CHROM_ARMS = 40
 DEFAULT_MIN_READ_LENGTH = 5000
-# Minimum telomeric k-mer count to consider a read as having telomeric content
 DEFAULT_MIN_TEL_KMERS = 16
 
 
@@ -53,11 +48,11 @@ class ReadTelStats:
     """Telomere statistics for a single read."""
     read_name: str
     read_length: int
-    tel_kmer_count: int       # total telomeric k-mers found
-    tel_bp_estimate: int      # estimated telomeric bp (kmer_count * 6)
-    tel_fraction: float       # fraction of read that is telomeric
-    has_terminal_tel: bool    # whether telomeric signal is at read end
-    terminal_tel_len: int     # length of terminal telomeric region (bp)
+    tel_kmer_count: int
+    tel_bp_estimate: int
+    tel_fraction: float
+    has_terminal_tel: bool
+    terminal_tel_len: int
 
 
 def count_tel_kmers(seq: str) -> tuple[int, list[tuple[int, int]]]:
@@ -84,15 +79,12 @@ def find_terminal_telomere(seq: str, positions: list[tuple[int, int]],
         return 0
 
     read_len = len(seq)
-    # Find clusters near the 3' end (last 500bp)
     terminal_positions = [p for p in positions if p[0] > read_len - 500]
     if not terminal_positions:
-        # Check 5' end
         terminal_positions = [p for p in positions if p[1] < 500]
     if not terminal_positions:
         return 0
 
-    # Cluster nearby hits
     clusters = []
     current_cluster = [terminal_positions[0]]
     for pos in terminal_positions[1:]:
@@ -103,7 +95,6 @@ def find_terminal_telomere(seq: str, positions: list[tuple[int, int]],
             current_cluster = [pos]
     clusters.append(current_cluster)
 
-    # Find the largest cluster
     best_len = 0
     for cluster in clusters:
         start = cluster[0][0]
@@ -137,14 +128,14 @@ def analyze_reads(bam_path: str, min_read_length: int,
             if seq is None or len(seq) < min_read_length:
                 continue
 
-            total_all_bp += len(seq)  # denominator pool for genome-wide fraction
+            total_all_bp += len(seq)
             kmer_count, positions = count_tel_kmers(seq)
             if kmer_count < min_tel_kmers:
                 continue
 
             n_tel += 1
             read_len = len(seq)
-            tel_bp = kmer_count * 6  # each k-mer is 6bp
+            tel_bp = kmer_count * 6
             tel_frac = tel_bp / read_len if read_len > 0 else 0
             terminal_len = find_terminal_telomere(seq, positions)
             has_terminal = terminal_len > 0
@@ -184,7 +175,6 @@ def plot_telomere_content(results: list[ReadTelStats], sample_name: str,
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 4.6))
 
-    # Panel 1: per-read telomeric bp (length proxy)
     ax = axes[0]
     positive = [x for x in tel_bps if x > 0]
     if positive:
@@ -194,7 +184,6 @@ def plot_telomere_content(results: list[ReadTelStats], sample_name: str,
     ax.set_ylabel("Reads")
     ax.set_title("Per-read telomeric tract\n(length proxy)")
 
-    # Panel 2: terminal telomere length (anchored reads)
     ax = axes[1]
     if term:
         ax.hist(term, bins=40, color="#C0504D", edgecolor="none")
@@ -202,7 +191,6 @@ def plot_telomere_content(results: list[ReadTelStats], sample_name: str,
     ax.set_ylabel("Reads")
     ax.set_title(f"Terminal telomere length\n(anchored reads, n={len(term)})")
 
-    # Panel 3: genome-wide telomeric fraction (content)
     ax = axes[2]
     ax.bar([sample_name], [gwf], color="#3C6E9F")
     ax.set_ylabel("Genome-wide telomeric fraction")
@@ -222,7 +210,6 @@ def write_results(results: list[ReadTelStats], sample_name: str,
     """Write results to TSV and summary files."""
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. Per-read detail TSV
     detail_path = output_dir / f"{sample_name}_read_telomere.tsv"
     with open(detail_path, "w") as f:
         f.write("read_name\tread_length\ttel_kmer_count\ttel_bp_estimate\t"
@@ -233,7 +220,6 @@ def write_results(results: list[ReadTelStats], sample_name: str,
                     f"{r.has_terminal_tel}\t{r.terminal_tel_len}\n")
     logger.info(f"Wrote: {detail_path}")
 
-    # 2. Statistical summary
     stats_path = output_dir / f"{sample_name}_read_telomere_stats.txt"
     with open(stats_path, "w") as f:
         f.write(f"Sample: {sample_name}\n")
@@ -262,7 +248,6 @@ def write_results(results: list[ReadTelStats], sample_name: str,
                     f"   (total_tel_bp / all_read_bp; coverage-independent)\n")
         f.write(f"  Avg telomere per arm:   {total_tel_bp / n_chrom_arms:>15,.0f} bp\n\n")
 
-        # Per-read statistics
         tel_bps = np.array([r.tel_bp_estimate for r in results])
         tel_fracs = np.array([r.tel_fraction for r in results])
 
@@ -275,7 +260,6 @@ def write_results(results: list[ReadTelStats], sample_name: str,
         f.write(f"    Mean:    {np.mean(tel_fracs):.4f}\n")
         f.write(f"    Median:  {np.median(tel_fracs):.4f}\n\n")
 
-        # Terminal telomere statistics
         terminal_reads = [r for r in results if r.has_terminal_tel and r.terminal_tel_len > 0]
         f.write(f"Reads with terminal telomere: {len(terminal_reads)}\n\n")
 
@@ -291,7 +275,6 @@ def write_results(results: list[ReadTelStats], sample_name: str,
             f.write(f"  Q25:     {np.percentile(terminal_lens, 25):.0f} bp\n")
             f.write(f"  Q75:     {np.percentile(terminal_lens, 75):.0f} bp\n\n")
 
-            # Length distribution
             f.write("=== Terminal Telomere Length Distribution ===\n")
             thresholds = [0, 500, 1000, 5000, 10000, 20000, 50000, 100000]
             for i in range(len(thresholds) - 1):
@@ -303,11 +286,9 @@ def write_results(results: list[ReadTelStats], sample_name: str,
 
     logger.info(f"Wrote: {stats_path}")
 
-    # Print summary to stdout
     with open(stats_path) as f:
         logger.info(f.read())
 
-    # Figure 1: telomere content / length distribution (multi-format)
     plot_base = str(output_dir / f"{sample_name}_read_telomere_content")
     for _p in plot_telomere_content(results, sample_name, plot_base,
                                     total_all_bp, n_chrom_arms, formats):

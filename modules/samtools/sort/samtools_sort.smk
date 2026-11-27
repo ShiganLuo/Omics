@@ -46,7 +46,7 @@ rule bam_sort:
             output.bai
         ]
         script = receipt_script(f"samtools_sort_{wildcards.sample_id}_{current_time}.sh")
-        os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+        os.makedirs(os.path.dirname(script), exist_ok=True)
         plain_script = os.path.join(outdir, f"samtools_sort.sh")
         with open(script, "w") as f:
             f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -54,7 +54,7 @@ rule bam_sort:
             f.write(" ".join(cmd2) + "\n")
             f.write(f'echo "script completed successfully"\n')
         shutil.copyfile(script, plain_script)
-        if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+        if SCRIPT_ONLY:
             script_only_touch(output)
         else:
             shell("bash {plain_script} >> {log} 2>&1")

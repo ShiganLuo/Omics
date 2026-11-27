@@ -39,8 +39,6 @@ import scanpy as sc
 
 warnings.filterwarnings("ignore")
 
-# (group header, role, genes) — role: "positive" = identity signature,
-# "negative" = expected absent in the target cell type.
 DEFAULT_MARKERS = [
     ("oocyte identity (positive)", "positive",
      ["NLRP5", "NLRP4", "NLRP2", "ZP3", "DDX4", "FIGLA", "NOBOX"]),
@@ -93,7 +91,6 @@ def main():
         raise SystemExit(
             f"target cell type '{args.target_cell_type}' not in obs['{args.type_col}']")
 
-    # ── Per-cell-type mean / pct in one matrix pass ──
     ct_counts = labels.value_counts()
     cts = sorted(ct_counts.index.tolist())
     mat = src[:, genes].X
@@ -106,7 +103,6 @@ def main():
         means.loc[ct] = sub.mean(axis=0)
         pcts.loc[ct] = (sub > 0).mean(axis=0)
 
-    # Row order: target on top, then descending positive-program mean.
     pos_genes = [g for _, role, gs in groups if role == "positive"
                  for g in gs]
     pos_score = means[pos_genes].mean(axis=1).sort_values(ascending=False)
@@ -115,12 +111,10 @@ def main():
                     if ct != args.target_cell_type])
     means, pcts = means.loc[row_order], pcts.loc[row_order]
 
-    # Colour: per-gene 0-1 scaling across cell types.
     span = means.max(axis=0) - means.min(axis=0)
     span[span == 0] = 1.0
     scaled = (means - means.min(axis=0)) / span
 
-    # ── Figure ──
     n_ct, n_g = len(row_order), len(genes)
     fig, ax = plt.subplots(figsize=(0.62 * n_g + 4.2, 0.42 * n_ct + 2.2))
 
@@ -149,11 +143,6 @@ def main():
         spine.set_visible(False)
     ax.tick_params(length=0)
 
-    # Group separators + section headers. The positive block is wide so
-    # it takes a centered header above the axis; the negative-control
-    # groups are 2 genes wide, where centered/rotated text collides —
-    # put their headers BELOW the gene labels instead (top label
-    # region stays reserved for the title).
     trans = ax.get_xaxis_transform()
     offset = 0
     bounds = []
@@ -163,12 +152,10 @@ def main():
         if offset < n_g:
             ax.axvline(offset - 0.5, color="#b0b0b0", lw=1, zorder=1)
     for x0, x1, header in bounds:
-        if x1 - x0 >= 4:            # wide group: centered above the axis
+        if x1 - x0 >= 4:
             ax.text((x0 + x1) / 2.0, 1.03, header, transform=trans,
                     ha="center", va="bottom", fontsize=8.5, color="#555555")
-        else:                         # narrow group: horizontal, below x labels
-            # ~22-char header over a 2-gene column: wrap to two lines so
-            # neighbours cannot touch (ha=center keeps each centered).
+        else:
             first = header.split(" (")[0]
             ax.text((x0 + x1) / 2.0, -0.16, f"{first}\n(exp. absent)",
                     transform=trans, ha="center", va="top",
@@ -192,7 +179,6 @@ def main():
     plt.close(fig)
     print(f"saved: {out_png}")
 
-    # ── Companion TSV (audit table) ──
     out_tsv = os.path.join(args.out_dir, f"{safe}_marker_dotplot.tsv")
     role_of = {g: role for _, role, gs in groups for g in gs}
     group_of = {g: header for header, _, gs in groups for g in gs}
@@ -208,7 +194,6 @@ def main():
                                  round(float(pcts.loc[ct, g]), 4)])
     print(f"saved: {out_tsv}")
 
-    # Console verdict summary for the target row.
     tgt = args.target_cell_type
     print(f"\n{tgt} (n={ct_counts[tgt]}):")
     for g in pos_genes:

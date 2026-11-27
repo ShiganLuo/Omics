@@ -6,11 +6,9 @@ suppressPackageStartupMessages(suppressWarnings(lapply(libs, library, character.
 #' @export
 correctSTRING <- function(p.m, thresh, ppiString){
   
-  # keep only String interactions > thresh
   filteredString <- ppiString %>% filter(combined_score > thresh) %>%
     select(protein1, protein2)
   
-  # keep the common interactions in p.m and STRING
   adj.m <- xtabs(~., unique(filteredString))
   
   p.m <- p.m[rownames(p.m) %in% rownames(adj.m),
@@ -49,23 +47,19 @@ correctTopology <- function(p.m, thresh, corrmethod){
 ### Output: adjacency matrix filtered by the specified threshold and method
 #' @export
 correctSemantic <- function(p.m, thresh, neighGPath){
-  load(neighGPath)      # neighG
+  load(neighGPath)
   cat("neighG loaded \n")
   
-  ### apply semantic correction
   if (thresh != 0){
     neighG[neighG<thresh]=0
     neighG[neighG>0]=1
   }
   
-  ### get the common genes between neigh and p.m
   commonGenes = sort(as.numeric(intersect(rownames(p.m), rownames(neighG))))
   
-  # filter neigh for common genes
   neighG <- neighG[which(rownames(neighG) %in% commonGenes),]
   neighG <- neighG[,which(rownames(neighG) %in% commonGenes)]  
   
-  # filter probability matrix for common genes
   p.m <- p.m[which(rownames(p.m) %in% commonGenes),]
   p.m <- p.m[,which(rownames(p.m) %in% commonGenes)]
   

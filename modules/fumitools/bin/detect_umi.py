@@ -18,9 +18,6 @@ import gzip
 import re
 from typing import Optional
 
-# Pattern: underscore followed by one or more ACGT/N characters at the end of
-# the read name (before the first whitespace).  The ACGT/N constraint avoids
-# false positives on instrument IDs that may contain underscores.
 _UMI_SUFFIX_RE = re.compile(r"_([ACGTNacgtn]+)$")
 
 
@@ -50,9 +47,8 @@ def has_umi_in_header(
     if not first_line.startswith("@"):
         return False
 
-    # Read name is everything before the first whitespace
-    read_name = first_line.split()[0]  # includes leading '@'
-    name_body = read_name[1:]  # strip '@'
+    read_name = first_line.split()[0]
+    name_body = read_name[1:]
 
     m = _UMI_SUFFIX_RE.search(name_body)
     if m is None:

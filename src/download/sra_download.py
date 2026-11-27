@@ -21,13 +21,8 @@ if str(_SRC_DIR) not in sys.path:
 from src.common.util.SepUtil import detect_delimiter
 from src.common.util.LogUtil import setup_logger
 
-# ============================================================
-# 全局 logger：由 main() 调用 LogUtil.setup_logger 初始化，
-# 各函数直接使用模块级 logger，不通过参数传递
-# ============================================================
 logger: logging.Logger = logging.getLogger("SRA_DOWNLOAD")
 
-# 网络劫持中止标志：检测到下载内容被认证门户劫持时置位，剩余下载立即跳过
 _ABORT_EVENT = threading.Event()
 
 
@@ -41,9 +36,6 @@ class NetworkHijackedError(RuntimeError):
     """
 
 
-# ============================================================
-# ENA 路径构建 (ascp & globus)
-# ============================================================
 
 def build_ena_paths(srr_id: str) -> List[str]:
     """为 ascp 构建远端路径"""
@@ -180,9 +172,6 @@ def probe_ena_http_file(url: str, connect_timeout: int = 30) -> str:
     return "unknown"
 
 
-# ============================================================
-# 公共工具
-# ============================================================
 
 def gzip_test(path: Path) -> bool:
     """Return True when the file exists and passes `gzip -t`.
@@ -372,9 +361,6 @@ def verify_fastq_md5(path: Path, expected_md5: Optional[str]) -> bool:
     return True
 
 
-# ============================================================
-# Globus SDK 下载
-# ============================================================
 
 def get_globus_client(client_id: str, token: Optional[str]) -> "globus_sdk.TransferClient":
     try:
@@ -385,10 +371,8 @@ def get_globus_client(client_id: str, token: Optional[str]) -> "globus_sdk.Trans
     if token:
         authorizer = globus_sdk.AccessTokenAuthorizer(token)
     else:
-        # Native App Auth 流程 (如果没有 token，走网页授权)
         client = globus_sdk.NativeAppAuthClient(client_id)
         
-        # 【修改处】明确请求 Globus Transfer API 的权限范围
         client.oauth2_start_flow(
             requested_scopes=[globus_sdk.TransferClient.scopes.all]
         )
@@ -399,7 +383,6 @@ def get_globus_client(client_id: str, token: Optional[str]) -> "globus_sdk.Trans
         auth_code = input("请输入获取到的 Authorization Code: ").strip()
         token_response = client.oauth2_exchange_code_for_tokens(auth_code)
         
-        # 提取 Transfer API 的 access_token
         transfer_token = token_response.by_resource_server["transfer.api.globus.org"]["access_token"]
         authorizer = globus_sdk.AccessTokenAuthorizer(transfer_token)
         print("Globus 鉴权成功！\n===========================================\n")
@@ -420,7 +403,6 @@ def globus_download_single_srr(
     base_dir = build_ena_globus_dir(srr_id)
     dest.mkdir(parents=True, exist_ok=True)
     
-    # 1. 尝试获取该 SRR 目录下的文件列表
     try:
         ls_res = tc.operation_ls(source_ep, path=base_dir)
         files_present = [
@@ -435,7 +417,6 @@ def globus_download_single_srr(
         logger.warning(f"[Globus] 没有在远端找到 {srr_id} 相关的 fastq 文件")
         return False
 
-    # 2. 根据 Layout 判断需要下载哪些文件
     target_files = []
     if library_type == "PAIRED":
         if f"{srr_id}_1.fastq.gz" in files_present and f"{srr_id}_2.fastq.gz" in files_present:
@@ -444,20 +425,18 @@ def globus_download_single_srr(
             target_files = [f"{srr_id}.fastq.gz"]
         else:
             return False
-    else:  # SINGLE
+    else:
         if f"{srr_id}.fastq.gz" in files_present:
             target_files = [f"{srr_id}.fastq.gz"]
         elif f"{srr_id}_1.fastq.gz" in files_present:
-            # 有时 SINGLE 也会被命名为 _1
             target_files = [f"{srr_id}_1.fastq.gz"]
         else:
             return False
 
-    # 3. 创建 Transfer Data
     tdata = globus_sdk.TransferData(
         source_ep, dest_ep,
         label=f"SRA Download {srr_id}",
-        sync_level="checksum" # 开启校验
+        sync_level="checksum"
     )
     
     for f in target_files:
@@ -465,7 +444,6 @@ def globus_download_single_srr(
         dest_path = f"{str(dest.resolve())}/{f}"
         tdata.add_item(source_path, dest_path)
 
-    # 4. 提交并等待 Task 完成
     try:
         res = tc.submit_transfer(tdata)
         task_id = res["task_id"]
@@ -477,7 +455,6 @@ def globus_download_single_srr(
 
         task = tc.get_task(task_id)
         if task["status"] == "SUCCEEDED":
-            # 二次本地校验
             for f in target_files:
                 if not gzip_test(dest / f):
                     logger.warning(f"[Globus] {f} 下载成功，但 gzip 校验失败")
@@ -492,9 +469,6 @@ def globus_download_single_srr(
         return False
 
 
-# ============================================================
-# ascp 下载
-# ============================================================
 
 def ascp_download(remote: str, dest: Path, key: Path) -> bool:
     cmd = [
@@ -506,9 +480,6 @@ def ascp_download(remote: str, dest: Path, key: Path) -> bool:
         remote, str(dest)
     ]
     logger.info(f"[ascp] 开始下载 {remote} -> {dest}")
-    # 流式读取 stderr:ascp 的进度/速率写在 stderr(用 \r 刷新),
-    # capture_output 会把速率吞掉导致看不到下载速度,故按 \r/\n 切块
-    # 解析速率行,每 5s 打一条日志(与 aria2c 一致);非进度行留尾部供失败时报告。
     proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     assert proc.stderr is not None
     buf = b""
@@ -520,7 +491,7 @@ def ascp_download(remote: str, dest: Path, key: Path) -> bool:
             break
         buf += chunk
         pieces = buf.replace(b"\r", b"\n").split(b"\n")
-        buf = pieces.pop()  # 末尾残片留待下次补齐
+        buf = pieces.pop()
         for seg in pieces:
             s = seg.decode("utf-8", "replace").strip()
             if not s:
@@ -533,7 +504,6 @@ def ascp_download(remote: str, dest: Path, key: Path) -> bool:
             else:
                 tail.append(s)
                 del tail[:-10]
-    # EOF 时 buf 里可能还留着最后一段(无换行结尾)
     if buf.strip():
         s = buf.decode("utf-8", "replace").strip()
         if any(u in s for u in ("MB/s", "KB/s", "GB/s")) and time.time() - last_log_time >= 5.0:
@@ -570,7 +540,7 @@ def ena_download_single_srr(
         else:
             logger.warning(f"[ascp] {srr_id}.fastq.gz 不在 ENA 上，跳过 single-end 回退")
         return False
-    else:  # SINGLE
+    else:
         for i in (2, 0, 1):
             if ascp_download(paths[i], dest, key):
                 if verify_fastq_gzip(local[i]):
@@ -578,9 +548,6 @@ def ena_download_single_srr(
         return False
 
 
-# ============================================================
-# aria2c 下载 (ENA HTTP 多线程)
-# ============================================================
 
 def aria2c_download_single(
     url: str,
@@ -639,7 +606,6 @@ def aria2c_download_single(
         line = line.strip()
         if not line:
             continue
-        # aria2c 进度行格式: [#gid MiB/TotalMiB(%) CN:xx DL:xxMiB ETA:xxs]
         if line.startswith("[#") and "DL:" in line:
             last_progress = line
             now = time.time()
@@ -647,12 +613,10 @@ def aria2c_download_single(
                 logger.info(f"[aria2c] {filename}  {line}")
                 last_log_time = now
         elif "Download Results" in line or "Status Legend" in line:
-            # 输出最后一条进度（距上次日志 >= 2s 才输出，避免重复）
             if last_progress and time.time() - last_log_time >= 2.0:
                 logger.info(f"[aria2c] {filename}  {last_progress}")
             break
         else:
-            # 错误/通知行（如 404、重定向），失败时输出
             detail_lines.append(line)
     proc.wait()
     rc = proc.returncode
@@ -687,7 +651,6 @@ def aria2c_download_single_srr(srr_id: str, library_type: str, dest: Path) -> bo
     logger.info(f"[aria2c] {srr_id} 候选 URL:\n    " + "\n    ".join(urls))
 
     if library_type == "PAIRED":
-        # 优先尝试 paired (_1 + _2)；已存在且完整的 mate 不重复下载
         ok1 = (local[0].exists() and verify_fastq_gzip(local[0])) or aria2c_download_single(urls[0], dest)
         if ok1 and verify_fastq_gzip(local[0]):
             ok2 = (local[1].exists() and verify_fastq_gzip(local[1])) or aria2c_download_single(urls[1], dest)
@@ -699,22 +662,19 @@ def aria2c_download_single_srr(srr_id: str, library_type: str, dest: Path) -> bo
             logger.warning(f"[aria2c] {srr_id}_1 下载失败，尝试 single-end fallback")
             local[0].unlink(missing_ok=True)
 
-        # fallback: single-end (.fastq.gz)——仅当 ENA 上真有该文件才尝试
         if probe_ena_http_file(urls[2]) == "file":
             if aria2c_download_single(urls[2], dest):
                 if verify_fastq_gzip(local[2]):
-                    # 清理可能残留的 _1/_2
                     local[0].unlink(missing_ok=True)
                     local[1].unlink(missing_ok=True)
                     return True
         else:
             logger.warning(f"[aria2c] {srr_id}.fastq.gz 不在 ENA 上，跳过 single-end 回退")
         return False
-    else:  # SINGLE
+    else:
         for i in (2, 0, 1):
             if aria2c_download_single(urls[i], dest):
                 if verify_fastq_gzip(local[i]):
-                    # 清理不需要的文件
                     for j in range(3):
                         if j != i:
                             local[j].unlink(missing_ok=True)
@@ -725,9 +685,6 @@ def aria2c_download_single_srr(srr_id: str, library_type: str, dest: Path) -> bo
         return False
 
 
-# ============================================================
-# curl 下载 (ENA HTTPS，支持 socks 等环境代理)
-# ============================================================
 
 def _socks_proxy_in_env() -> Optional[str]:
     """Return the first socks proxy URL found in proxy environment variables.
@@ -901,7 +858,6 @@ def curl_download_single(
         n_segments = min(connections, max(1, total // min_segment_size))
     if n_segments <= 1:
         logger.info(f"[curl] 开始下载 {url} -> {dest_file} (单连接)")
-        # 先写 .part 临时文件，完整后才改名为最终文件，保证最终名=完整文件
         tmp_part = dest_dir / f"{filename}.singlepart"
         if not _curl_download_range(url, tmp_part, None, connect_timeout, retries):
             return False
@@ -924,7 +880,6 @@ def curl_download_single(
         f"(分 {n_segments} 段并发, 共 {total / 1048576:.1f} MiB)"
     )
 
-    # 断点续传：已完成的分段（大小正确）直接跳过
     pending = []
     for part, start, end in segments:
         expected = end - start + 1
@@ -948,7 +903,6 @@ def curl_download_single(
         ]
         procs.append((part, subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)))
 
-    # 轮询分段进度
     last_log_time = 0.0
     while any(p.poll() is None for _, p in procs):
         time.sleep(5)
@@ -969,7 +923,6 @@ def curl_download_single(
     if failed_parts:
         return False
 
-    # 分段合并
     tmp_file = dest_dir / f"{filename}.merging"
     with tmp_file.open("wb") as out:
         for part, _, _ in segments:
@@ -1009,7 +962,6 @@ def curl_download_single_srr(srr_id: str, library_type: str, dest: Path) -> bool
         return verify_fastq_gzip(path) and verify_fastq_md5(path, md5_map.get(path.name))
 
     if library_type == "PAIRED":
-        # 优先尝试 paired (_1 + _2)；已存在且完整的 mate 不重复下载
         ok1 = (local[0].exists() and _verify(local[0])) or curl_download_single(urls[0], dest)
         if ok1 and _verify(local[0]):
             ok2 = (local[1].exists() and _verify(local[1])) or curl_download_single(urls[1], dest)
@@ -1021,22 +973,19 @@ def curl_download_single_srr(srr_id: str, library_type: str, dest: Path) -> bool
             logger.warning(f"[curl] {srr_id}_1 下载失败，尝试 single-end fallback")
             local[0].unlink(missing_ok=True)
 
-        # fallback: single-end (.fastq.gz)——仅当 ENA 上真有该文件才尝试
         if f"{srr_id}.fastq.gz" in md5_map:
             if curl_download_single(urls[2], dest):
                 if _verify(local[2]):
-                    # 清理可能残留的 _1/_2
                     local[0].unlink(missing_ok=True)
                     local[1].unlink(missing_ok=True)
                     return True
         else:
             logger.warning(f"[curl] {srr_id}.fastq.gz 不在 ENA 文件清单中，跳过 single-end 回退")
         return False
-    else:  # SINGLE
+    else:
         for i in (2, 0, 1):
             if curl_download_single(urls[i], dest):
                 if _verify(local[i]):
-                    # 清理不需要的文件
                     for j in range(3):
                         if j != i:
                             local[j].unlink(missing_ok=True)
@@ -1047,9 +996,6 @@ def curl_download_single_srr(srr_id: str, library_type: str, dest: Path) -> bool
         return False
 
 
-# ============================================================
-# SRA Toolkit 下载 (prefetch + fasterq-dump)
-# ============================================================
 
 def sra_download_single_srr(srr_id: str, library_type: str, dest: Path) -> bool:
     """通过 NCBI SRA Toolkit (prefetch + fasterq-dump) 下载并转换单个 SRR
@@ -1070,11 +1016,8 @@ def sra_download_single_srr(srr_id: str, library_type: str, dest: Path) -> bool:
     """
     dest.mkdir(parents=True, exist_ok=True)
 
-    # --- 1. prefetch ---
     sra_dir = dest / srr_id
     sra_file = sra_dir / f"{srr_id}.sra"
-    # prefetch 2.9.6 拒绝 --max-size 0（"Maximum requested file size is zero"），
-    # 其默认上限是 20G，这里用 1T 作为事实上的"不限制"
     prefetch_cmd = ["prefetch", srr_id, "-O", str(dest), "--max-size", "1T"]
     logger.info(f"[prefetch] 执行: {shlex.join(prefetch_cmd)}")
     result = subprocess.run(prefetch_cmd, capture_output=True, text=True)
@@ -1091,7 +1034,6 @@ def sra_download_single_srr(srr_id: str, library_type: str, dest: Path) -> bool:
             logger.warning(f"[prefetch] {srr_id} 完成但 .sra 文件不存在: {sra_file}")
             return False
 
-    # --- 2. fasterq-dump ---
     fq_cmd = [
         "fasterq-dump", str(sra_file),
         "--outdir", str(dest),
@@ -1106,7 +1048,6 @@ def sra_download_single_srr(srr_id: str, library_type: str, dest: Path) -> bool:
         shutil.rmtree(sra_dir, ignore_errors=True)
         return False
 
-    # --- 3. gzip ---
     generated = list(dest.glob(f"{srr_id}*.fastq"))
     if not generated:
         logger.warning(f"[fasterq-dump] {srr_id} 未生成 .fastq 文件")
@@ -1124,12 +1065,10 @@ def sra_download_single_srr(srr_id: str, library_type: str, dest: Path) -> bool:
             shutil.rmtree(sra_dir, ignore_errors=True)
             return False
 
-    # --- 4. 清理 .sra ---
     sra_file.unlink(missing_ok=True)
     if sra_dir.exists() and not any(sra_dir.iterdir()):
         sra_dir.rmdir()
 
-    # --- 5. 验证 ---
     ok = True
     for fq_gz in dest.glob(f"{srr_id}*.fastq.gz"):
         if not gzip_test(fq_gz):
@@ -1138,9 +1077,6 @@ def sra_download_single_srr(srr_id: str, library_type: str, dest: Path) -> bool:
     return ok
 
 
-# ============================================================
-# 自旋重试逻辑
-# ============================================================
 
 def spin_until_success(try_func, desc: str, sleep_base: int, sleep_max: int, max_retries: int = 10) -> bool:
     """Spin with exponential backoff until try_func succeeds or retries run out.
@@ -1196,9 +1132,6 @@ def spin_until_success(try_func, desc: str, sleep_base: int, sleep_max: int, max
     return False
 
 
-# ============================================================
-# 单 SRR 下载（主调度）
-# ============================================================
 
 def _fastq_exists(dest: Path, srr_id: str, library_type: str) -> bool:
     """检查目标 fastq 文件是否已存在且 gzip 完整"""
@@ -1230,8 +1163,6 @@ def download_spin(
         logger.warning(f"[SKIP] {srr_id} {library_type}：已检测到网络劫持，跳过剩余下载")
         return False
 
-    # 防呆：标注 SINGLE 但 ENA 存在 mate-2 → 实为 PE run，自动升级，
-    # 避免 SINGLE 分支只下到 _1（mate-1 被伪装成单端库，数据减半）
     if library_type == "SINGLE":
         mate2_url = build_ena_http_urls(srr_id)[1]
         if _ena_remote_file_exists(mate2_url):
@@ -1241,9 +1172,6 @@ def download_spin(
             )
             library_type = "PAIRED"
 
-    # ENA 端损坏快检：fastq.gz 名字在服务端实际是个空目录（损坏自生成日起
-    # 即存在），任何 ENA 方法与重试都下不到；有 SRA Toolkit 就从 .sra 重建，
-    # 否则快速失败并给出修复指引，不耗尽重试。
     if library_type == "PAIRED" and method in ("ascp", "aria2c", "curl"):
         urls = build_ena_http_urls(srr_id)
         bad = [u for u in urls[:2] if probe_ena_http_file(u) == "dir"]
@@ -1268,15 +1196,12 @@ def download_spin(
             )
             return False
 
-    # 缓存：已存在且完整则跳过
     if _fastq_exists(dest, srr_id, library_type):
         logger.info(f"[SKIP] {srr_id} {library_type} 已存在，跳过")
         return True
 
     logger.info(f"{srr_id} {library_type} 开始下载 (method={method})")
 
-    # aria2c 不支持 socks 代理(unrecognized proxy format)，直连又会被网关 TLS 劫持，
-    # 检测到 socks 代理时自动切换 curl 引擎（curl 原生支持 socks 环境变量）
     use_curl = method == "curl"
     if method == "aria2c":
         socks = _socks_proxy_in_env()
@@ -1296,15 +1221,12 @@ def download_spin(
         if not globus_tc or not globus_dest_ep:
             raise ValueError("globus 方法缺失 transfer_client 或 destination endpoint")
         try_func = lambda: globus_download_single_srr(globus_tc, globus_src_ep, globus_dest_ep, srr_id, library_type, dest)
-    else:  # sra
+    else:
         try_func = lambda: sra_download_single_srr(srr_id, library_type, dest)
 
     return spin_until_success(try_func, f"{srr_id} {library_type}", sleep_base, sleep_max, max_retries)
 
 
-# ============================================================
-# SRR 解析
-# ============================================================
 
 def load_tasks(args) -> List[Tuple[str, str]]:
     """Parse input mode (meta table / srr list / single srr) into (srr, layout) tasks.
@@ -1344,7 +1266,6 @@ def load_tasks(args) -> List[Tuple[str, str]]:
                 f"Available columns: {list(df.columns)}"
             )
 
-        # 只要求 srr 非空，library_layout 缺失值时用 default_layout 兜底
         df = df.dropna(subset=[srr_col])
 
         fallback_layout = args.default_layout or args.library_type or "SINGLE"
@@ -1354,8 +1275,6 @@ def load_tasks(args) -> List[Tuple[str, str]]:
             if not invalid.empty:
                 raise ValueError(f"Invalid library layout values found:\n{invalid}")
         else:
-            # 缺列 = 配置错误（layout 列名不匹配），不是缺值；
-            # 必须显式 --default-layout 或 -t 才允许跳过 layout 列
             if args.default_layout is None and args.library_type is None:
                 raise ValueError(
                     f"Meta 文件缺少 layout 列 '{lib_col}'。请用 --lib-col-name 指定正确的列名，"
@@ -1376,9 +1295,6 @@ def load_tasks(args) -> List[Tuple[str, str]]:
     return tasks
 
 
-# ============================================================
-# argparse
-# ============================================================
 
 def parse_args():
     p = argparse.ArgumentParser(
@@ -1386,42 +1302,32 @@ def parse_args():
         description="Download SRA data via ascp (ENA), aria2c (ENA HTTP), prefetch+fasterq-dump (NCBI), or globus (ENA Endpoint)"
     )
 
-    # ---------- Input modes ----------
     p.add_argument("--srr-id", help="Single SRR accession")
     p.add_argument("--srr-list", type=Path, help="File with one SRR accession per line")
     p.add_argument("--meta", type=Path, help="Meta table with header (recommended)")
 
-    # ---------- Meta column names ----------
     p.add_argument("--srr-col-name", default="SRR", help="SRR column name in meta file (default: SRR)")
     p.add_argument("--lib-col-name", default="Layout", help="Library layout column name (default: Layout)")
 
-    # ---------- Library type ----------
     p.add_argument("-t", "--library-type", choices=["PAIRED", "SINGLE"], help="Library type")
 
-    # ---------- Download method ----------
     p.add_argument("-m", "--method", choices=["ascp", "aria2c", "curl", "sra", "globus"], default="sra",
                    help="Download method: ascp (ENA fasp), aria2c (ENA HTTP multi-thread), curl (ENA HTTPS, supports socks proxy), sra (NCBI prefetch, default), globus")
 
-    # ---------- Output / logging ----------
     p.add_argument("-o", "--outdir", type=Path, required=True)
     p.add_argument("-l", "--log", type=Path, default=None,
                    help="日志文件路径 (可选；缺省时日志输出到标准输出)")
 
-    # ---------- ascp param ----------
     p.add_argument("-k", "--key", type=Path, help="Aspera key file (required for --method ascp)")
 
-    # ---------- Globus SDK params ----------
-    # 默认 UUID: 61338d24-54d5-408f-a10d-66c06b59f6d2 为 Globus 官方 Tutorial App
     p.add_argument("--globus-client-id", default="61338d24-54d5-408f-a10d-66c06b59f6d2", 
                    help="Globus Client ID (Optional)")
     p.add_argument("--globus-token", help="Globus Access Token (可选，不提供则走命令行交互网页授权)")
-    # 默认 UUID: 1d547d2a-e85d-11e8-963d-0a1d4c5c824a 为 ENA Public
     p.add_argument("--globus-source-ep", default="47772002-3e5b-4fd3-b97c-18cee38d6df2", 
                    help="Globus 源端 Endpoint UUID (默认: ENA public)")
     p.add_argument("--globus-dest-ep", default="76fbc1da-94c8-11f1-9c2b-02ce27bde401",
                    help="Globus 目标端 Endpoint UUID (需要提供，即当前机器的 Endpoint UUID)")
 
-    # ---------- Parallel / retry ----------
     p.add_argument("--jobs", type=int, default=1)
     p.add_argument("--sleep-base", type=int, default=10)
     p.add_argument("--sleep-max", type=int, default=300)
@@ -1440,14 +1346,9 @@ def parse_args():
     return args
 
 
-# ============================================================
-# main
-# ============================================================
 
 def main():
     args = parse_args()
-    # 初始化全局 logger（LogUtil.setup_logger 按名字配置，与模块级 logger 是同一对象）
-    # 未提供 --log 时日志仅输出到标准输出
     log_file = str(args.log) if args.log else None
     setup_logger("SRA_DOWNLOAD", log_file=log_file,
                  stream=None if log_file else sys.stdout)
@@ -1455,7 +1356,6 @@ def main():
     tasks = load_tasks(args)
     logger.info(f"共 {len(tasks)} 个 SRR，method={args.method}，jobs={args.jobs}")
 
-    # 若使用 Globus 则提前初始化客户端避免重复登录
     globus_tc = None
     if args.method == "globus":
         globus_tc = get_globus_client(args.globus_client_id, args.globus_token)
@@ -1497,7 +1397,6 @@ def main():
         logger.error(f"===== {len(failed)}/{len(tasks)} 个 SRR 下载失败 =====")
         for srr in sorted(failed):
             logger.error(f"  FAILED: {srr}")
-        # 写入失败列表文件
         failed_file = args.outdir / "download_failed.txt"
         args.outdir.mkdir(parents=True, exist_ok=True)
         with open(failed_file, "w") as f:

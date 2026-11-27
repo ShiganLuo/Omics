@@ -6,26 +6,13 @@ samples = config.get("samples", [])
 paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
 contrasts = config.get("contrasts", [])
-# 参数精确到 rule:generate_report 自己的参数挂 Params.report.generate_report.<key>
-# (原 Params.report.<key> 读点挂到消费 rule 名下;无 module 级共享回退,
-# 读点写 config 全量路径字面链)。
 
-# counts 矩阵文件名的 genome 前缀(单基因组变体:产物按 config 的
-# Params.report.generate_report.genome 标签命名,规则本身不带 {genome} 通配符)
 genome_label = config.get("Params", {}).get("report", {}).get("generate_report", {}).get("genome") or "all"
 
-# 图片格式（report 模块 figures/<name>.<fmt> 多格式输出）① parse 期读入 +
-# 规范化（str 收成单元素 list；合法值由 schema 声明）
 _formats = config.get("Params", {}).get("report", {}).get("generate_report", {}).get("formats") or ["png"]
 if isinstance(_formats, str):
     _formats = [_formats]
 
-# ── 上游产出图 raster-first 变体解析(modules.md #9 formats 规范)──
-# report input 声明消费上游生产者的图;生产者按 Params.<producer>.formats
-# 每格式写一个 `<base>.<fmt>`。这里在 parse 期按 raster-first(png → jpg →
-# jpeg → tif → tiff,都没有则取配置列表首个)选定一个具体扩展名,保证 DAG
-# 只要求生产者真正会写出的那一个变体。默认配置下解析结果与历史硬编码
-# 扩展名逐字节一致。
 _RASTER_FMT_ORDER = ("png", "jpg", "jpeg", "tif", "tiff")
 
 
@@ -33,7 +20,6 @@ def _producer_fmt(formats):
     """Raster-first extension among one producer's configured formats."""
     fmts = formats or ["png"]
     if isinstance(fmts, dict):
-        # schema-metadata 占位形状 {"type": ..., "default": [...]} — 取 default
         fmts = fmts.get("default") or ["png"]
     if isinstance(fmts, str):
         fmts = [fmts]
@@ -43,10 +29,6 @@ def _producer_fmt(formats):
     return fmts[0]
 
 
-# ── 上游产出图变体键:跨模块消费,变体期望挂在消费 rule 名下
-# (Params.<producer>.generate_report.<key>;原 function 的 go_kegg/gsea/gsva
-# 嵌套组名拍平进 key 名,叶子名 formats 作 key 尾缀以区分三个生产 rule)。
-# 读点写 config 全量路径字面链;默认配置下解析结果与历史硬编码扩展名逐字节一致。
 _st_formats = config.get("Params", {}).get("StringTie", {}).get("generate_report", {}).get("formats") or ["png"]
 if isinstance(_st_formats, str):
     _st_formats = [_st_formats]
@@ -67,8 +49,6 @@ if isinstance(_gsva_formats, str):
     _gsva_formats = [_gsva_formats]
 
 REPORT_SCRIPT = os.path.join(ROOT_DIR, "modules", "RNAseq_report", "bin", "generate_report.py")
-# arriba fusion figure base names (no extension) — 变体扩展名由
-# Params.arriba.generate_report.formats raster-first 解析(见 _producer_fmt)
 FUSION_FIG_BASES = [
     "fig1_per_sample_counts",
     "fig2_fusion_type_distribution",
@@ -120,8 +100,6 @@ rule generate_report:
     output:
         report = outdir + "/RNAseq_report.pptx",
         file_inventory = outdir + "/RNAseq_report_files.xlsx",
-        # 按格式展开的 figures/<name>.<fmt> 由脚本落盘，DAG 用文件清单
-        # manifest.tsv 锚定（no directory() outputs）
         figures_manifest = outdir + "/figures/manifest.tsv",
     log:
         logdir + "/RNAseq_report.log"
@@ -146,7 +124,7 @@ rule generate_report:
         genome = config.get("Params", {}).get("report", {}).get("generate_report", {}).get("genome") or "",
         date = config.get("Params", {}).get("report", {}).get("generate_report", {}).get("date") or "",
         lang = config.get("Params", {}).get("report", {}).get("generate_report", {}).get("lang") or "zh",
-        formats = _formats,   # ③ 转发
+        formats = _formats,
         img_dir = outdir + "/figures",
         script = REPORT_SCRIPT,
     run:
@@ -189,7 +167,7 @@ rule generate_report:
                 f.write(" ".join([shlex.quote(str(x)) for x in cmd]) + "\n")
                 f.write("echo 'RNAseq report generation completed successfully.'\n")
             shutil.copyfile(script_path, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

@@ -24,7 +24,7 @@ cellranger_ref_dir = outdir + "/cellranger_ref"
 genome_name = config.get("Params", {}).get("cellranger", {}).get("mkref", {}).get("genome_name", "GRCh38")
 cellranger_transcriptome_dir = cellranger_ref_dir + "/" + genome_name
 cellranger_input_dict = config.get("cellranger_input_dict", {})
-ctd_input_mode = config.get("ctd_input_mode", "bam")  # only used for cellranger_to_h5ad rule to determine where to find filtered matrix
+ctd_input_mode = config.get("ctd_input_mode", "bam")
 
 rule cellranger_ref:
     """Build Cell Ranger reference genome from FASTA and GTF."""
@@ -75,7 +75,7 @@ rule cellranger_ref:
                 f.write(f'echo "Cell Ranger reference built at {str(output.ref_dir)} successfully"\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(command_script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -132,11 +132,9 @@ rule cellranger_count:
             rule_logger.info(f"Start cellranger_count for sample {wildcards.sample_id} at {current_time}")
             sample_id = wildcards.sample_id
             sample_outdir = os.path.join(outdir, sample_id)
-            # Clean up stale sample directory (cellranger fails if dir exists but isn't a valid pipestance)
             if os.path.exists(sample_outdir):
                 rule_logger.warning(f"Removing stale sample directory: {sample_outdir}")
                 shutil.rmtree(sample_outdir)
-            # Don't create sample_outdir - cellranger will create it
             command_script = receipt_script(f"cellranger_count_{sample_id}_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"cellranger_count_{sample_id}.sh")
             cmd = [
@@ -154,7 +152,6 @@ rule cellranger_count:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(f"cd {outdir}\n")
                 f.write(" ".join(cmd) + "\n")
-                # Move outputs from outs/ to sample dir to match declared output paths
                 f.write(f"outs=\"{sample_outdir}/outs\"\n")
                 f.write(f"mv \"$outs/possorted_genome_bam.bam\" \"{output.bam}\"\n")
                 f.write(f"mv \"$outs/raw_feature_bc_matrix\" \"{sample_outdir}/raw_feature_bc_matrix\"\n")
@@ -162,7 +159,7 @@ rule cellranger_count:
                 f.write(f"mv \"$outs/filtered_feature_bc_matrix.h5\" \"{output.h5}\"\n")
                 f.write(f'echo "Cell Ranger count completed for sample {sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -222,7 +219,7 @@ rule cellranger_to_h5ad:
                 f.write(" ".join(str(item) for item in cmd) + "\n")
                 f.write(f'echo "cellranger_to_h5ad completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

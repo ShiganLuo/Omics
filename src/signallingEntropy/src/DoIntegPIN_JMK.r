@@ -26,24 +26,20 @@ box::use(
 #' @importFrom igraph graph_from_adjacency_matrix components
 #' @export
 do_integrate_pin <- function(adj_m, exp_m) {
-  # 1. 寻找交集并初步过滤对齐
   common_ids <- intersect(rownames(adj_m), rownames(exp_m))
 
   adj_filtered <- adj_m[common_ids, common_ids, drop = FALSE]
   exp_filtered <- exp_m[common_ids, , drop = FALSE]
 
-  # 2. 构建图并寻找连通分量
   graph_obj <- graph_from_adjacency_matrix(adj_filtered, mode = "undirected")
   comp_info <- components(graph_obj)
 
-  # 3. 识别最大连通块 (LCC)
   max_comp_idx <- which.max(comp_info$csize)
   main_nodes_mask <- comp_info$membership == max_comp_idx
 
   removed_nodes <- nrow(adj_m) - sum(main_nodes_mask)
   log_msg("INFO", paste("Total number of nodes removed (including unmatched and disconnected nodes):", removed_nodes))
 
-  # 5. 隐式返回结果列表
   list(
     a = adj_filtered[main_nodes_mask, main_nodes_mask, drop = FALSE],
     e = exp_filtered[main_nodes_mask, , drop = FALSE]
@@ -66,7 +62,6 @@ do_integrate_pin <- function(adj_m, exp_m) {
 #' @export
 DoIntegPIN.full <- function(adj.m,exp.m){
   
-  ### find genes in network with gene expression profiles
   commonEID.v <- intersect(rownames(adj.m),rownames(exp.m))
   match(commonEID.v,rownames(exp.m)) -> map.idx
   expPIN.m <- exp.m[map.idx,]
@@ -82,7 +77,6 @@ DoIntegPIN.full <- function(adj.m,exp.m){
 ### the stochastic vector of a node is independent of the node's gene expression value
 #' @export
 CompStochMatrix <- function(exp.v,adj.m){
-  ### compute stochastic matrix
   p.m <- matrix(0,nrow=length(exp.v),ncol=length(exp.v));
   rownames(p.m) <- rownames(adj.m);
   colnames(p.m) <- rownames(adj.m);
@@ -125,16 +119,10 @@ CompStochMatrix <- function(exp.v,adj.m){
 #' @export
 compute_stochastic_matrix <- function(exp_v, adj_m) {
 
-  # 1. Multiply the adjacency matrix by the expression vector
-  # Utilizing R's broadcasting: each column j of adj_m is multiplied by exp_v[j]
-  # We transpose to ensure the orientation aligns with row-wise stochasticity
   weighted_m <- t(adj_m * exp_v)
 
-  # 2. Calculate row sums (total weight of neighbors for each node)
   row_sums <- rowSums(weighted_m)
 
-  # 3. Normalization: Divide each row by its sum
-  # Handling potential division by zero for isolated nodes
   stoch_m <- weighted_m / ifelse(row_sums == 0, 1, row_sums)
 
   stoch_m

@@ -23,6 +23,3 @@ function NCBIdownload() {
 
 export -f NCBIdownload
 
-# outdir=/ChIP_seq_2/StemCells/data/fq
-# sralist=/ChIP_seq_2/StemCells/log/download/ascp_download2.log
-# nohup awk -F " " '$3 == "下载失败" {print $1,$2}' ${sralist} | parallel -j 3 --joblog /ChIP_seq_2/StemCells/log/download/parallel.log --colsep ' ' download {1} ${outdir} ${log} > /ChIP_seq_2/StemCells/log/download/ascp.log 2>&1 &

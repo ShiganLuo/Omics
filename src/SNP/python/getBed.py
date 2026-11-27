@@ -13,19 +13,16 @@ def parse_gtf(gtf_file:str, gene_set:set):
     with open(gtf_file, "r") as f:
         for line in f:
             if line.startswith("#"):
-                continue  # 跳过注释行
+                continue
             fields = line.strip().split("\t")
             feature_type = fields[2]  
             if feature_type == "gene":
-                # 解析 gene_id
                 match = re.search(r'gene_id "([^"]+)"', fields[8])
                 if match:
                     gene_id = match.group(1)
-                    # print(gene_id)
                     if gene_id in gene_set:
-                        # print(gene_id)
                         chrom = fields[0]
-                        start = int(fields[3]) - 1  # GTF 是 1-based，BED 需要 0-based
+                        start = int(fields[3]) - 1
                         end = int(fields[4])
                         strand = fields[6]
                         bed_records.append((chrom, start, end, gene_id, feature_type, strand))
@@ -39,18 +36,15 @@ def parse_gtfForStringTie(gtf_file:str, gene_set:set):
     with open(gtf_file, "r") as f:
         for line in f:
             if line.startswith("#"):
-                continue  # 跳过注释行
+                continue
             fields = line.strip().split("\t")
             feature_type = fields[2]  
-            # 解析 gene_id
             match = re.search(r'gene_id "([^"]+)"', fields[8])
             if match:
                 gene_id = match.group(1)
-                # print(gene_id)
                 if gene_id in gene_set:
-                    # print(gene_id)
                     chrom = fields[0]
-                    start = int(fields[3]) - 1  # GTF 是 1-based，BED 需要 0-based
+                    start = int(fields[3]) - 1
                     end = int(fields[4])
                     strand = fields[6]
                     bed_records.append((chrom, start, end, gene_id, feature_type, strand))
@@ -66,11 +60,10 @@ def parase_gtfForTEcount(gtf_file:str, gene_set:set):
     with open(gtf_file, "r") as f:
         for line in f:
             if line.startswith("#"):
-                continue  # 跳过注释行
+                continue
             fields = line.strip().split("\t")
             feature_type = fields[2]  
             
-            # 解析 gene_id
             match = re.search(r'gene_id "([^"]+)";.*?family_id "([^"]+)";.*?class_id "([^"]+)";', fields[8])
             if match:
                 attr_dict = {
@@ -81,9 +74,8 @@ def parase_gtfForTEcount(gtf_file:str, gene_set:set):
                 combined_id = f"{attr_dict['gene_id']}:{attr_dict['family_id']}:{attr_dict['class_id']}"
 
                 if combined_id in gene_set:
-                    # print(combined_id)
                     chrom = fields[0]
-                    start = int(fields[3]) - 1  # GTF 是 1-based，BED 需要 0-based
+                    start = int(fields[3]) - 1
                     end = int(fields[4])
                     strand = fields[6]
                     bed_records.append((chrom, start, end, combined_id, feature_type, strand))
@@ -96,7 +88,7 @@ def dropDuplicates(bed_records:list):
     seen = {}
     unique_records = []
     for record in bed_records:
-        key = (record[0], record[1], record[2])  # (chrom, start, end)
+        key = (record[0], record[1], record[2])
         if key not in seen:
             seen[key] = True
             unique_records.append(record)
@@ -115,7 +107,6 @@ def getBed(infile:str,outfile:str,gtf:str,writeMode:str,func:Callable[[str,set],
     print(gene_ids)
     bed = func(gtf, gene_ids)
     bed.sort()
-    ## remove the duplicates(chrom,start,end)
     bed = dropDuplicates(bed)
     with open(outfile, writeMode) as f:
         for record in bed:
@@ -132,10 +123,6 @@ if __name__ == "__main__":
     parser.add_argument('--TEGtf', type=str, required=True, help='Path to TE gtf')
     parser.add_argument('--mode', type=str,default="SNP", choices=["SNP", "StringTie"],help='how to write file,combine or separate')
     args = parser.parse_args()
-    # exon_gtf = "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/exon.gtf"
-    # TE_gtf = "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf"
-    # countfile = "/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/RNASNP202503TEcount_common.cntTable"
-    # outfile = "/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/RNASNP202503TEcount_common.bed"
     infile = args.input
     outfileList = args.output
     Gtf = args.Gtf

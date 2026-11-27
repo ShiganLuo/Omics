@@ -83,7 +83,6 @@ def main():
     tables = load_tables(args.diff_root)
     wide = te_level_summary(tables)
 
-    # ---- TE-level sharing across contrasts (per tissue) -------------------
     recs = []
     for tissue in wide.index.get_level_values(0).unique():
         sub = wide.loc[tissue]
@@ -111,7 +110,6 @@ def main():
             ["tissue", "direction", "n_shared"], ascending=[True, True, False])
     global_df.to_csv(os.path.join(args.out_dir, "shared_TEs_global.csv"), index=False)
 
-    # ---- per-cell-type exact intersections -------------------------------
     ct_recs = []
     for tissue, ctypes in tables.items():
         for cell_type, contrasts in ctypes.items():
@@ -140,7 +138,6 @@ def main():
     ct_df.to_csv(os.path.join(args.out_dir, "shared_TEs_across_comparisons.csv"),
                  index=False)
 
-    # ---- figure ---------------------------------------------------------
     fig = plt.figure(figsize=(13.5, 6.2))
     gs = fig.add_gridspec(1, 2, width_ratios=[1, 1.35])
 

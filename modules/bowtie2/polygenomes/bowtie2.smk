@@ -5,12 +5,8 @@ outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 logdir_combine = config.get("logdir_combine", "log/group")
 
-# 参数精确到 rule:Params.bowtie2.<rule_name>.<key>(config 全量路径直读;
-# 无 module 级共享回退,bowtie2_align_paired / bowtie2_align_single 各自独立键)。
 genome_paired_samples = config.get("genome_paired_samples") or {}
 genome_single_samples = config.get("genome_single_samples") or {}
-# temp 规范(modules.md):本模块的中间文件用 maybe_temp(path, "<key>") 包裹,
-# 是否标 temp 由 Params.<key>.keep_intermediates 决定(缺省 True=兜底保留)。
 
 BOWTIE2_IDX_SUFFIX = ["1.bt2", "2.bt2", "3.bt2", "4.bt2", "rev.1.bt2", "rev.2.bt2"]
 
@@ -53,7 +49,7 @@ rule bowtie2_index:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             rule_logger.info(f"Start bowtie2 index for genome {wildcards.genome} at {current_time}")
             script = receipt_script(f"bowtie2_index.{wildcards.genome}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = f"{outdir}/index/{wildcards.genome}/bowtie2_index.sh"
             cmd = [params.bowtie2_build, 
                     "--threads", str(threads), 
@@ -65,7 +61,7 @@ rule bowtie2_index:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "bowtie2 index was successfully completed !"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -87,12 +83,10 @@ def get_alignment_input(wildcards):
     return: A list of input file paths for the STAR alignment step. 
     """
     logger.debug(f"[get_alignment_input] called with wildcards: {wildcards}")
-    # 构造可能的输入路径
     paired_r1 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_1.fq.gz"
     paired_r2 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_2.fq.gz"
     single = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.single.fq.gz"
 
-    # 检查文件实际存在情况
     if wildcards.sample_id in genome_paired_samples.get(wildcards.genome, []):
         logger.debug(f"双端测序：{[paired_r1, paired_r2]}")
         return [paired_r1, paired_r2]
@@ -152,7 +146,7 @@ rule bowtie2_align_paired:
             rule_logger.info(f"Start bowtie2_align_paired for sample {wildcards.sample_id} on genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bam))
             script = receipt_script(f"bowtie2_align_{wildcards.genome}_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = f"{sample_outdir}/bowtie2_align.sh"
             cmd1 = [params.bowtie2, 
                     "-x", params.index_prefix, 
@@ -173,7 +167,7 @@ rule bowtie2_align_paired:
                 f.write(" ".join(cmd3) + "\n")
                 f.write(f'echo "bowtie2_align_paired for sample {wildcards.sample_id} on genome {wildcards.genome} successfully completed !"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -213,7 +207,7 @@ rule bowtie2_align_single:
             rule_logger.info(f"Start bowtie2_align_single for sample {wildcards.sample_id} on genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bam))
             script = receipt_script(f"bowtie2_align_{wildcards.genome}_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = f"{sample_outdir}/bowtie2_align.sh"
             cmd1 = [params.bowtie2, 
                     "-x", params.index_prefix, 
@@ -231,7 +225,7 @@ rule bowtie2_align_single:
                 f.write(" ".join(cmd2) + "\n")
                 f.write(f'echo "bowtie2_align_single for sample {wildcards.sample_id} on genome {wildcards.genome} successfully completed !"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

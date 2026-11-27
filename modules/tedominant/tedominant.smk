@@ -1,13 +1,5 @@
 include: "../common/common.smk"
 
-# ---------------------------------------------------------------------------
-# tedominant: TE 主导 cluster 鉴定(v2 反分母塌缩门槛)。
-# 输入 = scRNAseq 工作流 combine 阶段产出的 {tissue}_scTE_{merged,auto}.h5ad
-# 对(merged 带基因+TE 特征与 counts 层,auto 带 leiden/cell_type 注释与
-# UMAP);一次 group 级运行覆盖全部组织,输出鉴定表 + 三类图。
-# 区域/组织名在数据里,产物由 done 标记跟踪(modules.md:禁用 directory())。
-# 本文件只做接线;判据与算法见 bin/te_dominant.py 与 README §2。
-# ---------------------------------------------------------------------------
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 ROOT_DIR = config.get("ROOT_DIR", ".")

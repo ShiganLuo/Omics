@@ -1,13 +1,7 @@
 include: "../../common/common.smk"
 
-# ======================================================================================================================
-# Project: Project_ABC
-# Script : build_baseline.smk
 # Author : Peng Jia
-# Date   :  2024/5/27
 # Email  : pengjia@xjtu.edu.cn
-# Description: Pipeline of baseline building of MSIsensor-pro
-# ======================================================================================================================
 import pandas as pd
 
 
@@ -43,7 +37,7 @@ rule scan:
     container:
         sif("../msisensor-pro.yaml", "scan")
     run:
-        if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+        if SCRIPT_ONLY:
             script_only_touch(output)
         else:
             shell("{msisensor_pro} scan -d {input} -o {output} 2>>{log} 1>>{log}")
@@ -67,7 +61,7 @@ rule msisensor_msi:
     container:
         sif("../msisensor-pro.yaml", "msisensor_msi")
     run:
-        if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+        if SCRIPT_ONLY:
             script_only_touch(output)
         else:
             shell("{msisensor_pro} msi -d {input.ms} -n {input.n} -t {input.t} -g {input.ref}  -o {output} 2>>{log}")
@@ -90,4 +84,3 @@ rule merge_msi_result:
             value_info = [i.split() for i in open(outdir + f"tumor_normal_output/{case}/{case}.{wildcards.genome_version}.msisensor")]
             output_info.loc[case] = value_info[1]
         output_info.to_csv(f"{output}",sep="\t")
-        # print(value_info)

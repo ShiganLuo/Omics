@@ -13,7 +13,6 @@ ip_samples = config.get("sample_params", {}).get("ip_samples", [])
 input_samples = config.get("sample_params", {}).get("input_samples", [])
 sample_ip_input_map = config.get("sample_params", {}).get("sample_ip_input_map", {})
 
-# Genome reference resolution — RNAseq pattern
 genome = config.get("genome", {}).get("default")
 genome_ref = config.get("genome", {}).get("references", {}).get(genome, {})
 logger.debug(f"PeakCalling genome: {genome}, ref keys: {list(genome_ref.keys())}")
@@ -22,9 +21,6 @@ rule all:
     input:
         outfiles
 
-# ==============================================================================
-# Step 1: Raw FastQC
-# ==============================================================================
 fastqc_raw_config = {
         "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
@@ -46,9 +42,6 @@ module fastqc_raw:
 logger.debug(f"fastqc_raw_config: {fastqc_raw_config}")
 use rule fastqc from fastqc_raw as PeakCalling_fastqc_raw
 
-# ==============================================================================
-# Step 2: Trim Galore
-# ==============================================================================
 trim_galore_config = {
         "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
@@ -61,7 +54,6 @@ trim_galore_config = {
             "trim_galore": config.get('Procedure',{}).get('trim_galore')
         },
         "Params": {
-            # 参数精确到 rule:整段透传,模块读 Params.trim_galore.<rule>.<key>
             "trim_galore": config.get('Params',{}).get("trim_galore", {})
         },
     }
@@ -72,9 +64,6 @@ logger.debug(f"TrimGalore parameters: {trim_galore_config}")
 use rule trimming_Paired from trim_galore as PeakCalling_trimming_Paired
 use rule trimming_Single from trim_galore as PeakCalling_trimming_Single
 
-# ==============================================================================
-# Step 3: Trimmed FastQC
-# ==============================================================================
 fastqc_trimmed_config = {
         "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
@@ -96,9 +85,6 @@ module fastqc_trimmed:
 logger.debug(f"fastqc_trimmed_config: {fastqc_trimmed_config}")
 use rule fastqc from fastqc_trimmed as PeakCalling_fastqc_trimmed
 
-# ==============================================================================
-# Step 4: Bowtie2 Alignment
-# ==============================================================================
 bowtie2_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -112,9 +98,6 @@ bowtie2_config = {
         "bowtie2": config.get("Procedure", {}).get("bowtie2")
     },
     "Params": {
-        # keep_intermediates 透传(modules.md temp 规范):bowtie2 中间产物
-        # (bam/unmapped fq)受字段控制,缺省 True=保留;PeakCalling 模板定 false
-        # (比对 bam 是中间文件,交付物是 markdup bam/peaks)。metrics 不在字段范围
         "bowtie2": {
             "keep_intermediates": config.get("Params", {}).get("bowtie2", {}).get("keep_intermediates", True)
         }
@@ -132,12 +115,6 @@ use rule bowtie2_index from bowtie2 as PeakCalling_bowtie2_index
 use rule bowtie2_align_paired from bowtie2 as PeakCalling_bowtie2_align_paired
 use rule bowtie2_align_single from bowtie2 as PeakCalling_bowtie2_align_single
 
-# =============================================================================
-# Step 5: Add Read Groups + Mark Duplicates (GATK4)
-# Consistent with nf-core/chipseq: AddOrReplaceReadGroups + MarkDuplicates.
-# Duplicates are flagged but not removed; downstream tools (MACS3, FRiP)
-# handle duplicate filtering via --keep-dup.
-# =============================================================================
 gatk_prepare_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -153,9 +130,6 @@ gatk_prepare_config = {
     },
     "Params": {
         "gatk": config.get("Params", {}).get("gatk", {}),
-        # keep_intermediates 透传(modules.md temp 规范):gatk_prepare 中间产物
-        # (RG bam)受字段控制,缺省 True=保留;PeakCalling 模板定 false。交付物
-        # 4_markdup_bam/{s}/{s}.sorted_markdup.bam 不在字段范围内
         "gatk_prepare": {
             "keep_intermediates": config.get("Params", {}).get("gatk_prepare", {}).get("keep_intermediates", True)
         }
@@ -171,11 +145,6 @@ logger.debug(f"gatk_prepare_config: {gatk_prepare_config}")
 use rule addReadsGroup from gatk_prepare as PeakCalling_addReadsGroup
 use rule MarkDuplicates from gatk_prepare as PeakCalling_MarkDuplicates
 
-# ==============================================================================
-# Step 6: BigWig Track Generation (bamCoverage)
-# Generates normalized coverage tracks for visualization in genome browsers.
-# Uses the existing igv module's dedup + wig rules.
-# ==============================================================================
 igv_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -189,8 +158,6 @@ igv_config = {
         "bamCoverage": config.get("Procedure", {}).get("bamCoverage") or "bamCoverage"
     },
     "Params": {
-        # 参数精确到 rule:整段透传,igv 模块读 Params.bamCoverage.<rule>.<key>
-        # (wig.normalizeUsing)及未迁移的模块级 binSize/offset/extendReads
         "bamCoverage": config.get("Params", {}).get("bamCoverage", {})
     }
 }
@@ -201,11 +168,6 @@ logger.debug(f"igv_config: {igv_config}")
 use rule samtools_dedup from igv as PeakCalling_dedup
 use rule wig from igv as PeakCalling_bigwig
 
-# ============================================================
-# Region-focused multi-sample track stacking plots (modules/regionplot)
-#   Consumes this workflow's bigwigs; gated by Params.regionplot in
-#   node.py (subworkflow wiring is unconditional per repo convention).
-# ============================================================
 regionplot_params = config.get("Params", {}).get("regionplot", {})
 regionplot_config = {
     "ROOT_DIR": ROOT_DIR,
@@ -247,9 +209,6 @@ module track:
     config: track_config
 logger.debug(f"track_config: {track_config}")
 use rule * from track as PeakCalling_*
-# =============================================================================
-# Step 7: MACS3 Peak Calling
-# =============================================================================
 macs3_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -278,11 +237,6 @@ logger.debug(f"macs3_config: {macs3_config}")
 use rule macs3_callpeak from macs3 as PeakCalling_macs3_callpeak
 use rule macs3_cutoff_plot from macs3 as PeakCalling_macs3_cutoff_plot
 
-# =============================================================================
-# Step 8: FRIP Score (Fraction of Reads in Peaks)
-# Key ChIP-seq QC metric: measures enrichment quality.
-# FRiP = reads_in_peaks / total_mapped_reads (target >= 0.2 for good data)
-# =============================================================================
 frip_score_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -304,11 +258,6 @@ module frip_score:
 logger.debug(f"frip_score_config: {frip_score_config}")
 use rule frip_score from frip_score as PeakCalling_frip_score
 
-# ==============================================================================
-# Step 9: deeptools Enrichment Heatmap
-# Computes signal matrix around peaks (computeMatrix) and plots heatmap
-# (plotHeatmap) for visualizing ChIP-seq enrichment patterns.
-# ==============================================================================
 deeptools_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -343,11 +292,6 @@ use rule bigwig_ratio_result from deeptools as PeakCalling_bigwig_ratio_result
 use rule heatmap from deeptools as PeakCalling_heatmap
 use rule heatmap_gene from deeptools as PeakCalling_heatmap_gene
 
-# ==============================================================================
-# Step 10: HOMER Peak Annotation
-# Annotates peaks with genomic features (promoter, intron, intergenic, etc.)
-# and nearest gene information.
-# ==============================================================================
 homer_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -371,12 +315,6 @@ module homer:
 logger.debug(f"homer_config: {homer_config}")
 use rule homer_annotatepeaks from homer as PeakCalling_homer_annotatepeaks
 
-# ==============================================================================
-# Step 11: Peak-TE Overlap Analysis
-# Calculates overlap between peaks and TE (Transposable Element) annotation,
-# producing per-sample overlap counts and a grouped bar chart comparing
-# IP vs Input samples across TE families.
-# ==============================================================================
 peak_te_overlap_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -406,11 +344,6 @@ use rule peak_te_overlap from peak_te_overlap as PeakCalling_peak_te_overlap
 use rule peak_centric_overlap from peak_te_overlap as PeakCalling_peak_centric_overlap
 use rule peak_te_overlap_fig from peak_te_overlap as PeakCalling_peak_te_overlap_fig
 
-# ============================================
-# Sex check (coverage on sex chromosomes)
-# ============================================
-# Wired unconditionally over the alignment BAMs; node.py registers the
-# sexcheck outputs (subworkflow.md QC wiring).
 sexcheck_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -443,12 +376,6 @@ logger.info(f"sexcheck_config: {sexcheck_config}")
 use rule sexcheck_idxstats from sexcheck as PeakCalling_sexcheck_idxstats
 use rule sexcheck from sexcheck as PeakCalling_sexcheck
 
-# ============================================
-# QC Summary (cross-sample metric aggregation)
-# ============================================
-# Wired unconditionally; node.py registers the qc_summary outputs (see
-# subworkflow.md QC wiring spec). Only stages with qc_summary parsers are
-# declared; unregistered stages stay best-effort scans.
 qc_summary_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -475,10 +402,6 @@ module qc_summary:
 logger.info(f"qc_summary_config: {qc_summary_config}")
 use rule qc_summary from qc_summary as PeakCalling_qc_summary
 
-# ==============================================================================
-# Step 12: Generate Report
-# Creates comprehensive PPT report with QC metrics, peak statistics, and annotation.
-# ==============================================================================
 PeakCalling_report_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -496,9 +419,6 @@ PeakCalling_report_config = {
     "markdup_dir": f"{outdir}/common/4_markdup_bam",
     "Params": {
         "report": config.get("Params", {}).get("report", {}),
-        # 生产者 formats 段直通(modules.md #9):report 模块 input 在 parse 期
-        # 按上游 formats 做 raster-first 变体解析(te_enrichment 归
-        # peak_te_overlap、heatmap 归 plotHeatmap)
         "peak_te_overlap": config.get("Params", {}).get("peak_te_overlap", {}),
         "macs3": config.get("Params", {}).get("macs3", {}),
         "plotHeatmap": config.get("Params", {}).get("plotHeatmap", {}),

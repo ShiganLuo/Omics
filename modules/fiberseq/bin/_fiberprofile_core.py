@@ -61,8 +61,8 @@ def _parser_worker(path: str, conn) -> None:
                     starts.append(bs)
                     ends.append(be)
         flush()
-        conn.send(None)  # EOF
-    except Exception as e:  # propagate to the parent
+        conn.send(None)
+    except Exception as e:
         try:
             conn.send((_PARSER_ERROR, e))
         except Exception:

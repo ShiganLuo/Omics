@@ -73,7 +73,7 @@ def chrom_bins(chroms, bin_size: int):
     """Assign each chromosome a contiguous bin range on a linear axis."""
     layout, total = {}, 0
     for c, ln in chroms:
-        nb = int(np.ceil(ln / bin_size)) + 1  # +1 spacer bin
+        nb = int(np.ceil(ln / bin_size)) + 1
         layout[c] = (total, nb, ln)
         total += nb
     return layout, total
@@ -182,7 +182,6 @@ def plot_circos(chroms, layout, total_bins, densities, svs, sample: str,
         b = base + min(int(pos // bin_size), nb - 2)
         return bin_to_theta(b)
 
-    # ideogram
     r_ideo = (0.92, 0.98)
     for i, (c, ln) in enumerate(chroms):
         base, nb, _ = layout[c]
@@ -195,7 +194,6 @@ def plot_circos(chroms, layout, total_bins, densities, svs, sample: str,
         ax.text(mid, 1.02, c.replace("CM", "").replace("NC_", "").split(".")[0],
                 ha="center", va="center", fontsize=7)
 
-    # density rings
     ring_specs = [(0.86, densities.get("snv"), "SNV/indel density", "Blues"),
                   (0.76, densities.get("fire"), "FIRE peak density", "Oranges"),
                   (0.66, densities.get("m6a"), "m6A density", "Greens"),
@@ -217,7 +215,6 @@ def plot_circos(chroms, layout, total_bins, densities, svs, sample: str,
                                    edgecolor="none"))
         ax.text(0, r_out, label, ha="center", va="center", fontsize=7)
 
-    # SV arcs
     sv_colors = {"DEL": "#1f77b4", "INS": "#d62728", "DUP": "#2ca02c",
                  "INV": "#9467bd", "BND": "#ff7f0e"}
     r_sv = 0.50
@@ -229,7 +226,6 @@ def plot_circos(chroms, layout, total_bins, densities, svs, sample: str,
         if abs(t1c - t2c) < 0.01:
             continue
         col = sv_colors.get(svtype, "gray")
-        # route the arc through the shorter side
         diff = (t2c - t1c) % T
         if diff > np.pi:
             t1c, t2c = t2c, t1c

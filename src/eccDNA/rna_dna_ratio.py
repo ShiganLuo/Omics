@@ -46,14 +46,12 @@ import sys
 try:
     import pysam
 except ImportError:
-    pysam = None  # user installs pysam themselves (repo convention)
+    pysam = None
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s")
 logger = logging.getLogger("rna_dna_ratio")
 
-#: Background windows whose exonic intersection falls below this many kb are
-#: flagged low_conf (default 20 kb; too few exonic bases -> noisy ratio).
 DEFAULT_MIN_EXONIC_KB = 5.0
 
 
@@ -313,10 +311,7 @@ def main(argv: list[str] | None = None) -> int:
                                   args.min_mapq)
             frag_ex_kb = exonic_length(exons, frag["chrom"],
                                        frag["start"], frag["end"]) / 1000.0
-            # Exonic density (reads per exonic kb): the RNA-seq-valid
-            # denominator. Interval length is kept only as a reference column.
             frag_e_rpk = rna / frag_ex_kb if frag_ex_kb > 0 else 0.0
-            # Linear background: both flanks, circle intervals masked out.
             names: set = set()
             flank_len = 0
             flank_ex_len = 0

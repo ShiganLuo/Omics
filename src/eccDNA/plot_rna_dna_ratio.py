@@ -61,14 +61,10 @@ logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s")
 logger = logging.getLogger("plot_rna_dna_ratio")
 
-#: Export file formats supported by :func:`main`.
 PlotFormat = Literal["png", "pdf", "svg"]
 
-#: Fill color for cells whose ratio is undefined (empty background window).
 NE_COLOR = "#e8e8e8"
-#: Ratio color scale (log2 units); values outside are clipped to the ends.
 VMIN, VMAX = -3.0, 3.0
-#: Fixed color per family index (family 1..9 -> position 0..8).
 FAMILY_COLORS = ["#4a708b", "#b2182b", "#2f8f4e", "#7a5195", "#c9a227",
                  "#d95f02", "#1b9e77", "#7570b3", "#8c8c8c"]
 
@@ -272,8 +268,6 @@ def ratio_matrix(ordered: List[Tuple[Optional[int], tuple]],
         vals = [v for v in reps.values() if np.isfinite(v)]
         if vals:
             mat[ri, ci] = np.log2(sum(vals) / len(vals))
-    # NOTE: values are intentionally NOT clipped here -- annotations must
-    # show the true ratio; callers clip only for color mapping.
     return mat
 
 
@@ -343,8 +337,6 @@ def draw_strength_bars(ax_bar: plt.Axes, mat: np.ndarray,
     ax_bar.set_xlim(0, 1)
     ax_bar.set_ylim(n_rows - 0.5, -0.5)
     ax_bar.set_xticks([])
-    # NOTE: y ticks are NOT touched here -- plot_heatmap sets the fragment
-    # labels on this axes and must win regardless of call order.
     for sp in ax_bar.spines.values():
         sp.set_visible(False)
 
@@ -389,7 +381,6 @@ def plot_heatmap(ax: plt.Axes, ax_bar: plt.Axes, mat: np.ndarray,
     im = ax.imshow(np.clip(mat, VMIN, VMAX), aspect="auto", cmap=cmap,
                    norm=norm)
 
-    # cell annotations: linear ratio text; white text on dark fills
     for ri, (_, (sample, circ, frag, reps)) in enumerate(ordered):
         for ci in range(n_cols):
             v = mat[ri, ci]
@@ -404,13 +395,11 @@ def plot_heatmap(ax: plt.Axes, ax_bar: plt.Axes, mat: np.ndarray,
                         fontsize=5.0,
                         color="white" if abs(v) > 1.4 else "#222222")
 
-    # colorbar: right of the heatmap, same height
     cbar = plt.colorbar(im, ax=ax, location="right", fraction=0.03, pad=0.03,
                         ticks=[-3, -2, -1, 0, 1, 2, 3])
     cbar.ax.set_ylabel("log2 (fragment RNA / masked flank)", fontsize=5.5)
     cbar.ax.tick_params(labelsize=5.5)
 
-    # y tick labels on the bar axes, colored by family; hide heatmap's own
     ax.set_yticks([])
     ax_bar.set_yticks(range(n_rows))
     ax_bar.set_yticklabels([f"{frag.split(':')[1]} ({circ})"
@@ -465,10 +454,6 @@ def run(datadir: str, out_prefix: str,
                 len(ordered), len(runs), samples)
 
     fig = plt.figure(figsize=(7.2, 5.8))
-    # explicit placement: strength bars hug the heatmap left edge (no gap);
-    # y labels sit left of the bars. No category legend: every cell carries
-    # its exact ratio text, the colorbar defines the scale, and the old
-    # >=2x/1-2x/<1x strip duplicated that information.
     ax_bar = fig.add_axes([0.235, 0.12, 0.014, 0.72])
     ax_b = fig.add_axes([0.249, 0.12, 0.50, 0.72])
     plot_heatmap(ax_b, ax_bar, mat, ordered, runs, samples)

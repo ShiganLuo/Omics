@@ -6,9 +6,6 @@ outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
 samples = config.get("samples", [])
 
-# Get parameters
-# 参数精确到 rule(2026-11 规范):config 全量路径字面链
-# Params.psm_fdr_control.psm_fdr.<key>,无 module 级共享回退。
 
 rule psm_fdr:
     input:
@@ -38,7 +35,7 @@ rule psm_fdr:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start PSM FDR control for sample {wildcards.sample_id} at {current_time}")
             script = receipt_script(f"psm_fdr_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/psm_fdr.sh")
             cmd = [
                 params.openms,
@@ -47,12 +44,6 @@ rule psm_fdr:
                 "-FDR:PSM", str(params.fdr),
                 "-protein", "false",
             ]
-            # FalseDiscoveryRate is the single FDR authority of the chain: it
-            # recomputes target-decoy q-values from the Percolator scores and
-            # overwrites the percolator q-value annotations, so filtering and
-            # the reported q-values always come from one estimator.
-            # method: "BH" (or "qvalue") = Benjamini-Hochberg q-values
-            # (default); "strict" = plain FDR without q-value smoothing.
             if str(params.method).lower() in ("bh", "qvalue"):
                 pass
             elif str(params.method).lower() == "strict":
@@ -67,7 +58,7 @@ rule psm_fdr:
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f'echo "PSM FDR control for {wildcards.sample_id} was completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

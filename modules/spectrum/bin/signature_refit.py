@@ -95,14 +95,9 @@ logger = setup_logger("SignatureRefit", stream=sys.stdout)
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
-# Built-in signature families. Collinear family members (SBS2/13, SBS1/5/40)
-# are aggregated because single members are not separable at low mutation
-# counts (design doc section 4.3). A --family-map TSV overrides this default.
 DEFAULT_FAMILIES: Dict[str, List[str]] = {
     "Clock-like": ["SBS1", "SBS5", "SBS40a", "SBS40b", "SBS40c"],
     "APOBEC": ["SBS2", "SBS13"],
@@ -204,10 +199,6 @@ def refit_sample(v, w_mat, names: List[str], min_exposure_frac: float,
         min_idx = int(np.argmin(fracs))
         if fracs[min_idx] >= min_exposure_frac:
             break
-        # Remove only the weakest signature per round and refit, so the
-        # remaining signatures can absorb its mass before the next cut.
-        # Batch pruning can drop a genuinely active signature whose mass
-        # the initial fit had spread across correlated columns.
         active.pop(min_idx)
     h, _ = nnls(w_mat[:, active], v)
     h_full[active] = h
@@ -308,7 +299,6 @@ def run_refit(counts, sig, args,
     ])
     summary.to_csv(f"{args.output_prefix}_summary.csv", index=False)
 
-    # Family-fraction stacked bar per sample.
     ax = fam_df.plot(kind="bar", stacked=True, figsize=(max(6, 1.2 * len(samples)), 6))
     ax.set_ylabel("Exposure fraction")
     ax.set_xlabel("Sample")
@@ -322,7 +312,6 @@ def run_refit(counts, sig, args,
         logger.info(f"Saved {out_path}")
     plt.close(fig)
 
-    # Sample x signature fraction heatmap (only signatures used somewhere).
     frac_df = pd.DataFrame(fractions).T.reindex(samples).fillna(0.0)
     used = [c for c in frac_df.columns if bool((frac_df[c] > 0).any())]
     if used:
@@ -340,11 +329,6 @@ def run_refit(counts, sig, args,
             logger.info(f"Saved {out_path}")
         plt.close(fig)
 
-    # Signature x signature cosine heatmap over the used signatures
-    # (design doc §6 common outputs). The refit solution is only unique up
-    # to collinear columns: two near-identical signatures can trade mass
-    # with no change in reconstruction, so a high off-diagonal value marks
-    # attribution that must be read at family level, not per signature.
     if used:
         cols = [names.index(u) for u in used]
         sub = w_mat[:, cols]

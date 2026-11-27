@@ -7,7 +7,6 @@ outfiles = config.get("outfiles", [])
 paired_samples = config.get("sample_params", {}).get("paired_samples", [])
 single_samples = config.get("sample_params", {}).get("single_samples", [])
 trimmer = config.get('Params', {}).get('workflow', {}).get('trimmer') or "trim_galore"
-# Genome reference resolution - nested `default` + `references` pattern
 default_genome = config.get("genome", {}).get("default")
 genome_ref = config.get("genome", {}).get("references", {}).get(default_genome, {}) if default_genome else {}
 ROOT_DIR = config.get("ROOT_DIR", ".")
@@ -36,7 +35,6 @@ module fastqc_raw:
 logger.info(f"fastqc_raw_config: {fastqc_raw_config}")
 use rule fastqc from fastqc_raw as Mutation_fastqc_raw
 
-# --- trimmer 三选一 (RNAseq.smk 同款): cutadapt / trimmomatic / trim_galore ---
 trimmed_dir = f"{outdir}/common/2_trimmed_fastq"
 if trimmer == "cutadapt":
     cutadapt_config = {
@@ -51,7 +49,6 @@ if trimmer == "cutadapt":
             "cutadapt": config.get('Procedure',{}).get('cutadapt')
         },
         "Params": {
-            # 参数精确到 rule:Params.cutadapt.<rule>.<key>(模块读点)
             "cutadapt": config.get('Params',{}).get("cutadapt", {}),
         },
     }
@@ -74,8 +71,6 @@ elif trimmer == "trimmomatic":
             "trimmomatic": config.get('Procedure',{}).get('trimmomatic')
         },
         "Params": {
-            # 参数精确到 rule:整段透传(adapter_pe 挂 trimmomatic_Paired,
-            # adapter_se 挂 trimmomatic_Single 各自 rule 子键)
             "trimmomatic": config.get('Params',{}).get("trimmomatic", {}),
         },
     }
@@ -99,7 +94,6 @@ else:
             "trim_galore": config.get('Procedure',{}).get('trim_galore')
         },
         "Params": {
-            # 参数精确到 rule:Params.trim_galore.<rule>.<key>(模块读点)
             "trim_galore": config.get('Params',{}).get("trim_galore", {}),
         },
     }
@@ -150,8 +144,6 @@ bwa_mem2_confg = {
         "index_prefix": genome_ref.get("bwaMem2_index_prefix")
     },
     "Params": {
-        # temp 规范(modules.md):用户 Params.bwa-mem2.keep_intermediates 透传到
-        # 模块读点 Params.bwa-mem2.keep_intermediates(缺省 True=兜底保留)
         "bwa-mem2": {
             "keep_intermediates": config.get("Params", {}).get("bwa-mem2", {}).get("keep_intermediates", True)
         }
@@ -189,10 +181,6 @@ module samtools:
 logger.info(f"samtools parameters: {samtools_config}")
 use rule bam_flagstat from samtools as Mutation_bam_flagstat
 
-# Exome capture region resolved BEFORE any module config consumes it (an
-# explicit genome.references.<g>.targets BED wins; exome/hybrid assays get
-# the coverage-derived targets.bed node.py registers into the reference
-# entry — see node.py runMutation).
 _targets_bed = genome_ref.get("targets") or None
 gatk_prepare_config = {
     "ROOT_DIR": ROOT_DIR,
@@ -213,7 +201,6 @@ gatk_prepare_config = {
                 "RGPU": config.get("addReadsGroup", {}).get("RGPU")
             }
         },
-        # temp 规范(modules.md):addReadsGroup 中间 bam/bai 受字段控制
         "gatk_prepare": {
             "keep_intermediates": config.get("Params", {}).get("gatk_prepare", {}).get("keep_intermediates", True)
         }
@@ -235,11 +222,6 @@ use rule addReadsGroup from gatk_prepare as Mutation_addReadsGroup
 use rule MarkDuplicates from gatk_prepare as Mutation_MarkDuplicates
 use rule collectHsMetrics from gatk_prepare as Mutation_collectHsMetrics
 
-# Derive capture-region BED from markdup BAMs for exome/hybrid assays:
-# consumed by GATK callers (-L) and CNVkit (--targets). Runs only when the
-# assay is exome and no explicit genome.references.<g>.targets BED is set;
-# node.py registers the output and fills the reference entry accordingly.
-# _targets_bed is resolved above (before gatk_prepare_config).
 targets_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -286,7 +268,6 @@ gatk_somatic_config = {
                 "panel_of_normals": config.get("Params", {}).get("gatk", {}).get("Mutect2", {}).get("panel_of_normals")
             }
         },
-        # temp 规范(modules.md):somaticMutect2 中间 vcf/stats 受字段控制
         "gatk_somatic": {
             "keep_intermediates": config.get("Params", {}).get("gatk_somatic", {}).get("keep_intermediates", True)
         }
@@ -353,7 +334,6 @@ gatk_germline_config = {
         "targets": _targets_bed
     },
     "Params": {
-        # temp 规范(modules.md):HaplotypeCaller raw vcf 受字段控制
         "gatk_germline": {
             "keep_intermediates": config.get("Params", {}).get("gatk_germline", {}).get("keep_intermediates", True)
         }
@@ -365,8 +345,6 @@ module gatk_germline:
 logger.info(f"gatk_germline parameters: {gatk_germline_config}")
 use rule * from  gatk_germline as Mutation_*
 
-# Wired unconditionally; node.py registers the spectrum output only when
-# tumor/normal design pairs exist (outfiles drive the DAG).
 somatic_spectrum_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -382,9 +360,6 @@ somatic_spectrum_config = {
         "signature_matrix": genome_ref.get("signature_matrix"),
     },
     "signature": config.get("Params", {}).get("somatic_spectrum", {}).get("signature", {}),
-    # spectrum.smk reads config.plot.formats / config.signature.formats at the
-    # module-config top level (see modules/spectrum/spectrum.json); forward the
-    # workflow-side Params.somatic_spectrum.plot the same way as signature
     "plot": config.get("Params", {}).get("somatic_spectrum", {}).get("plot", {}),
 }
 module somatic_spectrum:
@@ -396,11 +371,6 @@ use rule somatic_signature_refit from somatic_spectrum as Mutation_somatic_signa
 use rule somatic_signature_nmf from somatic_spectrum as Mutation_somatic_signature_nmf
 use rule spectrum_result from somatic_spectrum as Mutation_spectrum_result
 
-# ============================================
-# Fragment Size Analysis (cfDNA)
-# ============================================
-# Wired unconditionally; node.py controls whether it runs by registering
-# (or omitting) the fragment-size outputs (Params.fragment_size.enabled).
 fragment_size_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -424,11 +394,6 @@ use rule samtools_stats from fragment_size as Mutation_samtools_stats
 use rule getFragmentSize from fragment_size as Mutation_getFragmentSize
 use rule plotFragmentSize from fragment_size as Mutation_plotFragmentSize
 
-# ============================================
-# SV Detection with Manta (cfDNA)
-# ============================================
-# Wired unconditionally; node.py controls whether it runs by registering
-# (or omitting) the Manta outputs (Params.manta.enabled).
 manta_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -457,10 +422,6 @@ logger.info(f"manta_config: {manta_config}")
 use rule manta_config_germline from manta as Mutation_manta_config_germline
 use rule manta_run_germline from manta as Mutation_manta_run_germline
 
-# Somatic (tumor/normal) SV calling via the same manta module, instantiated
-# with a separate outdir/logdir. Wired unconditionally; node.py registers the
-# somaticSV output only when matched-normal design pairs exist (mirroring the
-# somatic SNV / Mutect2 pair judgment), which drives the DAG.
 manta_somatic_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -489,12 +450,6 @@ logger.info(f"manta_somatic_config: {manta_somatic_config}")
 use rule manta_config_somatic from manta_somatic as Mutation_manta_config_somatic
 use rule manta_run_somatic from manta_somatic as Mutation_manta_run_somatic
 
-# ============================================
-# CNV Detection with CNVkit (cfDNA)
-# ============================================
-# Wired unconditionally; node.py controls whether it runs by registering
-# (or omitting) the CNVkit outputs (Params.cnvkit.enabled; control_samples
-# additionally registers the reference panel output).
 control_samples = config.get("sample_params", {}).get("control_samples", [])
 cnvkit_config = {
     "resources": config.get("resources", {}),
@@ -530,13 +485,6 @@ use rule cnvkit_reference from cnvkit as Mutation_cnvkit_reference
 use rule cnvkit_batch from cnvkit as Mutation_cnvkit_batch
 use rule cnvkit_paired from cnvkit as Mutation_cnvkit_paired
 
-# ============================================
-# Mutation Burden (SNV/InDel TMB + SV + CNV)
-# ============================================
-# Wired unconditionally; node.py controls whether it runs by registering
-# (or omitting) the burden outputs (Params.burden.enabled). The three
-# sample -> file maps are filled by node.py from the somatic/cnv outputs
-# above; hand-filled config entries win.
 burden_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -565,11 +513,6 @@ use rule burden_sv from burden as Mutation_burden_sv
 use rule burden_cnv from burden as Mutation_burden_cnv
 use rule burden_aggregate from burden as Mutation_burden_aggregate
 
-# ============================================
-# Sex check (coverage on sex chromosomes)
-# ============================================
-# Wired unconditionally over the markdup BAMs; node.py registers the
-# sexcheck outputs (subworkflow.md QC wiring).
 sexcheck_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -602,12 +545,6 @@ logger.info(f"sexcheck_config: {sexcheck_config}")
 use rule sexcheck_idxstats from sexcheck as Mutation_sexcheck_idxstats
 use rule sexcheck from sexcheck as Mutation_sexcheck
 
-# ============================================
-# QC Summary (cross-sample metric aggregation)
-# ============================================
-# Wired unconditionally; node.py registers the qc_summary outputs so the
-# aggregation always runs for the delivered output set (subworkflow.md
-# 「QC 汇总与 report 模块规范」).
 qc_summary_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -633,17 +570,12 @@ qc_summary_config = {
         "msi": "{sample}/{sample}_msi_pro.tsv",
         "sexcheck": "sexcheck.tsv",
     },
-    # MSI anchors exist only for the tumor sample of each design pair
     "qc_anchor_samples": {
         "msi": [rec["experimental"] for rec in config.get("sample_params", {}).get("paired_design", []) if rec.get("experimental")],
     },
 }
-# hs_metrics anchor + plot exist only for exome/hybrid runs (targets BED
-# resolved by node.py); WGS runs keep the stage unanchored and best-effort.
 if _targets_bed:
     qc_summary_config["qc_anchors"]["hs_metrics"] = "{sample}/{sample}.hs_metrics.txt"
-# trimming QC: stage key follows the selected trimmer (三种去接头报告格式与
-# 命名各异,各自解析器都已接入);锚点条件注入,PE/SE 命名不同的按样本类型拆
 if trimmer == "cutadapt":
     qc_summary_config["qc_dirs"]["cutadapt"] = trimmed_dir
     if paired_samples:
@@ -671,11 +603,6 @@ module qc_summary:
 logger.info(f"qc_summary_config: {qc_summary_config}")
 use rule qc_summary from qc_summary as Mutation_qc_summary
 
-# ============================================
-# Final Report (PPT)
-# ============================================
-# Wired unconditionally; node.py registers the pptx only when
-# Params.report.enabled is set (downstream enabled pulls the upstream DAG).
 Mutation_report_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
@@ -691,15 +618,9 @@ Mutation_report_config = {
     "burden_dir": burden_config["outdir"],
     "msi_dir": msi_config["outdir"],
     "fragment_dir": f"{fragment_size_config['outdir']}/fragment",
-    # registered outputs -> DAG anchors inside the report module (module
-    # filters them by its consumed dirs; only registered files enter, so
-    # disabled stages stay best-effort 'not run' notes)
     "outfiles": outfiles,
     "Params": {
         "report": config.get("Params", {}).get("report", {}),
-        # 生产者 formats 段直通(modules.md #9):report 脚本运行期对消费的
-        # 上游图做 raster-first 变体解析(spectrum/signature 图归
-        # somatic_spectrum、FragmentSize 归 fragment_size、msi_barplot 归 msi)
         "somatic_spectrum": config.get("Params", {}).get("somatic_spectrum", {}),
         "fragment_size": config.get("Params", {}).get("fragment_size", {}),
         "msi": config.get("Params", {}).get("msi", {}),

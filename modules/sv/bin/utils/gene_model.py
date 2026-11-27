@@ -18,13 +18,10 @@ import pandas as pd
 import gffutils
 import argparse
 import concurrent.futures
-import vcf  # pip install PyVCF
+import vcf
 
 PlotFormat = Literal["png", "pdf", "svg", "jpg", "jpeg", "tiff"]
 
-# -----------------------------
-# 1. Gene structure parsing
-# -----------------------------
 def create_db(gtf_file: str) -> gffutils.FeatureDB:
     """Create or load a gffutils database from a GTF/GFF3 annotation file.
 
@@ -106,9 +103,6 @@ def get_gene_structure_by_transcript(
 
     return transcripts, gene
 
-# -----------------------------
-# 2. Load mutations (CSV or VCF)
-# -----------------------------
 Mutation = Dict[str, Union[int, str]]
 
 def load_mutations(mutation_file: Optional[str]) -> List[Mutation]:
@@ -152,7 +146,6 @@ def load_mutations(mutation_file: Optional[str]) -> List[Mutation]:
             })
         return mutations
     
-    # fallback to CSV
     df = pd.read_csv(mutation_file)
     required_cols = ["pos","type"]
     for col in required_cols:
@@ -167,9 +160,6 @@ def load_mutations(mutation_file: Optional[str]) -> List[Mutation]:
         })
     return mutations
 
-# -----------------------------
-# 3. Plotting function (all transcripts)
-# -----------------------------
 def plot_gene_model_all_transcripts(
     gene: gffutils.Feature,
     transcripts: Dict[str, Dict[str, List[Tuple[int,int]]]],
@@ -220,22 +210,17 @@ def plot_gene_model_all_transcripts(
         exons = tx_data['exons']
         utrs = tx_data['UTRs']
 
-        # Draw introns as lines
         for j in range(len(exons)-1):
             ax.plot([exons[j][1], exons[j+1][0]], [y_base, y_base], color='black', lw=1, zorder=0)
 
-        # Exons
         for start, end in exons:
             ax.add_patch(patches.Rectangle((start, y_base-0.1), end-start, 0.2, color='skyblue', ec='red', zorder=2))
         
-        # UTRs
         for start, end in utrs:
             ax.add_patch(patches.Rectangle((start, y_base-0.05), end-start, 0.1, color='lightgreen', ec='green', zorder=3))
         
-        # Transcript label
         ax.text(gene.start-50, y_base, tx_id, fontsize=8, ha='right', va='center')
 
-    # Strand arrow
     arrow_gap = (gene.end-gene.start)/20
     if gene.strand == '+':
         ax.arrow(gene.start, -0.1, gene.end-gene.start, 0, head_width=0.05, head_length=arrow_gap,
@@ -244,7 +229,6 @@ def plot_gene_model_all_transcripts(
         ax.arrow(gene.end, -0.1, gene.start-gene.end, 0, head_width=0.05, head_length=arrow_gap,
                  length_includes_head=True, color='black')
 
-    # Mutations/SVs
     for mut in mutations:
         color = type_colors.get(mut["type"], "gray")
         ax.scatter(mut["pos"], 1.0, color=color, s=50, zorder=5)
@@ -263,9 +247,6 @@ def plot_gene_model_all_transcripts(
         print(f"Gene model figure saved to {outpath}")
     plt.close()
 
-# -----------------------------
-# 4. CLI entry
-# -----------------------------
 def _plot_gene_worker(
     gene_name: str,
     gtf_file: str,
@@ -345,7 +326,7 @@ def main() -> None:
             for gene_name in args.genes
         ]
         for f in concurrent.futures.as_completed(futures):
-            f.result()  # raise if any worker failed
+            f.result()
 
 def run():
     """Batch gene-model plotter for predefined samples and genes.
@@ -381,4 +362,3 @@ def run():
 
 if __name__ == "__main__":
     main()
-    # run()

@@ -10,12 +10,6 @@ sample_ip_input_map = config.get("sample_ip_input_map", {})
 MODULE_DIR = os.path.join(config.get("ROOT_DIR", "."), "modules", "peak_te_overlap")
 CHART_SCRIPT = os.path.join(MODULE_DIR, "bin", "plot_te_overlap.py")
 
-# ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
-# 参数精确到 rule:formats 挂 peak_te_overlap_fig 名下
-# (Params.peak_te_overlap.peak_te_overlap_fig.formats,单 plot rule 消费;
-# 无 module 级共享回退),config 全量路径读取 + str 收成单元素 list。
-# 每 rule 一个 parse 期变量;peak_te_overlap_result 聚合 peak_te_overlap_fig
-# 输出,展开同一 rule 键。
 _formats_peak_te_overlap_fig = config.get("Params", {}).get("peak_te_overlap", {}).get("peak_te_overlap_fig", {}).get("formats") or ["png"]
 if isinstance(_formats_peak_te_overlap_fig, str):
     _formats_peak_te_overlap_fig = [_formats_peak_te_overlap_fig]
@@ -83,14 +77,14 @@ rule peak_te_overlap:
                 cmd += ["--input-bam", input.input_bam]
 
             script = receipt_script(f"peak_te_overlap_{wildcards.genome}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"peak_te_overlap.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
                 f.write(f'echo "peak-TE overlap for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -144,14 +138,14 @@ rule peak_centric_overlap:
             ]
 
             script = receipt_script(f"peak_centric_overlap_{wildcards.genome}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"peak_centric_overlap.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
                 f.write(f'echo "peak-centric TE overlap for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -168,7 +162,6 @@ rule peak_te_overlap_fig:
     input:
         tsvs = expand(outdir + "/{genome}/{sid}/{sid}_te_subfamily_overlap.tsv", sid=samples, genome="{genome}"),
     output:
-        # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
         charts = [outdir + "/{genome}/te_subfamily_overlap_combined." + fmt for fmt in _formats_peak_te_overlap_fig],
         combined_tsv = outdir + "/{genome}/te_subfamily_overlap_combined.tsv",
         done = touch(outdir + "/{genome}/.peak_te_overlap_fig.done"),
@@ -190,7 +183,7 @@ rule peak_te_overlap_fig:
         sort_by = config.get("Params", {}).get("peak_te_overlap", {}).get("sort_by", "te_length"),
         top_n = config.get("Params", {}).get("peak_te_overlap", {}).get("top_n", 30),
         combine = config.get("Params", {}).get("peak_te_overlap", {}).get("combine", False),
-        formats = _formats_peak_te_overlap_fig,   # ③ 转发
+        formats = _formats_peak_te_overlap_fig,
         chart_base = lambda wildcards: outdir + f"/{wildcards.genome}/te_subfamily_overlap_combined",
     run:
         log_path = str(log)
@@ -232,12 +225,10 @@ rule peak_te_overlap_fig:
                 f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
-            # For separate mode: create the expected combined chart per format
-            # as symlink to the first pair's figure
             if not params.combine and params.sample_ip_input_map:
                 first_ip = list(params.sample_ip_input_map.keys())[0]
                 first_inp = params.sample_ip_input_map[first_ip]

@@ -23,7 +23,6 @@ rule function_go_kegg:
     input:
         deseq2_result = indir + "/{contrast}/TEcount/{contrast}.TEcount_Gene.name.tsv",
     output:
-        # ② 按格式展开:每种格式一个输出文件(base 不带扩展名)
         func_go_plot = [outdir + "/{contrast}/go_back_to_back." + fmt
                         for fmt in _go_kegg_formats],
         func_kegg_plot = [outdir + "/{contrast}/kegg_back_to_back." + fmt
@@ -48,7 +47,7 @@ rule function_go_kegg:
         lfc_cut = config.get("Params", {}).get("function", {}).get("function_go_kegg", {}).get("lfc_cut", 1),
         p_cut = config.get("Params", {}).get("function", {}).get("function_go_kegg", {}).get("p_cut", 0.05),
         top = config.get("Params", {}).get("function", {}).get("function_go_kegg", {}).get("top", 10),
-        formats = _go_kegg_formats,   # ③ 转发
+        formats = _go_kegg_formats,
     conda:
         "function.yaml"
     container:
@@ -88,7 +87,7 @@ rule function_go_kegg:
                 cmd += ["--format", str(fmt)]
 
             script = receipt_script(f"go_kegg_{wildcards.contrast}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"go_kegg.sh")
             with open(script, 'w') as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -97,7 +96,7 @@ rule function_go_kegg:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'GO/KEGG analysis completed for {wildcards.contrast}'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -134,7 +133,6 @@ rule function_gsea:
     input:
         unpack(get_input_for_function_gsea)
     output:
-        # ② 按格式展开:每种格式一个输出文件(base 不带扩展名)
         func_gsea_plot = [outdir + "/{contrast}/GSEA/TEcount_Gene_GSEA." + fmt
                           for fmt in _gsea_formats],
         func_gsea_csv = outdir + "/{contrast}/GSEA/TEcount_Gene_GSEA.csv"
@@ -148,7 +146,7 @@ rule function_gsea:
             attempt=attempt).get("mem_mb", 8000),
     params:
         gsea_script = ROOT_DIR + "/modules/function/bin/gsea.r",
-        formats = _gsea_formats,   # ③ 转发
+        formats = _gsea_formats,
     conda:
         "function.yaml"
     container:
@@ -188,14 +186,14 @@ rule function_gsea:
                 cmd += ["--format", str(fmt)]
 
             script = receipt_script(f"gsea_{wildcards.contrast}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"gsea.sh")
             with open(script, 'w') as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'GSEA analysis completed for {wildcards.contrast}'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -207,7 +205,6 @@ def get_input_for_function_gsva(wildcards):
     """Resolve inputs for function_gsva: featureCounts counts matrix + GMT + GTF."""
     logger.debug(f"[get_input_for_function_gsva] called with wildcards: {wildcards}")
     in_dict = {}
-    # featureCounts cross-sample counts, one matrix per existing layout
     counts = []
     if paired_samples:
         counts.append(counts_dir + "/all_paired_featureCounts.tsv")
@@ -219,14 +216,12 @@ def get_input_for_function_gsva(wildcards):
             "Please set paired_samples/single_samples in config."
         )
     in_dict['counts'] = counts
-    # GMT gene set file
     gsva_gmt = config.get("Params", {}).get("function", {}).get("function_gsva", {}).get("gmt", None)
     if not gsva_gmt or not os.path.exists(gsva_gmt):
         raise ValueError(
             f"GSVA requires a GMT file. {gsva_gmt} is not exists, please set Params.function.function_gsva.gmt in config."
         )
     in_dict['gmt'] = gsva_gmt
-    # GTF for gene ID → gene name conversion
     gtf = config.get("genome",{}).get("gtf")
     if not gtf:
         raise ValueError("GSVA requires a GTF. Please set genome.gtf in config.")
@@ -253,7 +248,6 @@ rule function_gsva:
         unpack(get_input_for_function_gsva)
     output:
         gsva_scores = outdir + "/gsva/gsva_scores.tsv",
-        # ② 按格式展开:每种格式一个输出文件(base 不带扩展名)
         gsva_heatmap = [outdir + "/gsva/gsva_heatmap." + fmt
                         for fmt in _gsva_formats],
     log:
@@ -268,7 +262,7 @@ rule function_gsva:
         norm_script = ROOT_DIR + "/modules/function/bin/normalization.py",
         gsva_script = ROOT_DIR + "/modules/function/bin/gsva.py",
         species = config.get("Params", {}).get("function", {}).get("function_gsva", {}).get("species", "mouse"),
-        formats = _gsva_formats,   # ③ 转发
+        formats = _gsva_formats,
     conda:
         "function.yaml"
     container:
@@ -284,7 +278,6 @@ rule function_gsva:
             gsva_outdir = os.path.dirname(str(output.gsva_scores))
             os.makedirs(gsva_outdir, exist_ok=True)
 
-            # Step 0: merge PE/SE featureCounts matrices when both layouts exist
             counts_list = list(input.counts)
             if len(counts_list) > 1:
                 import pandas as pd
@@ -300,7 +293,6 @@ rule function_gsva:
             else:
                 counts_file = counts_list[0]
 
-            # Step 1: Normalize featureCounts → TPM matrix
             tpm_matrix = os.path.join(gsva_outdir, "expression_tpm.tsv")
             norm_cmd = [
                 "python", params.norm_script,
@@ -310,7 +302,6 @@ rule function_gsva:
                 "--gtf", input.gtf,
                 "--convert-gene-name",
             ]
-            # Step 2: Run GSVA on normalized matrix
             gsva_cmd = [
                 "python", params.gsva_script,
                 "-i", tpm_matrix,
@@ -321,7 +312,7 @@ rule function_gsva:
             for fmt in params.formats:
                 gsva_cmd += ["--format", str(fmt)]
             script = receipt_script(f"gsva_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(gsva_outdir, f"gsva.sh")
             with open(script, 'w') as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -329,7 +320,7 @@ rule function_gsva:
                 f.write(" ".join(shlex.quote(str(x)) for x in gsva_cmd) + "\n")
                 f.write(f"echo 'GSVA analysis completed for {params.species}'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

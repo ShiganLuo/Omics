@@ -13,7 +13,6 @@ logdir = config.get("Params", {}).get("workflow").get("logdir", "logs")
 samples = config.get("sample_params", {}).get("samples", [])
 snv_caller = config.get("Params", {}).get("workflow").get("snv_caller", "deepvariant")
 outfiles = config.get("outfiles", [])
-# Genome reference resolution — nested `default` + `references` pattern
 default_genome = config.get("genome", {}).get("default")
 genome_ref = config.get("genome", {}).get("references", {}).get(default_genome, {}) if default_genome else {}
 
@@ -71,9 +70,6 @@ gatk_prepare_config = {
         "samtools": config.get("Procedure", {}).get("samtools"),
     },
     "Params": {
-        # 参数精确到 rule:整段透传——javaOptions/tmp-dir 与 addReadsGroup 的
-        # RGLB/RGPL/RGPU 都挂在各自 rule 子段(Params.gatk.<rule>.<key>,
-        # rule 子段在段内透明传递),旧扁平键不再转发
         "gatk": config.get("Params", {}).get("gatk", {}),
         "gatk_prepare": {
             "keep_intermediates": config.get("Params", {}).get("gatk_prepare", {}).get("keep_intermediates", True)
@@ -176,8 +172,6 @@ if snv_caller == "deepvariant":
     logger.debug(f"deepvariant_config: {deepvariant_config}")
     use rule deepvariant_run from deepvariant as PacVar_deepvariant_run
 elif snv_caller == "gatk4":
-    # Future: GATK HaplotypeCaller path — currently nothing in node.py outfiles
-    # references it, so no use rule here yet.
     pass
 
 pbsv_config = {

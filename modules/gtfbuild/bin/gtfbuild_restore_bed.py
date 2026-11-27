@@ -30,7 +30,6 @@ def main() -> None:
     p.add_argument("--genome", default="", help="target genome name (header)")
     args = p.parse_args()
 
-    # key (chrom, start, end) -> list of source rows (rare duplicates kept)
     src = defaultdict(list)
     with open(args.source) as fh:
         for line in fh:
@@ -41,7 +40,6 @@ def main() -> None:
 
     n_in = n_out = n_miss = 0
     with open(args.lifted) as fh, open(args.out, "w") as out:
-        # provenance header + column names ('#' comments; BED parsers skip them)
         if args.genome:
             out.write(f"#target-genome {args.genome}\n")
         out.write(f"#lifted-from {os.path.basename(args.source)} via WGA "
@@ -63,7 +61,6 @@ def main() -> None:
                 n_miss += 1
                 continue
             for r in rows:
-                # source: chrom start end strand gene_id family_id class_id
                 strand = r[3] if len(r) > 3 else "."
                 gene_id = r[4] if len(r) > 4 else name
                 family = r[5] if len(r) > 5 else "."

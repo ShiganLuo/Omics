@@ -13,9 +13,6 @@ logger = setup_logger("TRA", level=logging.INFO)
 
 
 
-# =========================
-# Data structures
-# =========================
 
 @dataclass
 class Breakpoint:
@@ -40,9 +37,6 @@ class TERange:
     te_name: str
 
 
-# =========================
-# VCF parsing
-# =========================
 
 def parse_tra_from_vcf(vcf_path: str, logger: logging.Logger) -> List[TRARecord]:
     """
@@ -72,7 +66,6 @@ def parse_tra_from_vcf(vcf_path: str, logger: logging.Logger) -> List[TRARecord]
             chr1 = record.chrom
             pos1 = record.pos
 
-            # standard BND format parsing
             alt = record.alts[0]
             chr2, pos2 = _parse_bnd_alt(alt)
 
@@ -121,9 +114,6 @@ def _parse_bnd_alt(alt: str) -> Tuple[str, int]:
     return match.group(1), int(match.group(2))
 
 
-# =========================
-# TE annotation
-# =========================
 
 def load_te_bed(bed_path: str) -> List[TERange]:
     """
@@ -187,9 +177,6 @@ def query_te_overlap(
     return result
 
 
-# =========================
-# BAM evidence
-# =========================
 
 def extract_reads(
     bam: pysam.AlignmentFile,
@@ -243,11 +230,9 @@ def count_support_reads(
         if r.is_unmapped:
             continue
 
-        # split read (soft clip)
         if any(op in (4, 5) for op, _ in (r.cigartuples or [])):
             split += 1
 
-        # discordant pair
         if not r.is_proper_pair:
             discordant += 1
 
@@ -257,9 +242,6 @@ def count_support_reads(
     }
 
 
-# =========================
-# Core logic
-# =========================
 
 def is_te_mediated_tra(
     tra: TRARecord,
@@ -294,11 +276,9 @@ def is_te_mediated_tra(
     """
     bam = pysam.AlignmentFile(bam_path, "rb")
 
-    # TE overlap
     te1 = query_te_overlap(tra.chr1, tra.pos1, te_list, window)
     te2 = query_te_overlap(tra.chr2, tra.pos2, te_list, window)
 
-    # BAM evidence
     reads1 = extract_reads(bam, tra.chr1, tra.pos1, window)
     reads2 = extract_reads(bam, tra.chr2, tra.pos2, window)
 
@@ -310,7 +290,6 @@ def is_te_mediated_tra(
         f"split=({support1['split']},{support2['split']})"
     )
 
-    # decision rules
     if len(te1) > 0 and len(te2) > 0:
         if support1["split"] >= min_split or support2["split"] >= min_split:
             return True
@@ -318,9 +297,6 @@ def is_te_mediated_tra(
     return False
 
 
-# =========================
-# Batch processing
-# =========================
 
 def annotate_tra_te(
     vcf_path: str,

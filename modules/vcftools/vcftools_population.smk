@@ -17,13 +17,13 @@ if analysis.get("diversity",True):
   run:
    os.makedirs(os.path.dirname(str(log)),exist_ok=True);os.makedirs(os.path.dirname(str(output.pi)),exist_ok=True)
    script = receipt_script(f"vcftools_diversity_{wildcards.population}_{time.strftime('%Y%m%d_%H%M%S')}.sh")
-   os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+   os.makedirs(os.path.dirname(script), exist_ok=True)
    plain_script=os.path.join(os.path.dirname(str(output.pi)), f"vcftools_diversity_{wildcards.population}.sh")
    cmds=[[params.vcftools,"--gzvcf",input.vcf,"--keep",input.popfile,"--window-pi",str(params.window),"--window-pi-step",str(params.step),"--out",params.prefix],[params.vcftools,"--gzvcf",input.vcf,"--keep",input.popfile,"--TajimaD",str(params.window),"--out",params.prefix]]
    with open(str(log),"w") as h:h.write("")
    with open(script,"w") as h:h.write("#!/usr/bin/env bash\nset -euo pipefail\n"+"\n".join(" ".join(str(x) for x in c) for c in cmds)+"\n")
    shutil.copyfile(script, plain_script)
-   if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+   if SCRIPT_ONLY:
        script_only_touch(output)
    else:
        shell(f"bash {plain_script} >> {log} 2>&1")
@@ -40,12 +40,12 @@ if analysis.get("fst",True) and len(pops)>1:
    os.makedirs(os.path.dirname(str(log)),exist_ok=True);os.makedirs(os.path.dirname(str(output[0])),exist_ok=True)
    cmd=[params.vcftools,"--gzvcf",input.vcf,"--weir-fst-pop",params.pop_a,"--weir-fst-pop",params.pop_b,"--out",params.prefix]
    script = receipt_script(f"vcftools_fst_{wildcards.population_a}_vs_{wildcards.population_b}_{time.strftime('%Y%m%d_%H%M%S')}.sh")
-   os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+   os.makedirs(os.path.dirname(script), exist_ok=True)
    plain_script=os.path.join(os.path.dirname(str(output[0])), f"vcftools_fst_{wildcards.population_a}_vs_{wildcards.population_b}.sh")
    with open(str(log),"w") as h:h.write("")
    with open(script,"w") as h:h.write("#!/usr/bin/env bash\nset -euo pipefail\n"+" ".join(str(x) for x in cmd)+"\n")
    shutil.copyfile(script, plain_script)
-   if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+   if SCRIPT_ONLY:
        script_only_touch(output)
    else:
        shell(f"bash {plain_script} >> {log} 2>&1")

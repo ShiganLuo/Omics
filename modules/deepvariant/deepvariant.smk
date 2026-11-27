@@ -31,8 +31,6 @@ rule deepvariant_run:
     output:
         vcf = outdir + "/{sample_id}/{sample_id}.vcf.gz",
         csi = outdir + "/{sample_id}/{sample_id}.vcf.gz.csi",
-        # intermediates controlled by Params.deepvariant.keep_intermediates (modules.md temp spec);
-        # tbi 是 deepvariant 随 g.vcf.gz 一并产出的索引,与 gvcf 同删,避免孤儿
         gvcf = maybe_temp(outdir + "/{sample_id}/{sample_id}.g.vcf.gz", "deepvariant"),
         gvcf_tbi = maybe_temp(outdir + "/{sample_id}/{sample_id}.g.vcf.gz.tbi", "deepvariant")
     log:
@@ -63,7 +61,7 @@ rule deepvariant_run:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start DeepVariant for sample {wildcards.sample_id} at {current_time}")
             script = receipt_script(f"deepvariant_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/deepvariant.sh")
             cmd1 = [
                 params.deepvariant,
@@ -79,16 +77,12 @@ rule deepvariant_run:
             ]
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
-                # run_deepvariant's GNU parallel inherits TMPDIR from the
-                # calling environment; a host-only TMPDIR (not bind-mounted
-                # into the container) kills it at startup. Force the
-                # workflow's bound tmp_dir instead.
                 f.write(f'export TMPDIR="{tmp_dir}"\n')
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

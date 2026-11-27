@@ -29,8 +29,6 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, TextIO, Tuple
 
-# Copied verbatim from src/common/util/LogUtil.py (module bin scripts are
-# self-contained — see modules.md 脚本撰写规范 #0).
 
 
 def setup_logger(
@@ -164,7 +162,6 @@ def run(args: argparse.Namespace) -> int:
     logger.info(f"significant groups from {args.sig}: {len(sig_names)}")
 
     rows, _samples = read_loci(args.loci, groups, args.value_suffix)
-    # bucket loci by BOTH subfamily and family so either tested level matches
     by_level: Dict[str, List[dict]] = {}
     for row in rows:
         for key in (row["subfamily"], row["family"]):

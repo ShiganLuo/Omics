@@ -7,11 +7,6 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
 genome_cfg = config.get("genome", {})
 genome_name = config.get("genome_name") or "genome"
-# 参数精确到 rule(2026-11 规范):整段 p 已按 key 拆到消费 rule 名下
-# (Params.censatbuild.<rule_name>.<key>,无 module 级共享回退;config 全量
-# 路径内联读取):species → censatbuild_repeatmasker_run,gap/major_pattern/
-# minor_pattern/class_pattern → censatbuild_arrays,flank → censatbuild_flank,
-# bam → censatbuild_mcg_pileup。
 
 ARRAYS_OUT = outdir + f"/{genome_name}.sat_arrays.bed"
 CENSAT_OUT = outdir + f"/{genome_name}.censat.bed"
@@ -23,12 +18,6 @@ rule censatbuild_run:
         bed = CENSAT_OUT,
         stats = outdir + f"/{genome_name}.censat.stats.tsv",
 
-# ---- RepeatMasker reuses modules/centromere (Dfam species library + FamDB) ----
-# The centromere module consumes the hifiasm layout {outdir}/{sample_id}/
-# assembly/asm.bp.p_ctg.fa; censatbuild_link_genome places the target genome
-# there so repeatmasker_run is reused unmodified. FamDB (Dfam h5 partitions,
-# e.g. dfam39_full.0.h5 root + dfam39_full.7.h5 Mammalia) is provided via a
-# famdb.conf bind mount at runtime (see README "FamDB").
 centromere_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": env,
@@ -112,7 +101,7 @@ rule censatbuild_arrays:
             rule_logger.info(f"Start satellite clustering for {genome_name} at {current_time}")
             os.makedirs(outdir, exist_ok=True)
             script = receipt_script(f"censatbuild_arrays_{genome_name}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"censatbuild_arrays_{genome_name}.sh")
             cmd = [
                 "python", params.script,
@@ -130,7 +119,7 @@ rule censatbuild_arrays:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "censatbuild_arrays for {genome_name} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -169,7 +158,7 @@ rule censatbuild_flank:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start flank/merge for {genome_name} at {current_time}")
             script = receipt_script(f"censatbuild_flank_{genome_name}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"censatbuild_flank_{genome_name}.sh")
             flank_bed = outdir + f"/{genome_name}.sat_flank.bed"
             with open(script, "w") as f:
@@ -183,7 +172,7 @@ rule censatbuild_flank:
                         f"{output.bed} > {output.stats}\n")
                 f.write(f'echo "censatbuild_flank for {genome_name} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -223,7 +212,7 @@ rule censatbuild_mcg_pileup:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start modkit CpG pileup at {current_time}")
             script = receipt_script(f"censatbuild_mcg_pileup_{genome_name}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, f"censatbuild_mcg_pileup_{genome_name}.sh")
             tmp_bed = outdir + f"/{genome_name}.mcpg_pileup.bedMethyl"
             with open(script, "w") as f:
@@ -234,7 +223,7 @@ rule censatbuild_mcg_pileup:
                         f"{tmp_bed} > {output.bedgraph}\n")
                 f.write(f'echo "censatbuild_mcg_pileup at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

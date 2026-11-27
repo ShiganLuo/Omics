@@ -30,7 +30,7 @@ from typing import Dict, List, Optional, Tuple
 import matplotlib.patches as patches
 try:
     import gffutils
-except ImportError:  # gffutils is only needed by create_db(); optional here
+except ImportError:
     gffutils = None
 import matplotlib
 matplotlib.use("Agg")
@@ -42,21 +42,8 @@ import pyBigWig
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
-# ---------------------------------------------------------------------------
-# CGView-style circular renderer constants
-# ---------------------------------------------------------------------------
-# ---------------------------------------------------------------------------
-# Radial band allocation.  RingBands is the single source of truth for the
-# figure layout: every ring owns one radial band, bands are strictly
-# ordered (hub -> topology -> gene -> coverage -> ruler -> gene labels),
-# and every ring-drawing function receives its band edges through this
-# object so rings can never overlap.  Instance fields carry defaults;
-# construct RingBands(...) with keyword overrides to retune the layout.
-# ---------------------------------------------------------------------------
 @dataclass(frozen=True)
 class RingBands:
     """Radial band allocation for one circular cycle figure.
@@ -132,38 +119,29 @@ class RingBands:
         return self.gene_out - lane * self.lane_pitch
 
 
-INTRON_W = 0.006        # intron line radial width (~8% of exon height)
-MIN_GENE_DEG = 0.15     # genes with total arc below this render as dots
-TOPO_GAP_DEG = 0.8      # white excision-gap width (simple_circle) — as
-                        # narrow as a breakpoint should read
-TOPO_TICK_DEG = 3.0     # orange SV tick arc width (simple_sv/mixed_sv)
-TOPO_EPS_DEG = 0.25     # flush-join overlap to hide antialias hairlines
+INTRON_W = 0.006
+MIN_GENE_DEG = 0.15
+TOPO_GAP_DEG = 0.8
+TOPO_TICK_DEG = 3.0
+TOPO_EPS_DEG = 0.25
 
-# palette mirrors topology_legend.png
-TOPO_BASE = "#5B7DA3"   # backbone ring
-TOPO_SV = "#F28E2B"     # SV / deletion junction ticks
-TOPO_INV = "#59A14F"    # inversion arc (single arrow tip)
-TOPO_DUP_HI = "#C2474F" # first occurrence of a duplicated region
-TOPO_DUP_LO = "#EFB9BE" # repeated occurrence(s) (A / A' pair)
-TOPO_FB_A = "#F5C08A"   # foldback cone, entry side
-TOPO_FB_B = "#E8862B"   # foldback cone, return side
+TOPO_BASE = "#5B7DA3"
+TOPO_SV = "#F28E2B"
+TOPO_INV = "#59A14F"
+TOPO_DUP_HI = "#C2474F"
+TOPO_DUP_LO = "#EFB9BE"
+TOPO_FB_A = "#F5C08A"
+TOPO_FB_B = "#E8862B"
 
-# reference-style palette
-CORAL = "#E8734F"       # fragment boundary markers
-GOLD = "#E3B34D"        # coverage fill
-GOLD_D = "#B98A2F"      # coverage outline
-MAGENTA = "#8E3A6B"     # intact gene blocks (deep, high contrast)
-INDIGO = "#3A3A70"      # ticks / text
-GRAY = "#8A94A0"        # secondary text
-TRUNCATED = "#C97B4A"   # legacy truncated tint (kept for fallback)
+CORAL = "#E8734F"
+GOLD = "#E3B34D"
+GOLD_D = "#B98A2F"
+MAGENTA = "#8E3A6B"
+INDIGO = "#3A3A70"
+GRAY = "#8A94A0"
+TRUNCATED = "#C97B4A"
 
-# hues assigned during the current render — gene_color probes against
-# this registry so every gene on a ring gets a distinct colour; reset
-# per cycle by calling reset_gene_hues()
 GENE_HUES: List[float] = []
-# name -> colour cache: a gene's model and its label both call
-# gene_color(name); the cache guarantees one single colour per gene
-# and keeps the hue registry free of duplicates
 GENE_COLOR_CACHE: Dict[str, str] = {}
 
 
@@ -218,21 +196,15 @@ def gene_color(name: str) -> str:
 
 DPI = 300
 
-# legend anchor (data coords): the bottom-right corner of the canvas
-# (xlim -1.55..1.80, ylim -1.30..1.55); text runs right-aligned up to
-# the swatch, swatch right edge at 1.75 — flush with the canvas corner
 LEGEND_XY = (1.68, -1.20)
 
-# One color per fragment chromosome (cycled when a cycle spans >N chromosomes)
 CHR_COLORS = [
     "#7A93B5", "#B58B7A", "#8FB57A", "#B57A9E", "#7AB5A9",
     "#A9A17A", "#7A7FB5", "#B57A7F", "#7AB5B0", "#93B57A",
 ]
 
-MAX_CYCLES_PER_FIGURE = 12  # grid cap; extra cycles go to additional pages
+MAX_CYCLES_PER_FIGURE = 12
 
-# Default oncogene panel for highlight (replaceable via --onco-genes file,
-# one gene name per line). Small curated subset of common ecDNA drivers.
 DEFAULT_ONCO_GENES = {
     "MYC", "MYCN", "EGFR", "ERBB2", "MDM2", "MDM4", "CCND1", "CCND2",
     "CCNE1", "CDK4", "CDK6", "ALK", "NTRK1", "NTRK2", "NTRK3", "ROS1",
@@ -307,7 +279,6 @@ def load_ecdna_bed(path: str) -> pd.DataFrame:
     try:
         df = pd.read_csv(path, sep="\t", comment="#", header=None, dtype=str)
     except pd.errors.EmptyDataError:
-        # Header-only or blank file: no ecDNA passed the filter
         return pd.DataFrame(
             columns=["chrom", "start", "end", "circ_id", "fragment_id",
                      "strand", "coverage", "proportion"])
@@ -454,7 +425,6 @@ def load_bw_mean_coverage(bw_path: Optional[str]) -> float:
         bw = pyBigWig.open(bw_path)
         vals = []
         for c, clen in bw.chroms().items():
-            # skip tiny scaffolds to keep the reference stable
             if clen < 1_000_000:
                 continue
             try:
@@ -564,7 +534,7 @@ def fragment_mean_coverage(bw_path: Optional[str], chrom: str,
             try:
                 stats = bw.stats(chrom, int(b0), int(b1), type="mean")[0]
                 vals.append(float(stats) if stats is not None else 0.0)
-            except RuntimeError:  # region outside zoom levels
+            except RuntimeError:
                 vals.append(0.0)
         bw.close()
         return np.array(vals)
@@ -609,22 +579,17 @@ def plot_gene_model_all_transcripts(
         exons = tx_data['exons']
         utrs = tx_data['UTRs']
 
-        # Draw introns as lines
         for j in range(len(exons)-1):
             ax.plot([exons[j][1], exons[j+1][0]], [y_base, y_base], color='black', lw=1, zorder=0)
 
-        # Exons
         for start, end in exons:
             ax.add_patch(patches.Rectangle((start, y_base-0.1), end-start, 0.2, color='skyblue', ec='red', zorder=2))
         
-        # UTRs
         for start, end in utrs:
             ax.add_patch(patches.Rectangle((start, y_base-0.05), end-start, 0.1, color='lightgreen', ec='green', zorder=3))
         
-        # Transcript label
         ax.text(gene.start-50, y_base, tx_id, fontsize=8, ha='right', va='center')
 
-    # Strand arrow
     arrow_gap = (gene.end-gene.start)/20
     if gene.strand == '+':
         ax.arrow(gene.start, -0.1, gene.end-gene.start, 0, head_width=0.05, head_length=arrow_gap,
@@ -655,7 +620,7 @@ def to_ang(chrom: str, g0: int, g1: int, spans: List[Tuple], circ_len: int) -> O
             continue
         a0 = 90.0 - 360.0 * (s - fs + xs) / circ_len
         a1 = 90.0 - 360.0 * (e - fs + xs) / circ_len
-        return a1, a0  # (t2, t1) ccw
+        return a1, a0
     return None
 
 
@@ -725,11 +690,6 @@ def _resolve_label_angle(la: float, occupied: List[Tuple[float, int]],
     la = la % 360.0
     ring = 0
     for _ in range(max_iter):
-        # clash rules:
-        #   - same ring + angle window < min_sep  → one ring outward
-        #   - adjacent ring (|Δring| == 1) + angle window < 5°   → also
-        #     outward: a rotated label's text width projects far enough
-        #     radially to touch the neighbouring ring at near-equal angles
         clash = False
         for pa, pr in occupied:
             d = abs((la - pa + 180.0) % 360.0 - 180.0)
@@ -815,23 +775,15 @@ def _draw_gene_structure(
     strand = str(gene.get("strand", "+"))
     r_lane = bands.lane_outer(lane)
     exon_h = bands.exon_h
-    # per-gene colour: distinct hue per gene, keyed by gene name so the
-    # same gene keeps its colour across cycles of the same figure.
-    # Truncation is signalled by the // break marks, not by hue.
     col = gene_color(str(gene.get("gene_name", gene.name)))
 
-    # single-transcript rendering: merge the dict's feature lists
     tx = next(iter(transcripts.values())) if transcripts \
         else {"exons": [], "UTRs": []}
     exons = tx.get("exons", [])
     utrs = tx.get("UTRs", [])
 
-    # intron connectors: dashed thin arcs between consecutive exons,
-    # centered exactly in the exon band so the line touches the exon
-    # blocks at both ends
     r_line = r_lane - exon_h / 2.0
     if not exons:
-        # no exon annotation: single backbone across the gene span
         ax.add_patch(Wedge((0, 0), r_line, t2, t1,
                            width=INTRON_W,
                            facecolor="none", edgecolor=col,
@@ -854,19 +806,11 @@ def _draw_gene_structure(
                                linestyle=(0, (6, 4)),
                                zorder=4))
 
-    # gene model: exons as solid full-height blocks; UTR portions inside
-    # each exon are overlaid paler (same band, same width), the standard
-    # browser convention: UTR reads as the pale ends of the exon block
     if not exons:
-        # no exon annotation: draw the whole gene as one block
         ax.add_patch(Wedge((0, 0), r_lane, t2, t1, width=exon_h,
                            facecolor=col, edgecolor="white",
                            linewidth=0.25, zorder=5))
     else:
-        # exons render as full-height rectangles; a gene whose whole
-        # visible arc is too small to show blocks (below MIN_GENE_DEG)
-        # renders as a single dot at its midpoint so tiny genes still
-        # occupy visible space instead of vanishing next to their name
         gene_sweep = abs(t1 - t2)
         if gene_sweep < MIN_GENE_DEG:
             mid = np.radians((t1 + t2) / 2.0)
@@ -889,8 +833,6 @@ def _draw_gene_structure(
                 facecolor=col, edgecolor=ecol,
                 linewidth=0.9 if onco else 0.25,
                 zorder=5))
-        # UTR: paler overlay on the exon band, same radius and width —
-        # reads as the non-coding ends of the exon blocks
         for ut_start, ut_end in sorted(utrs):
             uhit = to_ang(gene["chrom"], int(ut_start), int(ut_end), spans, circ_len)
             if uhit is None:
@@ -901,22 +843,10 @@ def _draw_gene_structure(
                 facecolor=col, edgecolor="white", alpha=0.35,
                 linewidth=0.3, zorder=6))
 
-    # ``//`` break symbols: only on a truncated gene, and only at the
-    # gene-span end(s) that lie on a real fragment clipping boundary.
-    # A truncated gene whose far end wraps across the ring start sits
-    # on intact reference sequence there — that end gets no break mark.
-    # A gene clipped *inside* its span (fragment ends mid-gene) has its
-    # visible span end exactly at the fragment boundary: the effective
-    # clipped end is min/max(gene end, fragment end), so compare the
-    # span-end angle against that effective coordinate.
     if not contained and clip_edges:
-        # to_ang semantics: (t2, t1) = (high-coord end, low-coord end),
-        # independent of strand — t2 always faces the gene's genomic end
         g_start, g_end = int(gene["start"]), int(gene["end"])
-        ends = [(t1, g_start),   # low-coordinate end
-                (t2, g_end)]     # high-coordinate end
-        # a gene whose span reaches past a fragment boundary is clipped
-        # there: treat the fragment boundary itself as the visible end
+        ends = [(t1, g_start),
+                (t2, g_end)]
         eff_ends = []
         for ang, gpos in ends:
             hit = any(abs(gpos - fs) < 2 or abs(gpos - fe) < 2
@@ -924,26 +854,17 @@ def _draw_gene_structure(
             if hit:
                 eff_ends.append(ang)
             else:
-                # is this end beyond a fragment boundary (clipped mid-gene)?
                 for fs, fe in clip_edges:
                     if fs < gpos <= g_end and gpos > fe:
-                        eff_ends.append(ang)   # 3' side runs past fragment end
+                        eff_ends.append(ang)
                         break
                     if g_end >= fs and gpos < fs:
-                        eff_ends.append(ang)   # start side before fragment start
+                        eff_ends.append(ang)
                         break
         for ang in eff_ends:
             _draw_break_gap_at(ax, r_lane, ang, col, exon_h)
 
-    # strand direction is expressed by the tapered first exon above —
-    # no separate arrow element (a fixed-size arrow overwhelmed short
-    # genes: Gm13222's arrow was 20× the gene's own arc length)
 
-    # label angle: for short genes the 5' start angle (name stays next
-    # to the gene origin); for long genes (arc > 90°) the arc MIDPOINT,
-    # because a 100+ kb gene's model stretches across a large part of
-    # the ring and a name pinned to one end sits far from the model's
-    # visual centre, leaving the reader unable to match name to model
     start_ang = t1 if strand == "+" else t2
     arc_len = abs(t2 - t1)
     if arc_len > 90.0:
@@ -1018,20 +939,16 @@ def _draw_gene_ring(
     frag_chroms = {fc for fc, *_ in spans}
     gpool = genes[genes["chrom"].isin(frag_chroms)].copy()
 
-    # per-chromosome fragment clipping boundaries (genomic coords):
-    # a gene end within 2 bp of one of these is really cut by the circle
     frag_edges_by_chrom: Dict[str, List[Tuple[int, int]]] = {}
     for fc, fs, fe, _xs, _xe, _st in spans:
         frag_edges_by_chrom.setdefault(fc, []).append((int(fs), int(fe)))
 
-    # Build gene records with circular angles
     recs: List[dict] = []
     for _, g in gpool.iterrows():
         hit = to_ang(g["chrom"], int(g["start"]), int(g["end"]), spans, circ_len)
         if hit is None:
             continue
         t2, t1 = hit
-        # determine if gene is fully contained within a fragment
         contained = False
         for fc, fs, fe, xs, xe, _st in spans:
             if fc != g["chrom"]:
@@ -1042,10 +959,6 @@ def _draw_gene_ring(
         recs.append({"g": g, "t2": t2, "t1": t1,
                      "contained": contained})
 
-    # micro genes (whole-gene arc below MIN_GENE_DEG) leave the gene
-    # ring entirely: their dot + name move to the outer mark band just
-    # inside the ruler.  On the gene lanes they would either vanish
-    # (sub-pixel) or sit on top of the host gene covering them.
     micro_recs: List[dict] = []
     lane_recs: List[dict] = []
     for rec in recs:
@@ -1055,9 +968,6 @@ def _draw_gene_ring(
             lane_recs.append(rec)
     tpm_map = tpm or {}
 
-    # ---- pass 1: lane genes (models + labels) -----------------------
-    # lane-gene label angles register into lane_occupied so that the
-    # micro-gene names placed afterwards avoid them too
     max_lane = bands.max_lanes
     placed: List[dict] = []
     micro_rows: List[dict] = []
@@ -1073,7 +983,6 @@ def _draw_gene_ring(
         rec["lane"] = lane
         placed.append(rec)
 
-    # ---- pass 2: lane gene models + labels (angles register first) ----
     has_truncated = False
     has_onco = False
     for rec in placed:
@@ -1084,9 +993,6 @@ def _draw_gene_ring(
         has_truncated = has_truncated or not rec["contained"]
         has_onco = has_onco or onco
 
-        # this gene's transcripts dict (same structure as
-        # plot_gene_model_all_transcripts takes); one transcript per
-        # gene, keyed by the gene name
         exons = exons_df[(exons_df["chrom"] == g["chrom"])
                          & (exons_df["gene_name"] == gname)]
         utrs = utr_df[(utr_df["chrom"] == g["chrom"])
@@ -1105,11 +1011,7 @@ def _draw_gene_ring(
             rec["contained"], spans, circ_len, onco, bands,
             clip_edges=frag_edges_by_chrom.get(g["chrom"]))
 
-        # gene label pinned to the gene-start (5') angle; collisions are
-        # resolved radially (outward rings) so the name stays aligned
-        # with its gene origin
         if lab_ang is not None:
-            # residents: gene labels (their own ring) + ruler ticks (ring 0)
             occupied = ([(o["lab_ang"], o.get("label_ring", 0))
                          for o in placed if "lab_ang" in o]
                         + [(ta, 0) for ta in (tick_angles or [])])
@@ -1129,15 +1031,9 @@ def _draw_gene_ring(
                     fontsize=5.6, color=col,
                     ha="center", va="center", zorder=5,
                     fontweight="bold" if onco else "normal",
-                    # labels on radial rings (ring>0) stay horizontal:
-                    # a rotated long name projects its full text length
-                    # onto the radial direction and collides with the
-                    # neighbouring ring; horizontal text only occupies
-                    # its glyph height radially
                     rotation=(0 if ring > 0
                               else (np.degrees(rrad) + 90) % 180 - 90))
 
-        # collect per-gene data row
         cov_arr = fragment_mean_coverage(bw_path, g["chrom"],
                                          int(g["start"]), int(g["end"]),
                                          bins=20)
@@ -1156,12 +1052,6 @@ def _draw_gene_ring(
             "label_y": rec.get("label_y"),
         })
 
-    # ---- pass 3: micro genes (dot + name in a dedicated radial band) --
-    # micro genes own a fixed radial band strictly between the gene
-    # lanes and the ruler; lane genes never enter it, so the two can
-    # never crowd each other regardless of angles:
-    #   dot band : free corridor between topology band and gene band
-    #   name band: [label_in, label_in + n*label_pitch]  (outside ruler)
     for rec in micro_recs:
         g = rec["g"]
         gname = str(g["gene_name"])
@@ -1175,8 +1065,6 @@ def _draw_gene_ring(
         rec["lab_ang"] = la
         rec["label_ring"] = micro_ring
         rrad = np.radians(la)
-        # dot radius: the free corridor between the topology band and
-        # the gene band — a fixed zone no other element uses
         r_dot = bands.dot_r
         r_lab = bands.label_in + micro_ring * bands.label_pitch
         ax.plot([r_dot * np.cos(rrad)], [r_dot * np.sin(rrad)],
@@ -1243,19 +1131,16 @@ def _draw_ruler_ring(ax: plt.Axes, spans: List[Tuple], circ_len: int,
         major_step = 5000
     minor_step = major_step / 5.0
 
-    # major-tick label angles — gene labels must not land on these
     tick_angles = [(90.0 - 360.0 * k / total_kb) % 360.0
                    for k in np.arange(0, total_kb + 1e-9, major_step)]
 
     r0 = bands.ruler
     for k in np.arange(0, total_kb + minor_step * 0.1, minor_step):
-        # skip a trailing minor tick that would crowd the 0 kb major
         if k > total_kb - minor_step / 2.0 and k > 0:
             continue
         angle_deg = 90.0 - 360.0 * k / total_kb
         a = np.radians(angle_deg)
 
-        # major when k is (numerically) a multiple of major_step
         long_tick = abs(k / major_step - round(k / major_step)) < 1e-6
         tick_len = 0.045 if long_tick else 0.025
         r1 = r0 - tick_len
@@ -1268,12 +1153,10 @@ def _draw_ruler_ring(ax: plt.Axes, spans: List[Tuple], circ_len: int,
             solid_capstyle="butt",
         )
 
-        # only major ticks carry labels
         if not long_tick:
             continue
         label_r = r0 + 0.055
 
-        # 文字沿圆周切线方向旋转，并保持正向可读
         rotation = angle_deg - 90.0
         rotation = (rotation + 180.0) % 360.0 - 180.0
         if rotation > 90.0:
@@ -1344,11 +1227,9 @@ def _draw_coverage_ring(ax: plt.Axes, spans: List[Tuple], circ_len: int,
                     break
         bwf.close()
         cmax = float(cov.max()) if cov.max() else 1.0
-        # log scale with floor: 0.5x -> ~12% height, genome mean -> ~45%
         ref = max(float(bw_mean_cov), 0.3)
         h = np.clip(np.log10(np.maximum(cov, 0.3)) /
                     max(np.log10(max(cmax, ref)), 1e-6), 0.06, 1.0)
-        # angular frame matching to_ang: th = pi/2 - 2*pi*i/n
         th = np.pi / 2 - 2 * np.pi * np.arange(n) / n
         r_out = bands.cov_in + (bands.cov_out - bands.cov_in) * h
         ox = r_out * np.cos(th)
@@ -1360,12 +1241,6 @@ def _draw_coverage_ring(ax: plt.Axes, spans: List[Tuple], circ_len: int,
             facecolor=GOLD, alpha=0.75, edgecolor="none", zorder=2))
         ax.plot(np.append(ox, ox[0]), np.append(oy, oy[0]),
                 color=GOLD_D, linewidth=0.7, zorder=3)
-        # breakpoint slits: a cycle of n fragments has exactly n
-        # breakpoints — the wrap-around join at the coordinate origin
-        # (12 o'clock) plus the n-1 inter-fragment junctions.  Cut a
-        # white slit of the shared TOPO_GAP_DEG width at each, so every
-        # junction reads identically in every ring (the topology band
-        # marks the same angles with its gap/orange ticks/colour joins).
         for slit_ang in ([90.0]
                          + [_t1 for _t2, _t1 in _frag_angles(spans,
                                                              circ_len)[1:]]):
@@ -1446,13 +1321,10 @@ def draw_cycle_circular(
 
     ax.set_aspect("equal")
     ax.axis("off")
-    # canvas spans the ruler ring, gene labels (labels step outward
-    # from bands.label_in) and the right-side legend (text to x≈1.68)
     ax.set_xlim(-1.55, 1.80)
     ax.set_ylim(-1.30, 1.55)
 
-    # ---- circular coordinate: concatenate fragments end to end ----
-    spans: List[Tuple] = []  # (chrom, f_start, f_end, x_start, x_end, strand)
+    spans: List[Tuple] = []
     cursor = 0
     for _, frag in fragments.iterrows():
         f_start, f_end = int(frag["start"]), int(frag["end"])
@@ -1464,10 +1336,6 @@ def draw_cycle_circular(
     if circ_len <= 0:
         return None
 
-    # ---- ring dispatch (hub -> topology -> gene -> coverage -> ruler) --
-    # every ring draws strictly inside its own RingBands band, so the
-    # call order below is purely cosmetic; the band edges guarantee the
-    # rings never overlap
     tick_angles = _draw_ruler_ring(ax, spans, circ_len, bands)
     _draw_coverage_ring(ax, spans, circ_len, bw_path, bw_mean_cov, bands,
                         topology=str(info["topology"])
@@ -1479,9 +1347,6 @@ def draw_cycle_circular(
         ax, str(info["topology"]) if info is not None else "",
         spans, circ_len, bands)
     _draw_hub(ax, info, circ_id, spans, circ_len, bands)
-    # legend pinned flush to the bottom-right canvas corner; gene labels
-    # near the corner can only push it DOWN (grow the canvas), never
-    # left — the corner position itself is fixed
     if gene_rows:
         bottom_labels = [r for r in gene_rows
                          if r.get("label_y") is not None
@@ -1496,14 +1361,11 @@ def draw_cycle_circular(
         ly0 = lowest_y - 0.25
     _draw_legend(ax, has_truncated=has_truncated, has_onco=has_onco,
                  lx0=lx0, ly0=ly0)
-    # re-fit canvas: legend extends to ly0 - 5*0.13 - 0.1; matplotlib
-    # clips patches outside the axes, so the limits must cover it
     n_entries = 5 + (1 if has_onco else 0) + (1 if has_truncated else 0)
     needed_ymin = ly0 - (n_entries - 1) * 0.13 - 0.10
     if needed_ymin < -1.30:
         ax.set_ylim(-1.30, 1.55)
         ax.set_ylim(needed_ymin, 1.55)
-        # keep aspect equal after the change
         ax.set_aspect("equal")
 
     return pd.DataFrame(gene_rows) if gene_rows else None
@@ -1610,13 +1472,7 @@ def _draw_topology_ring(ax: plt.Axes, topology: str,
             _topo_wedge(ax, t1 - TOPO_TICK_DEG / 2.0,
                         t1 + TOPO_TICK_DEG / 2.0, TOPO_SV, bands, zorder=9)
 
-    # topology flag decode: duplications and foldbacks may combine with
-    # any base layout; decoil names them directly, but the band renders
-    # the dominant motif per topology_name
     if topo == "simple_circle":
-        # one backbone ring with a single full-band white gap at the
-        # excision breakpoint: the coordinate origin (pos 0 = 12
-        # o'clock = math angle 90 deg), where the fragment span wraps
         backbone()
         return
 
@@ -1624,18 +1480,11 @@ def _draw_topology_ring(ax: plt.Axes, topology: str,
         return
 
     if topo == "simple_sv":
-        # backbone over all fragments; the SV (the small deleted piece)
-        # is the gap BETWEEN two consecutive fragments: mark the flanking
-        # junction with an orange full-band tick.  The backbone gap sits
-        # at the coordinate origin (12 o'clock) like simple_circle.
         backbone()
         sv_ticks()
         return
 
     if topo == "mixed_sv":
-        # like simple_sv, plus the inversion arm: fragments alternate
-        # strand in a mixed cycle — the inverted run renders green with
-        # a single arrow tip at its high-coordinate end
         backbone()
         sv_ticks()
         strands = [st for *_x, st in spans]
@@ -1647,10 +1496,8 @@ def _draw_topology_ring(ax: plt.Axes, topology: str,
             elif run_start is not None:
                 t2 = arcs[run_start][0]
                 t1 = arcs[i - 1][1]
-                # green body across the inverted run
                 _topo_wedge(ax, t2 + TOPO_EPS_DEG, t1, TOPO_INV, bands,
                             zorder=9)
-                # single arrow tip at the run's t2 end (ccw arc tip)
                 tip_len = min(band_h, 0.06)
                 body_hi = r_lo + tip_len
                 tip_ang = np.radians(t2)
@@ -1671,37 +1518,25 @@ def _draw_topology_ring(ax: plt.Axes, topology: str,
                                          edgecolor="none", zorder=10))
                 run_start = None
         if run_start is not None:
-            # inverted run reaches the last fragment; render body only
             t2, t1 = arcs[run_start]
             _topo_wedge(ax, t2 + TOPO_EPS_DEG, t1, TOPO_INV, bands, zorder=9)
         return
 
     if topo in ("multi_region_intra_chr", "multi_region_inter_chr"):
-        # per-fragment coloured segments separated by white slits of the
-        # shared TOPO_GAP_DEG width — every fragment junction (including
-        # the wrap-around at the coordinate origin) is a real breakpoint
-        # and reads identically in the coverage ring; intra = shades of
-        # one hue, inter = one colour per source chromosome
         if topo == "multi_region_intra_chr":
             seq = [TOPO_BASE, "#8CA6C0", TOPO_BASE, "#8CA6C0"]
         else:
-            # one colour per distinct chromosome (legend palette)
             chrom_order = list(dict.fromkeys(fc for fc, *_ in spans))
             cmap = {c: CHR_COLORS[(i * 2) % len(CHR_COLORS)]
                     for i, c in enumerate(chrom_order)}
             seq = [cmap[fc] for fc, *_ in spans]
         for i, (t2, t1) in enumerate(arcs):
             col = seq[i % len(seq)]
-            # shrink both arc ends half a slit: t2 faces the next
-            # junction, t1 the previous one — leaves one slit width of
-            # white at every junction, angles wrap harmlessly
             half = min(TOPO_GAP_DEG / 2.0, (t1 - t2) / 4.0)
             _topo_wedge(ax, t2 + half, t1 - half, col, bands)
         return
 
     if topo == "simple_duplications":
-        # same fragment twice on the ring: deep red = first occurrence
-        # (A), pale red = repeat (A'); junction slits as everywhere else
         seen: Dict[Tuple, int] = {}
         counts = [(fc, int(fs), int(fe)) for fc, fs, fe, *_ in spans]
         for key in counts:
@@ -1713,11 +1548,6 @@ def _draw_topology_ring(ax: plt.Axes, topology: str,
         return
 
     if topo == "foldback":
-        # foldback join: two palindromic arms converge at the junction;
-        # render the backbone plus converging cones at the junction
-        # angle where the arms meet (adjacent-fragment boundary with a
-        # foldback link — for single-arm foldbacks the junction sits at
-        # the coordinate origin)
         backbone()
         juncs = [arcs[0][0]] if n == 1 else [arcs[1][0]]
         for ja in juncs:
@@ -1736,7 +1566,6 @@ def _draw_topology_ring(ax: plt.Axes, topology: str,
                                          edgecolor="none", zorder=9))
         return
 
-    # unrecognised topology: leave the band empty; hub text names it
 
 
 def _draw_hub(ax: plt.Axes, info: Optional[pd.Series], circ_id: str,
@@ -1761,7 +1590,6 @@ def _draw_hub(ax: plt.Axes, info: Optional[pd.Series], circ_id: str,
     """
     ax.add_patch(plt.Circle((0, 0), bands.hub, facecolor="white",
                             edgecolor="#D5DBE1", linewidth=1.0, zorder=6))
-    # text rows scale with the hub radius so the disc never clips them
     ax.text(0, 0.085, f"circ {circ_id}", ha="center", fontsize=10.5,
             color=INDIGO, fontweight="bold", zorder=7)
     topology = str(info["topology"]) if info is not None else "NA"
@@ -1769,29 +1597,18 @@ def _draw_hub(ax: plt.Axes, info: Optional[pd.Series], circ_id: str,
             color=GRAY, zorder=7)
     ax.text(0, -0.125, f"{circ_len / 1000:.1f} kb", ha="center", fontsize=7.5,
             color=GRAY, zorder=7)
-    # coordinate summary: one line per fragment ("+"-joined), each with
-    # its chromosome — a multi-region cycle must show every piece, not
-    # a first..last range that hides the interior breakpoints
     if spans:
         parts = [f"{fc}:{int(fs):,}-{int(fe):,}"
                  for fc, fs, fe, _xs, _xe, _st in spans]
         coord_text = " + ".join(parts)
-        # cap: >3 fragments collapse to count (text would overflow the hub)
         if len(parts) > 3:
             coord_text = (f"{parts[0]} + {parts[1]} + … "
                           f"({len(parts)} segments)")
-        # long text wraps to two rows so it never spills past the disc
         if len(coord_text) > 46:
             mid = coord_text.rfind(" + ", 0, len(coord_text) // 2 + 8)
             if mid > 0:
                 coord_text = (coord_text[:mid] + " +\n"
                               + coord_text[mid + 3:])
-        # deterministic font fit: figure sizes are fixed by the callers
-        # (9.4x8 per-cycle, 9x9 grid), so data-units-per-inch is known;
-        # digits at fontsize F occupy ~0.60*F points of width -> font
-        # sized so the widest row spans <= 80% of the hub diameter.
-        # Row count scales the row pitch; the block is vertically
-        # centred in the lower half of the disc so 1-3 rows all fit.
         fig_w_in = ax.figure.get_size_inches()[0]
         ax_w = ax.get_xlim()[1] - ax.get_xlim()[0]
         data_per_pt = ax_w / (fig_w_in * 72.0)
@@ -1834,15 +1651,11 @@ def _draw_break_gap_at(ax: plt.Axes, r_lane: float, ta: float,
     rad = np.radians(ta)
     r_mid = r_lane - exon_w / 2.0
     cx, cy = r_mid * np.cos(rad), r_mid * np.sin(rad)
-    # local tangent direction (clockwise) and radial direction
     tang = np.array([-np.sin(rad), np.cos(rad)])
     norm = np.array([np.cos(rad), np.sin(rad)])
-    # slash strokes: compact marks inside the block height — oversized
-    # slashes visually drowned thin intron-backbone genes
     slash_len = exon_w * 0.45
     for i in range(n_gaps):
         off = (i - (n_gaps - 1) / 2.0) * 0.005
-        # each slash: 45 deg between tangent and radial
         d = (tang + norm) / np.sqrt(2.0)
         p0 = np.array([cx, cy]) + tang * off - d * slash_len / 2.0
         p1 = np.array([cx, cy]) + tang * off + d * slash_len / 2.0
@@ -1874,15 +1687,11 @@ def _draw_legend(ax: plt.Axes, has_truncated: bool = True,
     has_onco : bool
         Whether oncogene-highlighted blocks occur in this cycle.
     """
-    # legend anchored in the empty bottom-right quadrant (LEGEND_XY),
-    # overridden by the caller when gene labels extend further
     if lx0 is None or ly0 is None:
         lx0, ly0 = LEGEND_XY
-    bar_w = 0.07            # legend swatch width
-    bar_h = 0.03            # legend swatch height (visual size, cosmetic)
-    gene_col = "#1A1A1A"    # gene-structure swatches in black; per-gene
-                            # colours on the ring carry identity, the
-                            # legend only explains shape
+    bar_w = 0.07
+    bar_h = 0.03
+    gene_col = "#1A1A1A"
     entries: List[Tuple[str, str, str]] = [
         ("patch", GOLD, "coverage (log scale)"),
         ("exon", gene_col, "exon"),
@@ -1907,18 +1716,15 @@ def _draw_legend(ax: plt.Axes, has_truncated: bool = True,
                 facecolor=col, edgecolor="white", linewidth=0.25,
                 zorder=8))
         elif kind == "intron":
-            # dashed line, same style as the on-circle intron arcs
             ax.plot([lx0, lx0 + bar_w], [yy, yy],
                     color=col, linewidth=1.0,
                     linestyle=(0, (6, 4)),
                     solid_capstyle="butt", zorder=8)
         elif kind == "micro_exon":
-            # dot glyph: tiny exons render as dots on the ring
             ax.plot([lx0 + bar_w / 2.0], [yy],
                     marker="o", markersize=3.5, color=col,
                     markeredgecolor="none", zorder=8)
         elif kind == "utr":
-            # pale fill as on the circle: gene colour under white
             ax.add_patch(plt.Rectangle(
                 (lx0, yy - bar_h / 2.0), bar_w, bar_h,
                 facecolor=col, edgecolor="none", zorder=8))
@@ -1932,8 +1738,6 @@ def _draw_legend(ax: plt.Axes, has_truncated: bool = True,
                 facecolor=col, edgecolor="#3A3A70", linewidth=0.9,
                 zorder=8))
         elif kind == "strand":
-            # taper glyph matching the on-circle convention: exon block
-            # narrowing to a point along the reading direction
             ax.add_patch(plt.Polygon(
                 [(lx0 + bar_w, yy),
                  (lx0 + bar_w * 0.45, yy + bar_h / 2.0),
@@ -1942,7 +1746,6 @@ def _draw_legend(ax: plt.Axes, has_truncated: bool = True,
                  (lx0, yy + bar_h / 2.0)],
                 closed=True, facecolor=col, edgecolor="none", zorder=8))
         elif kind == "break":
-            # just the two diagonal slashes, no background swatch
             for k in (-1, 1):
                 x_mid = lx0 + bar_w / 2.0 + k * 0.005
                 dx, dy = 0.008, bar_h * 0.55
@@ -1956,11 +1759,6 @@ def _draw_legend(ax: plt.Axes, has_truncated: bool = True,
             va="center", ha="right", zorder=8)
 
 
-# Canonical columns of the per-gene functional table; used for EVERY write
-# (including empty ones) so the declared <out-prefix>_genes.tsv output always
-# exists with a stable header — snakemake deletes declared outputs of failed
-# jobs, and a missing table previously failed the whole rule on samples with
-# no detected ecDNA.
 GENE_TABLE_COLUMNS = ["circ_id", "gene", "status", "onco", "strand", "region",
                       "median_coverage", "tpm", "label_x", "label_y"]
 
@@ -2097,7 +1895,6 @@ def _grid_page(
     fig = plt.figure(figsize=(9, 9))
     gene_rows: List[pd.DataFrame] = []
     for k, cid in enumerate(page_ids):
-        # Allocate an independent axes for each cycle.
         ncols = min(3, len(page_ids))
         nrows = math.ceil(len(page_ids) / ncols)
         ax = fig.add_subplot(nrows, ncols, k + 1)
@@ -2178,16 +1975,10 @@ def plot_structures(bed: pd.DataFrame, summary: pd.DataFrame,
                     "(dosage ring reference)")
 
     if one_file_per_cycle:
-        # One ecDNA, one figure: single large square canvas per cycle.
-        # The combined grid page is still emitted afterwards so downstream
-        # rules keep a single summary image.
         os.makedirs(os.path.dirname(os.path.abspath(out_prefix)),
                     exist_ok=True)
         for cid in circ_ids:
-            reset_gene_hues()   # per-cycle unique colour assignment
-            # canvas ratio must match the data ratio (xlim span 3.35 vs
-            # ylim span 2.85) so aspect='equal' doesn't letterbox the
-            # ring into a corner with vast empty margins
+            reset_gene_hues()
             fig = plt.figure(figsize=(9.4, 8.0))
             rows = _draw_and_collect(
                 fig, cid, bed, summary, genes, onco_genes,
@@ -2233,8 +2024,6 @@ def plot_structures(bed: pd.DataFrame, summary: pd.DataFrame,
                     bw_mean_cov, sample_id, out_prefix, image_formats,
                     exons_df, utr_df))
 
-    # Per-gene functional table (all cycles) — always written (empty table
-    # with stable header when no gene rows) so the declared output exists.
     table = (pd.concat(all_gene_rows, ignore_index=True) if all_gene_rows
              else pd.DataFrame(columns=GENE_TABLE_COLUMNS))
     table = table.reindex(columns=GENE_TABLE_COLUMNS)
@@ -2306,12 +2095,8 @@ def main() -> None:
                            "drawing without gene annotation")
 
     if bed.empty:
-        # Detection guard: nothing passed the filter -> no structures to draw
         logger.info(f"{args.sample}: no ecDNA detected, drawing placeholder")
         plot_placeholder(args.out_prefix, image_formats, args.sample)
-        # Keep the output contract: write an empty genes table too, or the
-        # missing <out-prefix>_genes.tsv fails the snakemake rule (which then
-        # also deletes the freshly drawn placeholder figure).
         pd.DataFrame(columns=GENE_TABLE_COLUMNS).to_csv(
             f"{args.out_prefix}_genes.tsv", sep="\t", index=False)
         return

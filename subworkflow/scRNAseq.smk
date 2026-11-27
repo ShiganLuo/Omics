@@ -17,9 +17,6 @@ genome = config.get("genome", {}).get("default")
 raw_bam_outdir = f"{outdir}/common/2_raw_bam"
 h5ad_outdir = f"{outdir}/common/3_raw_h5ad"
 combine_dir = f"{outdir}/common/5_combine_h5ad"
-# pseudo-bulk deliverables root — shared by the scanpy module (producer) and
-# teprofile's te_fraction_cross_tissue rule (consumer); one literal
-# definition per physical path (modules.md chaining rule).
 pseudobulk_dir = f"{outdir}/diff/pseudobulk"
 if aligner == "star":
     logger.info("Using STAR aligner for scRNA-seq workflow. only scTE counter is supported for STAR aligner.")
@@ -38,8 +35,6 @@ if aligner == "star":
         "Params": {
             "star": {
             "keep_intermediates": config.get('Params', {}).get('star', {}).get('keep_intermediates', True),
-            # 参数精确到 rule:Params.star.star_align.<key>(消费 rule star_align;
-            # config 全量路径读取,无旧扁平键回退)
             "star_align": {
             "outSAMattributes": config.get('Params', {}).get('star', {}).get('star_align', {}).get('outSAMattributes'),
             "outFilterMultimapNmax": config.get('Params', {}).get('star', {}).get('star_align', {}).get('outFilterMultimapNmax'),
@@ -241,7 +236,7 @@ scanpy_config = {
     "logdir_combine": f"{logdir}/group",
     "te_bed": config.get("genome", {}).get("references", {}).get(genome, {}).get("te_bed", ""),
     "gene_tsv": config.get("genome", {}).get("references", {}).get(genome, {}).get("geneIDAnno", ""),
-    "species": genome,  # Pass species/genome for tissue-specific annotation
+    "species": genome,
     "tissue_samples": config.get("sample_params", {}).get("tissue_samples", {}),
     "design": config.get("sample_params", {}).get("design", {}) or {},
     "Params": {
@@ -258,13 +253,6 @@ logger.debug(f"Using scanpy for scRNA-seq downstream analysis. scanpy config: {s
 
 use rule * from scanpy as scRNAseq_*
 
-# ---------------------------------------------------------------------------
-# scCODA differential abundance (modules/sccoda) — consumes the annotated
-# scanpy_auto h5ad from the combine stage. Cross-module knowledge lives here:
-# the reannotate ordering guard forwards scanpy's per-counter
-# cluster_annotations map, so the sccoda rule depends on the in-place
-# label-fix marker only when a reannotate run will produce it.
-# ---------------------------------------------------------------------------
 scanpy_params_all = config.get("Params", {}).get("scanpy", {}) or {}
 
 def _scanpy_cluster_annotations(counter):
@@ -304,15 +292,6 @@ logger.debug(f"Using scCODA for cell-type differential abundance. sccoda config:
 
 use rule * from sccoda as scRNAseq_*
 
-# ---------------------------------------------------------------------------
-# GO/KEGG enrichment over the pseudobulk output tree (modules/function/
-# pseudobulk_go). A runtime discovery checkpoint scans
-# <outdir>/diff/pseudobulk/<tissue>/<counter>/deg_pseudobulk*/... after
-# scanpy_pseudobulk, then one enrichment job per
-# (counter, mode, tissue, contrast, cell_type) unit. The ordering edge over
-# scanpy_pseudobulk comes from the per-(tissue, counter) report prerequisites
-# (same gate as node.py's pseudobulk registration).
-# ---------------------------------------------------------------------------
 def _pbgo_prerequisites():
     """Pseudobulk report htmls of every (tissue, counter) whose pseudobulk runs."""
     reqs = []
@@ -351,13 +330,6 @@ logger.debug(f"Using function/pseudobulk_go for pseudobulk GO/KEGG enrichment. c
 
 use rule * from pseudobulk_go as scRNAseq_*
 
-# ------------------------------------------------------------
-# TE-dominant cluster identification (modules/tedominant) —
-# consumes the combine-stage h5ad pair per tissue; one group-level
-# run over all tissues. Gated by Params.tedominant.enabled in
-# node.py's outfiles registration (smk side wires unconditionally,
-# per modules.md). tissues derive from scanpy's tissue_samples map.
-# ------------------------------------------------------------
 def _tedom_tissues():
     ts = config.get("sample_params", {}).get("tissue_samples", {}) or {}
     return list(ts.keys()) if isinstance(ts, dict) else []
@@ -385,12 +357,6 @@ logger.debug(f"Using tedominant for TE-dominant cluster identification. config: 
 
 use rule * from tedominant as scRNAseq_*
 
-# ------------------------------------------------------------
-# TE profile (modules/teprofile) — three-layer TE expression
-# characterization (baseline / outlier subpopulations / group
-# remodeling) over the same combine-stage h5ad pairs. Gated by
-# Params.teprofile.enabled in node.py registration.
-# ------------------------------------------------------------
 teprofile_config = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,

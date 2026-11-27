@@ -5,9 +5,6 @@ from typing import Dict, Tuple, Optional, Callable
 from scipy.stats import chi2_contingency, fisher_exact, ttest_ind, mannwhitneyu
 
 
-# =========================
-# statistical test utilities
-# =========================
 def compute_pvalue(
     table: np.ndarray,
     method: str = "chi2"
@@ -62,14 +59,6 @@ def p_to_star(p: float) -> str:
         return "ns"
 
 
-# =========================
-# bracket drawing (display-point layout)
-# =========================
-# Screen-unit geometry, identical on linear and log axes: the first
-# bracket sits LEG_PT above the cluster's tallest bar top; each further
-# stacked bracket adds BRACKET_STEP_PT; the star label sits TEXT_PT
-# above its bracket line; FONT_ASCENT_PT approximates the label font's
-# ascent for headroom reservation.
 LEG_PT = 10.0
 TEXT_PT = 4.0
 FONT_ASCENT_PT = 8.0
@@ -146,21 +135,21 @@ def fit_bracket_headroom(ax, bases, n_brackets: int) -> None:
     if not positives:
         return
     base = max(positives)
-    axes_top_px = y_to_px(ax, ax.get_ylim()[1])  # top of the axes box
+    axes_top_px = y_to_px(ax, ax.get_ylim()[1])
     target_px = axes_top_px - stack_px
     if y_to_px(ax, base) <= target_px:
-        return  # already fits
+        return
     bottom = ax.get_ylim()[0]
     is_log = ax.get_yscale() == "log"
     lo = ax.get_ylim()[1]
     hi = lo * 10.0 if is_log else lo + (lo - bottom)
-    while y_to_px(ax, base) > target_px:  # expand until it fits
+    while y_to_px(ax, base) > target_px:
         lo = hi
         hi = hi * 10.0 if is_log else hi + (hi - bottom)
         ax.set_ylim(bottom=bottom, top=hi)
         if hi > 1e12 * lo:
             break
-    for _ in range(60):  # bisect the top value
+    for _ in range(60):
         mid = np.sqrt(lo * hi) if is_log else (lo + hi) / 2.0
         ax.set_ylim(bottom=bottom, top=mid)
         if y_to_px(ax, base) > target_px:
@@ -259,7 +248,6 @@ def compute_significance(
                 [pivot.loc[sv, g2], pivot[g2].sum() - pivot.loc[sv, g2]],
             ])
         else:
-            # fallback: treat as single values (not ideal, but generic)
             table = np.array([
                 [pivot.loc[sv, g1]],
                 [pivot.loc[sv, g2]],
@@ -271,9 +259,6 @@ def compute_significance(
     return stars
 
 
-# =========================
-# plotting core
-# =========================
 def plot_comparison_broken_bar(
     df: pd.DataFrame,
     out_png: str,
@@ -349,11 +334,9 @@ def plot_comparison_broken_bar(
         .fillna(0)
     )
 
-    # ---------- significance ----------
     stars = {}
     sig_sv = []
     if do_test:
-        # 限制：当前函数仅支持计数型检验
         if test_method not in ("chi2", "fisher"):
             raise ValueError("Only 'chi2' and 'fisher' are supported for count data")
 
@@ -368,10 +351,7 @@ def plot_comparison_broken_bar(
         group_order[1]: "#DD8452",
     }
 
-    # =========================
-    # axis setup
-    # =========================
-    low_max = None  # ✅ FIX: 统一初始化
+    low_max = None
 
     if use_broken_axis:
         if len(sig_sv) > 0:
@@ -400,7 +380,6 @@ def plot_comparison_broken_bar(
         ax_bottom.set_ylim(0, low_max)
         ax_top.set_ylim(high_min, high_max)
 
-        # broken marks
         d = 0.008
         ax_top.plot((-d, +d), (-d, +d), transform=ax_top.transAxes, color="black", clip_on=False)
         ax_bottom.plot((-d, +d), (1 - d, 1 + d), transform=ax_bottom.transAxes, color="black", clip_on=False)
@@ -413,11 +392,8 @@ def plot_comparison_broken_bar(
                color=colors[group_order[1]], label=legend_map[group_order[1]])
 
         axes = (ax,)
-        ax_top = ax_bottom = ax  # 统一接口
+        ax_top = ax_bottom = ax
 
-    # =========================
-    # significance annotation
-    # =========================
     if do_test:
         LEG_PT = 8
         TEXT_PT = 3
@@ -455,9 +431,6 @@ def plot_comparison_broken_bar(
                     ha="center", va="bottom",
                     fontsize=12, fontweight="bold")
 
-    # =========================
-    # formatting
-    # =========================
     ax_bottom.set_xticks(x)
     ax_bottom.set_xticklabels(pivot.index)
     ax_bottom.set_ylabel(ylabel)

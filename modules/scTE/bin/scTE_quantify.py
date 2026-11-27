@@ -18,7 +18,6 @@ import subprocess
 import sys
 import tempfile
 
-# Add project root to sys.path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
 import anndata as ad
@@ -104,7 +103,6 @@ def scTE_csv_to_h5ad(csv_path, sample_id=""):
     data.index = data.index.astype(str).str.replace("/", "_", regex=False)
     if data.index.name and "/" in str(data.index.name):
         data.index.name = str(data.index.name).replace("/", "_")
-    # scTE: rows=genes, cols=cells → transpose to rows=cells, cols=genes
     data = data.T
     X = sp.csr_matrix(data.values.astype("float32"))
     adata = ad.AnnData(
@@ -133,13 +131,11 @@ def main():
 
     logger = setup_logger("scTE_quantify")
 
-    # Run scTE in a temp directory (scTE writes output files to -o dir)
     with tempfile.TemporaryDirectory() as tmpdir:
         outdir = os.path.join(tmpdir, "scTE_out")
         os.makedirs(outdir)
         run_scTE(args.input, outdir, args.index, args.cb_tag, args.umi_tag, args.threads, args.scte_bin, logger, cwd=tmpdir)
 
-        # Find the CSV output (scTE names it based on input BAM name)
         csv_files = [f for f in os.listdir(outdir) if f.endswith((".csv", ".csv.gz"))]
         if not csv_files:
             csv_files = [f for f in os.listdir(tmpdir) if f.endswith((".csv", ".csv.gz"))]
@@ -152,12 +148,10 @@ def main():
 
         adata = scTE_csv_to_h5ad(csv_path, args.sample_id)
         os.makedirs(os.path.dirname(args.output), exist_ok=True)
-        # Move raw scTE matrix alongside h5ad
         csv_base = csv_files[0]
         raw_csv_out = os.path.join(os.path.dirname(args.output), csv_base)
         shutil.move(csv_path, raw_csv_out)
         logger.info(f"Saved raw scTE matrix to {raw_csv_out}")
-        # Move scTE_out.stat if present
         stat_src = os.path.join(outdir, "scTE_out.stat")
         if not os.path.exists(stat_src):
             stat_src = os.path.join(tmpdir, "scTE_out.stat")

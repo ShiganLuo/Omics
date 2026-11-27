@@ -21,7 +21,6 @@ import sys
 import tempfile
 from typing import Dict, List, Set, Tuple
 
-# Mitochondrial chromosome names to recognize
 MT_CHROMS: Set[str] = {'MT', 'chrM', 'chrMT', 'M'}
 
 
@@ -35,11 +34,9 @@ def normalize_chrom(chrom: str) -> str:
 
     Special handling for mitochondrial chromosome: always returns 'MT'.
     """
-    # Strip 'chr' prefix
     if chrom.startswith('chr'):
         chrom = chrom[3:]
 
-    # Normalize mitochondrial chromosome names
     if chrom in ('M', 'MT', 'chrM', 'chrMT'):
         return 'MT'
 
@@ -77,7 +74,6 @@ def standardize_gtf(
     print(f"Standardizing GTF: {os.path.basename(gtf_path)}")
     is_gzipped = gtf_path.endswith('.gz')
 
-    # Read all lines
     opener = gzip.open if is_gzipped else open
     with opener(gtf_path, 'rt', encoding='utf-8') as f:
         lines = f.readlines()
@@ -86,7 +82,6 @@ def standardize_gtf(
     for line in lines:
         stats['total_lines'] += 1
 
-        # Skip comments and empty lines
         if not line or line.startswith('#'):
             new_lines.append(line)
             continue
@@ -96,30 +91,26 @@ def standardize_gtf(
             new_lines.append(line)
             continue
 
-        # Column 1: chromosome
         orig_chrom = parts[0]
         new_chrom = normalize_chrom(orig_chrom)
         if new_chrom != orig_chrom:
             stats['chrom_fixed'] += 1
             parts[0] = new_chrom
 
-        # Column 9: attributes - fix mitochondrial gene_name
         if is_mitochondrial_chrom(new_chrom):
             attrs = parts[8]
             if 'gene_name' in attrs:
-                # Extract gene_name value
                 try:
                     before, rest = attrs.split('gene_name "', 1)
                     gene_name, after = rest.split('"', 1)
 
-                    # Add MT- prefix if not already present
                     if not gene_name.startswith('MT-'):
                         new_gene_name = f'MT-{gene_name}'
                         attrs = f'{before}gene_name "{new_gene_name}"{after}'
                         parts[8] = attrs
                         stats['mt_genes_prefixed'] += 1
                 except ValueError:
-                    pass  # Malformed attribute, skip
+                    pass
 
         new_lines.append('\t'.join(parts) + '\n')
 
@@ -128,7 +119,6 @@ def standardize_gtf(
               f"{stats['mt_genes_prefixed']} MT gene names")
         return stats
 
-    # Write back
     fd, tmp = tempfile.mkstemp(dir=os.path.dirname(gtf_path), suffix='.tmp')
     try:
         if is_gzipped:
@@ -279,7 +269,6 @@ def main():
     args = parser.parse_args()
 
     if args.scan:
-        # Scan mode: find and report annotation files
         print(f"Scanning: {args.scan}")
         print("=" * 60)
         files = find_annotation_files(args.scan)
@@ -299,7 +288,6 @@ def main():
 
     total_stats = {'gtf': 0, 'bed': 0, 'chrom_fixed': 0, 'mt_prefixed': 0}
 
-    # Process GTF files
     if args.gtf:
         for gtf_path in args.gtf:
             stats = standardize_gtf(gtf_path, args.dry_run)
@@ -307,7 +295,6 @@ def main():
             total_stats['chrom_fixed'] += stats['chrom_fixed']
             total_stats['mt_prefixed'] += stats['mt_genes_prefixed']
 
-    # Process BED files
     if args.te:
         for bed_path in args.te:
             stats = standardize_bed(bed_path, args.dry_run)

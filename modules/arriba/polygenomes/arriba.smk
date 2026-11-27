@@ -7,12 +7,9 @@ logdir_combine = config.get("logdir_combine","logs")
 ROOT_DIR = config.get("ROOT_DIR", ".")
 genome_samples = config.get("genome_samples") or {}
 bam_substring = config.get("bam_substring") or ""
-# ① parse 期读入 + 规范化(str 收成单元素 list;合法值由 schema 声明)。
-# output 指令无法调用函数,格式列表必须是模块级变量。
 _formats = config.get("Params", {}).get("arriba", {}).get("formats") or ["png"]
 if isinstance(_formats, str):
     _formats = [_formats]
-# figure base names (no extension) — expanded per format below
 FUSION_FIG_BASES = [
     "fig1_per_sample_counts",
     "fig2_fusion_type_distribution",
@@ -74,7 +71,7 @@ rule arriba:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             script = receipt_script(f"{wildcards.sample_id}_arriba_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = f"{outdir}/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}_arriba.sh"
             cmd = [
                 params.arriba,
@@ -99,7 +96,7 @@ rule arriba:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "Arriba fusion detection for sample {wildcards.sample_id} on genome {wildcards.genome} successfully completed!"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -131,7 +128,6 @@ rule arriba_report:
         recurrent_fusions = outdir + "/{genome}/arriba_report/recurrent_fusions.tsv",
         high_medium_fusions = outdir + "/{genome}/arriba_report/high_medium_confidence_fusions.tsv",
         inframe_fusions = outdir + "/{genome}/arriba_report/inframe_fusions.tsv",
-        # ② 按格式展开:每种格式一个输出文件(base 不带扩展名)
         fusion_figs = expand(outdir + "/{genome}/arriba_report/figures/{base}.{fmt}",
                              base=FUSION_FIG_BASES, fmt=_formats, genome="{genome}"),
     log:
@@ -143,7 +139,7 @@ rule arriba_report:
             attempt=attempt).get("mem_mb", 8000),
     params:
         summary_script = os.path.join(ROOT_DIR, "modules/arriba/bin/summarize_arriba_fusions.py"),
-        formats = _formats,   # ③ 转发
+        formats = _formats,
     conda:
         "../arriba.yaml"
     container:
@@ -156,7 +152,7 @@ rule arriba_report:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             sample_outdir = os.path.dirname(output.report)
             script = receipt_script(f"arriba_report_{wildcards.genome}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = f"{sample_outdir}/arriba_report.sh"
             cmd = [
                 "python", params.summary_script,
@@ -164,14 +160,13 @@ rule arriba_report:
                 "-d", ",".join(input.discarded_fusions),
                 "-o", outdir + f"/{wildcards.genome}/arriba_report"
             ]
-            # script's -f/--format is nargs="+" — single occurrence, all values
             cmd += ["--format"] + [str(fmt) for fmt in params.formats]
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "Arriba report generation for genome {wildcards.genome} successfully completed!"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

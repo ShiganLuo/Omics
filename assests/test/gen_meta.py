@@ -49,8 +49,6 @@ except Exception:
 
 FASTQ_COLS = ["sample_id", "data_id", "design", "fastq_1", "fastq_2"]
 
-# kind maps to MetaUtil.prepare_fastq_meta / prepare_pacbio_meta / prepare_ms_meta;
-# columns match assests/test/meta_*.tsv
 WORKFLOWS = {
     "CoCulture":       {"kind": "fastq", "columns": FASTQ_COLS},
     "DR":              {"kind": "fastq", "columns": ["sample_id", "organism", "group", "data_id",
@@ -73,19 +71,11 @@ WORKFLOWS = {
     "QuantMS":         {"kind": "ms", "columns": ["sample_id", "data_id", "design", "ms_file"]},
 }
 
-# Long-read assembly workflows resolve repeats/centromeres/structure far
-# better against a T2T assembly, so their organism column defaults to the
-# mouse T2T genome when --organism is empty (override with --organism, e.g.
-# Mmul_T2T for macaque or GRCm39 for the standard mouse assembly).
 WORKFLOW_DEFAULT_ORGANISM = {
     "PacVar": "T2T_mhaESC_v1.5",
     "Fiberseq": "T2T_mhaESC_v1.5",
 }
 
-# The read tag must sit at the END of the stem (only a lane suffix or ".raw"
-# may follow), so a replicate digit inside the sample name (S2_2, sh1_1) is
-# never mistaken for the read tag. Accepts _R1/_R2, _1/_2, .R1/.R2,
-# _R1_001 (Illumina lane tail) and provider "*.R1.raw.fastq.gz" deliveries.
 FQ_PE_RE = re.compile(
     r"^(?P<base>.+?)[._-](?:R(?P<read_r>[12])|(?P<read_d>[12]))"
     r"(?:(?:[_-](?:00)?\d+)|(?:\.raw)*)*"
@@ -212,12 +202,10 @@ def main():
     file_cols = {"fastq": ["fastq_1", "fastq_2"], "bam_pbi": ["bam", "pbi"], "ms": ["ms_file"]}[kind]
     columns = spec["columns"]
     if not set(file_cols) <= set(columns):
-        # kind overridden: rebuild columns around the file columns of that kind
         base = ["sample_id", "data_id", "design"]
         extras = [c for c in columns if c not in base + ["fastq_1", "fastq_2", "bam", "pbi", "ms_file"]]
         columns = base + file_cols + extras
 
-    # search dirs may carry a data_type tag: -d DIR=DNA / -d DIR=RNA
     search_specs = []
     for d in args.search_dir:
         base, eq, tag = d.rpartition("=")
@@ -243,7 +231,6 @@ def main():
 
     units = scan_with(kind)
     if not units and not args.kind:
-        # recognition fallback: workflow's default kind found nothing, probe others
         for alt in ("fastq", "bam_pbi", "ms"):
             if alt == kind:
                 continue
@@ -278,19 +265,12 @@ def main():
 
     default_data_type = norm_data_type(args.data_type, "--data-type")
 
-    # Resolve data_type per unit (map > per-dir tag > --data_type). It scopes
-    # duplicate-name detection: the same name under two data_types is ONE
-    # sample assayed twice (a DRclass pairing), never a duplicate.
     typed = []
     for did, f1, f2, dir_dt in units:
         dt = norm_data_type(data_type_map.get(did) or dir_dt or default_data_type,
                             f"data_type for {did}")
         typed.append((did, f1, f2, dt))
 
-    # Drop identical file pairs re-found via overlapping search dirs, then make
-    # names unique WITHIN one data_type scope: a name appearing k>1 times under
-    # the same data_type gets numbered suffixes in scan order, the first -1
-    # then -2/-3/... (two DNA E14-2 -> E14-2-1, E14-2-2).
     deduped = []
     seen_files = set()
     for did, f1, f2, dt in typed:
@@ -304,7 +284,7 @@ def main():
     total = {}
     for did, _, _, dt in deduped:
         total[(dt, did)] = total.get((dt, did), 0) + 1
-    reserved = set(total)  # real names renames must never steal
+    reserved = set(total)
     emitted = set()
     next_no = {}
     units = []
@@ -329,7 +309,7 @@ def main():
         w = csv.writer(fh, delimiter="\t", lineterminator="\n")
         w.writerow(columns)
         for did, final_did, dt, f1, f2 in units:
-            sid = sample_map.get(did, final_did)  # sample_id defaults to data_id
+            sid = sample_map.get(did, final_did)
             if re.search(r"\s", sid):
                 die(f"sample_id '{sid}' contains whitespace (MetaUtil rejects it)")
             design = design_map.get(did) or design_map.get(sid) or ""
@@ -341,7 +321,7 @@ def main():
             row = {"sample_id": sid, "data_id": final_did, "design": design, "group": group}
             if kind == "fastq":
                 row["fastq_1"] = os.path.abspath(f1)
-                row["fastq_2"] = os.path.abspath(f2) if f2 else ""  # SE: leave empty, never "NA"
+                row["fastq_2"] = os.path.abspath(f2) if f2 else ""
             elif kind == "bam_pbi":
                 row["bam"], row["pbi"] = os.path.abspath(f1), os.path.abspath(f2)
             else:

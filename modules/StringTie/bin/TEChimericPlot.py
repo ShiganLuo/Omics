@@ -16,8 +16,6 @@ logger = logging.getLogger(__name__)
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
@@ -267,9 +265,6 @@ def plot_group_proportions(
 			f"Unsupported image format(s): {', '.join(bad)}; "
 			f"valid: {', '.join(VALID_FORMATS)}")
 
-	# ------------------------------------------------------------------
-	# infer ordered_te
-	# ------------------------------------------------------------------
 	if ordered_te is None:
 
 		all_te = set()
@@ -337,9 +332,6 @@ def plot_group_proportions(
 
 			plot_values[group][te] = value
 
-	# ------------------------------------------------------------------
-	# figure
-	# ------------------------------------------------------------------
 	fig_width = n_groups * (bar_width + group_gap) + 2
 
 	fig_height = component_height * n_legend
@@ -356,16 +348,8 @@ def plot_group_proportions(
 
 		current_x += bar_width + group_gap
 
-	# ------------------------------------------------------------------
-	# boundaries
-	#
-	# boundaries[group][te] = (y0, y1)
-	# ------------------------------------------------------------------
 	boundaries = defaultdict(dict)
 
-	# ------------------------------------------------------------------
-	# draw stacked bars
-	# ------------------------------------------------------------------
 	for group in group_names:
 
 		x = x_positions[group]
@@ -396,9 +380,6 @@ def plot_group_proportions(
 
 			bottom = y1
 
-	# ------------------------------------------------------------------
-	# polygon filling between adjacent groups
-	# ------------------------------------------------------------------
 	if fill_between_groups and n_groups >= 2:
 
 		for te in ordered_te:
@@ -421,7 +402,6 @@ def plot_group_proportions(
 					(0, 0),
 				)
 
-				# skip empty
 				if (
 					(y1_a - y0_a) == 0
 					and
@@ -459,9 +439,6 @@ def plot_group_proportions(
 		ha='right',
 	)
 
-	# ------------------------------------------------------------------
-	# aesthetics
-	# ------------------------------------------------------------------
 	if normalize:
 		ax.set_ylim(0, 1)
 		ax.set_ylabel(y_label + " (proportion)")
@@ -479,9 +456,6 @@ def plot_group_proportions(
 		zorder=0,
 	)
 
-	# ------------------------------------------------------------------
-	# legend
-	# ------------------------------------------------------------------
 	handles, labels = ax.get_legend_handles_labels()
 
 	unique = dict(zip(labels, handles))

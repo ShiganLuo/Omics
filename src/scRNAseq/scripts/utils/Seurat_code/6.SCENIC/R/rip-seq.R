@@ -48,14 +48,10 @@ cat_macs2 <-
     } else if (species == "mouse") {
       genome_size <- "mm"
     }
-    # outdir
     outdir <- hp_set_path(file.path(x@board, "macs2"))
-    # sample name
     sample_name <- x$sample
-    # bam
     input_bam <- x$input_bam
     ip_bam <- x$ip_bam
-    # bed
     input_bed <-
       gsub(
         pattern = ".bam",
@@ -67,13 +63,10 @@ cat_macs2 <-
       replacement = ".bed",
       x = ip_bam
     )
-    # narrow peak
     narrow_peak <-
       file.path(outdir, paste0(sample_name, "_peaks.narrowPeak"))
-    # bed
     bed <-
       file.path(outdir, paste0(sample_name, ".narrow_peak.bed"))
-    # Set a "plan" for how the code should run.
     n <- length(bed[!file.exists(bed)])
     if (n > 0) {
       if (workers == "auto" && n <= 4) {
@@ -84,12 +77,10 @@ cat_macs2 <-
       log_info("Use {workers} workers...")
       plan(multisession, workers = workers)
     }
-    # This does run in parallel!
     future_walk(
       .x = seq_along(sample_name),
       .f = function(i) {
         if (!file.exists(bed[i])) {
-          # bam to bed
           system2(
             command = bedtools,
             args = c(
@@ -116,7 +107,6 @@ cat_macs2 <-
               ip_bed[i]
             )
           )
-          # macs2
           system2(
             command = macs2,
             args = c(
@@ -126,32 +116,18 @@ cat_macs2 <-
               "--control",
               input_bed[i],
               "--format",
-              # {AUTO,BAM,SAM,BED,ELAND,ELANDMULTI,
-              # ELANDEXPORT,BOWTIE,BAMPE,BEDPE}
               format,
               "--gsize",
               genome_size,
               "--nomodel",
               "--slocal",
               slocal,
-              # Effective genome size. It can be 1.0e+9 or 1000000000, or
-              # shortcuts:'hs' for human (2.7e9), 'mm' for mouse (1.87e9),
-              # 'ce' for C. elegans (9e7) and 'dm' for fruitfly (1.2e8)
               "--keep-dup",
               keep_dup,
-              # --keep-dup: 保留重复。默认MACS(auto)会使用二项分布估计每个位置上
-              # 是否存在重复（默认是1，也就是每个位置上出现一个read的概率最大）。
-              # 如果你前期已经去重，那就使用all省了这一步.
               "--outdir",
               outdir,
               "--name",
               sample_name[i],
-              # "--bdg",
-              # "--trackline",
-              # "--SPMR",
-              # "--nomodel",
-              # "--extsize",
-              # extsize,
               if (is.null(pvalue)) {
                 c(
                   "--qvalue",
@@ -164,19 +140,11 @@ cat_macs2 <-
                   pvalue
                 )
               }
-              # "--fe-cutoff",
-              # fe_cutoff
             )
-            # stdout = file.path(outdir, paste0(sample_name[i], ".out")),
-            # stderr = file.path(outdir, paste0(sample_name[i], ".err"))
           )
-          # narrow_peak_bed <-
-          #   read.table(narrow_peak[i])[, c(4, 1, 2, 3, 6)]
           narrow_peak_bed <-
             read.table(narrow_peak[i])[, c(1, 2, 3)]
           narrow_peak_bed$V4 <- "+"
-          # narrow_peak_bed <-
-          #   narrow_peak_bed[grep("chr", narrow_peak_bed[, 1]),]
           write.table(
             x = narrow_peak_bed,
             file = bed[i],
@@ -239,8 +207,6 @@ cat_find_motifs_genome <- function(x,
   outdir <- file.path(x@board, "homer", sample_name)
   homer_results <- file.path(outdir, "homerResults.html")
 
-  # Set a "plan" for how the code should run.
-  # n <- length(sample_name)
   n <- length(homer_results[!file.exists(homer_results)])
   if (n > 0) {
     if (workers == "auto" && n <= 4) {
@@ -251,7 +217,6 @@ cat_find_motifs_genome <- function(x,
     log_info("Use {workers} workers, each assigned {ncores} cores...")
     plan(multisession, workers = workers)
   }
-  # This does run in parallel!
   future_walk(
     .x = seq_along(sample_name),
     .f = function(i) {
@@ -304,8 +269,6 @@ cat_guitar <- function(x, group = "group") {
   group <- x[[group]]
 
   library(Guitar)
-  # importdifferentdataformatsintoanamedlistobject.
-  # Thesegenomicfeaturesareusingmm10genomeassembly
   stBedFiles <-
     list(
       system.file(
@@ -319,12 +282,10 @@ cat_guitar <- function(x, group = "group") {
         package = "Guitar"
       )
     )
-  # BuildGuitarCoordinates
   txdb_file <- system.file("extdata", "mm10_toy.sqlite",
     package = "Guitar"
   )
   txdb <- loadDb(txdb_file)
-  # GuitarPlot
   GuitarPlot(
     txTxdb = txdb,
     stBedFiles = stBedFiles,

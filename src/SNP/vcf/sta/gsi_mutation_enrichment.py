@@ -21,27 +21,21 @@ def gsi_mutation_enrichment(gene_count_file, GSI_gene, outdir='GSI_enrichment'):
     
     os.makedirs(outdir, exist_ok=True)
     
-    # 读取基因突变计数
     gene_count = pd.read_csv(gene_count_file, index_col=0)
     gene_count.columns = ['mut_count']
     
-    # 提取 GSI 和背景基因突变数
     GSI_gene = set(GSI_gene)
     gsi_mut_counts = gene_count.loc[gene_count.index.isin(GSI_gene), 'mut_count']
     bg_mut_counts = gene_count.loc[~gene_count.index.isin(GSI_gene), 'mut_count']
     
-    # 背景平均突变数
     bg_mean = bg_mut_counts.mean()
     
-    # GSI 总突变数及预期
     gsi_total = gsi_mut_counts.sum()
     gsi_num_genes = len(gsi_mut_counts)
     expected_total = bg_mean * gsi_num_genes
     
-    # Poisson 右尾检验
     p_value = 1 - poisson.cdf(gsi_total - 1, expected_total)
     
-    # 可视化
     df_plot = pd.DataFrame({
         'Gene_Set': ['GSI', 'Background'],
         'Mean_Mut_Count': [gsi_mut_counts.mean(), bg_mean]
@@ -55,7 +49,6 @@ def gsi_mutation_enrichment(gene_count_file, GSI_gene, outdir='GSI_enrichment'):
     plt.savefig(os.path.join(outdir, 'GSI_vs_Background.png'))
     plt.close()
     
-    # 输出统计结果
     result_dict = {
         'gsi_total': gsi_total,
         'expected_total': expected_total,
@@ -124,6 +117,3 @@ if __name__ == "__main__":
     genes_gsi = GSI_gene(human_gmt)
     gsi_mutation_enrichment("/disk5/luosg/Totipotent20251031/output/SNP/vcf/intersect/annotate/ci8CLC/ci8CLC_gene_counts.csv",genes_gsi,"./")
 
-    # for infile in human_files:
-    #     genes_gsi = GSI_gene(human_gmt)
-    #     gsi_mutation_enrichment(infile,genes_gsi,"./")

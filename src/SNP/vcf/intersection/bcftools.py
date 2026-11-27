@@ -54,11 +54,9 @@ def bcftools_supplement(meta: str,
             intersect_vcf = os.path.join(study_outdir, f"{cond_name}_intersect.vcf.gz")
             
             if len(vcf_list) == 1:
-                # 单样本，直接复制并索引
                 subprocess.run(["cp", vcf_list[0], intersect_vcf], check=True)
                 subprocess.run(["tabix", "-p", "vcf", intersect_vcf], check=True)
             else:
-                # 直接用 bcftools isec 输出 BGZF，并保留 INFO（第一文件）
                 cmd = ["bcftools", "isec", f"-n=+{len(vcf_list)}", "-w1"] + vcf_list + ["-O", "z", "-o", intersect_vcf]
                 subprocess.run(cmd, check=True)
                 subprocess.run(["tabix", "-p", "vcf", intersect_vcf], check=True)
@@ -69,7 +67,6 @@ def bcftools_supplement(meta: str,
         
         if pluri_vcf and toti_vcf:
             diff_vcf = os.path.join(study_outdir, "toti_only.vcf.gz")
-            # 补集：totipotency 中有,pluripotency 中没有
             full_command = f"bcftools isec -C {toti_vcf} {pluri_vcf} -O v -w1 | bgzip -c > {diff_vcf}"
             subprocess.run(full_command, shell=True, check=True)
             subprocess.run(["tabix", "-p", "vcf", diff_vcf], check=True)

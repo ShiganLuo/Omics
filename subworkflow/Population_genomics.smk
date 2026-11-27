@@ -14,7 +14,6 @@ populations = _sp.get("populations") or {}
 analysis = config.get("Params", {}).get("analysis", {})
 pop_names = sorted(populations)
 
-# Genome reference resolution — nested default + references pattern
 genome = config.get("genome", {}).get("default")
 genome_ref = config.get("genome", {}).get("references", {}).get(genome, {}) if genome else {}
 
@@ -52,8 +51,6 @@ base_config.update({
     "sample_bams": sample_bams,
     "populations": populations,
     "outfiles": outfiles,
-    # gatk_population resolves refs via genome.<field> (flat), while the
-    # workflow config keeps them under genome.references.<genome>
     "genome": genome_ref,
 })
 

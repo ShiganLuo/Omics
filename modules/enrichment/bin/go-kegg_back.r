@@ -9,12 +9,6 @@ suppressPackageStartupMessages({
   library(dplyr)
 })
 
-## =========================
-## Multi-format figure output (modules.md #9)
-## =========================
-## ggsave derives the device from the file extension, so writing every
-## requested format is a plain loop over "{out_base}.{fmt}". pgf/raw/rgba
-## are matplotlib-only and fail fast here (R ggsave device set).
 VALID_FORMATS <- c("png", "pdf", "svg", "ps", "eps", "tif", "tiff",
                    "jpg", "jpeg")
 
@@ -92,7 +86,6 @@ run_go_kegg <- function(
   }
 
 
-  # 判断输入是否已经是ENTREZID
   if (all(grepl("^[0-9]+$", genes_clean))) {
     entrez <- unique(genes_clean)
     message("Input genes look like ENTREZID, skipping bitr mapping.")
@@ -103,7 +96,7 @@ run_go_kegg <- function(
       toType = "ENTREZID",
       OrgDb = OrgDb,
       drop = TRUE
-    ) # from clusterProfiler, need organism-specific OrgDb loaded
+    )
     entrez <- unique(gene_df$ENTREZID)
     if (length(entrez) == 0) return(data.frame())
   }
@@ -116,7 +109,7 @@ run_go_kegg <- function(
       pvalueCutoff = 0.05,
       qvalueCutoff = 0.05,
       readable = TRUE
-    ) # don't rely on internet for analysis, use OrgDb for GO annotation
+    )
   } else {
    res <- enrichKEGG(
       gene = entrez,
@@ -125,7 +118,7 @@ run_go_kegg <- function(
       pvalueCutoff = 0.05,
       qvalueCutoff = 0.05,
       use_internal_data = FALSE
-    ) # need internet for KEGG analysis, but can specify organism to avoid mapping issues
+    )
     if (!is.null(res)) {
       message("enrichKEGG result row count: ", nrow(as.data.frame(res@result)))
     }
@@ -216,7 +209,6 @@ run_pipeline <- function(
   formats = "png"
 ) {
   dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
-  # fail fast on bad formats before any enrichment work starts
   validate_formats(formats)
 
   message("Defining Up / Down genes ...")
@@ -300,7 +292,6 @@ parse_args <- function() {
       i <- i + 1
       res$top <- as.integer(args[[i]])
     } else if (key == "--format") {
-      # repeatable: one output image per --format flag
       i <- i + 1
       res$formats <- c(res$formats, args[[i]])
     }
@@ -314,7 +305,6 @@ main <- function() {
   if (is.null(args$infile) || is.null(args$outdir)) {
     stop("usage: go-kegg_back.r -i <infile> -o <outdir> [--species <human|mouse>] [--gene_col <col>] [--value_col <col>] [--p_col <col>] [--up_cutoff <num>] [--p_cutoff <num>] [--top <num>] [--format <png|pdf|svg|ps|eps|tif|tiff|jpg|jpeg>] (repeatable, default: png)")
   }
-  # default keeps the historical png output; fail fast on unsupported formats
   formats <- if (is.null(args$formats)) "png" else args$formats
   validate_formats(formats)
   run_pipeline(

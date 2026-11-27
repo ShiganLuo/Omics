@@ -5,8 +5,6 @@ logdir = config.get("logdir", "log")
 ROOT_DIR = config.get("ROOT_DIR", "./")
 genome_paired_samples = config.get("genome_paired_samples", {})
 genome_single_samples = config.get("genome_single_samples", {})
-# temp 规范(modules.md):本模块的中间文件用 maybe_temp(path, "<key>") 包裹,
-# 是否标 temp 由 Params.<key>.keep_intermediates 决定(缺省 True=兜底保留)。
 
 def get_bams_for_featureCounts_single(wildcards):
     logger.debug(f"[get_bams_for_featureCounts_single] called with wildcards: {wildcards}")
@@ -49,7 +47,7 @@ rule featureCounts_single_noMultiple:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start featureCounts_single_noMultiple at {current_time}")
             script = receipt_script(f"featureCounts_single_noMultiple_{wildcards.genome}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(os.path.dirname(output.outfile), f"featureCounts_single_noMultiple.sh")
             os.makedirs(os.path.dirname(output.outfile), exist_ok=True)
             bams_str = " ".join(input.bams)
@@ -67,7 +65,7 @@ rule featureCounts_single_noMultiple:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'featureCounts_single_noMultiple for {wildcards.genome} completed at {current_time}'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -118,7 +116,7 @@ rule featureCounts_paired_noMultiple:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start featureCounts_paired_noMultiple at {current_time}")
             script = receipt_script(f"featureCounts_paired_noMultiple_{wildcards.genome}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(os.path.dirname(output.outfile), f"featureCounts_paired_noMultiple.sh")
             os.makedirs(os.path.dirname(output.outfile), exist_ok=True)
             bams_str = " ".join(input.bams)
@@ -139,12 +137,11 @@ rule featureCounts_paired_noMultiple:
                 cmd.append("-O")
             cmd.append(bams_str)
             with open(script, "w") as f:
-                # for multiple -M -O
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'featureCounts_paired_noMultiple for {wildcards.genome} completed at {current_time}'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -194,7 +191,6 @@ rule featureCounts_merge:
             has_paired = hasattr(input, 'paired') and input.paired
             has_single = hasattr(input, 'single') and input.single
             if has_paired and has_single:
-                # Both PE + SE: merge by Geneid
                 df_pe = pd.read_csv(input.paired, sep="\t", comment='#')
                 df_pe.columns = [re.sub(r'.*\/([^\/]+)\.[^.]+$', r'\1', c) if '/' in c else c for c in df_pe.columns]
                 df_se = pd.read_csv(input.single, sep="\t", comment='#')
@@ -204,11 +200,9 @@ rule featureCounts_merge:
                 df_merged.to_csv(output.merged, sep="\t", index=False)
                 rule_logger.info(f"PE+SE merged: {df_merged.shape[0]} genes × {df_merged.shape[1] - 6} samples")
             elif has_paired:
-                # PE only: copy
                 shutil.copy2(input.paired, output.merged)
                 rule_logger.info(f"PE-only: copied {input.paired} → {output.merged}")
             elif has_single:
-                # SE only: copy
                 shutil.copy2(input.single, output.merged)
                 rule_logger.info(f"SE-only: copied {input.single} → {output.merged}")
         except Exception as e:

@@ -104,7 +104,6 @@ def fig2_pairs(s2, outdir):
             r = o / e
             tag, tc = '', 'k'
             if e < 1:
-                # small-count pair: ratio unstable, method doc says reference only
                 tag, tc = f'{r:.2f} (exp<1, ref only)', GRAY
             elif r > 1.5:
                 tag, tc = f'{r:.2f} ENRICHED', C_AGED
@@ -181,7 +180,6 @@ def fig4_panorama(ev, s3, outdir, fai=None):
     import matplotlib.patches as mpatches
 
     def lab(c):
-        # NC_133406.1..NC_133425.1 -> chr1..chr20; NC_133426.1 -> chrX
         try:
             n = int(c.split('_')[1].split('.')[0][3:])
         except (ValueError, IndexError):
@@ -190,7 +188,6 @@ def fig4_panorama(ev, s3, outdir, fai=None):
             return f'chr{n - 405}'
         return 'chrX' if n == 426 else 'chrY'
 
-    # real chromosome lengths when a .fai is available
     length = {}
     if fai and os.path.exists(fai):
         for line in open(fai):
@@ -211,7 +208,6 @@ def fig4_panorama(ev, s3, outdir, fai=None):
     ax.set_aspect('equal')
     ax.axis('off')
 
-    # sector layout: small constant gap between chromosomes
     gap = 0.012
     scale = (2 * np.pi - gap * n_chr) / total
     theta_start, edges = 0, {}
@@ -224,9 +220,6 @@ def fig4_panorama(ev, s3, outdir, fai=None):
         t = edges[c][0] + (edges[c][1] - edges[c][0]) * pos / length[c]
         return r * np.cos(t), r * np.sin(t)
 
-    # ---- links: cubic Bezier, control points pulled toward the center.
-    # depth scales with angular distance -> near pairs shallow, far pairs
-    # deep (circlize behaviour)
     R = 1.0
     s3n = s3.copy()
     s3n['key'] = s3n['key'].astype(str)
@@ -237,7 +230,7 @@ def fig4_panorama(ev, s3, outdir, fai=None):
         t2 = (edges[r.chrom2][0] + (edges[r.chrom2][1] - edges[r.chrom2][0])
               * r.pos2 / length[r.chrom2])
         dt = abs((t1 - t2 + np.pi) % (2 * np.pi) - np.pi)
-        depth = R * (1 - 0.55 * min(dt / np.pi, 1.0))  # 0.45R .. 0.97R
+        depth = R * (1 - 0.55 * min(dt / np.pi, 1.0))
         x1, y1 = to_xy(r.chrom1, r.pos1, R)
         x2, y2 = to_xy(r.chrom2, r.pos2, R)
         cm_ = (t1 + t2) / 2 if dt < np.pi else (t1 + t2) / 2 + np.pi
@@ -252,7 +245,6 @@ def fig4_panorama(ev, s3, outdir, fai=None):
             col, lw, al, z = '#D62728', 1.4, .95, 3
         else:
             col, lw, al, z = '#7F7F7F', .6, .35, 2
-        # cubic bezier through control points on the radial lines
         c1 = (x1 * .55 + cx * .45, y1 * .55 + cy * .45)
         c2 = (x2 * .55 + cx * .45, y2 * .55 + cy * .45)
         path = mpath.Path([(x1, y1), c1, c2, (x2, y2)],
@@ -261,11 +253,7 @@ def fig4_panorama(ev, s3, outdir, fai=None):
         ax.add_patch(mpatches.PathPatch(
             path, fill=False, edgecolor=col, lw=lw, alpha=al, zorder=z))
 
-    # ---- ideogram arcs + labels
-    # labels sit on an evenly spaced outer ring with thin leader lines to
-    # their arc midpoint -- short adjacent arcs no longer collide
     lab_angles = np.linspace(0, 2 * np.pi, n_chr, endpoint=False) + np.pi / n_chr
-    # match each label to the nearest free slot greedily (preserves order)
     arc_mid = {c: sum(edges[c]) / 2 for c in chrs}
     order_by_angle = sorted(chrs, key=lambda c: arc_mid[c])
     slot_of = {c: lab_angles[i] for i, c in enumerate(order_by_angle)}
@@ -279,8 +267,6 @@ def fig4_panorama(ev, s3, outdir, fai=None):
                 alpha=.9, zorder=5, solid_capstyle='butt')
         n_bp = int(((ev.chrom1 == c).sum() + (ev.chrom2 == c).sum()))
         tm = arc_mid[c]
-        # leader line from arc edge to the evenly spaced label slot;
-        # leader + label colored to match their chromosome arc
         la = slot_of[c]
         ax.plot([1.02 * np.cos(tm), 1.2 * np.cos(la)],
                 [1.02 * np.sin(tm), 1.2 * np.sin(la)],

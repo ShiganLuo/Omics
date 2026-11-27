@@ -4,8 +4,6 @@ outdir = config.get("outdir", "output")
 indir = config.get("indir", "output/raw_fastq")
 logdir = config.get("logdir", "log")
 
-# 参数精确到 rule:Params.trimmomatic.<rule_name>.<key>(config 全量路径直读;
-# 无 module 级共享回退,trimmomatic_Paired / trimmomatic_Single 各自独立键)。
 
 # neet for test
 rule trimmomatic_Paired:
@@ -45,7 +43,7 @@ rule trimmomatic_Paired:
             sample_outdir = os.path.join(params.outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"trimmomatic_Paired_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"trimmomatic_Paired.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -60,7 +58,7 @@ rule trimmomatic_Paired:
                 f.write(f"    MINLEN:80 \\\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -104,7 +102,7 @@ rule trimmomatic_Single:
             sample_outdir = os.path.join(params.outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"trimmomatic_Single_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"trimmomatic_Single.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -117,7 +115,7 @@ rule trimmomatic_Single:
                 f.write(f"    MINLEN:80 \\\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

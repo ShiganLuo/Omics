@@ -1,21 +1,13 @@
 ######### 导入包 ----
 library(Seurat)
 
-#### 配置 ----
 set.seed(717)
 seurat.obj<-readRDS("~/脑课题/result/Seurat/ALL_harmony_无MDD.rds")#读取rds文件
 table(seurat.obj$group)#查看各个疾病细胞数
-# ASD    BD   CON  PTSD    SZ 
-# 16326  5524 10536  3523  5983 
 
-#####DEG分析
-# 将细胞类型及刺激状态作为分组
 Idents(seurat.obj) <- "group"
 table(Idents(seurat.obj))
-# CON   ASD    BD  PTSD    SZ 
-# 10536 16326  5524  3523  5983
 
-#使用FindMarkers函数寻找差异表达基因
 DefaultAssay(seurat.obj) <- "RNA"
 markers <- FindMarkers(seurat.obj,
                        ident.1 = "ASD",
@@ -24,13 +16,9 @@ markers <- FindMarkers(seurat.obj,
 markers$disease <- "ASD"
 markers$gene <- rownames(markers)
 
-#### 保存结果 ----
-# 差异基因
 write.table(markers, file = "~/脑课题/result/DEG/harmony/ASD_deg1.txt", quote = F, sep = ",", row.names = F)
 
 
-############火山图（DEG结果可视化）
-#### 导入包 ----
 library(ggplot2)
 library(ggpubr)
 library(ggrepel)
@@ -39,8 +27,6 @@ library(dplyr)
 
 markers<-read.table("~/脑课题/result/DEG/harmony/SZ_deg.txt", header = T,sep=",")
 
-#### 定义差异基因 ----
-# 设置阈值
 logFC.cutoff <- 0.25
 pvalue.cutoff <- 0.05
 
@@ -59,7 +45,6 @@ Volcano_data$logP <- -log10(Volcano_data$p_val)
 
 
 
-# ------绘制火山图-------
 Volcano_paired <- rasterise(
   ggscatter(
     Volcano_data,
@@ -77,7 +62,6 @@ Volcano_paired <- rasterise(
 )
 Volcano_paired
 
-#---------------------------------------------------
 Volcano_paired <-
   rasterise(
     ggscatter(
@@ -109,7 +93,6 @@ Volcano_paired <-
                                 max(abs(Volcano_data$avg_log2FC))))
 
 
-#-------- 输入关注的基因-----------
 genes <- c("ADIRF","IFI27","COL1A2")
 
 Volcano_data$label <- ""
@@ -170,8 +153,6 @@ Volcano_paired <-
 
 Volcano_paired
 
-#### 保存结果 ----
-# 保存图片
 ggsave(
   "~/脑课题/result/DEG/SZ_volcano.pdf",
   plot = Volcano_paired,
@@ -180,7 +161,6 @@ ggsave(
   dpi = 600
 )
 
-# 保存上调基因
 write.table(
   Volcano_data[Volcano_data$change=="UP",],
   file = "~/脑课题/result/DEG/SZ_up_deg.csv",
@@ -189,7 +169,6 @@ write.table(
   row.names = F
 )
 
-# 保存下调基因
 write.table(
   Volcano_data[Volcano_data$change=="DOWN",],
   file = "~/脑课题/result/DEG/SZ_down_deg.csv",
@@ -204,8 +183,6 @@ write.table(
 
 
 
-#### GSEA分析 ----
-# gsea分析输入文件准备 ----
 gsea.input <- FindMarkers(
   seurat.obj,
   ident.1 = "SZ",
@@ -216,7 +193,6 @@ gsea.input <- FindMarkers(
 gsea.input$celltype <- "SZ"
 gsea.input$gene <- rownames(gsea.input)
 
-# GSEA输入文件保存
 write.table(
   gsea.input,
   file = "~/精神疾病/data/388/Seurat/data/GSEA/SZ_gsea.txt",
@@ -224,16 +200,8 @@ write.table(
   sep = ",",
   row.names = F
 )
-#saveRDS(seurat.obj,"/home/zhaor/exercise/data/merge.rds")
 
 
-# 设置基因集
-# H, C2, C5, C6, C7
-# H: 标志基因集是通过聚集许多MSigDB基因集来表达明确的生物状态或过程的一致表达的标签。
-# C2: 来自在线路径数据库、PubMed出版物和领域专家知识的策展基因集。
-# C5: 本体基因集由用相同本体术语注释的基因组成。
-# C6: 直接从来自癌症基因扰动的微阵列基因表达数据定义的致癌特征基因集。
-# C7: 免疫特征基因集代表免疫系统内的细胞状态和扰动。
 category <- "C5"
 genesets <- msigdbr(species = "Homo sapiens",
                     category = category)
@@ -251,17 +219,13 @@ write.table(genelist, quote = F, sep = "\t", col.names = F,
 
 res <- GSEA(genelist, TERM2GENE = genesets, eps = 0)
 
-#### 保存结果 ----
-# 分析结果
 saveRDS(res, "~/精神疾病/data/388/Seurat/data/GSEA/gsea_SZ.rds")
 
-# 导出表格
 write.csv(res, "~/精神疾病/data/388/Seurat/data/GSEA/gsea_SZ-table.csv",
         row.names = F)
 
 res<-readRDS("~/精神疾病/data/388/Seurat/data/GSEA/gsea_PTSD.rds")
 
-# 导出图形
 library(enrichplot)
 p <- gseaplot2(res, 13,
                color = "firebrick",
@@ -281,26 +245,17 @@ ggsave(filename = "~/精神疾病/data/388/Seurat/picture/GSEA/PTSD4.pdf",
 
 
 
-#### GO分析------
 library(clusterProfiler)
 library(org.Hs.eg.db)
 outdir<-("~/精神疾病/data/388/Seurat/data/GO")
 
 
-#### 2.1 LM vs N -----
 case <- 'MDD_VS_CON'
 markers<-read.table("~/精神疾病/data/388/Seurat/data/DEG/1/MDD_deg.txt",
                     header = T,sep=",")
 
 deg_up <- filter(markers,
                  markers$p_val < 0.05 & markers$avg_log2FC > 0.25)
-# markers[markers$change %in% 'UP', ]$gene
-# head(deg)
-# #重新排序
-# top.genes <-deg
-# deg[order(deg$avg_log2FC, decreasing = T),]$gene
-# class(deg)
-# deg<-as.data.frame(deg)
 bp <-
   enrichGO(
     deg_up$gene,
@@ -312,14 +267,12 @@ bp <-
     qvalueCutoff = 0.2)
 
 term <- bp@result
-#保存结果
 write.table(term,
             file = file.path(outdir, paste0(case,'_UP_GOBP.csv')),
             quote = F,
             sep = ",",
             row.names = F
 )
-#绘制TOP20
 df1 <- term[1:20,]####提取上调通路结果文件中的前二十条
 df1$labelx=rep(0,nrow(df1))
 df1$labely=seq(nrow(df1),1)
@@ -348,7 +301,6 @@ p <- ggplot(data = df1,
   ggtitle(case)+
   scale_x_continuous(expand = c(0,0))
 p
-#保存
 ggsave(file.path(outdir, paste0(case, '_UP_Barplot.pdf')),#这里也可以重新设置一个outdir2存到不同文件夹中
        p,
        height=7,
@@ -357,7 +309,6 @@ ggsave(file.path(outdir, paste0(case, '_UP_Barplot.pdf')),#这里也可以重新
 
 
 
-#### Down 
 deg_down <- filter(markers,
                    markers$p_val < 0.05 & markers$avg_log2FC < -0.25)
 
@@ -372,14 +323,12 @@ bp <-
     qvalueCutoff = 0.2)
 
 term <- bp@result
-#保存结果
 write.table(term,
             file = file.path(outdir, paste0(case,'_DOWN_GOBP.csv')),
             quote = F,
             sep = ",",
             row.names = F
 )
-#绘制TOP20
 df2 <- term[1:20,]
 df2$labelx=rep(0,nrow(df2))
 df2$labely=seq(nrow(df2),1)
@@ -408,7 +357,6 @@ p <- ggplot(data = df2,
   ggtitle(case)+
   scale_x_continuous(expand = c(0,0))
 p
-#保存
 ggsave(file.path(outdir, paste0(case, '_DOWN_Barplot.pdf')),
        p,
        height=7,

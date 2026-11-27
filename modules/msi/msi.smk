@@ -13,10 +13,6 @@ fai = config.get("genome", {}).get("fai")
 msisensorpro = config.get("Procedure", {}).get("msisensorpro") or "msisensorpro"
 BAR_PLOT = os.path.join(ROOT_DIR, "modules", "msi", "bin", "bar_plot.r")
 
-# ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
-# bar_plot.r output formats (Params.msi.msi_plot.formats); valid set is the R
-# base-graphics device set (png pdf svg ps eps tif tiff jpg jpeg). Default
-# ["jpg"] keeps the historical single msi_barplot.jpg output.
 _formats_msi_plot = config.get("Params", {}).get("msi", {}).get("msi_plot", {}).get("formats") or ["jpg"]
 if isinstance(_formats_msi_plot, str):
     _formats_msi_plot = [_formats_msi_plot]
@@ -61,7 +57,7 @@ rule msi_scan:
             scan_dir = os.path.dirname(str(output.scan))
             os.makedirs(scan_dir, exist_ok=True)
             script = receipt_script(f"msi_scan_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(scan_dir, "msi_scan.sh")
             cmd = [
                 params.msisensorpro, "scan",
@@ -74,7 +70,7 @@ rule msi_scan:
                 f.write(f'echo "msi scan was completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -117,7 +113,7 @@ rule msi_call:
             sample_outdir = os.path.dirname(str(output.msi))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"msi_call_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"msi_call_{wildcards.sample_id}.sh")
             cmd = [
                 params.msisensorpro, "msi",
@@ -132,7 +128,7 @@ rule msi_call:
                 f.write(f'echo "msi call for {wildcards.sample_id} was completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -148,7 +144,6 @@ rule msi_plot:
                      sample_id=samples),
     output:
         bar_input = outdir + "/msi_input.txt",
-        # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
         barplot = [outdir + "/msi_barplot." + fmt for fmt in _formats_msi_plot],
     log:
         logdir_combine + "/msi/msi_plot.log"
@@ -161,7 +156,7 @@ rule msi_plot:
     params:
         rscript = config.get("Procedure", {}).get("Rscript") or "Rscript",
         bar_plot = BAR_PLOT,
-        formats = _formats_msi_plot,   # ③ 转发
+        formats = _formats_msi_plot,
     conda:
         "msi.yaml"
     container:
@@ -183,7 +178,7 @@ rule msi_plot:
                                 continue
                             f.write(f"{sample}\t{line.split()[2]}\n")
             script = receipt_script(f"msi_plot_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(outdir, "msi_plot.sh")
             cmd = [
                 params.rscript, params.bar_plot,
@@ -198,7 +193,7 @@ rule msi_plot:
                 f.write(f'echo "msi plot was completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

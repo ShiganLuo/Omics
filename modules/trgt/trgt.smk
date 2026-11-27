@@ -10,14 +10,6 @@ karyotype = config.get("Params", {}).get("trgt", {}).get("karyotype") or "XX"
 repeat_bed = config.get("genome", {}).get("repeat_bed")
 bam_substring = config.get("bam_substring") or ""
 
-# --- Image formats (trgt plot --image) ---
-# The valid set is the TOOL's set: probed from trgt 5.1.0 in the trgt SIF —
-# "error: invalid value 'x.bmp' for '--image <IMAGE>': Image must have an
-# extension of .svg, .png, or .pdf"(合法值由 schema 声明,modules.md #9)。
-# ① parse 期读入 + 规范化（str 收成单元素 list）
-# 参数精确到 rule:formats 挂 trgt_plot 名下(Params.trgt.trgt_plot.formats,
-# 单 plot rule 消费;无 module 级共享回退),config 全量路径读取。
-# 每 rule 一个 parse 期变量;trgt_result 聚合 trgt_plot 输出,展开同一 rule 键。
 _formats_trgt_plot = config.get("Params", {}).get("trgt", {}).get("trgt_plot", {}).get("formats") or ["png"]
 if isinstance(_formats_trgt_plot, str):
     _formats_trgt_plot = [_formats_trgt_plot]
@@ -64,7 +56,7 @@ rule trgt_genotype:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start trgt genotype for sample {wildcards.sample_id} at {current_time}")
         script = receipt_script(f"trgt_genotype_{wildcards.sample_id}_{current_time}.sh")
-        os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+        os.makedirs(os.path.dirname(script), exist_ok=True)
         plain_script = os.path.join(outdir, f"{wildcards.sample_id}/trgt_genotype.sh")
         cmd = [params.trgt, "genotype",
             "--num-threads", str(threads),
@@ -79,7 +71,7 @@ rule trgt_genotype:
             f.write(" ".join(cmd) + "\n")
             f.write(f'echo "script completed successfully"\n')
         shutil.copyfile(script, plain_script)
-        if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+        if SCRIPT_ONLY:
             script_only_touch(output)
         else:
             shell(f"bash {plain_script} >> {log} 2>&1")
@@ -103,7 +95,6 @@ rule trgt_plot:
     input:
         unpack(get_input_for_trgt_plot)
     output:
-        # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
         plots = [outdir + "/plot/{sample_id}/{sample_id}.trgt.repeat." + fmt for fmt in _formats_trgt_plot],
     log:
         logdir + "/{sample_id}/trgt_plot.log"
@@ -115,7 +106,7 @@ rule trgt_plot:
     params:
         trgt = config.get("Procedure", {}).get("trgt") or "trgt",
         repeat_id = config.get("Params", {}).get("trgt", {}).get("repeat_id") or "HTT",
-        formats = _formats_trgt_plot,   # ③ 转发
+        formats = _formats_trgt_plot,
         out_base = outdir + "/plot/{sample_id}/{sample_id}.trgt.repeat",
     conda:
         "trgt.yaml"
@@ -125,7 +116,7 @@ rule trgt_plot:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start trgt plot for sample {wildcards.sample_id} at {current_time}")
         script = receipt_script(f"trgt_plot_{wildcards.sample_id}_{current_time}.sh")
-        os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+        os.makedirs(os.path.dirname(script), exist_ok=True)
         plain_script = os.path.join(outdir, f"{wildcards.sample_id}/trgt_plot.sh")
         cmd = [
             params.trgt, "plot",
@@ -141,13 +132,11 @@ rule trgt_plot:
                 f.write(" ".join(cmd + ["--image", params.out_base + "." + str(fmt)]) + "\n")
             f.write(f'echo "script completed successfully"\n')
         shutil.copyfile(script, plain_script)
-        if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+        if SCRIPT_ONLY:
             script_only_touch(output)
         else:
             shell(f"bash {plain_script} >> {log} 2>&1")
 rule trgt_result:
     input:
         vcf = outdir + "/genotype/{sample_id}/{sample_id}.trgt.vcf.gz",
-        # {sample_id} stays a rule wildcard (paired with vcf above); only the
-        # extension expands over formats — comprehension, not expand()
         plots = [outdir + "/plot/{sample_id}/{sample_id}.trgt.repeat." + fmt for fmt in _formats_trgt_result],

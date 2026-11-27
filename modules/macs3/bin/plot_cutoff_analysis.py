@@ -11,8 +11,6 @@ import matplotlib.pyplot as plt
 
 PlotFormat = str
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
@@ -21,7 +19,7 @@ def load_cutoff_table(path: str) -> dict[str, list[float]]:
     """Parse cutoff_analysis.txt into column dict."""
     pscores, qscores, npeaks = [], [], []
     with open(path) as f:
-        header = f.readline()  # skip header
+        header = f.readline()
         for line in f:
             parts = line.strip().split("\t")
             if len(parts) < 3:

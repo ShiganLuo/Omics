@@ -11,13 +11,12 @@ def plot_heatmap_with_group_colors(
         outplot:str,
         row_rename_map: dict,
         column_rename_map: dict,
-        show_group_labels:bool = True,   # 是否显示分组文字
+        show_group_labels:bool = True,
         title:str = "Heatmap of Positions",
         xlabel:str = "Positions",
         colorbar_width:float = 0.02,
         x_annotation_height:float = 0.2
 ):
-    ### data preprocessing
     heatmap_data.rename(index=row_rename_map, inplace=True)
     heatmap_data.rename(columns=column_rename_map, inplace=True)
     heatmap_data = heatmap_data.sort_index()
@@ -39,8 +38,6 @@ def plot_heatmap_with_group_colors(
     n_rows = heatmap_data.shape[0]
     fig = plt.figure(figsize=(7, 11))
     gs = gridspec.GridSpec(2, 2, width_ratios=[colorbar_width, 1],height_ratios = [1,x_annotation_height],wspace=0,hspace=0.3)
-    # ---------------------
-    # 颜色条
     ax_bar = fig.add_subplot(gs[0, 0])
     group_positions = {}
     for idx, group in enumerate(heatmap_data.index):
@@ -50,12 +47,11 @@ def plot_heatmap_with_group_colors(
         if group not in group_positions:
             group_positions[group] = []
         group_positions[group].append(idx)
-    # 添加分组标签
     if show_group_labels:
         for group, positions in group_positions.items():
             mid_idx = positions[len(positions)//2]
             ax_bar.text(
-                0, mid_idx + 0.5, group,  # 文字在颜色条左边
+                0, mid_idx + 0.5, group,
                 ha='right', va='center',
                 fontsize=8
             )
@@ -63,10 +59,7 @@ def plot_heatmap_with_group_colors(
     ax_bar.set_ylim(0, n_rows)
     ax_bar.invert_yaxis()
     ax_bar.axis('off')
-    # ---------------------
 
-    # ---------------------
-    # 热图
     ax_heat = fig.add_subplot(gs[0, 1])
     sns.heatmap(
         heatmap_data,
@@ -76,25 +69,22 @@ def plot_heatmap_with_group_colors(
     )
     for label in ax_heat.get_xticklabels():
         label.set_rotation(60)
-        label.set_fontsize(8)   # ★ 设置大小
+        label.set_fontsize(8)
         label.set_ha('center')
-    ax_heat.set_yticks([])  # 去掉 y 轴
+    ax_heat.set_yticks([])
     ax_heat.set_ylabel('')
     ax_heat.set_xlabel(xlabel)
     ax_heat.set_title(title)
     cbar = ax_heat.collections[0].colorbar
     cbar.ax.text(
-        0.5, 1.02,  # x=0.5 colorbar 中心, y=1.05 颜色条上方
+        0.5, 1.02,
         'ES',
         ha='center', va='bottom',
         rotation=0, fontsize=8,
         transform=cbar.ax.transAxes
     )
-    # ---------------------
 
-    # ---------------------
-    # 在热图下方添加 x 轴分组图例
-    ax_legend = fig.add_subplot(gs[1, :]) # 下方图例，与热图同列
+    ax_legend = fig.add_subplot(gs[1, :])
     ax_legend.axis('off')
     short_names = list(heatmap_data.columns)
     pathway_rename_map = {v:k for k,v in column_rename_map.items()}
@@ -104,7 +94,7 @@ def plot_heatmap_with_group_colors(
         if abbr in pathway_rename_map
     ]
 
-    max_chars_per_row = 60  # 每行最大字符数
+    max_chars_per_row = 60
     rows = []
     current_row = []
     current_len = 0
@@ -112,34 +102,30 @@ def plot_heatmap_with_group_colors(
     for text in legend_texts:
         text_len = len(text)
         if current_len + text_len > max_chars_per_row and current_row:
-            # 当前行满了，换行
             rows.append(current_row)
             current_row = [text]
             current_len = text_len
         else:
             current_row.append(text)
-            current_len += text_len + 2  # 预留间隔
+            current_len += text_len + 2
     if current_row:
         rows.append(current_row)
     n_rows = len(rows)
-    # 绘制文字，左对齐
     for row_idx, row in enumerate(rows):
-        x_pos = 0  # 每行从左边开始
+        x_pos = 0
         y_pos = n_rows - row_idx
         for text in row:
             ax_legend.text(
                 x_pos, y_pos,
                 text,
-                ha='left', va='center',  # 左对齐
+                ha='left', va='center',
                 rotation=0,
                 fontsize=8
             )
-            x_pos += len(text) + 2  # 累加下一个文字起始位置
+            x_pos += len(text) + 2
 
-    # 设置坐标范围，让文字显示完整
     ax_legend.set_xlim(0, max_chars_per_row)
     ax_legend.set_ylim(0, len(rows))
-    # ---------------------
     plt.savefig(outplot, dpi=300)
     plt.close()
 
@@ -168,9 +154,6 @@ def plot_heatmap_with_group_colors_auto_orient(
     if force_horizontal and force_vertical:
         raise ValueError("force_horizontal and force_vertical cannot both be True")
 
-    # =========================
-    # 数据准备（语义锚点）
-    # =========================
     data = heatmap_data.copy()
     data.rename(index=row_rename_map, inplace=True)
     data.rename(columns=column_rename_map, inplace=True)
@@ -180,7 +163,6 @@ def plot_heatmap_with_group_colors_auto_orient(
     original_rows = list(data.index)
     n_rows, n_cols = data.shape
 
-    # 行分组（始终基于原始行）
     group_blocks = {}
     for i, g in enumerate(original_rows):
         group_blocks.setdefault(g, []).append(i)
@@ -194,9 +176,6 @@ def plot_heatmap_with_group_colors_auto_orient(
         for i, g in enumerate(group_blocks)
     }
 
-    # =========================
-    # 布局方向
-    # =========================
     if force_horizontal:
         rotate = False
     elif force_vertical:
@@ -206,9 +185,6 @@ def plot_heatmap_with_group_colors_auto_orient(
 
     plot_data = data.T if rotate else data
 
-    # =========================
-    # Figure / GridSpec
-    # =========================
 
     if not rotate:
         cell = 0.35
@@ -245,9 +221,6 @@ def plot_heatmap_with_group_colors_auto_orient(
         ax_heat  = fig.add_subplot(gs[1, 0])
         ax_cbar  = fig.add_subplot(gs[1, 1])
 
-    # =========================
-    # Heatmap
-    # =========================
     sns.heatmap(
         plot_data,
         ax=ax_heat,
@@ -260,28 +233,21 @@ def plot_heatmap_with_group_colors_auto_orient(
     ax_heat.set_ylabel(None)
 
     if not rotate:
-        # x轴刻度保留
         ax_heat.set_xlabel(xlabel)
         ax_heat.set_yticks([])
 
     else:
-        # y轴刻度保留
         ax_heat.set_xlabel("")
         ax_heat.set_xticks([])
         ax_heat.tick_params(axis="y", labelsize=12,labelrotation=0)
 
-    # =========================
-    # 分组颜色条或注释（刻度注释层）
-    # =========================
     if not rotate:
-        # 长轴颜色条
         draw_group_color_bar(
             ax=ax_group_long,
             group_blocks=group_blocks,
             group_colors=group_colors,
             n_units=n_rows,
             orientation="y")
-        # 短轴注释
         draw_xaxis_text_legend(
             ax=ax_group_short,
             data=data,
@@ -289,7 +255,6 @@ def plot_heatmap_with_group_colors_auto_orient(
             max_chars_per_row=30
             )
     else:
-        # 长轴颜色条
         draw_group_color_bar(
             ax=ax_group_long,
             group_blocks=group_blocks,
@@ -297,7 +262,6 @@ def plot_heatmap_with_group_colors_auto_orient(
             n_units=n_rows,
             orientation="x")
 
-        # 短轴注释
         draw_xaxis_text_legend(
             ax=ax_group_short,
             data=data,
@@ -305,9 +269,6 @@ def plot_heatmap_with_group_colors_auto_orient(
             )
     
 
-    # =========================
-    # heamtp colorbar
-    # =========================
     plt.colorbar(
         ax_heat.collections[0],
         cax=ax_cbar,
@@ -356,9 +317,6 @@ def draw_group_color_bar(
 
     ax.axis("off")
 
-    # =========================
-    # x 轴方向（原始行为）
-    # =========================
     if orientation == "x":
         ax.set_xlim(0, n_units)
         ax.set_ylim(0, 1)
@@ -385,13 +343,10 @@ def draw_group_color_bar(
                     fontsize=fontsize,
                 )
 
-    # =========================
-    # y 轴方向（新支持）
-    # =========================
     else:
         ax.set_xlim(0, 1)
         ax.set_ylim(0, n_units)
-        ax.invert_yaxis()  # 与 heatmap 的 y 轴方向保持一致
+        ax.invert_yaxis()
 
         for g, idxs in group_blocks.items():
             start, end = min(idxs), max(idxs) + 1
@@ -442,22 +397,16 @@ def draw_xaxis_text_legend(
 
     ax.axis("off")
 
-    # 缩写列表（按 heatmap 当前列顺序）
     short_names = list(data.columns)
 
-    # 反向映射：缩写 -> 全名
     pathway_rename_map = {v: k for k, v in column_rename_map.items()}
 
-    # 构造 legend 文本
     legend_texts = [
         f"{abbr}: {pathway_rename_map[abbr]}"
         for abbr in short_names
         if abbr in pathway_rename_map
     ]
 
-    # =========================
-    # 自动分行（按字符数）
-    # =========================
     rows = []
     current_row = []
     current_len = 0
@@ -470,14 +419,11 @@ def draw_xaxis_text_legend(
             current_len = text_len
         else:
             current_row.append(text)
-            current_len += text_len + 2  # 预留间隔
+            current_len += text_len + 2
 
     if current_row:
         rows.append(current_row)
 
-    # =========================
-    # 绘制文字（左对齐）
-    # =========================
     n_rows = len(rows) - 1
 
     for row_idx, row in enumerate(rows):
@@ -496,7 +442,6 @@ def draw_xaxis_text_legend(
             )
             x_pos += len(text) + 2
 
-    # 坐标范围，保证完整显示
     ax.set_xlim(0, max_chars_per_row)
     ax.set_ylim(0, len(rows))
 
@@ -507,7 +452,6 @@ def imshow_heatmap(
 
 if __name__ == "__main__":
     df = pd.read_csv("/disk5/luosg/Totipotent20251031/RNAseqML/gsva230/gseapy.gene_set.gsva.report.csv")
-    # print(df.head())
     df_group = pd.read_csv("/disk5/luosg/Totipotent20251031/data/RNAseqML/target_fq.tsv",sep="\t")
     sample_rename_map = dict(zip(df_group['Sample_id'],df_group['Status']))
     pathway_rename_map = {
@@ -525,14 +469,7 @@ if __name__ == "__main__":
         "Cell Cycle Checkpoints": "CCC"
     }
     df_wide = df.pivot(index='Name', columns='Term', values='ES')
-    # df_wide.to_csv("a.csv")
     row_colors = {'Tumor':'red','Normal_cell':'blue',"Aged_cell":'green',"Stem_cell":"black"}
-    # plot_heatmap_with_group_colors(df_wide,
-    #              outplot = "/home/luosg/Data/genomeStability/output/result/gsva230/heatmap230.png",
-    #              row_rename_map = sample_rename_map,
-    #              column_rename_map = pathway_rename_map,
-    #              title="",
-    #              xlabel="Pathways")
     print(df_wide.head())
     plot_heatmap_with_group_colors_auto_orient(df_wide,
                 outplot = "/disk5/luosg/Totipotent20251031/RNAseqML/gsva230/heatmap230.png",

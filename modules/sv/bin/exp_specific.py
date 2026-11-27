@@ -12,8 +12,6 @@ from utils.repeatmasker_analysis import run_te_annotation_pipeline,RepeatMaskerO
 from utils.repeatmasker_plot import plot_enrichment
 logger = setup_logger(__name__)
 
-# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
-# fails fast at parse time instead of dying inside savefig (modules.md #9)
 VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
                  "jpeg", "pgf", "raw", "rgba")
 
@@ -88,18 +86,14 @@ def run_exp_specific_annotation(
 
     logger.info(">>> Starting Pipeline: Merge -> Extract -> Annotate")
 
-    # Merge controls first, experiments second: SUPP_VEC slots follow this order
     raw_inputs = list(ctrl_vcfs) + list(exp_vcfs)
     analysis.merge_sv_survivor(raw_inputs, merged_vcf, dist=dist, min_support=min_support)
 
-    # Experiment-specific SVs: present in every experiment sample and
-    # absent from every control sample (SUPP_VEC = 00..11).
     vec = "0" * len(ctrl_vcfs) + "1" * len(exp_vcfs)
     analysis.extract_specific_sv(merged_vcf, specific_vcf, vec=vec)
 
     analysis.annotate_sv_vep(specific_vcf, annotated_file, result_format=annotate_format)
 
-    # Control callset used as the TE-enrichment background
     if len(ctrl_vcfs) == 1:
         control_callset = ctrl_vcfs[0]
     else:
@@ -169,7 +163,6 @@ def run_vcf_analysis(
                           save_path=outpng_bar,
                           show_block_counts=True)
 
-    # ##### svlen count
     df_sta = parse_pbsv_vcf(vcf)
     plot_data = generate_plot_input(df_sta)
     for fmt in image_formats:
@@ -317,11 +310,6 @@ def main():
         out_dir=outdir,
         image_formats=args.formats
     )
-    # NOTE: TE annotation writes to {outdir}/repeatmasker, deliberately NOT
-    # under {outdir}/enrichment — sv_exp_enrichment declares
-    # directory(enrichment/) as its Snakemake output, and Snakemake removes
-    # the whole directory before that rule runs, which would silently wipe
-    # these results (observed 2026-10-29).
     run_exp_enricher(
         vcf_01=f"{args.outprefix}_only.vcf",
         vcf_1x=control_callset,

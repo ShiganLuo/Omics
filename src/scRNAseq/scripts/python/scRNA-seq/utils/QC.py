@@ -19,17 +19,11 @@ sc.settings.set_figure_params(
 )
 def lowquality(adata,sample,fig=0):
     print(f"------------------------{sample}---------------------")
-    ### metrix caculate
-    # mitochondrial genes
     adata.var["mt"] = adata.var_names.str.startswith("MT-")
-    # ribosomal genes
     adata.var["ribo"] = adata.var_names.str.startswith(("RPS", "RPL"))
-    # hemoglobin genes.
     adata.var["hb"] = adata.var_names.str.contains(("^HB[^(P)]"))
     sc.pp.calculate_qc_metrics(
     adata, qc_vars=["mt", "ribo", "hb"], inplace=True, percent_top=[20], log1p=True)
-    # print(f"统计信息：\n{adata}")
-    ####plot above
     
     if fig:
         sns.histplot(adata.obs["total_counts"], bins=100, kde=False)
@@ -52,21 +46,15 @@ def lowquality(adata,sample,fig=0):
     | is_outlier(adata, "log1p_n_genes_by_counts", 5)
     | is_outlier(adata, "pct_counts_in_top_20_genes", 5)
     )
-    # print(f"outlier:\n{adata.obs.outlier.value_counts()}")
     adata.obs["mt_outlier"] = is_outlier(adata, "pct_counts_mt", 3) | (
     adata.obs["pct_counts_mt"] > 8
     )
-    # print(f"outlier-mt:\n{adata.obs.mt_outlier.value_counts()}")
-    # print(f"Total number of cells: {adata.n_obs}")
     adata = adata[(~adata.obs.outlier) & (~adata.obs.mt_outlier)].copy()
-    # print(f"Number of cells after filtering of low quality cells: {adata.n_obs}")
-    ### plot after filter
     if fig:
         sc.pl.scatter(adata, "total_counts", "n_genes_by_counts", color="pct_counts_mt")
         plt.savefig(f"{figure_path}/{sample}-scatter-after.png")
         plt.close()
     return adata
-# def ambientRNA():
 sim_doublet_ratio = 2
 def Compute_Doublet(adata,rate,out,fig=0,tab=0):
     counts_matrix = adata.to_df()
@@ -74,7 +62,6 @@ def Compute_Doublet(adata,rate,out,fig=0,tab=0):
     scrub = scr.Scrublet(counts_matrix, expected_doublet_rate=rate,
                         n_neighbors = round(0.5 * sqrt(n_cells)),
                         sim_doublet_ratio = sim_doublet_ratio)
-    ### annoy-1.15.1
     doublet_scores, predicted_doublets = scrub.scrub_doublets(min_counts=2, 
                                                           min_cells=3, 
                                                           min_gene_variability_pctl=85, 
@@ -100,17 +87,12 @@ def Compute_Doublet(adata,rate,out,fig=0,tab=0):
 def Filter_cells(ad,doublet_scores,predicted_doublets):
     ad.obs["doublet_scores"] = doublet_scores
     ad.obs["predicted_doublets"] = predicted_doublets
-    #~  可以作为取反的功能
     ad = ad[~ad.obs.predicted_doublets, :]
     return ad
 
 
 if __name__ == '__main__':
     start = datetime.datetime.now()
-    # parser = argparse.ArgumentParser(description="A script to process cell cycle data.")
-    # parser.add_argument('--options', type=str, required=True, help='options to execute procedure')
-    # parser.add_argument('--input', type=str, required=True, help='Path to input file')
-    # parser.add_argument('--out', type=str, required=True, help='Path to out file')
     samples = ["GBM27","GBM28","GBM29"]
     for i in samples:
         adata_SC = sc.read_h5ad(f"{h5ad}/{i}-SC-raw.h5ad")

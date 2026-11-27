@@ -2,13 +2,10 @@ include: "../../../common/common.smk"
 
 ROOT_DIR = config.get("ROOT_DIR", ".")
 
-# 参数精确到 rule:config 全量路径读取 Params.mimseq.mimseq_tRNAtools.<key>
-# (无 module 级共享回退;data_dir 归 mimseq_tRNAtools 所有)。
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 
-# Import serialization utilities
 _bin_dir = os.path.join(ROOT_DIR, "modules", "mimseq", "bin")
 if _bin_dir not in sys.path:
     sys.path.insert(0, _bin_dir)
@@ -18,10 +15,8 @@ def get_tRNAtools_input(wildcards):
     """Return input files for tRNAtools based on species configuration."""
     species = config.get("Params", {}).get("mimseq", {}).get("mimseq_tRNAtools", {}).get("species", "")
     if species:
-        # Using built-in species, no external files needed
         return {}
     else:
-        # Using custom tRNA files
         return {
             "trnas": config["genome"][wildcards.genome].get("trnas", ""),
             "trnaout": config["genome"][wildcards.genome].get("trnaout", ""),
@@ -78,7 +73,6 @@ rule mimseq_tRNAtools:
                 "--threads", str(threads),
                 "--cluster-id", str(params.cluster_id),
             ]
-            # Add trnas and trnaout if using custom files
             if hasattr(input, "trnas") and input.trnas:
                 cmd += ["--trnas", input.trnas]
             if hasattr(input, "trnaout") and input.trnaout:
@@ -105,7 +99,7 @@ rule mimseq_tRNAtools:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

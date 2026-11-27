@@ -2,28 +2,14 @@ include: "../common/common.smk"
 
 import json
 
-# ---------------------------------------------------------------------------
-# teprofile: TE 表达三层刻画(layer 1 细胞类型本源特征 / layer 2 亚群离群
-# 检测 / layer 3 分组重塑)。输入 = scRNAseq 工作流 combine 阶段的
-# {tissue}_scTE_{merged,auto}.h5ad 对;一次 group 级运行覆盖全部组织。
-# 产物由 done 标记跟踪(modules.md:禁用 directory())。本文件只做接线;
-# 三层算法与指标定义见 bin/te_profile.py 与 README §2。
-# ---------------------------------------------------------------------------
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("indir", "")
 tissues = config.get("tissues", [])
-# pseudo-bulk deliverables root (scRNAseq: <outdir>/diff/pseudobulk) — the
-# te_fraction_cross_tissue rule reads its counts tables from there; the
-# subworkflow passes scanpy's outdir_pseudobulk value (modules.md chaining:
-# one literal definition per physical path).
 pseudobulk_dir = config.get("outdir_pseudobulk", "")
 
 tep_params = config.get("Params", {}).get("teprofile", {})
-# 比较设计源(sample_params.design,subworkflow 传入):跨比较 TE 分数图
-# 取 pairwise 视图(恰为引擎的 group_pairs 设计);组织在设计里有对比
-# 才纳入。替代旧 tep_params.compare(Params 内对比定义已废除)。
 design_source = config.get("design", {}) or {}
 tissue_samples = config.get("tissue_samples", {}) or {}
 
@@ -159,9 +145,6 @@ rule te_fraction_cross_tissue:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start te_fraction_cross_tissue at {current_time}")
-            # 比较设计:sample_params.design → comparison_design(pairwise
-            # 视图,group_pairs 形状,恰为引擎的跨比较设计);多组织合并
-            # 一份 design JSON;语义错误在展开函数快速失败。
             tissue_design = {}
             for t in params.tissues:
                 if not _tissue_has_design(t):

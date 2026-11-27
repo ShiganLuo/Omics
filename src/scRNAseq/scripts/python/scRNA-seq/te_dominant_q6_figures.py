@@ -106,7 +106,6 @@ def main():
         dom_info[tissue] = (dom, dom_ct, float(cl.loc[dom, "te_frac"]), int(cl.loc[dom, "n"]))
         dom_mask = (df["leiden"] == dom).values
 
-        # ---- fig: per-cluster TE% (grey + red dominant + mean line) ----
         order = cl.sort_values("te_frac", ascending=False)
         fig, ax = plt.subplots(figsize=(11, 5))
         colors = ["#c0392b" if i == dom else "#b0b0b0" for i in order.index]
@@ -126,7 +125,6 @@ def main():
                     facecolor="white")
         plt.close(fig)
 
-        # ---- fig: top-15 family x cluster heatmap (proportion FC) ----
         te_idx = np.where(is_te)[0]
         fam_te = fam[is_te]
         cls_te = cls[is_te]
@@ -172,7 +170,6 @@ def main():
                     facecolor="white")
         plt.close(fig)
 
-        # ---- fig: UMAP x2 ----
         emb = auto.obsm["X_umap"]
         fig, axes = plt.subplots(1, 2, figsize=(12.8, 5.2))
         ax = axes[0]
@@ -193,7 +190,6 @@ def main():
                     facecolor="white")
         plt.close(fig)
 
-        # ---- fig: top-8 families dominated vs others (mean counts/cell) ----
         n_dom = int(dom_mask.sum())
         n_rest = int((~dom_mask).sum())
         dom_means = {f: Xte[dom_mask][:, fam_te == f].sum() / max(n_dom, 1) for f in fams}
@@ -222,7 +218,6 @@ def main():
                     facecolor="white")
         plt.close(fig)
 
-        # ---- fig: per-sample proportion (2 metrics) ----
         dom_cells = df[dom_mask]
         fig, ax = plt.subplots(figsize=(8.6, 5))
         samples = sorted(df["sample_id"].unique())
@@ -252,11 +247,6 @@ def main():
                     facecolor="white")
         plt.close(fig)
 
-    # ---- combined marker dotplot (both tissues) ----
-    # Single source of truth: reproduce_q6_dotplot.py (expanded senescence
-    # panel, right-side legends, group-definition footnote).  The inline
-    # reimplementation that used to live here kept a stale copy of the figure
-    # and overwrote the current one whenever this script was rerun.
     import subprocess
     import sys
     subprocess.run([
@@ -267,7 +257,6 @@ def main():
         "--out-dir", args.out_dir,
     ], check=True)
 
-    # ---- DESeq2 pseudo-bulk: dominant vs siblings ----
     from pydeseq2.dds import DeseqDataSet
     from pydeseq2.ds import DeseqStats
 
@@ -288,7 +277,7 @@ def main():
 
         c1 = pseudo_counts(dom_mask)
         c0 = pseudo_counts(sib_mask)
-        counts = np.concatenate([c1, c0], axis=0)  # samples x genes
+        counts = np.concatenate([c1, c0], axis=0)
         genes = merged.var_names.astype(str).tolist()
         obs = pd.DataFrame({
             "condition": ["TE"] * 3 + ["sib"] * 3,

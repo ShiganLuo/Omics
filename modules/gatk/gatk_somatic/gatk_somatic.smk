@@ -9,18 +9,10 @@ fasta = config.get("genome", {}).get("fasta")
 targets = config.get("genome", {}).get("targets")
 known_sites = config.get("genome", {}).get("known_sites")
 interval = config.get("genome", {}).get("interval")
-# 参数精确到 rule:javaOptions 按 rule 独立配置(Params.gatk.<rule_name>
-# .javaOptions),无 module 级共享。
-# Germline suppression resources for Mutect2/FilterMutectCalls (both optional):
-#   genome.germline_resource - population allele-frequency VCF (e.g. gnomAD),
-#                       assembly-tied so it lives in genome.references.<name>
-#   Params.gatk.Mutect2.panel_of_normals - sites observed in a SELF-BUILT
-#                       normal panel (cohort/lab property, not a genome
-#                       property); recurrent artifacts get hard-filtered
 germline_resource = config.get("genome", {}).get("germline_resource")
 panel_of_normals = config.get("Params", {}).get("gatk", {}).get("Mutect2", {}).get("panel_of_normals")
 strain_resource_src = config.get("genome", {}).get("strain_resource")
-pair_strains = config.get("pair_strains") or {}  # {experimental_sample_id: strain}
+pair_strains = config.get("pair_strains") or {}
 
 def get_input_somaticMutect2(wildcards):
     """
@@ -63,8 +55,6 @@ rule somaticMutect2:
        ),
        panel_of_normals = lambda wildcards: [panel_of_normals] if panel_of_normals else [],
     output:
-        # 中间产物:只被 filterMutectCalls 消费,node.py 未注册(注册的是
-        # filtered.vcf.gz),受 Params.gatk_somatic.keep_intermediates 控制
         vcf = maybe_temp(outdir + "/{normal_sample_id}_vs_{experimental_sample_id}/{normal_sample_id}_vs_{experimental_sample_id}.vcf.gz", "gatk_somatic"),
         stats = maybe_temp(outdir + "/{normal_sample_id}_vs_{experimental_sample_id}/{normal_sample_id}_vs_{experimental_sample_id}.vcf.gz.stats", "gatk_somatic")
     log:
@@ -91,7 +81,7 @@ rule somaticMutect2:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start somaticMutect2 for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} at {current_time}")
             script = receipt_script(f"somaticMutect2_{wildcards.normal_sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             sample_outdir = os.path.dirname(output.vcf)
             plain_script = os.path.join(sample_outdir, "somaticMutect2.sh")
             cmd = [
@@ -106,8 +96,6 @@ rule somaticMutect2:
             ]
             if input.targets:
                 cmd.extend(["-L", str(input.targets[0])])
-            # Germline suppression: population AF resource + normal panel.
-            # Both flow through to FilterMutectCalls via the raw VCF header.
             if input.germline_resource:
                 cmd.extend(["--germline-resource", str(input.germline_resource[0])])
             if input.panel_of_normals:
@@ -119,7 +107,7 @@ rule somaticMutect2:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'somaticMutect2 completed successfully for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id}'\n")
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -175,20 +163,11 @@ rule germline_resource_strain:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start germline resource build for strain {wildcards.strain} at {current_time}")
             script = receipt_script(f"germline_resource_strain_{wildcards.strain}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             sample_outdir = os.path.dirname(str(output.vcf))
             os.makedirs(sample_outdir, exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"germline_resource_strain_{wildcards.strain}.sh")
-            # bcftools view -s <strain>: keep only the strain's sample column;
-            # -i 'GT[0]="alt"' keeps sites where THAT strain carries an ALT
-            # allele (GT[0] = the single remaining sample after -s; the bare
-            # GT="alt" form silently no-ops on some bcftools versions);
-            # annotate -x FORMAT strips genotypes -> sites-only af resource.
-            # The filter expression contains quotes/brackets -> MUST shlex.quote
-            # it (bare " ".join would let bash eat the quotes: skill pitfall).
             strain_expr = shlex.quote('GT[0]="alt"')
-            # -G in the final view drops ALL genotype columns (sites-only);
-            # annotate -x FORMAT alone leaves the sample column behind (verified).
             cmd = [
                 "bcftools", "view", "-s", params.strain,
                 "-i", strain_expr, "-Ou", str(input.src), "|",
@@ -201,7 +180,7 @@ rule germline_resource_strain:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "germline resource for strain {wildcards.strain} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -252,7 +231,7 @@ rule filterMutectCalls:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start FilterMutectCalls for {wildcards.normal_sample_id} vs {wildcards.experimental_sample_id} at {current_time}")
             script = receipt_script(f"filterMutectCalls_{wildcards.experimental_sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             sample_outdir = os.path.dirname(str(output.vcf))
             plain_script = os.path.join(sample_outdir, f"filterMutectCalls_{wildcards.experimental_sample_id}.sh")
             cmd = [
@@ -269,7 +248,7 @@ rule filterMutectCalls:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "filterMutectCalls completed successfully for {wildcards.normal_sample_id} vs {wildcards.experimental_sample_id}"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

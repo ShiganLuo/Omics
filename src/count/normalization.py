@@ -173,4 +173,3 @@ if __name__ == "__main__":
         remove_version=False
     )
     tpm.to_csv("/data/pub/zhousha/Totipotent20251031/output/pluripotency2totipotency/RNAseq/diff_expression/GRCh38/hESC_vs_hTBLC/hESC_vs_hTBLC.TEcount_Gene.name.tpm.tsv", sep="\t", index=False)
-    # df = pd.read_csv("/data/pub/zhousha/Totipotent20251031/RNAseqML/matrix/mouse_all_tpm.tsv", sep="\t", index_col=0)

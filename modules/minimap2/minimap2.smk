@@ -25,7 +25,6 @@ def get_minimap2_input(wildcards):
     elif os.path.exists(fq_r1):
         return {"fastq": fq_r1, "fasta": fasta}
     else:
-        # Default to single-end naming for long-read data
         return {"fastq": fq_single, "fasta": fasta}
 
 rule minimap2_align:
@@ -61,10 +60,9 @@ rule minimap2_align:
             sample_outdir = os.path.dirname(str(output.bam))
             os.makedirs(sample_outdir, exist_ok=True)
             script = receipt_script(f"minimap2_align_{wildcards.sample_id}_{current_time}.sh")
-            os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
+            os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = os.path.join(sample_outdir, f"minimap2_align_{wildcards.sample_id}.sh")
             raw_bam = outdir + f"/{wildcards.sample_id}/{wildcards.sample_id}.raw.bam"
-            # minimap2 align → samtools sort → samtools index
             cmd_align = [
                 params.minimap2, "-ax", params.preset,
                 "--eqx", "-L",
@@ -84,7 +82,7 @@ rule minimap2_align:
                 f.write(f"mv {raw_bam}.bai {output.bai}\n")
                 f.write(f'echo "minimap2 alignment for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
-            if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
+            if SCRIPT_ONLY:
                 script_only_touch(output)
             else:
                 shell(f"bash {plain_script} >> {log_path} 2>&1")

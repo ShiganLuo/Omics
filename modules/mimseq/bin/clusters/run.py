@@ -14,12 +14,10 @@ import os
 import sys
 from collections import defaultdict
 
-# Add mimseq source to path (parent of mimseq package)
 MIMSEQ_PARENT = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 if MIMSEQ_PARENT not in sys.path:
     sys.path.insert(0, MIMSEQ_PARENT)
 
-# Add bin/ to path for serialize module
 BIN_DIR = os.path.dirname(os.path.dirname(__file__))
 if BIN_DIR not in sys.path:
     sys.path.insert(0, BIN_DIR)
@@ -41,12 +39,10 @@ def run_clusters(
 ) -> None:
     """Run cluster splitting and deconvolution."""
 
-    # Ensure out has trailing /
     if not out.endswith("/"):
         out = out + "/"
     os.makedirs(out, exist_ok=True)
 
-    # Set up logging
     logging.basicConfig(
         format="%(asctime)s [%(levelname)-5.5s] %(message)s",
         level=logging.INFO,
@@ -58,7 +54,6 @@ def run_clusters(
 
     log.info("Starting clusters module")
 
-    # Set ssAlign global stkname (required by tRNAclassifier -> structureParser)
     stk_files = glob.glob(os.path.join(out, "*_align.stk"))
     if stk_files:
         ssAlign_module.stkname = stk_files[0]
@@ -66,18 +61,15 @@ def run_clusters(
     else:
         log.warning("No .stk file found, structureParser may fail")
 
-    # Load tRNA state
     tRNA_state = load_tRNA_state(out)
     tRNA_dict = tRNA_state["tRNA_dict"]
     cluster_dict = tRNA_state["cluster_dict"]
     coverage_bed = tRNA_state["coverage_bed"]
     cluster_perPos_mismatchMembers = tRNA_state["cluster_perPos_mismatchMembers"]
 
-    # Load alignment state
     align_state = load_align_state(out)
     coverageData = align_state["coverageData"]
 
-    # Initialize variables
     unique_isodecoderMMs = defaultdict(dict)
     unique_isodecoderMMs_new = defaultdict(dict)
     splitBool = defaultdict(set)
@@ -87,7 +79,6 @@ def run_clusters(
     notSplit_mods_posInfo = defaultdict(set)
     isodecoder_sizes = {}
 
-    # Run cluster splitting
     if cluster and cluster_id != 1:
         cluster_dict2 = copy.deepcopy(cluster_dict)
         unique_isodecoderMMs, splitBool, notSplit_mods_posInfo = splitClusters_module.splitIsodecoder(
@@ -105,7 +96,7 @@ def run_clusters(
             unique_isodecoderMMs,
             splitBool,
             threads,
-            1,  # map_round
+            1,
             cov_diff,
         )
         isodecoder_sizes, unsplitCluster_lookup = splitClusters_module.getDeconvSizes(
@@ -121,7 +112,6 @@ def run_clusters(
     elif not cluster:
         isodecoder_sizes = splitClusters_module.getIsodecoderSizes(out, name, tRNA_dict)
 
-    # Save cluster state
     save_cluster_state(
         outdir=out,
         splitBool_new=splitBool_new,

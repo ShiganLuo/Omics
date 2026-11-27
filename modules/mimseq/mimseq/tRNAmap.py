@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
 
-######################################################
-# Wrapper functions for read aligmnent and placement #
-######################################################
 
 import subprocess, os, re, logging, copy
 from pybedtools import BedTool
@@ -31,7 +28,6 @@ def mainAlign(sampleData, experiment_name, genome_index_path, genome_index_name,
 			\n| Alignment |\
 			\n+-----------+")
 
-	# Read sampleData 
 	unique_bam_list = list()
 	alignstats_total = defaultdict(list)
 	coverageData = open(out_dir + sampleData.split("/")[-1].split(".")[0] + "_cov." + sampleData.split(".")[-1], "w")
@@ -43,8 +39,6 @@ def mainAlign(sampleData, experiment_name, genome_index_path, genome_index_name,
 				fq = line.split("\t")[0]
 				group = line.split("\t")[1]
 
-				# align
-				# create per-sample output directory
 				sample_name = fq.split("/")[-1].split(".single.fq.gz")[0] if ".single.fq.gz" in fq else fq.split("/")[-1].split(".fastq.gz")[0] if ".fastq.gz" in fq else fq.split("/")[-1].split(".fastq")[0]
 				sample_dir = os.path.join(out_dir, "samples", sample_name) + "/"
 				os.makedirs(sample_dir, exist_ok=True)
@@ -66,7 +60,6 @@ def mainAlign(sampleData, experiment_name, genome_index_path, genome_index_name,
 						for item in value:
 							alignstats_total[key].append(item)
 
-	# alignstats plot and save
 	alignstats_df = pd.DataFrame.from_dict(alignstats_total)
 	alignstats_df["Proportion"] = alignstats_df.groupby(["Lib"])["Count"].apply(lambda x: x.astype(float)/x.sum())
 	g = sns.barplot(data = alignstats_df, x = "Lib", y = "Proportion", hue = "Type", palette = "Set2")
@@ -77,9 +70,6 @@ def mainAlign(sampleData, experiment_name, genome_index_path, genome_index_name,
 		alignstats_version = "Primary_"
 	elif map_round == 2:
 		alignstats_version = "Remap_"
-	# multi-format figure output (repo formats sweep; minimal vendored hook):
-	# MIMSEQ_PLOT_FORMATS (comma-separated; default "pdf") selects the output
-	# format(s); the default keeps the upstream alignstats.pdf name unchanged.
 	_plot_formats = [f for f in re.split(r"[,;\s]+", os.environ.get("MIMSEQ_PLOT_FORMATS", "pdf")) if f]
 	if not _plot_formats:
 		_plot_formats = ["pdf"]
@@ -99,14 +89,10 @@ def mainAlign(sampleData, experiment_name, genome_index_path, genome_index_name,
 
 def mapReads(fq, genome_index_path, genome_index_name, snp_index_path, snp_index_name, threads, \
 	out_dir, snp_tolerance, keep_temp, mismatches, remap, sample_dir=None):
-# map with or without SNP index and report initial map statistics
 
-	# sample_dir: per-sample output directory for BAM files
-	# out_dir: shared directory for logs and stats
 	if sample_dir is None:
 		sample_dir = out_dir
 
-	# check zip status of input reads for command building
 	zipped = ''
 	if re.search(".gz",fq):
 		zipped = '--gunzip'
@@ -135,14 +121,12 @@ def mapReads(fq, genome_index_path, genome_index_name, snp_index_path, snp_index
 	log.info("Aligning reads to {}...".format(genome_index_name))
 	subprocess.check_call(map_cmd, stderr = open(out_dir + "align.log", "a"))
 
-	# remove transloc sam output if no reads present (often the case)
 	transloc_file = sample_dir + output_prefix + ".unpaired_transloc"
 	if os.path.exists(transloc_file):
 		readcount = int(pysam.view("-@",str(threads),"-c", transloc_file).strip())
 		if readcount == 0:
 			os.remove(transloc_file)
 
-	# write mapping stats and compress to bam - remove mutlimapping and unmapped unless keep_temp = True
 	log.info("Compressing SAM files, sorting, and computing mapping stats...")
 	with open(out_dir + "mapping_stats.txt","a") as stats_out:
 		align_pathlist = Path(sample_dir).glob(output_prefix + "*")

@@ -325,6 +325,7 @@ telomere_config = {
     "logdir": f"{logdir}/sample",
     "logdir_combine": f"{logdir}/group",
     "samples": samples,
+    "comparisons": {n: c for _oc in (config.get("sample_params", {}).get("comparisons") or {}).values() for n, c in _oc.items()},
     "bam_substring": "sorted_markdup",
     "assembly_dir": centromere_outdir,
     "genome": {"fasta": genome_ref.get("fasta"),
@@ -399,10 +400,19 @@ hifiasm_config = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
-    "indir": indir,
+    "indir": "",
     "outdir": centromere_outdir,
     "logdir": logdir,
     "samples": samples,
+    "inputs": {
+        "hifiasm": {
+            "bam": {s: f"{outdir}/common/1_raw_data/{s}/{s}.bam" for s in samples},
+            "pbi": {s: f"{outdir}/common/1_raw_data/{s}/{s}.bam.pbi" for s in samples},
+        },
+    },
+    "Params": {
+        "hifiasm": config.get("Params", {}).get("hifiasm", {}),
+    },
 }
 module hifiasm:
     snakefile: "../modules/hifiasm/hifiasm.smk"
@@ -410,6 +420,8 @@ module hifiasm:
 logger.debug(f"hifiasm_config: {hifiasm_config}")
 use rule hifiasm_assemble from hifiasm as PacVar_hifiasm_assemble
 use rule hifiasm_result from hifiasm as PacVar_hifiasm_result
+use rule hifiasm_qc from hifiasm as PacVar_hifiasm_qc
+use rule hifiasm_qc_result from hifiasm as PacVar_hifiasm_qc_result
 
 centromere_config = {
     "resources": config.get("resources", {}),

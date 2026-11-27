@@ -227,7 +227,10 @@ def _fill_telomere_species(datajson: Dict[str, Any], workflow: str) -> None:
 # Genome reference key -> diploid chromosome count, the denominator of
 # read_density's "Avg telomere per arm" (= total_tel_bp / n_chrom_arms;
 # modules/telomere/length/README.md §3.3). Module default 40 is the mouse
-# value (20 chromosomes, diploid count); rhesus is 44 per the same README.
+# value (20 chromosomes, diploid count); rhesus is 42 (20 autosome pairs + XY).
+# The same diploid count is the expected telomere-end count of a complete
+# haploid primary assembly (2 ends x haploid chromosomes = diploid count),
+# filled into Params.hifiasm.qc.expected_chrom_ends.
 # Filled into Params.telomere.read_density.n_chrom_arms when unset — genomes
 # without an entry must set it explicitly, never guess (same policy as
 # telogator2).
@@ -235,8 +238,8 @@ GENOME_N_CHROM_ARMS = {
     "GRCh38": 46,
     "GRCm39": 40,
     "T2T_mhaESC_v1.5": 40,
-    "Mmul_10": 44,
-    "Mmul_T2T": 44,
+    "Mmul_10": 42,
+    "Mmul_T2T": 42,
 }
 
 
@@ -264,6 +267,85 @@ def _fill_telomere_n_chrom_arms(datajson: Dict[str, Any], workflow: str) -> None
     logger.info(
         f"{workflow}: Params.telomere.read_density.n_chrom_arms := '{n_arms}' "
         f"(genome '{genome_key}')")
+
+
+def _fill_expected_chrom_ends(datajson: Dict[str, Any], workflow: str) -> None:
+    """Auto-fill Params.hifiasm.qc.expected_chrom_ends from genome.default.
+
+    Expected chromosome ends = telomere count of a complete haploid primary
+    assembly = 2 ends x haploid chromosomes = the diploid chromosome count
+    (same values as GENOME_N_CHROM_ARMS). Explicit config wins; genomes
+    without an entry must set it explicitly — never guess a chromosome count.
+    """
+    if not _enabled(datajson, "hifiasm"):
+        return
+    qc = (datajson.get("Params", {}).get("hifiasm", {}) or {}).get("qc", {}) or {}
+    if not bool(qc.get("enabled", True)):
+        return
+    if qc.get("expected_chrom_ends"):
+        return
+    genome_key = str(datajson.get("genome", {}).get("default"))
+    n_ends = GENOME_N_CHROM_ARMS.get(genome_key)
+    if not n_ends:
+        raise ValueError(
+            f"{workflow}: genome '{genome_key}' has no known chromosome-end "
+            f"count; set 'Params.hifiasm.qc.expected_chrom_ends' in the "
+            f"config JSON (expected telomere ends of a complete haploid "
+            f"assembly, modules/hifiasm/README.md §3).")
+    datajson.setdefault("Params", {}).setdefault("hifiasm", {}).setdefault(
+        "qc", {})["expected_chrom_ends"] = n_ends
+    logger.info(
+        f"{workflow}: Params.hifiasm.qc.expected_chrom_ends := '{n_ends}' "
+        f"(genome '{genome_key}')")
+
+
+def _fill_hifiasm_enabled(datajson: Dict[str, Any], workflow: str) -> None:
+    """Auto-fill Params.hifiasm.enabled from Params.telomere.enabled when unset.
+
+    hifiasm's only consumer is the telomere module (assembly_scan/tidk read
+    the assembly), so an unset ``enabled`` follows the telomere step instead
+    of defaulting on: telomere off -> hifiasm off. Explicit config wins
+    (nullable = UNSET, same convention as the species auto-fills). Must run
+    before _register_hifiasm_qc / _fill_expected_chrom_ends.
+    """
+    hi = datajson.setdefault("Params", {}).setdefault("hifiasm", {})
+    if hi.get("enabled") is not None:
+        return
+    hi["enabled"] = _enabled(datajson, "telomere")
+    logger.info(
+        f"{workflow}: Params.hifiasm.enabled := '{hi['enabled']}' "
+        f"(unset; follows Params.telomere.enabled — hifiasm's only consumer "
+        f"is the telomere module)")
+
+
+def _register_hifiasm_qc(outfiles: List[str], datajson: Dict[str, Any],
+                         assembly_root: str, sample_id: str) -> None:
+    """Register rule hifiasm_qc outputs (modules/hifiasm/hifiasm.smk).
+
+    ``assembly_root`` is the hifiasm module's outdir in the subworkflow
+    (Fiberseq: {outdir}/assembly; PacVar: {outdir}/repeat/centromere);
+    the rule writes ``{assembly_root}/{sample_id}/assembly/qc/``.
+    Gated by Params.hifiasm.enabled (auto-filled from the telomere step when
+    unset) AND Params.hifiasm.qc.enabled; either false skips registration
+    entirely — and with nothing registered nothing demands the assembly,
+    so the whole hifiasm module stays out of the DAG.
+    """
+    if not _enabled(datajson, "hifiasm"):
+        return
+    qc = (datajson.get("Params", {}).get("hifiasm", {}) or {}).get("qc", {}) or {}
+    if not bool(qc.get("enabled", True)):
+        return
+    fmts = qc.get("formats") or ["png"]
+    if isinstance(fmts, str):
+        fmts = [fmts]
+    base = f"{assembly_root}/{sample_id}/assembly/qc/{sample_id}"
+    outfiles.append(f"{base}_assembly_stats.tsv")
+    outfiles.append(f"{base}_assembly_stats.txt")
+    outfiles.append(f"{base}_telomere_ends.tsv")
+    outfiles.append(f"{base}_telomere_qc.txt")
+    outfiles += _figs(f"{base}_assembly_overview", fmts)
+    outfiles += _figs(f"{base}_telomere_qc", fmts)
+    outfiles += _figs(f"{base}_telomere_map", fmts)
 
 
 def _fill_repeatmasker_species(datajson: Dict[str, Any], workflow: str) -> None:
@@ -1128,6 +1210,9 @@ def runPacVar(
     enable_phase = _enabled(datajson, "phase")
     enable_repeat = _enabled(datajson, "repeat")
     enable_telomere = _enabled(datajson, "telomere")
+    # hifiasm 的唯一消费方是 telomere 模块(assembly_scan/tidk 读组装),
+    # enabled 未显式设置时跟随 telomere 开关
+    _fill_hifiasm_enabled(datajson, "PacVar")
     enable_eccdna = _enabled(datajson, "decoil")  # Decoil is the eccDNA reconstruction step
     # sawfish CNV calling: 默认不开启(Params.sawfish.enabled 默认 false);
     # 断点 SV 鉴定输出同样默认不开启(Params.sawfish.call_sv 默认 false)。
@@ -1286,6 +1371,11 @@ def runPacVar(
             # Centromere (separate module; not gated by telomere method)
             outfiles.append(f"{outdir}/repeat/centromere/{sample_id}/{sample_id}.centromere_stats.txt")
 
+    # Assembly QC (modules/hifiasm rule hifiasm_qc); gated by
+    # Params.hifiasm.enabled (未设置时跟随 telomere) + Params.hifiasm.qc.enabled
+    for sample_id in samples:
+        _register_hifiasm_qc(outfiles, datajson, f"{outdir}/repeat/centromere", sample_id)
+
     # SV comparison analysis (modules/sv): DESeq2-style design —
     # sample_params.comparisons maps "{control_group_name}_vs_{experimental_group_name}"
     # to {control_group_name, experimental_group_name, control_samples,
@@ -1298,12 +1388,13 @@ def runPacVar(
     _fill_mei_rm_species(datajson, "PacVar")
     _fill_telomere_species(datajson, "PacVar")
     _fill_telomere_n_chrom_arms(datajson, "PacVar")
+    _fill_expected_chrom_ends(datajson, "PacVar")
     _fill_repeatmasker_species(datajson, "PacVar")
     # 对比定义统一存 sample_params.comparisons(organism 嵌套,手填优先);本地
     # comparisons 为平铺视图,供 sv 门控/样本校验。sv.smk 接线同样读
     # sample_params.comparisons(docs/sample-params-split.md)。
     _cmp_nested = datajson.setdefault("sample_params", {}).setdefault("comparisons", {})
-    if enable_sv and not _cmp_nested:
+    if (enable_sv or enable_telomere) and not _cmp_nested:
         for gp in group_pairs:
             _cmp_nested.setdefault(gp.organism, {})[f"{gp.ctr_group_name}_vs_{gp.exp_group_name}"] = {
                 "control_group_name": gp.ctr_group_name,
@@ -2819,6 +2910,7 @@ def runFiberseq(
     enable_function = _enabled(datajson, "function")
     enable_sv = _enabled(datajson, "sv")
     enable_telomere = _enabled(datajson, "telomere")
+    _fill_hifiasm_enabled(datajson, "Fiberseq")
     want_motif = enable_motif or enable_footprint
     want_quant = enable_quant or enable_diff or enable_haplotype
     want_eccdna = _enabled(datajson, "decoil") and default_ref.get("gtf")
@@ -2962,6 +3054,10 @@ def runFiberseq(
             if "assembly_scan" in _tel_methods:
                 outfiles.append(f"{outdir}/telomere/regions/{sample_id}/{sample_id}.telomere.bed")
 
+        # Assembly QC (modules/hifiasm rule hifiasm_qc); gated by
+        # Params.hifiasm.enabled (未设置时跟随 telomere) + Params.hifiasm.qc.enabled
+        _register_hifiasm_qc(outfiles, datajson, f"{outdir}/assembly", sample_id)
+
         # Step 5: haplotype chain
         if enable_haplotype:
             outfiles.append(f"{outdir}/variation/germline_snv_indel/{sample_id}/{sample_id}.vcf.gz")
@@ -3101,12 +3197,13 @@ def runFiberseq(
     _fill_mei_rm_species(datajson, "Fiberseq")
     _fill_telomere_species(datajson, "Fiberseq")
     _fill_telomere_n_chrom_arms(datajson, "Fiberseq")
+    _fill_expected_chrom_ends(datajson, "Fiberseq")
     _fill_repeatmasker_species(datajson, "Fiberseq")
     # 对比定义统一存 sample_params.comparisons(organism 嵌套,手填优先);本地
     # comparisons 为平铺视图,供 sv 门控/样本校验。sv.smk 接线同样读
     # sample_params.comparisons(docs/sample-params-split.md)。
     _cmp_nested = datajson.setdefault("sample_params", {}).setdefault("comparisons", {})
-    if enable_sv and not _cmp_nested:
+    if (enable_sv or enable_telomere) and not _cmp_nested:
         for gp in group_pairs:
             _cmp_nested.setdefault(gp.organism, {})[f"{gp.ctr_group_name}_vs_{gp.exp_group_name}"] = {
                 "control_group_name": gp.ctr_group_name,

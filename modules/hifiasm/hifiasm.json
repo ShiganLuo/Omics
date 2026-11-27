@@ -10,7 +10,15 @@
     },
     "Params": {
         "hifiasm": {
-            "keep_intermediates": true
+            "keep_intermediates": true,
+            "qc": {
+                "formats": ["png"],
+                "scan_length": 100000,
+                "min_tel_len": 1000,
+                "end_margin": 1000,
+                "top_contigs": 30,
+                "expected_chrom_ends": 0
+            }
         }
     }
 }

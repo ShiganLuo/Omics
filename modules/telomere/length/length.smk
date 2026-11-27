@@ -13,11 +13,14 @@ Note: For mouse telomeres (30-150kb), Approach A is recommended as HiFi reads
 
 include: "../../common/common.smk"
 
+import json
+
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 logdir_combine = config.get("logdir_combine", logdir)
 indir = config.get("indir", "input")
 samples = config.get("samples", [])
+comparisons = config.get("comparisons", {}) or {}
 bam_substring = config.get("bam_substring") or ""
 assembly_dir = config.get("assembly_dir", "")
 inputs = config.get("inputs", {}) or {}
@@ -512,6 +515,8 @@ rule read_density_combined:
             for tsv in input.tsvs:
                 sample = os.path.basename(os.path.dirname(str(tsv)))
                 cmd += ["-s", f"{sample}={tsv}"]
+            if comparisons:
+                cmd += ["--design", json.dumps(comparisons, ensure_ascii=False)]
             for _f in params.formats:
                 cmd += ["-F", _f]
             with open(script, "w") as f:

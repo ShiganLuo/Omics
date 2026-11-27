@@ -11,7 +11,12 @@
       "logdir": "logs"
     },
     "hifiasm": {
-      "keep_intermediates": true
+      "enabled": null,
+      "keep_intermediates": true,
+      "qc": {
+        "enabled": true,
+        "formats": ["png"]
+      }
     },
     "fibertools": {
       "keep_intermediates": false,

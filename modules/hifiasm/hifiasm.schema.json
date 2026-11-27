@@ -54,6 +54,43 @@
           "keep_intermediates": {
             "type": "bool",
             "required": false
+          },
+          "qc": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "formats": {
+                "type": "list",
+                "nullable": true,
+                "required": false
+              },
+              "scan_length": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "min_tel_len": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "end_margin": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "top_contigs": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "expected_chrom_ends": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

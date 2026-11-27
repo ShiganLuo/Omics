@@ -1334,6 +1334,79 @@
         "required": false
       }
     },
+    "hifiasm": {
+      "enabled": {
+        "type": "bool",
+        "nullable": true,
+        "required": false,
+        "default": null,
+        "description": "hifiasm 总开关。hifiasm 的唯一消费方是 telomere 模块(assembly_scan/tidk 读组装),未设置(null)时自动跟随 Params.telomere.enabled——telomere 关闭则 hifiasm 不进 DAG;显式 true/false 优先于跟随逻辑(node.py 自动填充)"
+      },
+      "keep_intermediates": {
+        "type": "bool",
+        "required": false
+      },
+      "qc": {
+        "enabled": {
+          "type": "bool",
+          "required": false,
+          "default": true,
+          "description": "组装质量评估开关(modules/hifiasm 规则 hifiasm_qc:统计 + 端粒端捕获可视化);默认开启,可显式关闭"
+        },
+        "formats": {
+          "type": "list",
+          "required": false,
+          "default": [
+            "png"
+          ],
+          "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集)",
+          "enum": [
+            "png",
+            "pdf",
+            "svg",
+            "ps",
+            "eps",
+            "tif",
+            "tiff",
+            "jpg",
+            "jpeg",
+            "pgf",
+            "raw",
+            "rgba"
+          ]
+        },
+        "scan_length": {
+          "type": "int",
+          "required": false,
+          "default": 100000,
+          "description": "每条 contig 两端扫描窗口(bp)"
+        },
+        "min_tel_len": {
+          "type": "int",
+          "required": false,
+          "default": 1000,
+          "description": "判定端粒捕获的最小端粒重复长度(bp)"
+        },
+        "end_margin": {
+          "type": "int",
+          "required": false,
+          "default": 1000,
+          "description": "端粒簇距 contig 末端的最大间隙(bp),超过则判为内部端粒序列而非末端端粒"
+        },
+        "top_contigs": {
+          "type": "int",
+          "required": false,
+          "default": 30,
+          "description": "端粒捕获图谱绘制的 contig 条数(按长度取前 N)"
+        },
+        "expected_chrom_ends": {
+          "type": "int",
+          "required": false,
+          "default": 0,
+          "description": "完整单倍体组装应含的染色体端数(0 = 不做完整性对比);node.py 按 genome.default 自动填(二倍体染色体数)"
+        }
+      }
+    },
     "telomere": {
       "enabled": {
         "type": "bool",

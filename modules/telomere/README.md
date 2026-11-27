@@ -22,6 +22,8 @@
 - **method**:`Params.telomere.method` 默认**全部方法**;缺输入的方法按 PacVar 接线约定处理。
 - **绘图**:每方法一张**全样本合并图**(`combined.{fmt}`);4 法全指定时加**跨方法总览**
   (`combined_methods.{fmt}`)。多格式 `Params.telomere.formats`(规范#9)。
+  合并图接 `comparisons` 模块配置键(`sample_params.comparisons` 展平):
+  **对照组样本排最左**、按组配色并标注组名/角色。
 - **深度 QC(⑥)**:输入比对 BAM 的方法用**参考端粒坐标 + 测序深度**作质控(见 `length/`)。
 
 ## 方法选择

@@ -377,6 +377,14 @@
     "repeat": {
       "enabled": false
     },
+    "hifiasm": {
+      "enabled": null,
+      "keep_intermediates": true,
+      "qc": {
+        "enabled": true,
+        "formats": ["png"]
+      }
+    },
     "telomere": {
       "enabled": false,
       "method": [

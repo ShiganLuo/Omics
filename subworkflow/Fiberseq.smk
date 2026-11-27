@@ -535,7 +535,8 @@ hifiasm_config = {
     },
     "Params": {
         "hifiasm": {
-            "keep_intermediates": config.get("Params", {}).get("hifiasm", {}).get("keep_intermediates", True)
+            "keep_intermediates": config.get("Params", {}).get("hifiasm", {}).get("keep_intermediates", True),
+            "qc": config.get("Params", {}).get("hifiasm", {}).get("qc", {}),
         }
     },
 }
@@ -545,6 +546,8 @@ module hifiasm:
 logger.debug(f"hifiasm_config: {hifiasm_config}")
 use rule hifiasm_assemble from hifiasm as Fiberseq_hifiasm_assemble
 use rule hifiasm_result from hifiasm as Fiberseq_hifiasm_result
+use rule hifiasm_qc from hifiasm as Fiberseq_hifiasm_qc
+use rule hifiasm_qc_result from hifiasm as Fiberseq_hifiasm_qc_result
 
 centromere_config = {
     "resources": config.get("resources", {}),
@@ -576,6 +579,7 @@ telomere_config = {
     "logdir": f"{logdir}/sample",
     "logdir_combine": f"{logdir}/group",
     "samples": samples,
+    "comparisons": {n: c for _oc in (config.get("sample_params", {}).get("comparisons") or {}).values() for n, c in _oc.items()},
     "bam_substring": "fiberseq.fire.sorted",
     "assembly_dir": config.get("assembly_dir") or assembly_outdir,
     "genome": {"fasta": fasta, "subtel_ref": genome_ref.get("subtel_ref")},

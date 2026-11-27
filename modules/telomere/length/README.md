@@ -3,7 +3,8 @@
 四种端粒长度测量方法并存:① Telogator2 逐染色体臂端粒长度;② 组装 contig
 末端端粒重复扫描(推荐小鼠 30–150 kb 端粒,HiFi 读段 15–25 kb 跨不全);
 ③ 读段级 k-mer 密度全基因组平均;④ tidk 社区工具组装扫描。模块私有脚本
-`bin/scan_assembly_telomere.py`、`bin/read_density_telomere.py`、`bin/LogUtil.py`。
+`bin/scan_assembly_telomere.py`、`bin/read_density_telomere.py`、`bin/plot_combined.py`、
+`bin/plot_util.py`、`bin/LogUtil.py`。
 
 另有**诊断脚本** ⑤ `bin/telomere_region_depth.py`:统计端粒区比对测序深度、
 量化比对恢复率,**证明"区域比对深度法"测端粒长度不可取**(见 §3.4),本身不估长度。
@@ -22,6 +23,7 @@
 | `indir` + `bam_substring` | 形态 A 拼接:`{indir}/{sample_id}/{sample_id}[.{bam_substring}].bam`(+ `.bai`,Telogator2 需要) |
 | `assembly_dir` | hifiasm 组装目录(centromere 模块产出):`{assembly_dir}/{sample_id}/assembly/asm.bp.p_ctg.fa`。assembly_scan/tidk 需要;也可用 dict-mode `inputs.assembly_scan.fasta`/`inputs.tidk.fasta` 每样本指定。**均未配置时直接报错(无回退路径)** |
 | `samples` | 样本列表 |
+| `comparisons` | 对比设计(平铺 `{对比名: {control_group_name, experimental_group_name, control_samples, experimental_samples}}`,subworkflow 从 `sample_params.comparisons` 嵌套展平,见 `docs/sample-params-split.md`)。合并图据此**对照组样本排最左**并标注组名/角色;缺省不排序 |
 | tidk 数据库 | `~/.local/share/tidk/tidk_database.csv`;不存在时先跑 `tidk_init`(`tidk build`)建库 |
 
 ### 1.2 输出
@@ -42,6 +44,8 @@
 {outdir}/{sample_id}/region_depth/{sample_id}_telomere_region_depth_stats.txt  # 恢复率+可取/不可取判定(⑤)
 {outdir}/{sample_id}/region_depth/{sample_id}_telomere_region_depth_diagnostic.{fmt}  # 图4 比对深度(多格式)
 {outdir}/.tidk_build.done                                       # tidk 建库标记
+{outdir}/read_density/combined.{fmt}                            # 图6 全样本合并分布图
+{outdir}/combined_methods.{fmt}                                 # 跨方法总览(4 法全指定时)
 ```
 
 > **图片格式说明(限制)**:`all_final_alleles.png` / `violin_atl.png` 由
@@ -76,7 +80,10 @@
 - `read_density_telomere.py`:`-b/--bam`、`-s/--sample_name`、`-o/--output_dir`、
   `-n/--n_chrom_arms`、`-m/--min_read_length`、`-k/--min_tel_kmers`、`-l/--log`;
 - `telomere_region_depth.py`(⑤诊断):`-b/--bam`、`-d/--bed`、`-c/--control`、
-  `-s/--sample_name`、`-o/--output_dir`、`-m/--min_recovery`、`-l/--log`。
+  `-s/--sample_name`、`-o/--output_dir`、`-m/--min_recovery`、`-l/--log`;
+- `plot_combined.py`(多样本合并图):`-m/--method`、`-s/--sample LABEL=TSV`(可重复)、
+  `-c/--col`、`-D/--design`(对比设计 JSON,对照组排最左)、`-o/--outdir`、
+  `-b/--out_base`、`-F/--format`、`-l/--log`。
 
 环境:`conda: "telomere.yaml"`(模块目录内,pysam/telogator2/tidk)。
 
@@ -134,6 +141,13 @@ python modules/telomere/bin/telomere_region_depth.py \
   **方法学 QC**:看纯端粒深度骤降、恢复率远低于阈值 → 证明区域深度法测长不可取(非生物学结论)。
 - **图 5 · `violin_atl.png` / `all_final_alleles.png`(telogator2,自带)**:
   端粒长度(ATL)小提琴图(中位/分布宽窄);逐等位端粒长度(等位间长度差)。
+- **图 6 · `read_density/combined.{fmt}`(read_density 多样本合并,2 面板)**:
+  ①逐读段 `tel_bp_estimate` 密度直方(横轴 log,`density` 归一——样本读段数不同,
+  计数不可直接比);②各样本小提琴+箱线(纵轴 log),中位数标数值。
+  配色按对比设计分组;有 `comparisons` 时**对照组样本排最左**,x 轴标签
+  标注「组名 · control/experiment」,图例为唯一图级图例(无标题,轴标签带
+  方法/列名)。跨样本比较优先看 `tel_fraction`(§3.3),`tel_bp_estimate`
+  受测序量影响。
 
 ---
 
@@ -184,10 +198,12 @@ flag 0x100),每条记录的 `query_sequence` 是**同一条物理读段**。此�
 (绝对长度,**覆盖依赖**)。
 
 - `n_chrom_arms` 要按物种/倍性设:模块默认 40(小鼠 20 染色体二倍体计数);
-  恒河猴参考 22 条染色体 → 二倍体计数 44,若按端粒端数(每染色体 2 端 ×2 拷贝)则为 88,
-  口径不同绝对值差一倍。
+  恒河猴二倍体计数 42(20 对常染色体 + XY;Mmul_10 参考的 22 条序列是
+  1–20 + X + Y,X/Y 同属一对性染色体,不能按 22×2 计;与 GRCh38=46、
+  GRCm39=40 同一换算口径——人参考 24 条序列同样不按 48 计),若按端粒端数
+  (每染色体 2 端 ×2 拷贝)则为 84,口径不同绝对值差一倍。
   node.py 会按 `genome.default` 自动填(`GENOME_N_CHROM_ARMS`:小鼠 40、
-  恒河猴 44、人 46),显式配置优先;未收录的基因组必须在配置里手动设置。
+  恒河猴 42、人 46),显式配置优先;未收录的基因组必须在配置里手动设置。
 - `Avg per arm` 还随测序量线性放大(测得越多 total_tel_bp 越大),**不同深度样本间
   比较应看 `Telomeric fraction`**;同深度样本的 `per arm` 才可粗比。
 - 故跨样本比端粒长度,优先用 `Telomeric fraction`;要绝对长度需先按覆盖/单拷贝 k-mer 归一。

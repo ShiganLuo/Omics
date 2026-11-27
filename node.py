@@ -108,6 +108,38 @@ TE_LIB_SENTINELS = {
     "primate": (["l1p", "l1hs", "l1_"], ["alu"], ["sva"], ["erv", "ltr"]),
 }
 
+def _fill_sv_exp_specific_vep(datajson: Dict[str, Any], genome_name: str,
+                              custom_gtf: Optional[str] = None) -> None:
+    """Fill Params.sv.exp_specific.species/assembly with the Ensembl VEP
+    species/assembly names for the active genome (explicit config wins).
+
+    These keys must be VEP names (e.g. 'mus_musculus'/'GRCm39'), NOT the
+    genome reference key: vep_install -s <genome key> fuzzy-matches and
+    unpacks the cache under <dir_cache>/<species>/<ver>_<assembly>, while
+    vep --species <genome key> looks for <dir_cache>/<genome key> and dies
+    with "Cache directory ... not found" — a mismatch no rerun can fix.
+    Genomes without a GENOME_VEP_SPECIES entry annotate via custom_gtf
+    (VEP --gtf mode; cache species/assembly unused) or must set
+    Params.sv.exp_specific.species/assembly explicitly — never guess a
+    species (same policy as GENOME_VEP_SPECIES).
+    """
+    es = (datajson.setdefault("Params", {}).setdefault("sv", {})
+          .setdefault("exp_specific", {}))
+    vep_species, vep_assembly = GENOME_VEP_SPECIES.get(genome_name, (None, None))
+    if vep_species is None:
+        if custom_gtf:
+            return  # VEP --gtf mode: cache species/assembly are unused
+        if not (es.get("species") and es.get("assembly")):
+            raise ValueError(
+                f"genome '{genome_name}' has no GENOME_VEP_SPECIES entry in "
+                f"node.py; set Params.sv.exp_specific.species/assembly "
+                f"(Ensembl VEP names, e.g. 'mus_musculus'/'GRCm39') in the "
+                f"config JSON — never guess a species"
+            )
+        return  # explicit config for an unlisted genome: keep it
+    es.setdefault("species", vep_species)
+    es.setdefault("assembly", vep_assembly)
+
 def _validate_te_lib(datajson: Dict[str, Any], workflow: str) -> None:
     """Warn when the genome's TE library lacks species sentinel families.
 
@@ -1105,9 +1137,8 @@ def runPacVar(
 
     _genome_ref = _resolve_genome_ref(datajson, samples_info_dict, "PacVar")
     _genome_name = datajson["genome"]["default"]
-    datajson["Params"].setdefault("sv", {}).setdefault("exp_specific", {})
-    datajson["Params"]["sv"]["exp_specific"]["species"] = _genome_name
-    datajson["Params"]["sv"]["exp_specific"]["assembly"] = _genome_name
+    _fill_sv_exp_specific_vep(datajson, _genome_name,
+                              custom_gtf=_genome_ref.get("custom_gtf"))
     for sample_id, sample_info in samples_info_dict.items():
         samples.append(sample_id)
         # SNP calling
@@ -3343,8 +3374,8 @@ def runFiberseq(
             outfiles.append(f"{outdir}/ldsc/{trait}/{trait}.sumstats.gz")
             outfiles.append(f"{outdir}/ldsc/{trait}/{trait}.cts.results")
 
-    datajson["Params"]["sv"]["exp_specific"]["species"] = genome_version
-    datajson["Params"]["sv"]["exp_specific"]["assembly"] = genome_version
+    _fill_sv_exp_specific_vep(datajson, genome_version,
+                              custom_gtf=default_ref.get("custom_gtf"))
     datajson["sample_params"]["samples"] = samples
     datajson["sample_params"]["raw_files"] = raw_files
     outfiles += _register_regionplot(datajson, samples_info_dict, samples, outdir, "Fiberseq")

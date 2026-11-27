@@ -1,28 +1,7 @@
-"""
-KARRseq Subworkflow
-
-Kethoxal-Assisted RNA-RNA interaction sequencing (KARR-seq) workflow.
-Detects RNA-RNA interactions via chimeric read analysis.
-
-Workflow steps:
-1. SeqPrep: Merge paired-end reads (PE only)
-2. STAR: Align reads (merged PE or raw SE) + output chimeric reads
-3. KARRseq: Extract chimeric pairs, remove duplicates, process ligation events
-
-Usage:
-    snakemake -s subworkflow/KARRseq.smk --configfile config/KARRseq.json --use-conda --cores 30
-
-Reference: https://github.com/ouyang-lab/KARR-seq.git
-"""
+from snakemake.logging import logger
+import os
 shell.prefix("set -x; set -e;")
-# common.smk builds RECEIPT_DIR from config["OUTDIR_ROOT"]; a top-level
-# subworkflow's raw.json carries only Params.workflow.outdir, so align the
-# two BEFORE including (module configs below receive OUTDIR_ROOT explicitly).
 config.setdefault("OUTDIR_ROOT", config.get("Params", {}).get("workflow", {}).get("outdir", "output"))
-# Canonical shared helpers (rule_res, sif, _require, logger, os, ...).
-# Per modules.md: subworkflow uses `include: "../modules/common/common.smk"`.
-include: "../modules/common/common.smk"
-
 indir = config.get("Params", {}).get("workflow", {}).get("indir", "data/fastq")
 outdir = config.get("Params", {}).get("workflow", {}).get("outdir", "output")
 logdir = config.get("Params", {}).get("workflow", {}).get("logdir", "log")
@@ -66,25 +45,47 @@ if paired_samples:
     use rule seqprep_merge from seqprep as KARRseq_seqprep_merge
 
 # =================
-# Module 2: STAR Alignment
+# Module 2: STAR Alignment (modules/star/star_chimeric)
 # =================
-
-# STAR alignment with KARRseq-specific parameters
+# 输出契约保留 STAR 原始命名(karrseq 模块直吃 _Chimeric.out.sam),与
+# modules/star/star.smk 的 star_align(产物改名 .bam + 无 chimeric)不同,
+# 按「输出是否相同」判据不复用,独立子模块承接。
 star_index_dir = genome_ref.get("star_index_dir")
-# KARRseq_star_align 参数段:Params.star(本 subworkflow 转发入 rule)。
+# KARRseq_star_align 参数段:Params.star(本 subworkflow 转发入模块)。
 # 参数精确到 rule:Params.star.KARRseq_star_align.<key>(config 全量路径直读;
 # 无 module 级共享回退,KARRseq_star_align 与 star_align 各自独立键)。
 
-def get_alignment_input(wildcards):
-    """Dynamically determine alignment input: merged PE or raw SE."""
-    if wildcards.sample_id in paired_samples:
-        merged = f"{outdir}/merge/{wildcards.sample_id}/{wildcards.sample_id}_merge.fastq.gz"
-        return [merged]
-    elif wildcards.sample_id in single_samples:
-        single = f"{indir}/{wildcards.sample_id}.fastq.gz"
-        return [single]
-    else:
-        raise ValueError(f"Sample {wildcards.sample_id} not in paired_samples or single_samples")
+# 输入布局(形态三):seqprep 合并 PE / 原始 SE 展开为 sample_id → 完整路径
+# 字典,布局差异留在 subworkflow,模块从布局解耦。
+star_fastqs = {
+    s: f"{outdir}/merge/{s}/{s}_merge.fastq.gz" for s in paired_samples
+}
+star_fastqs.update({s: f"{indir}/{s}.fastq.gz" for s in single_samples})
+
+star_chimeric_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "outdir": f"{outdir}/bam",
+    "logdir": logdir,
+    "env": config.get("env", {}),
+    "sample_fastqs": star_fastqs,
+    "genome": {
+        "star_index_dir": star_index_dir,
+    },
+    "Procedure": {
+        "STAR": config.get("Procedure", {}).get("STAR") or "STAR",
+        "samtools": config.get("Procedure", {}).get("samtools") or "samtools",
+    },
+    "Params": {
+        "star": config.get("Params", {}).get("star", {}),
+    },
+    "resources": config.get("resources", {}),
+}
+module star_chimeric:
+    snakefile: "../modules/star/star_chimeric/star_chimeric.smk"
+    config: star_chimeric_config
+logger.info(f"star_chimeric_config: {star_chimeric_config}")
+use rule KARRseq_star_align from star_chimeric as KARRseq_star_align
 
 # ============================================
 # Sex check (coverage on sex chromosomes)
@@ -154,68 +155,7 @@ module qc_summary:
 logger.info(f"qc_summary_config: {qc_summary_config}")
 use rule qc_summary from qc_summary as KARRseq_qc_summary
 
-rule KARRseq_star_align:
-    input:
-        fastq = get_alignment_input
-    output:
-        # unregistered stage files consumed only by sexcheck QC and karrseq; kept by default, temp when Params.star.keep_intermediates is false
-        aligned = maybe_temp(outdir + "/bam/{sample_id}/{sample_id}_Aligned.sortedByCoord.out.bam", "star"),
-        chimeric = maybe_temp(outdir + "/bam/{sample_id}/{sample_id}_Chimeric.out.sam", "star")
-    log:
-        logdir + "/{sample_id}/STAR.log"
-    threads: rule_res("KARRseq_star_align").get("threads", 15)
-    resources:
-        mem_mb = rule_res("KARRseq_star_align").get("mem_mb", 8000),
-    params:
-        STAR = config.get("Procedure", {}).get("STAR") or "STAR",
-        index = star_index_dir,
-        prefix = outdir + "/bam/{sample_id}/{sample_id}",
-        outFilterMultimapNmax = config.get("Params", {}).get("star", {}).get("KARRseq_star_align", {}).get("outFilterMultimapNmax", 100),
-        outSAMattributes = config.get("Params", {}).get("star", {}).get("KARRseq_star_align", {}).get("outSAMattributes", "All"),
-        alignIntronMin = config.get("Params", {}).get("star", {}).get("KARRseq_star_align", {}).get("alignIntronMin", 1),
-        scoreGapNoncan = config.get("Params", {}).get("star", {}).get("KARRseq_star_align", {}).get("scoreGapNoncan", -4),
-        scoreGapATAC = config.get("Params", {}).get("star", {}).get("KARRseq_star_align", {}).get("scoreGapATAC", -4),
-        chimSegmentMin = config.get("Params", {}).get("star", {}).get("KARRseq_star_align", {}).get("chimSegmentMin", 15),
-        chimJunctionOverhangMin = config.get("Params", {}).get("star", {}).get("KARRseq_star_align", {}).get("chimJunctionOverhangMin", 15),
-        limitOutSJcollapsed = config.get("Params", {}).get("star", {}).get("KARRseq_star_align", {}).get("limitOutSJcollapsed", 10000000),
-        limitIObufferSize = config.get("Params", {}).get("star", {}).get("KARRseq_star_align", {}).get("limitIObufferSize", 1500000000),
-        samtools = config.get("Procedure", {}).get("samtools") or "samtools"
-    run:
-        import time
-        current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-        logger.info(f"Start STAR alignment for sample {wildcards.sample_id} at {current_time}")
-        script = os.path.join(outdir, f"{wildcards.sample_id}/STAR_align_{current_time}.sh")
-        os.makedirs(os.path.dirname(script), exist_ok=True)  # 回执目录不随产物走,先建
-        input_params = " ".join(input.fastq)
-        cmd = [
-            params.STAR,
-            "--runMode", "alignReads",
-            "--runThreadN", str(threads),
-            "--genomeDir", params.index,
-            "--readFilesIn", input_params,
-            "--readFilesCommand", "zcat",
-            "--outFileNamePrefix", f"{params.prefix}_",
-            "--outReadsUnmapped", "Fastq",
-            "--outFilterMultimapNmax", str(params.outFilterMultimapNmax),
-            "--outSAMtype", "BAM", "SortedByCoordinate",
-            "--outSAMattributes", params.outSAMattributes,
-            "--alignIntronMin", str(params.alignIntronMin),
-            "--scoreGapNoncan", str(params.scoreGapNoncan),
-            "--scoreGapATAC", str(params.scoreGapATAC),
-            "--chimSegmentMin", str(params.chimSegmentMin),
-            "--chimJunctionOverhangMin", str(params.chimJunctionOverhangMin),
-            "--limitOutSJcollapsed", str(params.limitOutSJcollapsed),
-            "--limitIObufferSize", str(params.limitIObufferSize),
-        ]
-        cmd_index = [params.samtools, "index", output.aligned]
-        with open(script, "w") as f:
-            f.write("#!/bin/bash\n")
-            f.write(" ".join(cmd) + "\n")
-            f.write(" ".join(cmd_index) + "\n")
-        if SCRIPT_ONLY:  # 测试模式只落盘回执脚本,不执行;touch 占位保 DAG 走完(事后清理)
-            script_only_touch(output)
-        else:
-            shell(f"bash {script} >> {log} 2>&1")
+
 # =================
 # Module 3: KARRseq Chimeric Processing
 # =================

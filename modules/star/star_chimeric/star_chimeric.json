@@ -1,0 +1,39 @@
+{
+  "ROOT_DIR": null,
+  "OUTDIR_ROOT": null,
+  "outdir": "output",
+  "logdir": "log",
+  "sample_fastqs": {},
+  "genome": {
+    "star_index_dir": null
+  },
+  "env": {
+    "env_dir": null
+  },
+  "Procedure": {
+    "STAR": null,
+    "samtools": "samtools"
+  },
+  "Params": {
+    "star": {
+      "keep_intermediates": true,
+      "KARRseq_star_align": {
+        "outFilterMultimapNmax": 100,
+        "outSAMattributes": "All",
+        "alignIntronMin": 1,
+        "scoreGapNoncan": -4,
+        "scoreGapATAC": -4,
+        "chimSegmentMin": 15,
+        "chimJunctionOverhangMin": 15,
+        "limitOutSJcollapsed": 10000000,
+        "limitIObufferSize": 1500000000
+      }
+    }
+  },
+  "resources": {
+    "default": {
+      "threads": 2,
+      "mem_mb": 8000
+    }
+  }
+}

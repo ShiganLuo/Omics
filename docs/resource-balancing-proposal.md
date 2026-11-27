@@ -378,17 +378,17 @@ io_bandwidth_mb_s(<rule>) = p90 over benchmarks of (io_in + io_out) / wall_secon
 
 ---
 
-## 9. 临时写入分流（STAR outTmpDir → tmp_dir，回应 P2）
+## 9. 临时写入分流（STAR outTmpDir → 临时目录，默认 /tmp，回应 P2）
 
 STAR 排序产生 ~16.7 GB 临时写再合并成最终 BAM（§7.1 第 4/5 条），目前 tmp 与最终输出同在 sda——写放大且寻道交错，抬高了每个 job 的 I/O 需求（P2）。`tmp_dir` config 键与 singularity bind 已存在（run.py:501-511），`/tmp` 在 NVMe：
 
 实现项：
 
-1. `modules/star/star.smk:201`（align）与 star.smk:41（index）的 `outTmpDir` 改为 `config.get("tmp_dir")` 有值时指向 `tmp_dir + "/star_align/{sample_id}"`，无值时保持 `outdir + "/{sample_id}/tmp_star"` 现路径——**兼容锚点 = tmp_dir 未配置时与今天完全一致**；
+1. `modules/star/star.smk:201`（align）与 star.smk:41（index）的 `outTmpDir` 改为指向临时目录：`tmp_dir` config 有值时用 `tmp_dir + "/star_align/{sample_id}"`，未配置时**默认 `/tmp/star_align/{sample_id}`，自动分流、默认生效**（2026-11-27 已决：默认生效优先于零行为变化；`tmp_dir` 显式配置可完全覆盖，包括配回 outdir 下旧路径以复现旧行为）；
 2. 同款检查扩展到其他大临时写规则（gatk SortSam 的 `--TMP_DIR`、samtools sort `-T`），逐规则排查，不按工具名一把抓（每个子命令的临时行为不同）；
 3. tmp 带宽占用仍计入带宽预算（§8）的权重（io_out 实测本来就是全量口径，分流后 benchmark 数字自然回落，权重随之校准下调——带宽预算与写入分流由校准扩展（§10）闭环）。
 
-边界：tmp 盘满 → job 失败走既有重试（§5）；tmp_dir 与 outdir 跨设备时 snakemake 的 `os.replace` 不跨盘——STAR 合并输出直接写 outdir（STAR 本身即 outTmpDir 合并到 outFileNamePrefix），不触发跨盘 move，实现时逐规则确认无 `os.replace` 跨盘调用。
+边界：tmp 盘满 → job 失败走既有重试（§5）；tmp_dir 与 outdir 跨设备时 snakemake 的 `os.replace` 不跨盘——STAR 合并输出直接写 outdir（STAR 本身即 outTmpDir 合并到 outFileNamePrefix），不触发跨盘 move，实现时逐规则确认无 `os.replace` 跨盘调用。**默认 /tmp 的容量风险**：大并发 STAR 的 tmp 可达百 GB 量级，/tmp 在小根分区主机上有写满风险——job 级失败由重试兜底，run.py 落 tmp 前应检查可用空间并告警（阶段 2 实现项）。
 
 ---
 
@@ -397,7 +397,7 @@ STAR 排序产生 ~16.7 GB 临时写再合并成最终 BAM（§7.1 第 4/5 条�
 校准闭环（§6）目前只有 mem/threads 维度；I/O 侧的权重与预算同样是"待校准暂定值"，需要同一套回填通道（P3）：
 
 1. `src/common/util/calibrate_resources.py`：建议表 `resources_suggest.tsv` 增加 `io_bandwidth_mb_s` 列 = p90((io_in+io_out)/s)，沿用既有护栏（§6.3：≥3 点、±30% 限幅、只出建议人工合入）；
-2. 可选 `--io-probe`（默认关）：在 outdir 写 256 MB 临时文件测顺序写+读吞吐（3 次取中位），输出 `sustainable_disk_bandwidth_mb_s` 实测值覆盖暂定常量。默认关的理由：测速本身写盘、并发运行时测速失真、对用户磁盘有副作用——只在空闲时人工开启；
+2. 可选 `--io-probe`（默认关，2026-11-27 已决保留）：实测 `sustainable_disk_bandwidth_mb_s` 覆盖暂定常量。实现时**优先复用现成 Linux 测速工具（fio、hdparm 等）**直接取磁盘顺序读写带宽，替代手写 256 MB 测速文件（3 次取中位）；现成工具够用则 probe 退化为薄封装。默认关的理由：测速本身写盘、并发运行时测速失真、对用户磁盘有副作用——只在空闲时人工开启；
 3. `io_safety_factor` 与盘类型暂定常量随试点实测数据重定（试点方案见行动方案）。
 
 ---
@@ -419,6 +419,7 @@ STAR 排序产生 ~16.7 GB 临时写再合并成最终 BAM（§7.1 第 4/5 条�
 | I/O 量纲 | 带宽 MB/s，不做无量纲权重 | benchmark 直接换算，机制自明（§8.2） |
 | I/O 权重键粒度 | 每规则单键（star_align 不分阶段） | 既有命名规则（§7.1 第 7 条） |
 | I/O 默认策略 | 预算自动探测开启 + 权重地板 1 | 兼容锚点（§8.7），且修复默认生效 |
+| tmp 分流默认策略 | 默认 `/tmp` 自动分流，未配置即生效（`tmp_dir` 可覆盖，含配回旧路径） | 机制默认生效优先于零行为变化；/tmp 容量风险由重试 + 落盘前空间检查兜底（2026-11-27 已决） |
 | 动态反馈调速（外部控制器按 await 实时调并发） | 否决 | Snakemake 无运行时资源重配通道，需常驻外部控制器，效应通道复杂且收益不明 |
 | cgroup io.max 进程级限速 | 否决（非目标） | 作用通道是限速而非打包，会让 job 变慢而不是变少，与目标反向 |
 | per-host 磁盘配置表 | 否决 | 违背"不枚举部署目标"；自动探测 + 兜底常量在任何主机成立 |

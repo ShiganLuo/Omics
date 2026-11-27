@@ -630,3 +630,4 @@ python workflow/Omics/run_module.py --test all -o /path/to/module_test
 - [x] 所有图片输出支持多种格式可选
 - [x] 测试模式生成shell脚本，方便检查
 - [x] 精准控制每个module的中间文件是否保留
+- [x] 资源设计增加磁盘感知，防止并行任务数量过多导致磁盘IO过重带来的磁盘损坏和任务抢占时间损耗

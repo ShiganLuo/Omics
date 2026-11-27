@@ -1121,6 +1121,23 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
     # Use first workflow's output dir for metadata (or a shared parent if multi)
     ref_outdir = os.path.join(args.output_dir, workflow_names[0])
     abs_ref_outdir = os.path.abspath(ref_outdir)
+    # 运行日志落盘:snakemake 子进程报错文本(MissingOutputException 等)只经
+    # stderr 流,进不了 .snakemake/log;CmdUtil 失败时把捕获的 STDERR dump 到
+    # logger。挂 root logger 的 FileHandler 可同时收 run.py(LogUtil setup_logger
+    # propagate=True)与 CmdUtil(裸 getLogger,默认 propagate)的全部记录。
+    # 时间戳+pid 防同秒并发撞名(见 receipt_script 同类问题)。
+    run_log_dir = os.path.join(abs_ref_outdir, "log")
+    os.makedirs(run_log_dir, exist_ok=True)
+    run_log_path = os.path.join(
+        run_log_dir,
+        f"run_{time.strftime('%Y%m%d_%H%M%S')}_pid{os.getpid()}.log",
+    )
+    _run_log_fh = logging.FileHandler(run_log_path, encoding="utf-8")
+    _run_log_fh.setFormatter(logging.Formatter(
+        "%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"))
+    logging.getLogger().addHandler(_run_log_fh)
+    logger.info(f"Run log file: {run_log_path}")
     first_meta = _get_meta(workflow_names[0])
     if first_meta and os.path.isfile(first_meta):
         metadataUtil = MetadataUtils(outdir=abs_ref_outdir, meta=first_meta, workflow=workflow_names[0], comparison_file=args.comparison)

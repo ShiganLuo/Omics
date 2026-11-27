@@ -2709,23 +2709,17 @@ def runscRNAseq(
     datajson["sample_params"]["single_samples"] = single_samples
     datajson["sample_params"]["cellranger_dirs"] = cellranger_dirs
 
-    # scCODA compare sharing: Params.sccoda.<counter>.sccoda_run.compare
-    # defaults to the pseudobulk comparison design (identical
-    # tissue:ref:treat[=label] entry shape) — one
-    # --Params.scanpy.<counter>.scanpy_pseudobulk.compare serves both
-    # analyses. A hand-filled sccoda compare wins over the shared one.
-    for counter in counters:
-        sccoda_run = (datajson["Params"].setdefault("sccoda", {})
-                      .setdefault(counter, {}).setdefault("sccoda_run", {}))
-        if not sccoda_run.get("compare"):
-            pb = ((datajson["Params"].get("scanpy", {}).get(counter, {}) or {})
-                  .get("scanpy_pseudobulk", {}) or {})
-            shared = pb.get("compare") or []
-            if shared:
-                sccoda_run["compare"] = list(shared)
-                logger.info(
-                    f"[sccoda] Params.sccoda.{counter}.sccoda_run.compare is "
-                    f"empty — sharing the pseudobulk design ({len(shared)} entries)")
+    # compare sharing 已退役:比较设计唯一住 sample_params.design,
+    # pseudobulk 与 sccoda 各自经 common.smk::comparison_design 取
+    # pairwise / native 视图,不再有 Params 内的字符串/JSON 互通桥。
+
+    # teprofile compare sharing 同步退役:跨比较 TE 分数图在
+    # teprofile.smk 内直接取 sample_params.design 的 pairwise 视图。
+    # 比较设计:sample_params.design 是唯一对比定义源。
+    cmp_design = datajson.get("sample_params", {}).get("design", {}) or {}
+
+    def _tissue_has_design(t):
+        return bool((cmp_design.get(t) or {}).get("comparisons"))
 
     if len(organisms) != 1:
         raise ValueError(f"meta don't support multiple organsim temporarily, please check your meta file, found: {organisms}")
@@ -2784,24 +2778,19 @@ def runscRNAseq(
             pb_cfg = ((datajson["Params"].get("scanpy", {}).get(counter, {}) or {})
                       .get("scanpy_pseudobulk", {}) or {})
             # Register the report only for tissues owning at least one
-            # compare entry: entries are tissue-scoped
-            # "tissue:ref:treat[=label]" strings and the per-tissue rule
-            # filters by prefix, so a tissue with no entries cannot run.
-            pb_compare = pb_cfg.get("compare") or []
-            if pb_cfg.get("enabled") and any(
-                    str(c).split(":", 1)[0] == tissue for c in pb_compare):
+            # comparison in sample_params.design (the per-tissue rule
+            # derives its wire JSON from the same source).
+            if pb_cfg.get("enabled") and _tissue_has_design(tissue):
                 outfiles.append(f"{outdir}/diff/pseudobulk/{tissue}/{counter}/pseudobulk_report.html")
             # scCODA differential abundance (modules/sccoda) — gated per
             # counter by Params.sccoda.<counter>.sccoda_run.enabled; consumes
             # the scanpy_auto h5ad (obs: sample_id + cell_type), so
             # registering the report target pulls the qc->merge->auto chain
-            # into the DAG. Same tissue-prefix gate expression as the rule's
-            # compare filter.
+            # into the DAG. Tissue-presence gate reads sample_params.design
+            # (same source as the rule's native view).
             sc_cfg = ((datajson["Params"].get("sccoda", {}) or {}).get(counter, {})
                       or {}).get("sccoda_run", {}) or {}
-            sc_compare = sc_cfg.get("compare") or []
-            if sc_cfg.get("enabled") and any(
-                    str(c).split(":", 1)[0] == tissue for c in sc_compare):
+            if sc_cfg.get("enabled") and _tissue_has_design(tissue):
                 outfiles.append(f"{outdir}/diff/abundance/{tissue}/{counter}/sccoda_report.html")
             # Manual cluster-annotation overrides (scanpy_reannotate): an
             # in-place label fix over the auto h5ad (auto.h5ad.bak keeps
@@ -2845,7 +2834,18 @@ def runscRNAseq(
         outfiles.append(f"{outdir}/diff/te_profile/te_profile.done")
         for tissue in tissue_samples.keys():
             outfiles.append(f"{outdir}/diff/te_profile/baseline_te_fraction_{tissue}.png")
+            outfiles.append(f"{outdir}/diff/te_profile/baseline_family_comp_{tissue}.png")
             outfiles.append(f"{outdir}/diff/te_profile/cluster_deviation_{tissue}.png")
+        # layer-3 remodeling outputs (same gate as the smk's remod_fig)
+        if tep_cfg.get("groups") or tep_cfg.get("contrasts"):
+            outfiles.append(f"{outdir}/diff/te_profile/te_profile_remodeling.csv")
+            for tissue in tissue_samples.keys():
+                outfiles.append(f"{outdir}/diff/te_profile/remodeling_shift_{tissue}.png")
+        # cross-comparison TE fraction figure (pairwise view of
+        # sample_params.design; same gate as teprofile.smk)
+        if any(_tissue_has_design(t) for t in tissue_samples):
+            outfiles.append(f"{outdir}/diff/te_profile/te_fraction_cross_tissue.png")
+            outfiles.append(f"{outdir}/diff/te_profile/te_fraction_compare_design.json")
     # outfiles.append(f"{outdir}/scRNAseq_report.pptx")
     datajson["outfiles"] = outfiles
     return _write_raw_json(datajson, outdir)

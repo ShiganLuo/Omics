@@ -1,31 +1,21 @@
 
 include: "../common/common.smk"
-python = config.get("Procedure", {}).get("python") or "python"
+import json
 
 ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
-# reannotate: {counter: {tissue: override_json}} — forwarded by the
-# subworkflow (node.py) from scanpy's cluster_annotations config. Cross-module
-# ordering guard only; see _reannotate_marker below. (top-level wiring key,
-# not a Params read point — sccoda's own params are rule-scoped below.)
-reannotate = config.get("reannotate", {}) or {}
 
-# tissue_samples: {tissue: [sample_id, ...]} — sample_params.tissue_samples
-# (subworkflow wiring passes it bare, purity 规范见 subworkflow/subworkflow.md)
 tissue_samples = config.get("tissue_samples", {})
 tissues = sorted(tissue_samples.keys())
 counters = sorted(k for k, v in (config.get("Params", {}).get("sccoda", {}) or {}).items()
                   if isinstance(v, dict) and k != "tissue_samples")
-script = os.path.join(ROOT_DIR, "modules", "sccoda", "bin", "sccoda.py")
-
-# 参数精确到 rule:Params.sccoda.<counter>.sccoda_run.<key>(无 counter 级共享回退,原整段 cfg 转发已展开逐 key)。
 
 
 def _sccoda_override(wildcards):
     """Path of the tissue's reannotate override JSON, [] when none."""
-    entry = reannotate.get(wildcards.counter, {}) or {}
+    entry = config.get("reannotate", {}) .get(wildcards.counter, {}) or {}
     if not isinstance(entry, dict):
         return []
     return entry.get(wildcards.tissue, "") or []
@@ -46,8 +36,8 @@ def _reannotate_marker(wildcards):
 # ---------------------------------------------------------------------------
 rule sccoda_run:
     """scCODA differential abundance (pertpy): one job per tissue x counter,
-    running every Params.sccoda.<counter>.sccoda_run.compare entry scoped to
-    its tissue.
+    running the sample_params.design comparison design scoped to its tissue
+    (multi-group entries as ordered 'groups' bars, pairwise as group_pairs).
     Consumes the scanpy_auto h5ad (obs: sample_id + cell_type); when cluster
     annotation overrides are configured for the tissue, the reannotate marker
     orders this rule after the in-place label fix."""
@@ -68,16 +58,15 @@ rule sccoda_run:
     container:
         sif("sccoda.yaml", "sccoda_run")
     params:
-        python = python,
-        script = script,
-        # 参数精确到 rule:Params.sccoda.<counter>.sccoda_run.<key>
-        # (原 sccoda_cfg 整段 dict 转发已展开逐 key)
+        python = config.get("Procedure", {}).get("python") or "python",
+        script = os.path.join(ROOT_DIR, "modules", "sccoda", "bin", "sccoda.py"),
         ref_celltype=lambda wildcards: config.get("Params", {}).get("sccoda", {}).get(wildcards.counter, {}).get("sccoda_run", {}).get("ref_celltype", "automatic"),
         formula=lambda wildcards: config.get("Params", {}).get("sccoda", {}).get(wildcards.counter, {}).get("sccoda_run", {}).get("formula", "condition"),
         credible_threshold=lambda wildcards: config.get("Params", {}).get("sccoda", {}).get(wildcards.counter, {}).get("sccoda_run", {}).get("credible_threshold", 0.90),
         num_samples=lambda wildcards: config.get("Params", {}).get("sccoda", {}).get(wildcards.counter, {}).get("sccoda_run", {}).get("num_samples", 2000),
         num_warmup=lambda wildcards: config.get("Params", {}).get("sccoda", {}).get(wildcards.counter, {}).get("sccoda_run", {}).get("num_warmup", 500),
-        compare=lambda wildcards: config.get("Params", {}).get("sccoda", {}).get(wildcards.counter, {}).get("sccoda_run", {}).get("compare", []) or [],
+        sc_design=lambda wildcards: config.get("design", {}) or {},
+        tissue_samples=lambda wildcards: config.get("tissue_samples", {}) or {},
         formats=lambda wildcards: (lambda fmts: [fmts] if isinstance(fmts, str) else [str(f) for f in fmts])(
             config.get("Params", {}).get("sccoda", {}).get(wildcards.counter, {}).get("sccoda_run", {}).get("formats") or ["png"]),
     run:
@@ -89,7 +78,6 @@ rule sccoda_run:
             rule_logger.info(f"Start scCODA differential abundance for tissue {wildcards.tissue} at {current_time}")
             out_root = os.path.dirname(str(output.report))
             os.makedirs(out_root, exist_ok=True)
-            # dual-write receipts: timestamped copy in log/cmd, plain copy in outdir
             script = receipt_script(f"sccoda_run_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)  # sample_id 可能含路径分隔符
             plain_script = os.path.join(out_root, f"sccoda_run_{wildcards.counter}_{wildcards.tissue}.sh")
@@ -101,33 +89,22 @@ rule sccoda_run:
                    "--credible-threshold", str(params.credible_threshold),
                    "--num-samples", str(params.num_samples),
                    "--num-warmup", str(params.num_warmup)]
-            # entries: tissue:ref_sample:treat_sample[=label] — every entry
-            # is scoped to ONE tissue (sccoda.py rejects a compare whose
-            # tissue has no --h5ad definition), so this per-tissue job only
-            # takes the entries prefixed with its own wildcard. SAME filter
-            # expression as node.py's registration gate.
-            tissue_compares = [
-                str(c) for c in (params.compare or [])
-                if str(c).split(":", 1)[0] == wildcards.tissue
-            ]
-            if not tissue_compares:
-                raise RuntimeError(
-                    f"Params.sccoda.{wildcards.counter}.sccoda_run.compare "
-                    f"has no entry for tissue '{wildcards.tissue}' — expected "
-                    f"entries like '{wildcards.tissue}:ref_sample:"
-                    f"treat_sample[=label]'")
-            for cmp_ in tissue_compares:
-                cmd += ["--compare", cmp_]
+            # 比较设计:sample_params.design → comparison_design(native 视图:
+            # 两两 entry → group_pairs,多组 entry → groups 有序形状原样,
+            # 首组 = 基线)→ compare_design.json(回执/溯源)→
+            # --compare-json。转化集中在 common.smk::write_compare_design,
+            # 语义错误(缺组织/组名悬空/样本互斥/多组 ref 非首组)在
+            # 那里快速失败。
+            design_json = os.path.join(out_root, "compare_design.json")
+            write_compare_design(params.sc_design, wildcards.tissue,
+                                 "native", design_json,
+                                 tissue_samples=params.tissue_samples)
+            cmd += ["--compare-json", design_json]
             # --format is action='append': one flag per format (modules.md #9)
             for fmt in params.formats:
                 cmd += ["--format", str(fmt)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
-                # Cap numeric-library threads to the rule's thread budget
-                # (config resources -> rule_res -> threads) so the process
-                # honors what snakemake allocated instead of grabbing every
-                # core; the value is injected at script generation, never
-                # hardcoded here.
                 f.write(f"export OMP_NUM_THREADS={threads}\n")
                 f.write(f"export OPENBLAS_NUM_THREADS={threads}\n")
                 f.write(f"export MKL_NUM_THREADS={threads}\n")

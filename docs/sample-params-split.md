@@ -41,6 +41,7 @@ comparisons 命名归一与迁移影响面。
     "sample_bams": {...}, "populations": {...}, "sample_data": "...",
     "expdesign": "...", "cellranger_dirs": [...], "cellranger_input_dict": {...},
     "sample_groups": {...}, "tissue_samples": {...},
+    "design": {"<tissue>": {"groups": {...}, "comparisons": {...}, "tests": [...]}},
     "comparisons": {
       "<organism>": {
         "<contrast_name>": {
@@ -92,7 +93,24 @@ dict 形式按 comparison_id 平铺,进入 config 时按样本 organism 归组�
 |---|---|---|
 | DESeq2 / function(polygenomes) | `{organism: {对比名: {...}}}` | 原样直通 |
 | sv(PacVar / Fiberseq) | `{对比名: {...}}` 平铺 | subworkflow 嵌套展平 |
+| telomere length 合并图(PacVar / Fiberseq) | `{对比名: {...}}` 平铺 | subworkflow 嵌套展平(同 sv;合并图对照组样本排最左) |
 | function 单基因组(Fiberseq) | 平铺 + **组名排序定角色**(匹配 diff_accessibility 约定,旧 Params.function.group_pairs 语义) | Fiberseq.smk `_fn_sorted_comparisons()` |
+
+### scRNAseq 多分组比较设计(`sample_params.design`,2026-11-27)
+
+scRNAseq 的比较定义住 `sample_params.design`(组织层嵌套,样本按组织
+互不重叠):`{tissue: {groups: {组名: [sample_id,...]}, comparisons:
+{对比名: {groups: [有序组名], ref?, coding?}}, tests?}}`。coding =
+consecutive|vs_ref|all_pairs|helmert(ref 仅 vs_ref 读取)。替代并废除
+`Params.scanpy.<counter>.scanpy_pseudobulk.compare` /
+`Params.sccoda.<counter>.sccoda_run.compare` / `Params.teprofile.compare`
+(字符串 DSL 与 JSON 混杂的旧键)。转化集中在 rule 层
+`modules/common/common.smk::comparison_design`(pairwise / native 双视图:
+pseudobulk 与 teprofile 收两两 group_pairs,sccoda 收多组 groups 直通);
+pseudobulk.py 传参 JSON 化(`--compare-json`,侧样本列表 = 生物学重复,
+单样本侧伪重复兜底)。schema:scRNAseq.schema.json `sample_params.design`
+(结构性约束)+ 语义校验在展开函数。详见
+`.hermes/docs/scrnaseq-compare-unification-plan.md`。
 
 ## 迁移影响面(已完成)
 

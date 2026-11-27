@@ -17,6 +17,10 @@ genome = config.get("genome", {}).get("default")
 raw_bam_outdir = f"{outdir}/common/2_raw_bam"
 h5ad_outdir = f"{outdir}/common/3_raw_h5ad"
 combine_dir = f"{outdir}/common/5_combine_h5ad"
+# pseudo-bulk deliverables root — shared by the scanpy module (producer) and
+# teprofile's te_fraction_cross_tissue rule (consumer); one literal
+# definition per physical path (modules.md chaining rule).
+pseudobulk_dir = f"{outdir}/diff/pseudobulk"
 if aligner == "star":
     logger.info("Using STAR aligner for scRNA-seq workflow. only scTE counter is supported for STAR aligner.")
     star_config = {
@@ -232,13 +236,14 @@ scanpy_config = {
     "indir": h5ad_outdir,
     "outdir": f"{outdir}/common/4_qc_h5ad",
     "outdir_combine": combine_dir,
-    "outdir_pseudobulk": f"{outdir}/diff/pseudobulk",
+    "outdir_pseudobulk": pseudobulk_dir,
     "logdir": f"{logdir}/sample",
     "logdir_combine": f"{logdir}/group",
     "te_bed": config.get("genome", {}).get("references", {}).get(genome, {}).get("te_bed", ""),
     "gene_tsv": config.get("genome", {}).get("references", {}).get(genome, {}).get("geneIDAnno", ""),
     "species": genome,  # Pass species/genome for tissue-specific annotation
     "tissue_samples": config.get("sample_params", {}).get("tissue_samples", {}),
+    "design": config.get("sample_params", {}).get("design", {}) or {},
     "Params": {
         "scanpy": config.get("Params", {}).get("scanpy", {}),
     },
@@ -284,6 +289,7 @@ sccoda_config = {
         for c in counters
     },
     "tissue_samples": config.get("sample_params", {}).get("tissue_samples", {}),
+    "design": config.get("sample_params", {}).get("design", {}) or {},
     "Params": {
         "sccoda": config.get("Params", {}).get("sccoda", {}),
     },
@@ -310,13 +316,14 @@ use rule * from sccoda as scRNAseq_*
 def _pbgo_prerequisites():
     """Pseudobulk report htmls of every (tissue, counter) whose pseudobulk runs."""
     reqs = []
+    design = config.get("sample_params", {}).get("design", {}) or {}
     for tissue in (config.get("sample_params", {}).get("tissue_samples", {}) or {}):
+        if not (design.get(tissue) or {}).get("comparisons"):
+            continue
         for counter in counters:
             pb = ((config.get("Params", {}).get("scanpy", {}).get(counter, {}) or {})
                   .get("scanpy_pseudobulk", {}) or {})
-            if pb.get("enabled") and any(
-                    str(c).split(":", 1)[0] == tissue
-                    for c in (pb.get("compare") or [])):
+            if pb.get("enabled"):
                 reqs.append(
                     f"{outdir}/diff/pseudobulk/{tissue}/{counter}/pseudobulk_report.html")
     return reqs
@@ -391,8 +398,11 @@ teprofile_config = {
     "resources": config.get("resources", {}),
     "indir": combine_dir,
     "outdir": f"{outdir}/diff/te_profile",
+    "outdir_pseudobulk": pseudobulk_dir,
     "logdir": f"{logdir}/group",
     "tissues": _tedom_tissues(),
+    "design": config.get("sample_params", {}).get("design", {}) or {},
+    "tissue_samples": config.get("sample_params", {}).get("tissue_samples", {}) or {},
     "Params": {
         "teprofile": config.get("Params", {}).get("teprofile", {}),
     },

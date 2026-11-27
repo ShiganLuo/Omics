@@ -415,6 +415,82 @@
         "type": "dict",
         "nullable": true,
         "required": false
+      },
+      "design": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "description": "多分组比较设计(替代旧 tissue:ref:treat compare 字符串;值跟样本走,住 sample_params)。键=tissue(样本按组织互不重叠,组名可跨组织复用);值={groups, comparisons, tests}。留空 {} = 本运行未配置比较设计。",
+        "additionalProperties": {
+          "type": "dict",
+          "properties": {
+            "groups": {
+              "type": "dict",
+              "required": true,
+              "nullable": false,
+              "description": "组注册表 {组名: [sample_id,...]};组内样本同属本组织;同一条对比引用的组之间样本互斥(展开函数校验)",
+              "additionalProperties": {
+                "type": "list",
+                "items": {
+                  "type": "str"
+                }
+              }
+            },
+            "comparisons": {
+              "type": "dict",
+              "required": true,
+              "nullable": false,
+              "description": "对比定义 {对比名: {groups, ref?, coding?}};对比名参与输出命名",
+              "additionalProperties": {
+                "type": "dict",
+                "properties": {
+                  "groups": {
+                    "type": "list",
+                    "required": true,
+                    "nullable": false,
+                    "items": {
+                      "type": "str"
+                    },
+                    "description": "有序组名,数组顺序=生物学顺序(时间/阶段/剂量先后);≥2 项;2 元即普通两两"
+                  },
+                  "ref": {
+                    "type": "str",
+                    "required": false,
+                    "nullable": true,
+                    "description": "基线组名;仅 coding=vs_ref 读取;缺省=groups 首元素;多组 entry 直通 sccoda 时须为首组(首柱即基线)"
+                  },
+                  "coding": {
+                    "type": "str",
+                    "required": false,
+                    "nullable": true,
+                    "enum": [
+                      "consecutive",
+                      "vs_ref",
+                      "all_pairs",
+                      "helmert"
+                    ],
+                    "default": "consecutive",
+                    "description": "对比编码:consecutive=相邻两两(前者参照)/vs_ref=其余每组对 ref/all_pairs=全两两(顺序前当参照)/helmert=第 k 组对此前 k-1 组均值(参照名 prev_mean)"
+                  }
+                }
+              }
+            },
+            "tests": {
+              "type": "list",
+              "required": false,
+              "nullable": true,
+              "items": {
+                "type": "str",
+                "enum": [
+                  "pairwise",
+                  "omnibus",
+                  "trend"
+                ]
+              },
+              "description": "检验种类声明;当前仅 pairwise 消费(pseudobulk 两两 DE + sccoda 对基线),omnibus/trend 保留声明、未消费不传参"
+            }
+          }
+        }
       }
     }
   },
@@ -814,11 +890,6 @@
               "type": "bool",
               "required": false
             },
-            "compare": {
-              "type": "list",
-              "required": false,
-              "description": "tissue:ref_sample:treat_sample[=label] entries"
-            },
             "min_cells": {
               "type": "int",
               "required": false
@@ -1123,11 +1194,6 @@
               "type": "bool",
               "required": false
             },
-            "compare": {
-              "type": "list",
-              "required": false,
-              "description": "tissue:ref_sample:treat_sample[=label] entries"
-            },
             "min_cells": {
               "type": "int",
               "required": false
@@ -1279,11 +1345,6 @@
             "type": "int",
             "required": false
           },
-          "compare": {
-            "type": "list",
-            "required": false,
-            "description": "tissue:ref_sample:treat_sample[=label] entries; empty = shared from Params.scanpy.<counter>.scanpy_pseudobulk.compare"
-          },
           "formats": {
             "type": "list",
             "required": false,
@@ -1321,11 +1382,6 @@
           "num_warmup": {
             "type": "int",
             "required": false
-          },
-          "compare": {
-            "type": "list",
-            "required": false,
-            "description": "tissue:ref_sample:treat_sample[=label] entries; empty = shared from Params.scanpy.<counter>.scanpy_pseudobulk.compare"
           },
           "formats": {
             "type": "list",

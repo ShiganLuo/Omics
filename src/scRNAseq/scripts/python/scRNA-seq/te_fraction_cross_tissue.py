@@ -1,17 +1,47 @@
 #!/usr/bin/env python3
-"""TE% cross-tissue summary (Q5): per-cell-type TE fraction changes from the
-pseudo-bulk counts tables (diff/pseudobulk).  TE% = TE counts / (TE + gene
-counts), aggregated per sample x cell type.
+"""TE fraction cross-tissue summary: per-cell-type TE fraction changes per
+comparison, from the pseudo-bulk counts tables (diff/pseudobulk).
 
-Outputs te_fraction_cross_tissue.png: left = Ovaries TE% change bars
-(aged/youth), right = Uterus TE% log2FC heatmap across 3 contrasts.
+Metric and unit: te_fraction = TE counts / (TE + gene counts), aggregated
+per group as the ratio of summed counts -- a unitless fraction in [0, 1]
+(NOT percent).  The plotted effect is log2FC = log2(exp / ctrl) of
+te_fraction (unitless); positive values mean a higher TE fraction in the
+experimental group.
+
+Comparisons come from a group-pairs design (DESeq2 group_pairs shape):
+each entry names the control group, the experimental group and the sample
+list of each side.  Labels are rendered as "<control_group_name> vs
+<experimental_group_name>".  A tissue with a single comparison is drawn as
+a sorted bar panel; a tissue with several comparisons is drawn as a
+heatmap (one column per comparison).
+
+Outputs:
+  te_fraction_cross_tissue.png   one panel per tissue (title = tissue name)
 
 Usage:
   python te_fraction_cross_tissue.py \
       --root /data/16T/luosg/output/luanchao_mulatta/scRNAseq \
+      --design compare_design.json \
       --out /data/16T/luosg/output/luanchao_mulatta/scRNAseq/diff/figures_te/te_fraction_cross_tissue.png
+
+  compare_design.json (group_pairs shape):
+  {
+    "Uterus": {
+      "Sham_vs_OVX": {
+        "control_group_name": "Sham",
+        "experimental_group_name": "OVX",
+        "control_samples": ["zigong-21310-10XSC3"],
+        "experimental_samples": ["ZIGONG-21224-10XSC3"]
+      }
+    }
+  }
 """
-import argparse, glob, re, warnings
+import argparse
+import glob
+import json
+import re
+import warnings
+
 warnings.filterwarnings("ignore")
 import matplotlib
 matplotlib.use("Agg")
@@ -19,10 +49,22 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.lines import Line2D
 
 
-def te_pct_table(root, tissue):
-    rows = {}
+def te_fraction_table(root, tissue):
+    """Per-sample TE fraction and total counts per cell type.
+
+    Parameters:
+        root: workflow output root containing diff/pseudobulk/<tissue>/scTE.
+        tissue: tissue name (pseudobulk sub-directory name).
+
+    Returns:
+        (frac, total): DataFrames indexed by sample, columns = cell types.
+        frac = TE / (TE + gene), unitless fraction in [0, 1].
+        total = TE + gene counts (aggregation weight for group pooling).
+    """
+    frac, total = {}, {}
     for f in glob.glob(f"{root}/diff/pseudobulk/{tissue}/scTE/"
                        f"pseudobulk_counts_te/{tissue}_*_counts.csv"):
         ct = re.match(rf"{tissue}_(.+)_counts\.csv", f.split("/")[-1]).group(1)
@@ -33,29 +75,54 @@ def te_pct_table(root, tissue):
         gn["samp"] = gn["sample"].str.replace(r"_rep\d+$", "", regex=True)
         t = te.drop(columns=meta).groupby("samp").sum(numeric_only=True).sum(axis=1)
         g = gn.drop(columns=meta).groupby("samp").sum(numeric_only=True).sum(axis=1)
-        rows[ct.replace("_", " ")] = (t / (t + g) * 100).round(2)
-    return pd.DataFrame(rows)
+        tot = t + g
+        frac[ct.replace("_", " ")] = t / tot
+        total[ct.replace("_", " ")] = tot
+    return pd.DataFrame(frac), pd.DataFrame(total)
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--root", required=True)
-    ap.add_argument("--out", required=True)
-    args = ap.parse_args()
-    ov = te_pct_table(args.root, "ovaries")
-    ut = te_pct_table(args.root, "Uterus")
-    lfc_ut = pd.DataFrame({
-        "sham\u2192OVX":    np.log2(ut.loc["ZIGONG-21224-10XSC3"] / ut.loc["zigong-21310-10XSC3"]),
-        "Non-OVX\u2192OVX": np.log2(ut.loc["zigong-1411200-10XSC3"] / ut.loc["zigong-11238-10XSC3"]),
-        "OVX\u2192OVX+OT":  np.log2(ut.loc["zigong-2200671-10XSC3"] / ut.loc["zigong-1411200-10XSC3"]),
-    }).round(2)
-    lfc_ov = (np.log2(ov.loc["luanchao-11238-10XSC3"] /
-                      ov.loc["luanchao-21310-10XSC3"])).round(2).dropna().sort_values()
+def load_design(path):
+    """Read the group-pairs design JSON: {tissue: {contrast: entry}}.
 
-    fig, axes = plt.subplots(1, 2, figsize=(13.2, 5.2),
-                             gridspec_kw={"width_ratios": [1, 1.25]})
-    ax = axes[0]
-    vals, names = lfc_ov.values, lfc_ov.index
+    Each entry requires non-empty control_group_name, experimental_group_name,
+    control_samples, experimental_samples.  Raises ValueError naming the
+    offending key otherwise.
+    """
+    with open(path) as fh:
+        design = json.load(fh)
+    for tissue, contrasts in design.items():
+        for name, entry in contrasts.items():
+            for key in ("control_group_name", "experimental_group_name",
+                        "control_samples", "experimental_samples"):
+                if not entry.get(key):
+                    raise ValueError(
+                        f"design[{tissue!r}][{name!r}] missing/empty key {key!r}")
+    return design
+
+
+def group_fraction(frac, total, samples):
+    """Group-level te_fraction: ratio of summed counts across samples."""
+    missing = [s for s in samples if s not in frac.index]
+    if missing:
+        raise ValueError(f"samples not in pseudo-bulk tables: {missing}")
+    f, t = frac.loc[samples], total.loc[samples]
+    return (f * t).sum() / t.sum()
+
+
+def comparison_lfc(frac, total, entry):
+    """log2(exp / ctrl) of te_fraction per cell type (unitless)."""
+    ctrl = group_fraction(frac, total, entry["control_samples"])
+    exp = group_fraction(frac, total, entry["experimental_samples"])
+    lfc = np.log2(exp / ctrl)
+    return lfc.replace([np.inf, -np.inf], np.nan)
+
+
+def plot_bar(ax, lfc, entry):
+    """Sorted bar panel for a tissue with a single comparison."""
+    label = (f"{entry['control_group_name']} vs "
+             f"{entry['experimental_group_name']}")
+    lfc = lfc.dropna().sort_values()
+    vals, names = lfc.values, lfc.index
     colors = ["#c0392b" if v > 0 else "#2471a3" for v in vals]
     ax.barh(range(len(vals)), vals, color=colors, height=0.62)
     for i, v in enumerate(vals):
@@ -65,21 +132,25 @@ def main():
     ax.set_yticklabels(names, fontsize=9.5)
     ax.set_xlim(min(vals) - 0.14, max(vals) + 0.14)
     ax.axvline(0, color="k", lw=0.8)
-    ax.set_xlabel("TE% log2FC (aged / youth)", fontsize=11)
-    up, dn = int((vals > 0).sum()), int((vals < 0).sum())
-    ax.set_title(f"Ovaries: TE% change \u2014 {up} up / {dn} down\n"
-                 "(aged vs youth, per cell type)", fontsize=12)
+    ax.set_xlabel(f"TE fraction log2FC ({label})", fontsize=11)
+    exp = entry["experimental_group_name"]
+    ax.text(0.0, 1.015, f"← lower in {exp}", transform=ax.transAxes,
+            fontsize=8.5, color="#555", ha="left", va="bottom")
+    ax.text(1.0, 1.015, f"higher in {exp} →", transform=ax.transAxes,
+            fontsize=8.5, color="#555", ha="right", va="bottom")
     ax.spines[["top", "right"]].set_visible(False)
 
-    ax = axes[1]
-    data = lfc_ut.values
+
+def plot_heatmap(ax, lfc_df, clim):
+    """Heatmap panel for a tissue with several comparisons (one column each)."""
+    data = lfc_df.values
     cmap = LinearSegmentedColormap.from_list("rb", ["#2471a3", "#f5f5f5", "#c0392b"])
-    im = ax.imshow(np.ma.masked_invalid(data), cmap=cmap, vmin=-0.5, vmax=0.5,
-                   aspect="auto")
-    ax.set_xticks(range(3))
-    ax.set_xticklabels(lfc_ut.columns, fontsize=10)
-    ax.set_yticks(range(len(lfc_ut.index)))
-    ax.set_yticklabels(lfc_ut.index, fontsize=9.5)
+    im = ax.imshow(np.ma.masked_invalid(data), cmap=cmap,
+                   vmin=-clim, vmax=clim, aspect="auto")
+    ax.set_xticks(range(lfc_df.shape[1]))
+    ax.set_xticklabels([str(i + 1) for i in range(lfc_df.shape[1])], fontsize=11)
+    ax.set_yticks(range(lfc_df.shape[0]))
+    ax.set_yticklabels(lfc_df.index, fontsize=9.5)
     for i in range(data.shape[0]):
         for j in range(data.shape[1]):
             v = data[i, j]
@@ -88,12 +159,59 @@ def main():
                         color="#888")
             else:
                 ax.text(j, i, f"{v:+.2f}", ha="center", va="center",
-                        fontsize=9.5, color="white" if abs(v) > 0.32 else "black")
-    ax.set_title("Uterus: TE% log2FC across 3 contrasts\n"
-                 "(red = up in second group)", fontsize=12)
-    plt.colorbar(im, ax=ax, fraction=0.035, pad=0.02).set_label("log2FC", fontsize=10)
+                        fontsize=9.5,
+                        color="white" if abs(v) > 0.6 * clim else "black")
+    cbar = plt.colorbar(im, ax=ax, fraction=0.035, pad=0.02)
+    cbar.set_label("TE fraction log2FC (exp. / ctrl.)", fontsize=10)
+    # column keys 1..n, full comparison names in a text legend below the panel
+    handles = [Line2D([], [], linestyle="none") for _ in lfc_df.columns]
+    labels = [f"{i + 1}: {lab}" for i, lab in enumerate(lfc_df.columns)]
+    ax.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, -0.08),
+              ncol=1, frameon=False, fontsize=9.5, handlelength=0,
+              handletextpad=0, labelspacing=0.35)
+    ax.spines[["top", "right"]].set_visible(False)
+
+
+def main():
+    ap = argparse.ArgumentParser(
+        description="Per-comparison TE fraction change figure (one panel per tissue).")
+    ap.add_argument("-r", "--root", required=True,
+                    help="workflow output root (contains diff/pseudobulk)")
+    ap.add_argument("-d", "--design", required=True,
+                    help="group-pairs design JSON: {tissue: {contrast: "
+                         "{control_group_name, experimental_group_name, "
+                         "control_samples, experimental_samples}}}")
+    ap.add_argument("-o", "--out", required=True, help="output PNG path")
+    ap.add_argument("-c", "--clim", type=float, default=None,
+                    help="heatmap color limit (symmetric |log2FC| bound; "
+                         "default: max |log2FC| in the data)")
+    args = ap.parse_args()
+
+    design = load_design(args.design)
+    tissues = list(design)
+    fig, axes = plt.subplots(1, len(tissues), figsize=(6.6 * len(tissues), 5.2),
+                             squeeze=False)
+    for ax, tissue in zip(axes[0], tissues):
+        frac, total = te_fraction_table(args.root, tissue)
+        contrasts = design[tissue]
+        labels = [f"{e['control_group_name']} vs {e['experimental_group_name']}"
+                  for e in contrasts.values()]
+        if len(contrasts) == 1:
+            entry = next(iter(contrasts.values()))
+            plot_bar(ax, comparison_lfc(frac, total, entry), entry)
+        else:
+            lfc_df = pd.DataFrame(
+                {lab: comparison_lfc(frac, total, entry)
+                 for lab, entry in zip(labels, contrasts.values())})
+            clim = args.clim
+            if clim is None:
+                clim = float(np.nanmax(np.abs(lfc_df.values)))
+                clim = clim if clim > 0 else 0.5
+            plot_heatmap(ax, lfc_df, clim)
+        ax.set_title(tissue[0].upper() + tissue[1:], fontsize=12, pad=30)
     fig.tight_layout()
-    fig.savefig(args.out, dpi=300, facecolor="white")
+    fig.savefig(args.out, dpi=300, facecolor="white",
+                bbox_inches="tight", pad_inches=0.2)
     print("saved", args.out)
 
 

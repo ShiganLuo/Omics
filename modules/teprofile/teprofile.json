@@ -10,7 +10,8 @@
       "groups": "",
       "n_boot": 200,
       "seed": 0,
-      "contrasts": []
+      "contrasts": [],
+      "compare": {}
     }
   },
   "env": {}

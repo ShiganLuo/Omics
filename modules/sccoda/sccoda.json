@@ -13,7 +13,7 @@
             "scTE": {
                 "sccoda_run": {
                     "enabled": false,
-                    "compare": [],
+                    "compare": {},
                     "ref_celltype": "automatic",
                     "formula": "condition",
                     "credible_threshold": 0.9,
@@ -27,7 +27,7 @@
             "cellranger": {
                 "sccoda_run": {
                     "enabled": false,
-                    "compare": [],
+                    "compare": {},
                     "ref_celltype": "automatic",
                     "formula": "condition",
                     "credible_threshold": 0.9,

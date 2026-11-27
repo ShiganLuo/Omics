@@ -5,7 +5,8 @@
     "cellranger_dirs": [],
     "paired_samples": [],
     "single_samples": [],
-    "tissue_samples": {}
+    "tissue_samples": {},
+    "design": {}
   },
   "Params": {
     "workflow": {
@@ -119,7 +120,6 @@
         },
         "scanpy_pseudobulk": {
           "enabled": true,
-          "compare": [],
           "min_cells": 30,
           "min_counts": 1000,
           "n_pseudo_reps": 3,
@@ -206,7 +206,6 @@
         },
         "scanpy_pseudobulk": {
           "enabled": true,
-          "compare": [],
           "min_cells": 30,
           "min_counts": 1000,
           "n_pseudo_reps": 3,
@@ -228,7 +227,6 @@
       "scTE": {
         "sccoda_run": {
           "enabled": true,
-          "compare": [],
           "ref_celltype": "automatic",
           "formula": "condition",
           "credible_threshold": 0.9,
@@ -242,7 +240,6 @@
       "cellranger": {
         "sccoda_run": {
           "enabled": true,
-          "compare": [],
           "ref_celltype": "automatic",
           "formula": "condition",
           "credible_threshold": 0.9,

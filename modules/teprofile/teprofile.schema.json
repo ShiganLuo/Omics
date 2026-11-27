@@ -73,6 +73,13 @@
             "required": false,
             "default": [],
             "description": "layer-3 显式对比列表(--contrasts,可多项):'组织|标签|对照样本,..|实验样本,..';组织的手术设计用这个(如 Uterus|sham→POI|zigong-21310|ZIGONG-21224)"
+          },
+          "compare": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "default": {},
+            "description": "te_fraction_cross_tissue 的 group-pairs 比较设计 {tissue: {contrast: {control_group_name, experimental_group_name, control_samples, experimental_samples}}};组名进图例/轴标签,建议填真实分组名(如 youth/middle age/Normal/ovariectomy POI/TRA)。空则共享 Params.scanpy.<counter>.scanpy_pseudobulk.compare(裸样本条目转单样本 group_pairs,组名=样本名);手填优先"
           }
         }
       }

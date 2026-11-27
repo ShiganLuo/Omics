@@ -549,3 +549,206 @@ def sif(yaml_filename: str, rule_name: str = "") -> str:
             f"container start. Likely a yaml-stem vs config['env'] key mismatch."
         )
     return fallback_sif
+
+
+# ---------------------------------------------------------------------------
+# 比较设计展开:sample_params.design → 脚本消费的 wire JSON
+# ---------------------------------------------------------------------------
+# 分工(设计原则:流程字段照顾大局、脚本选最适形状、转化归 rule):
+#   设计源  sample_params.design {tissue: {groups, comparisons, tests}}
+#           —— 比较意图,值跟样本走,全运行一份;
+#   wire    {"<tissue>": {"<contrast>": entry}};entry = DESeq2 group_pairs
+#           形状(control_group_name/experimental_group_name/
+#           control_samples/experimental_samples)或 sccoda 多组形状
+#           (groups 有序列表,首组 = 基线);
+#   本函数  展开 + 语义校验(rule 层唯一转化点);脚本只收各自最适形状:
+#           pseudobulk 只收两两 entry,sccoda 原生双形状。
+
+_COMPARISON_CODINGS = ("consecutive", "vs_ref", "all_pairs", "helmert")
+
+
+def comparison_design(design_source, tissue, view, tissue_samples=None):
+    """展开 sample_params.design 为单组织的 wire JSON(纯函数,不落盘)。
+
+    Parameters
+    ----------
+    design_source : dict
+        sample_params.design 全量 {tissue: {groups, comparisons, tests}}。
+    tissue : str
+        组织键(样本按组织互不重叠,组名可跨组织复用)。
+    view : str
+        ``"pairwise"`` —— 多组 entry 按 coding 展开成两两 group_pairs
+        entry(pseudobulk 等差异分析消费;DE 没有多组对象,序列必须
+        展开);``"native"`` —— 两两 entry → group_pairs、多组 entry →
+        groups 有序形状原样(sccoda 连续柱状图消费,首组 = 基线)。
+    tissue_samples : dict, optional
+        {tissue: [sample_id, ...]};提供时校验组内样本同属该组织。
+
+    Returns
+    -------
+    dict
+        {contrast_key: entry}。pairwise 视图 key = ``"{对比名}.{派生名}"``
+        (派生名 = ``"{ref}_vs_{test}"``;helmert 为 ``"{test}_vs_prev_mean"``,
+        其 ref 侧组名为 ``prev_mean``、样本 = 此前各组样本合并);native
+        视图 key = 对比名。key 即输出命名(da_sccoda_{key}、DEG 目录)。
+
+    Raises
+    ------
+    ValueError
+        设计缺失、组名引用不存在、组间样本互斥、跨组织样本、多组 entry
+        的 ref 非首组(native)、派生键冲突等语义错误。
+    """
+    if view not in ("pairwise", "native"):
+        raise ValueError(f"comparison_design: unknown view {view!r}")
+    entry_map = design_source or {}
+    if tissue not in entry_map:
+        raise ValueError(
+            f"comparison_design: sample_params.design has no entry for "
+            f"tissue '{tissue}' — available: {sorted(entry_map)}")
+    block = entry_map.get(tissue) or {}
+    registry = block.get("groups") or {}
+    comparisons = block.get("comparisons") or {}
+    if not registry:
+        raise ValueError(
+            f"comparison_design: design.{tissue}.groups is empty — "
+            f"register at least 2 groups (组名: [sample_id, ...])")
+    if not comparisons:
+        raise ValueError(
+            f"comparison_design: design.{tissue}.comparisons is empty — "
+            f"no comparison to run")
+
+    # ── 注册表语义校验 ──
+    for gname, samples in registry.items():
+        where = f"design.{tissue}.groups.{gname}"
+        if not isinstance(samples, (list, tuple)) or not samples:
+            raise ValueError(f"{where}: needs a non-empty sample list")
+        if any(not isinstance(s, str) or not s for s in samples):
+            raise ValueError(f"{where}: every sample must be a non-empty str")
+        if len(set(samples)) != len(samples):
+            raise ValueError(f"{where}: duplicate sample in group: {samples}")
+        if tissue_samples is not None:
+            known = set(tissue_samples.get(tissue) or [])
+            outside = [s for s in samples if s not in known]
+            if outside:
+                raise ValueError(
+                    f"{where}: samples not belonging to tissue '{tissue}': "
+                    f"{outside}")
+
+    def resolve(names):
+        out = []
+        for n in names:
+            out.extend(registry[n])
+        return out
+
+    result = {}
+    for cname, entry in comparisons.items():
+        where = f"design.{tissue}.comparisons.{cname}"
+        if not isinstance(entry, dict):
+            raise ValueError(f"{where}: entry must be an object")
+        names = entry.get("groups") or []
+        if not isinstance(names, (list, tuple)) or len(names) < 2:
+            raise ValueError(
+                f"{where}: 'groups' needs an ordered list of >= 2 group names")
+        if any(not isinstance(n, str) or not n for n in names):
+            raise ValueError(f"{where}: every group name must be a non-empty str")
+        if len(set(names)) != len(names):
+            raise ValueError(f"{where}: duplicate group name in {list(names)}")
+        unknown = [n for n in names if n not in registry]
+        if unknown:
+            raise ValueError(
+                f"{where}: groups not registered in design.{tissue}.groups: "
+                f"{unknown}")
+        ref = entry.get("ref") or None
+        if ref is not None and ref not in names:
+            raise ValueError(f"{where}: ref '{ref}' is not one of {list(names)}")
+        coding = entry.get("coding") or "consecutive"
+        if coding not in _COMPARISON_CODINGS:
+            raise ValueError(
+                f"{where}: unknown coding {coding!r} — valid: "
+                f"{list(_COMPARISON_CODINGS)}")
+
+        # 组间样本互斥(析因/角色翻转请用不同的组名表达)
+        seen = {}
+        for n in names:
+            for s in registry[n]:
+                if s in seen:
+                    raise ValueError(
+                        f"{where}: sample '{s}' claimed by both '{seen[s]}' "
+                        f"and '{n}'")
+                seen[s] = n
+
+        if view == "native":
+            if len(names) == 2:
+                ctrl = ref or names[0]
+                test = names[1] if ctrl == names[0] else names[0]
+                result[cname] = {
+                    "control_group_name": ctrl,
+                    "experimental_group_name": test,
+                    "control_samples": resolve([ctrl]),
+                    "experimental_samples": resolve([test]),
+                }
+            else:
+                # sccoda 多组:首柱即基线,组序即柱序(生物学顺序)
+                if ref is not None and ref != names[0]:
+                    raise ValueError(
+                        f"{where}: multi-group entry goes to sccoda as-is "
+                        f"(首柱即基线) so ref must be the first group — got "
+                        f"ref='{ref}', first='{names[0]}';要以其他组为基线"
+                        f"请拆成 vs_ref 两两对比")
+                result[cname] = {
+                    "groups": [{"name": n, "samples": resolve([n])}
+                               for n in names],
+                }
+            continue
+
+        # view == "pairwise":按 coding 展开(派生名, 参照组, 检验组,
+        # 参照组名列表, 检验组名列表)
+        pairs = []
+        if coding == "consecutive":
+            for i in range(len(names) - 1):
+                pairs.append((f"{names[i]}_vs_{names[i + 1]}",
+                              names[i], names[i + 1], [names[i]], [names[i + 1]]))
+        elif coding == "vs_ref":
+            r = ref or names[0]
+            for n in names:
+                if n != r:
+                    pairs.append((f"{r}_vs_{n}", r, n, [r], [n]))
+        elif coding == "all_pairs":
+            for i in range(len(names)):
+                for j in range(i + 1, len(names)):
+                    pairs.append((f"{names[i]}_vs_{names[j]}",
+                                  names[i], names[j], [names[i]], [names[j]]))
+        elif coding == "helmert":
+            # 第 k 组对此前 k-1 组的合并(参照名 prev_mean)
+            for k in range(1, len(names)):
+                prev = list(names[:k])
+                pairs.append((f"{names[k]}_vs_prev_mean",
+                              "prev_mean", names[k], prev, [names[k]]))
+
+        for dname, ctrl, test, ctrl_names, test_names in pairs:
+            key = f"{cname}.{dname}"
+            if key in result:
+                raise ValueError(
+                    f"design.{tissue}: derived contrast '{key}' collides "
+                    f"with an earlier entry —重名派生对比请改对比名或组名")
+            result[key] = {
+                "control_group_name": ctrl,
+                "experimental_group_name": test,
+                "control_samples": resolve(ctrl_names),
+                "experimental_samples": resolve(test_names),
+            }
+    return result
+
+
+def write_compare_design(design_source, tissue, view, out_path,
+                         tissue_samples=None):
+    """comparison_design + 落盘 wire JSON 文件({tissue: {contrast: entry}})。
+
+    Returns out_path(与 sccoda 装配的 compare_design.json 惯例一致)。
+    """
+    import json
+    design = comparison_design(design_source, tissue, view,
+                              tissue_samples=tissue_samples)
+    with open(out_path, "w") as f:
+        json.dump({tissue: design}, f, indent=2, ensure_ascii=False)
+    return out_path

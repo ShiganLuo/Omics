@@ -620,6 +620,19 @@ class SchemaValidator:
                 item_allowed = items_def.get("enum") or items_def.get("values")
                 if item_allowed is not None and isinstance(item_allowed, list):
                     errors.extend(self._validate_enum(dotted, cfg, item_allowed))
+                item_type = items_def.get("type")
+                if item_type is not None:
+                    item_declared = ([item_type] if isinstance(item_type, str)
+                                     else item_type)
+                    item_nullable = items_def.get("nullable", True)
+                    for i, item in enumerate(cfg):
+                        if item is None and item_nullable:
+                            continue
+                        if not any(self._type_ok(item, t) for t in item_declared):
+                            errors.append(
+                                f"Field '{dotted}[{i}]' expects type "
+                                f"{item_type}, got {type(item).__name__} "
+                                f"({item!r})")
             # typed non-dict leaf: nothing deeper to check
             if "dict" not in declared or not isinstance(cfg, dict):
                 return errors
@@ -627,6 +640,18 @@ class SchemaValidator:
         # -- container: recurse into properties
         if not isinstance(cfg, dict):
             return errors
+        # -- dynamic keys: validate each undeclared key's value against the
+        # additionalProperties schema node (tissue/组名/对比名 style maps).
+        # Declared keys are handled by the properties walk below.
+        add_props = node.get("additionalProperties")
+        if isinstance(add_props, dict):
+            declared_keys = props if isinstance(props, dict) else {}
+            for key, val in cfg.items():
+                if key in declared_keys:
+                    continue
+                errors.extend(self._validate_node(
+                    val, add_props,
+                    f"{prefix}.{key}" if prefix else key))
         child_props = props if isinstance(props, dict) else (
             node if not has_type and node else None)
         if not isinstance(child_props, dict):

@@ -28,7 +28,10 @@ baseline_te_fraction_<t>.png    每组织:TE 占比 + HK 归一化 TE 产量 vio
 baseline_family_comp_<t>.png    每组织:TE 家族组成堆叠条(按细胞类型)
 cluster_deviation_<t>.png       每组织:三指标偏离面板(全部 cluster,不选冠军)
 remodeling_shift_<t>.png        每组织:layer-3 组间平移摘要(groups 配置时)
+te_fraction_cross_tissue.png    跨比较 TE fraction 变化总览(compare 配置时,§2.5)
+te_fraction_compare_design.json 该次运行消费的比较设计(出处留痕)
 te_profile.sh / te_profile.done 回执与标记
+te_fraction_cross_tissue.sh     te_fraction_cross_tissue 规则回执
 ```
 
 ### 1.3 参数
@@ -38,7 +41,11 @@ te_profile.sh / te_profile.done 回执与标记
 | `tissues` | `--tissues` | — | 组织名列表 |
 | `Params.teprofile.fe_cut` | `--fe-cut` | 1.5 | layer-2 TE 富集倍数门槛 |
 | `Params.teprofile.comp_cut` | `--comp-cut` | 0.25 | layer-2 家族组成 Aitchison 门槛 |
+| `Params.teprofile.n_boot` | `--n-boot` | 200 | layer-2 组成零分布自助重抽样次数 |
+| `Params.teprofile.seed` | `--seed` | 0 | 自助抽样 RNG 种子 |
 | `Params.teprofile.groups` | `--groups` | "" | layer-3 分组 `'组A:s1,s2;组B:s3'`;空则跳过 |
+| `Params.teprofile.contrasts` | `--contrasts` | [] | layer-3 显式对比 `'组织\|标签\|对照样本,..\|实验样本,..'`,可多项 |
+| `Params.teprofile.compare` | (engine `--design`) | {} | §2.5 跨比较图的 group-pairs 设计 `{tissue: {contrast: {control_group_name, experimental_group_name, control_samples, experimental_samples}}}`;组名直接进图(轴标签/图例),填真实分组名。空则共享 `Params.scanpy.<counter>.scanpy_pseudobulk.compare`(裸样本条目转单样本 group_pairs,组名=样本名);手填优先 |
 
 ## 2. 三层分析的指标、生物学含义与计算方式
 
@@ -116,6 +123,33 @@ te_pct / te_norm 中位数平移(`Δ`),并列出两组细胞数。回答"衰老�
 - Aitchison 距离对稀有家族敏感;小 cluster(n<100)的组成偏移可能是
   噪声,解释时结合 n_cells 列
 
+### 2.5 跨比较 TE fraction 变化(compare 配置时)
+
+`te_fraction_cross_tissue` 规则消费 pseudo-bulk counts 表
+(`diff/pseudobulk/{tissue}/scTE/pseudobulk_counts_{te,gene}/*_counts.csv`,
+scanpy_pseudobulk 的产物),按比较设计给出每比较、每细胞类型的
+TE fraction 变化总览:
+
+```
+te_fraction = Σ TE counts / Σ (TE + gene counts)     (按组内样本求和后取比值)
+effect      = log2(te_fraction_实验组 / te_fraction_对照组)   (无单位)
+```
+
+- **单位口径:te_fraction 是 [0,1] 小数(不是百分数)**;图中效应是
+  log2FC,同样无单位。比值口径(ratio of sums)与 layer-3 的 per-cell
+  中位平移是两个估计量:前者是"整体 TE 转录份额",后者是"典型细胞的
+  TE 占比",数值不必一致,分开解读
+- 版式:每组织一个面板,标题只写组织名;单比较的组织出排序条形图
+  (x 轴 `TE fraction log2FC (对照组名 vs 实验组名)`,轴顶灰字标注
+  方向),多比较的组织出热图(列刻度 1..n,完整比较名放图例;
+  颜色条 `TE fraction log2FC (exp. / ctrl.)`)
+- 组名(`control_group_name`/`experimental_group_name`)直接进图,请填
+  真实分组名(如 youth/middle age/Normal/ovariectomy POI/TRA),不要缩写
+- 输入的 counts 表是 scanpy_pseudobulk 的同目录产物,规则以
+  `pseudobulk_report.html`(声明输出)作为顺序锚点;scope 与 te_profile
+  一致,只读 scTE 计数
+- 描述性统计,不做显著性(n=1/组);细胞类型在某组缺失时图中标 n/a
+
 ## 3. 引擎与实现
 
 - 引擎:`bin/te_profile.py`(scanpy 栈,纯 Python)。真实数据验证:
@@ -124,6 +158,18 @@ te_pct / te_norm 中位数平移(`Δ`),并列出两组细胞数。回答"衰老�
   4.26、n_gene_ratio 1.03——健康背景上的真 TE 异常),Uterus 0 个
   te_outlier、6 个 collapsed(含 Leiden 2:fe 2.9 但 n_gene_ratio 0.26,
   正确识别为塌缩而非 TE 主导)
+- 引擎:`bin/te_fraction_cross_tissue.py`(pandas/matplotlib,自包含,
+  §2.5)。独立 CLI:
+
+  ```bash
+  python modules/teprofile/bin/te_fraction_cross_tissue.py \
+      --root <workflow outdir> --design <group-pairs JSON> --out <png>
+  ```
+
+  由 `te_fraction_cross_tissue` 规则驱动(设计经 `Params.teprofile.compare`
+  下发并留痕 `te_fraction_compare_design.json`);真实数据验证:
+  luanchao_mulatta scRNAseq ovaries(youth vs middle age,14 类)+
+  Uterus 3 比较 × 12 类,数值与手算 log2 比值逐一相等
 - HK 归一化模式(housekeeping/all_genes)写进日志与图轴标签
 - 环境:teprofile.yaml(scanpy 栈,复用 tedominant 同级依赖)
 

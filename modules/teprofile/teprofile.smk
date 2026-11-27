@@ -1,5 +1,7 @@
 include: "../common/common.smk"
 
+import json
+
 # ---------------------------------------------------------------------------
 # teprofile: TE 表达三层刻画(layer 1 细胞类型本源特征 / layer 2 亚群离群
 # 检测 / layer 3 分组重塑)。输入 = scRNAseq 工作流 combine 阶段的
@@ -12,8 +14,22 @@ logdir = config.get("logdir", "log")
 ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("indir", "")
 tissues = config.get("tissues", [])
+# pseudo-bulk deliverables root (scRNAseq: <outdir>/diff/pseudobulk) — the
+# te_fraction_cross_tissue rule reads its counts tables from there; the
+# subworkflow passes scanpy's outdir_pseudobulk value (modules.md chaining:
+# one literal definition per physical path).
+pseudobulk_dir = config.get("outdir_pseudobulk", "")
 
 tep_params = config.get("Params", {}).get("teprofile", {})
+# 比较设计源(sample_params.design,subworkflow 传入):跨比较 TE 分数图
+# 取 pairwise 视图(恰为引擎的 group_pairs 设计);组织在设计里有对比
+# 才纳入。替代旧 tep_params.compare(Params 内对比定义已废除)。
+design_source = config.get("design", {}) or {}
+tissue_samples = config.get("tissue_samples", {}) or {}
+
+
+def _tissue_has_design(t):
+    return bool((design_source.get(t) or {}).get("comparisons"))
 
 
 def _teprofile_inputs(wildcards):
@@ -98,6 +114,92 @@ rule te_profile:
             raise RuntimeError(f"te_profile error: {e}, you can check the log file {log_path} for more details.")
 
 
+def _te_fraction_inputs(wildcards):
+    """Pseudo-bulk report per design tissue (declared output of
+    scanpy_pseudobulk; its counts tables sit in the same out_root and are
+    what the engine reads)."""
+    files = []
+    for t in tissues:
+        if _tissue_has_design(t):
+            files.append(_require(
+                os.path.join(pseudobulk_dir, t, "scTE", "pseudobulk_report.html"),
+                f"outdir_pseudobulk/{t}/scTE/pseudobulk_report", tool="teprofile"))
+    return files
+
+
+rule te_fraction_cross_tissue:
+    """Per-comparison TE fraction change across tissues (compare design):
+    one sorted bar panel per single-comparison tissue, one heatmap (columns
+    keyed 1..n + text legend) per multi-comparison tissue. Effect = log2FC
+    of the group-level TE fraction (ratio of summed pseudo-bulk counts)."""
+    input:
+        _te_fraction_inputs,
+    output:
+        fig = outdir + "/te_fraction_cross_tissue.png",
+        design = outdir + "/te_fraction_compare_design.json",
+    log:
+        logdir + "/te_fraction_cross_tissue.log"
+    threads: rule_res("te_fraction_cross_tissue").get("threads", 4)
+    benchmark: logdir + "/te_fraction_cross_tissue.benchmark.tsv"
+    resources:
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "te_fraction_cross_tissue", attempt=attempt).get("mem_mb", 8000),
+    conda:
+        "teprofile.yaml"
+    container:
+        sif("teprofile.yaml", "te_fraction_cross_tissue")
+    params:
+        script = os.path.join(ROOT_DIR, "modules", "teprofile", "bin", "te_fraction_cross_tissue.py"),
+        p = tep_params,
+        tissues = tissues,
+    run:
+        log_path = str(log)
+        open(log_path, "a").close()
+        rule_logger = setup_logger("te_fraction_cross_tissue", log_file=log_path)
+        try:
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start te_fraction_cross_tissue at {current_time}")
+            # 比较设计:sample_params.design → comparison_design(pairwise
+            # 视图,group_pairs 形状,恰为引擎的跨比较设计);多组织合并
+            # 一份 design JSON;语义错误在展开函数快速失败。
+            tissue_design = {}
+            for t in params.tissues:
+                if not _tissue_has_design(t):
+                    continue
+                tissue_design[t] = comparison_design(
+                    design_source, t, "pairwise",
+                    tissue_samples=tissue_samples)
+            if not tissue_design:
+                raise ValueError(
+                    "sample_params.design has no comparison for any "
+                    f"configured tissue {params.tissues} — fill "
+                    "sample_params.design.<tissue>.comparisons")
+            with open(str(output.design), "w") as f:
+                json.dump(tissue_design, f, indent=2)
+            script = receipt_script(f"te_fraction_cross_tissue_{current_time}.sh")
+            plain_script = os.path.join(outdir, "te_fraction_cross_tissue.sh")
+            cmd = [
+                "python", params.script,
+                "--root", str(OUTDIR_ROOT),
+                "--design", str(output.design),
+                "--out", str(output.fig),
+            ]
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\nset -euo pipefail\n")
+                f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
+                f.write("echo 'te_fraction_cross_tissue was completed successfully'\n")
+            rule_logger.info("Executing: " + " ".join(str(x) for x in cmd))
+            shutil.copyfile(script, plain_script)
+            if SCRIPT_ONLY:
+                script_only_touch(output)
+            else:
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
+            rule_logger.info("te_fraction_cross_tissue completed")
+        except Exception as e:
+            rule_logger.error(f"Error occurred during te_fraction_cross_tissue: {e}")
+            raise RuntimeError(f"te_fraction_cross_tissue error: {e}, you can check the log file {log_path} for more details.")
+
+
 rule teprofile_result:
     """Panel rule: aggregate deliverables as the node.py registration point."""
 
@@ -109,4 +211,6 @@ rule teprofile_result:
         comp_fig = expand(outdir + "/baseline_family_comp_{tissue}.png", tissue=tissues) if tissues else [],
         dev_fig = expand(outdir + "/cluster_deviation_{tissue}.png", tissue=tissues) if tissues else [],
         remod_fig = expand(outdir + "/remodeling_shift_{tissue}.png", tissue=tissues) if (tissues and (tep_params.get("groups") or tep_params.get("contrasts"))) else [],
+        cross_fig = outdir + "/te_fraction_cross_tissue.png" if any(_tissue_has_design(t) for t in tissues) else [],
+        cross_design = outdir + "/te_fraction_compare_design.json" if any(_tissue_has_design(t) for t in tissues) else [],
         done = outdir + "/te_profile.done",

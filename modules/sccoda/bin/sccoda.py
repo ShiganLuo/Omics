@@ -12,42 +12,66 @@ Why scCODA over Fisher's exact:
   - Supports covariate formulas (batch correction, multi-factor designs).
 
 Inputs per tissue: an h5ad with ``obs['sample_id']`` and ``obs['cell_type']``
-(e.g. the scanpy_auto output). Each comparison names a reference sample
-(LEFT, baseline) and a treatment sample (RIGHT, perturbed); effects are
-reported as log2(treat / ref).
+(e.g. the scanpy_auto output). The comparison design is JSON
+(``--compare-json``), mirroring the DESeq2 ``group_pairs`` shape::
+
+    {"<tissue>": {"<contrast>": {
+        "control_group_name": "youth",
+        "experimental_group_name": "aged",
+        "control_samples": ["luanchao-21310-10XSC3"],
+        "experimental_samples": ["luanchao-11238-10XSC3"]}}}
+
+A multi-group contrast (several consecutive bars in ONE stacked
+barplot) uses an ordered group list instead; the FIRST group is the
+scCODA base level and every later group is compared against it::
+
+    {"<tissue>": {"<contrast>": {"groups": [
+        {"name": "youth", "samples": ["s1", "s2"]},
+        {"name": "aged", "samples": ["s3", "s4"]}]}}}
+
+Effects are log2FC = log2(group / control). Multi-sample groups act as
+model replicates and are summed into ONE bar of the stacked barplot.
+The stacked barplot renders DA status with ↑/↓ arrows directly after
+each cell-type legend name — one glyph per comparison, in that
+comparison's color (the color, not the position, identifies the
+comparison), centered on the name's row. Below, a DA key legend maps
+each color to its meaning: the ``↑↓`` glyph pair as the handle
+(leftmost, left-aligned with the cell-type swatches) and the reading as
+the label (``ctrl vs exp`` + ↑/↓ semantics — direction phrased relative
+to the EXPERIMENTAL group: ↑ = higher in exp, ↓ = lower in exp).
 
 Outputs under ``--out-dir`` (written on every code path, including
 zero-credible-effect runs):
   - sccoda_report.html                     summary report (this run's target)
   - da/{prefix}_da.csv                     credible effects + final_prob
-  - da/{prefix}_effects_barplot.png        per-cell-type log2FC bar
-  - da/{prefix}_stacked_barplot.png        cell-type proportions per sample
+  - da/{prefix}_effects_barplot.png        per-cell-type log2FC bars
+  - da/{prefix}_stacked_barplot.png        cell-type proportions per group
 
-where ``prefix`` = ``{tissue}_{label}`` and ``label`` is the ``=label`` part
-of the compare entry (default ``{ref}_vs_{treat}``).
+where ``prefix`` = ``da_sccoda_{contrast}`` (the design's contrast key).
 
 Usage:
   python sccoda.py \\
     --h5ad ovaries=/path/ovaries.h5ad \\
-    --compare ovaries:luanchao-21310:luanchao-11238=Aging_vs_Youth \\
+    --compare-json design.json \\
     --out-dir ./da_sccoda
 
   # explicit reference cell type and stricter credible threshold:
   python sccoda.py \\
     --h5ad uterus=/path/uterus.h5ad \\
-    --compare uterus:zigong-21310:ZIGONG-21224=Sham_vs_OV-POI \\
+    --compare-json design.json \\
     --out-dir ./da_sccoda --ref-celltype Fibroblast --credible-threshold 0.95
 
 --h5ad   tissue=/path/to.h5ad         (repeatable)
---compare tissue:ref:treat[=label]    (repeatable, label optional)
+--compare-json FILE                   (repeatable; design shape above)
 """
 import argparse
+import json
 import logging
 import os
 import re
 import warnings
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 warnings.filterwarnings("ignore")
 os.environ.setdefault("PYTHONNOUSERSITE", "1")
@@ -55,8 +79,11 @@ os.environ.setdefault("MPLBACKEND", "Agg")
 
 import matplotlib
 matplotlib.use("Agg")
+import matplotlib.colors
 import matplotlib.pyplot as plt
+from matplotlib.legend_handler import HandlerBase
 from matplotlib.patches import Rectangle
+from matplotlib.text import Text
 import numpy as np
 import pandas as pd
 import scanpy as sc
@@ -150,53 +177,182 @@ def save_fig(fig, out_base: Union[str, Path],
 # CLI parsing / validation
 # ---------------------------------------------------------------------------
 
-def parse_compare_items(items: List[str],
-                        tissues: Dict[str, Path]) -> List[dict]:
-    """Parse ``tissue:ref:treat[=label]`` compare entries.
+def _parse_group_entry(tissue: str, key: str, entry: dict
+                       ) -> Tuple[List[Tuple[str, List[str]]], str]:
+    """Normalize one design entry into ``(ordered groups, base group)``.
+
+    Two accepted shapes:
+
+    - pairwise (DESeq2 ``group_pairs`` keys)::
+
+        {"control_group_name": "youth",
+         "experimental_group_name": "aged",
+         "control_samples": ["s1"], "experimental_samples": ["s2"]}
+
+    - multi-group (ordered; bars follow the listed order)::
+
+        {"groups": [{"name": "youth", "samples": ["s1", "s2"]}, ...],
+         "control_group_name": "youth"}   # optional, default = first
+
+    ``control_group_name`` names the scCODA base level (every other group
+    is compared against it); it need not be the first group — the listed
+    order only sets the stacked-barplot bar order.
+
+    Parameters
+    ----------
+    tissue, key : str
+        Location of the entry in the design (for error messages).
+    entry : dict
+        The raw design entry.
+
+    Returns
+    -------
+    (list of (str, list of str), str)
+        Group names and sample ids in plot order, and the base group name.
+
+    Raises
+    ------
+    SystemExit
+        On unknown shapes, missing/empty fields, duplicate group names,
+        an unknown control group, or a sample claimed by two groups.
+    """
+    where = f"compare design entry '{tissue}:{key}'"
+    if not isinstance(entry, dict):
+        raise SystemExit(f"{where}: entry must be an object, got {type(entry).__name__}")
+    if "groups" in entry:
+        raw_groups = entry.get("groups") or []
+        if not isinstance(raw_groups, list) or len(raw_groups) < 2:
+            raise SystemExit(
+                f"{where}: 'groups' must be a list of at least 2 "
+                f"{{'name', 'samples'}} objects")
+        groups: List[Tuple[str, List[str]]] = []
+        for g in raw_groups:
+            if not isinstance(g, dict) or not g.get("name") or not g.get("samples"):
+                raise SystemExit(
+                    f"{where}: each group needs a non-empty 'name' and "
+                    f"'samples' list, got {g!r}")
+            name = str(g["name"]).strip()
+            samples = [str(s).strip() for s in g["samples"]]
+            groups.append((name, samples))
+        control = str(entry.get("control_group_name") or groups[0][0]).strip()
+    else:
+        required = ("control_group_name", "experimental_group_name",
+                    "control_samples", "experimental_samples")
+        missing = [k for k in required if k not in entry]
+        if missing:
+            raise SystemExit(
+                f"{where}: missing {missing}; expected the DESeq2 "
+                f"group_pairs keys {list(required)} (or an ordered "
+                f"'groups' list for a multi-group contrast)")
+        groups = [
+            (str(entry["control_group_name"]).strip(),
+             [str(s).strip() for s in entry["control_samples"]]),
+            (str(entry["experimental_group_name"]).strip(),
+             [str(s).strip() for s in entry["experimental_samples"]]),
+        ]
+        control = groups[0][0]
+    names = [n for n, _ in groups]
+    if any(not n for n in names):
+        raise SystemExit(f"{where}: empty group name")
+    if len(set(names)) != len(names):
+        raise SystemExit(f"{where}: duplicate group name in {names}")
+    if control not in names:
+        raise SystemExit(
+            f"{where}: control_group_name '{control}' is not one of {names}")
+    for name, samples in groups:
+        if not samples or any(not s for s in samples):
+            raise SystemExit(f"{where}: group '{name}' needs non-empty sample ids")
+        if len(set(samples)) != len(samples):
+            raise SystemExit(f"{where}: duplicate sample in group '{name}': {samples}")
+    flat = [s for _, samples in groups for s in samples]
+    dupes = sorted({s for s in flat if flat.count(s) > 1})
+    if dupes:
+        raise SystemExit(f"{where}: samples claimed by two groups: {dupes}")
+    return groups, control
+
+
+def _covariate_group(cov: str, group_names: List[str]) -> str:
+    """Map a scCODA covariate row label back to its compared group name.
+
+    pertpy labels the dummy covariates ``conditionT.<group>`` (e.g.
+    ``conditionT.aged``); every non-base group gets one covariate.
+    Longest group names are matched first so one name cannot shadow a
+    suffix of another. Unmatched labels (extra formula terms) map to
+    themselves.
+    """
+    for name in sorted(group_names[1:], key=len, reverse=True):
+        if cov == f"conditionT.{name}" or cov.endswith(f"T.{name}"):
+            return name
+    return cov
+
+
+def parse_compare_json(items: List[str],
+                       tissues: Dict[str, Path]) -> List[dict]:
+    """Parse ``--compare-json`` design files into comparison dicts.
+
+    Design shape (one file, repeatable and merged)::
+
+        {"<tissue>": {"<contrast>": <entry>}}
+
+    where ``<entry>`` is a pairwise ``group_pairs`` object or a
+    multi-group ``groups`` list (see :func:`_parse_group_entry`). The
+    contrast key names the outputs (``da_sccoda_<contrast>_*``).
 
     Parameters
     ----------
     items : list of str
-        Raw ``--compare`` values.
+        Paths from ``--compare-json``.
     tissues : dict
         Mapping of tissue name to h5ad path from ``--h5ad``.
 
     Returns
     -------
     list of dict
-        One dict per comparison: ``{tissue, ref, treat, label, key}``.
+        One dict per comparison: ``{tissue, key, label, groups}`` where
+        ``groups`` is an ordered ``[(name, [samples]), ...]`` (FIRST =
+        base level).
 
     Raises
     ------
     SystemExit
-        On malformed entries, unknown tissues, or ref == treat.
+        On unreadable files, wrong shapes, unknown tissues, duplicate
+        contrasts, or invalid group/sample specs.
     """
-    comparisons = []
-    seen = set()
-    for item in items:
-        main, sep, label = item.partition("=")
-        label = label.strip() if sep else ""
-        parts = main.split(":")
-        if len(parts) != 3 or not all(parts):
+    design: Dict[str, Dict[str, dict]] = {}
+    for path in items:
+        try:
+            data = json.loads(Path(path).read_text(encoding="utf-8"))
+        except (OSError, ValueError) as e:
+            raise SystemExit(f"--compare-json {path}: cannot read design: {e}")
+        if not isinstance(data, dict):
             raise SystemExit(
-                f"--compare format: tissue:ref:treat[=label], got: {item}")
-        tissue, ref, treat = (p.strip() for p in parts)
+                f"--compare-json {path}: top level must be an object of "
+                f"{{tissue: {{contrast: entry}}}}")
+        for tissue, contrasts in data.items():
+            if not isinstance(contrasts, dict) or not contrasts:
+                raise SystemExit(
+                    f"--compare-json {path}: tissue '{tissue}' must map to a "
+                    f"non-empty object of contrast entries")
+            tgt = design.setdefault(str(tissue), {})
+            for key, entry in contrasts.items():
+                if str(key) in tgt:
+                    raise SystemExit(
+                        f"--compare-json {path}: duplicate contrast '{key}' "
+                        f"for tissue '{tissue}'")
+                tgt[str(key)] = entry
+    if not design:
+        raise SystemExit("--compare-json: design is empty")
+
+    comparisons = []
+    for tissue, contrasts in design.items():
         if tissue not in tissues:
             raise SystemExit(
-                f"Unknown tissue '{tissue}' in --compare '{item}', "
+                f"Unknown tissue '{tissue}' in --compare-json design, "
                 f"define --h5ad first")
-        if ref == treat:
-            raise SystemExit(
-                f"--compare '{item}': ref and treat are the same sample")
-        key = f"{ref}_vs_{treat}"
-        if not label:
-            label = key
-        dup = (tissue, ref, treat)
-        if dup in seen:
-            raise SystemExit(f"Duplicate --compare entry: {item}")
-        seen.add(dup)
-        comparisons.append(dict(tissue=tissue, ref=ref, treat=treat,
-                                label=label, key=key))
+        for key, entry in contrasts.items():
+            groups, control = _parse_group_entry(tissue, key, entry)
+            comparisons.append(dict(tissue=tissue, key=key, label=key,
+                                    groups=groups, control=control))
     return comparisons
 
 
@@ -205,29 +361,47 @@ def parse_compare_items(items: List[str],
 # ---------------------------------------------------------------------------
 
 def _plot_stacked_ribbon(counts_df: pd.DataFrame, out_base: Path,
-                         title: str,
-                         image_formats: Optional[List[PlotFormat]] = None) -> None:
-    """Stacked proportion bars per sample with light same-color ribbons.
+                         image_formats: Optional[List[PlotFormat]] = None,
+                         cell_arrows: Optional[Dict[str, List[Tuple[str, Any]]]]
+                         = None,
+                         da_key_rows: Optional[List[Tuple[str, Any]]] = None
+                         ) -> None:
+    """Stacked proportion bars per group with light same-color ribbons.
 
-    Reference da_sccoda style with an alluvial touch: bars are stacked cell-
-    type proportions per sample, and same-cell-type segments of adjacent bars
-    are connected by a lighter fill of that color. No x-axis label (sample
-    names on the ticks are self-explanatory), two-line title, tight bbox.
+    Reference da_sccoda style with an alluvial touch: ONE bar per group
+    (counts pre-summed across the group's samples), the groups displayed
+    as consecutive bars along the x axis with the GROUP NAME as tick
+    label, and same-cell-type segments of adjacent bars connected by a
+    lighter fill of that color. No title.
+
+    DA status rendering: the ↑/↓ arrows sit DIRECTLY AFTER each
+    cell-type legend name, one glyph per comparison in that
+    comparison's color (the color identifies the comparison — multi-group
+    safe), vertically centered on the name's row so each arrow unambiguously
+    belongs to its cell type. Below the cell-type legend a DA key legend
+    maps each comparison's color to its reading: one row per comparison
+    whose HANDLE is the ``↑↓`` glyph pair in that color (leftmost column,
+    left-aligned with the cell-type swatches) and whose label is the
+    meaning (``ctrl vs exp`` + ↑/↓ semantics). Placements are measured at
+    the save dpi (legend layout is dpi-dependent).
 
     Parameters
     ----------
     counts_df : DataFrame
-        Samples x cell types raw counts (index = sample ids in plot order).
+        Groups x cell types raw counts (index = group names in plot
+        order; a group with several samples must already be summed).
     out_base : Path
         Output path without extension.
-    title : str
-        Plot title; the `` (`` before the comparison is turned into a line
-        break so long titles cannot clip at the canvas edge.
     image_formats : list of str, optional
         Save formats. Default ``["png"]``.
+    cell_arrows : dict, optional
+        ``{cell_type: [(arrow, color), ...]}`` — arrows appended after
+        the legend name, in listed order.
+    da_key_rows : list of (label, color), optional
+        Arrow-legend key rows, one per comparison (bold).
     """
     counts = counts_df.to_numpy(dtype=np.float64)
-    samples = [str(s) for s in counts_df.index]
+    groups = [str(g) for g in counts_df.index]
     cell_types = [str(c) for c in counts_df.columns]
     totals = counts.sum(axis=1, keepdims=True)
     totals[totals == 0] = 1.0
@@ -238,15 +412,15 @@ def _plot_stacked_ribbon(counts_df: pd.DataFrame, out_base: Path,
     props = props[:, order]
     cell_types = [cell_types[i] for i in order]
 
-    n_s, n_c = props.shape
+    n_g, n_c = props.shape
     cmap = plt.get_cmap("tab20" if n_c <= 20 else "tab20b")
     colors = [cmap(i / max(n_c - 1, 1)) for i in range(n_c)]
 
-    fig, ax = plt.subplots(figsize=(max(6.0, 1.2 * n_s + 4.5), 6))
+    fig, ax = plt.subplots(figsize=(max(6.0, 1.2 * n_g + 4.5), 6))
     width = 0.55
-    xs = np.arange(n_s, dtype=float)
+    xs = np.arange(n_g, dtype=float)
 
-    # Segment bounds per sample (n_s x n_c), bottom to top.
+    # Segment bounds per group (n_g x n_c), bottom to top.
     y1 = np.cumsum(props, axis=1)
     y0 = y1 - props
 
@@ -257,7 +431,7 @@ def _plot_stacked_ribbon(counts_df: pd.DataFrame, out_base: Path,
     t = np.linspace(0.0, 1.0, 40)
     s = t * t * (3.0 - 2.0 * t)  # smoothstep
     for i in range(n_c):
-        for j in range(n_s - 1):
+        for j in range(n_g - 1):
             xl0, xl1 = xs[j] + width / 2, xs[j + 1] - width / 2
             xline = xl0 + (xl1 - xl0) * t
             y0line = y0[j, i] + (y0[j + 1, i] - y0[j, i]) * s
@@ -272,20 +446,106 @@ def _plot_stacked_ribbon(counts_df: pd.DataFrame, out_base: Path,
                color=colors[i], edgecolor="white", linewidth=0.4, zorder=2)
 
     ax.set_xticks(xs)
-    ax.set_xticklabels(samples, rotation=45, ha="right", fontsize=10)
+    # Group names on the ticks, horizontal when they fit (short group
+    # names like "youth"/"aged"); rotate only long bare-sample-id names.
+    rotate = max((len(g) for g in groups), default=0) > 10
+    ax.set_xticklabels(groups, rotation=45 if rotate else 0,
+                       ha="right" if rotate else "center", fontsize=11)
     ax.set_ylabel("Proportion (%)", fontsize=12)
     ax.set_ylim(0, 100)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     handles = [Rectangle((0, 0), 1, 1, color=colors[i])
                for i in range(n_c)]
-    ax.legend(handles, cell_types, bbox_to_anchor=(1.02, 1.0),
-              loc="upper left", fontsize=9, frameon=False, title="cell_type")
-    # Title OUTSIDE the axes (pad-based): a y=0.97 multi-line title dips
-    # into the plot and overlaps the top y tick label.
-    ax.set_title(title.replace(" (", "\n("), fontsize=14, pad=16)
-    fig.subplots_adjust(top=0.88)
-    save_fig(fig, out_base, image_formats)
+    leg_cells = ax.legend(handles, cell_types, bbox_to_anchor=(1.02, 1.0),
+                          loc="upper left", fontsize=9, frameon=False,
+                          title="cell_type")
+    if da_key_rows or cell_arrows:
+        leg_da = None
+        if da_key_rows:
+            # DA key legend below the cell-type legend: one row per
+            # comparison, the ↑↓ glyph pair in the comparison's color AS
+            # THE HANDLE (leftmost column, left-aligned with the cell-type
+            # swatches), the meaning as the row label (bold, same color).
+            ax.add_artist(leg_cells)
+            key_handles: Any = [matplotlib.colors.to_rgba(color)
+                                for _label, color in da_key_rows]
+            leg_da = ax.legend(
+                key_handles, [label for label, _ in da_key_rows],
+                bbox_to_anchor=(1.02, 1.0), loc="upper left",
+                fontsize=9, frameon=False,
+                handler_map={tuple: _ArrowPairHandler()})
+            for text, (_label, color) in zip(leg_da.get_texts(), da_key_rows):
+                text.set_color(color)
+                text.set_fontweight("bold")
+        # One measurement pass feeds both placements: the key legend is
+        # anchored below the cell legend, and the DA arrows are appended
+        # right after each cell-type NAME. Drift guard: legend layout is
+        # dpi-dependent, so measure at the SAME dpi save_fig renders with
+        # (300) — measuring at fig.dpi=100 then saving at 300 shifts the
+        # legend rows and the arrows land BETWEEN names.
+        fig.set_dpi(300)
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
+        if leg_da is not None:
+            bb = leg_cells.get_window_extent()
+            (_, y0), _ = ax.transAxes.inverted().transform(bb.get_points())
+            leg_da.set_bbox_to_anchor((1.02, y0 - 0.01),
+                                      transform=ax.transAxes)
+        if cell_arrows:
+            inv_fig = fig.transFigure.inverted()
+            gap = 0.004
+            for name_text, ct in zip(leg_cells.get_texts(), cell_types):
+                marks = cell_arrows.get(ct) or []
+                if not marks:
+                    continue
+                bb_name = name_text.get_window_extent(renderer)
+                x_end, y_mid = inv_fig.transform(
+                    (bb_name.x1, (bb_name.y0 + bb_name.y1) / 2))
+                x = x_end + gap
+                for arrow, color in marks:
+                    at = fig.text(x, y_mid, arrow, color=color,
+                                  fontsize=9, va="center", ha="left")
+                    bb_arrow = at.get_window_extent(renderer)
+                    x = inv_fig.transform((bb_arrow.x1, 0))[0] + gap * 0.5
+    save_fig(fig, out_base, image_formats, dpi=300)
+
+
+class _ArrowPairHandler(HandlerBase):
+    """Legend handle drawing the ``↑↓`` glyph pair in the handle color.
+
+    Used by the stacked barplot's DA key legend so the arrow pair sits in
+    the LEFTMOST handle column — left-aligned with the cell-type legend's
+    color swatches — with the meaning as the row label.
+    """
+
+    def legend_artist(self, legend: Any, orig_handle: Any, fontsize: float,
+                      handlebox: Any) -> Text:
+        """Draw ``↑↓`` centered in the handle box, in ``orig_handle``'s color.
+
+        Parameters
+        ----------
+        legend : Legend
+            Owning legend.
+        orig_handle : tuple
+            RGBA color of the comparison whose arrows this row explains.
+        fontsize : float
+            Legend font size in points.
+        handlebox : DrawingArea
+            Reserved handle column of the legend row.
+
+        Returns
+        -------
+        matplotlib.text.Text
+            The drawn glyph-pair artist.
+        """
+        x0, y0 = handlebox.xdescent, handlebox.ydescent
+        width, height = handlebox.width, handlebox.height
+        txt = Text(x0 + width / 2, y0 + height / 2, "↑↓",
+                   color=orig_handle, fontsize=fontsize,
+                   ha="center", va="center")
+        handlebox.add_artist(txt)
+        return txt
 
 
 def run_sccoda(adata: sc.AnnData, comp: dict, formula: str,
@@ -301,7 +561,10 @@ def run_sccoda(adata: sc.AnnData, comp: dict, formula: str,
     adata : AnnData
         Object with ``obs['sample_id']`` and ``obs['cell_type']``.
     comp : dict
-        ``{tissue, ref, treat, label, key}`` from :func:`parse_compare_items`.
+        ``{tissue, key, label, groups}`` from :func:`parse_compare_json`
+        (``groups`` is an ordered ``[(name, [samples]), ...]``; the FIRST
+        group is the base level and every later group is compared
+        against it; group samples are the model replicates).
     formula : str
         Design formula passed to ``sccoda.prepare`` (e.g. ``condition`` or
         ``condition + batch``). Terms other than ``condition`` must exist in
@@ -323,28 +586,37 @@ def run_sccoda(adata: sc.AnnData, comp: dict, formula: str,
         Per-cell-type effect table and human-readable notes (skipped plots
         etc.) for the report.
     """
-    ref, treat = comp["ref"], comp["treat"]
     tissue, label = comp["tissue"], comp["label"]
+    groups: List[Tuple[str, List[str]]] = comp["groups"]
+    group_names = [name for name, _ in groups]      # bar order = listed order
+    base_name = comp["control"]                     # scCODA base level
+    compare_names = [n for n in group_names if n != base_name]
+    model_names = [base_name] + compare_names       # condition level order
     notes: List[str] = []
     # Reference naming (analysis/results/da_sccoda convention):
-    # da_sccoda_<ref>_vs_<treat>_{da.csv,effects_barplot.<fmt>,stacked_barplot.<fmt>}
-    prefix = f"da_sccoda_{comp['ref']}_vs_{comp['treat']}"
+    # da_sccoda_<contrast>_{da.csv,effects_barplot.<fmt>,stacked_barplot.<fmt>}
+    prefix = f"da_sccoda_{comp['key']}"
     da_dir.mkdir(parents=True, exist_ok=True)
 
-    sub = adata[adata.obs["sample_id"].isin([ref, treat])].copy()
-    for sid in (ref, treat):
+    # sample_id -> group name (base group first, then compared groups).
+    sample_group = {sid: name for name, samples in groups for sid in samples}
+    sub = adata[adata.obs["sample_id"].isin(sample_group)].copy()
+    for sid in sample_group:
         n = int((sub.obs["sample_id"] == sid).sum())
         if n == 0:
             raise RuntimeError(
                 f"[{tissue}] comparison {comp['key']}: sample '{sid}' has "
                 f"0 cells in the h5ad — check the sample_id annotation")
-        logger.info("  %s: %d cells", sid, n)
+        logger.info("  %s (%s): %d cells", sid, sample_group[sid], n)
     # Order matters for scCODA: the FIRST level of `condition` becomes the
-    # base category (no [T.] marker in covariate names); the SECOND level
-    # becomes the treatment ([T.<level>]). We force `categories=[ref, treat]`
-    # so effects are log2(treat / ref) — "reference first, treatment second".
+    # base category (no [T.] marker in covariate names); every later level
+    # becomes a treatment covariate ([T.<level>]). We force
+    # `categories=model_names` (control group first) so effects are
+    # log2FC = log2(group / control) — "reference first, treatment
+    # second". Samples of one group are replicates of that group's
+    # condition level.
     sub.obs["condition"] = pd.Categorical(
-        sub.obs["sample_id"].values, categories=[ref, treat])
+        sub.obs["sample_id"].map(sample_group), categories=model_names)
 
     covariate_terms = [t for t in re.split(r"\W+", formula) if t and t != "1"]
     if "condition" not in covariate_terms:
@@ -420,18 +692,34 @@ def run_sccoda(adata: sc.AnnData, comp: dict, formula: str,
     summary["final_prob"] = summary["final_prob"].astype(float)
     summary["log2FC"] = summary["log2FC"].astype(float)
     summary["is_credible"] = summary["final_prob"] >= credible_threshold
+    # Map every effect row back to the compared group it belongs to
+    # (pertpy dummy covariate "conditionT.<group>"); rows of extra formula
+    # terms map to themselves and carry no DA marks.
+    if "Covariate" in summary.columns:
+        summary["group"] = summary["Covariate"].map(
+            lambda c: _covariate_group(str(c), model_names))
+    elif len(group_names) == 2:
+        summary["group"] = group_names[1]
+    else:
+        raise RuntimeError(
+            f"[{tissue}] comparison {comp['key']}: effect table has no "
+            f"'Covariate' column, cannot attribute effects to the "
+            f"compared groups {group_names[1:]}")
 
-    n_up = int(((summary["log2FC"] > 0) & summary["is_credible"]).sum())
-    n_dn = int(((summary["log2FC"] < 0) & summary["is_credible"]).sum())
-    n_total = int(summary["is_credible"].sum())
     ref_used = mdata["coda"].uns["scCODA_params"]["reference_cell_type"]
-    logger.info("  credible: %d (%d up / %d dn), reference cell type=%s",
-                n_total, n_up, n_dn, ref_used)
+    logger.info("  reference cell type=%s", ref_used)
     notes.append(f"scCODA reference cell type: {ref_used}")
+    for gname in compare_names:
+        part = summary[summary["group"] == gname]
+        n_up = int(((part["log2FC"] > 0) & part["is_credible"]).sum())
+        n_dn = int(((part["log2FC"] < 0) & part["is_credible"]).sum())
+        logger.info("  %s vs %s: credible %d (%d up / %d dn)",
+                    base_name, gname, n_up + n_dn, n_up, n_dn)
+    n_total = int(summary["is_credible"].sum())
     if n_total:
         logger.info("  credible cell types:\n%s",
                     summary[summary["is_credible"]]
-                    [[ "cell_type", "log2FC", "final_prob"]]
+                    [["group", "cell_type", "log2FC", "final_prob"]]
                     .to_string(index=False))
 
     # CSV is the primary result — always written, empty results keep the
@@ -440,45 +728,64 @@ def run_sccoda(adata: sc.AnnData, comp: dict, formula: str,
     summary.to_csv(csv_path, index=False)
     logger.info("Saved: %s", csv_path)
 
-    title = f"{tissue.upper()} DA: {label} ({ref} vs {treat})"
-
-    # DA effect plot — reference style (analysis/results/da_sccoda): one
-    # horizontal bar per cell type, sorted by log2FC, credible effects in
-    # distinct colors with black edges, non-credible grey.
+    # DA effect plot — one panel per compared group IN GROUP ORDER, one
+    # horizontal bar per cell type sorted by log2FC; credible effects in
+    # distinct colors with black edges, non-credible grey. No title: each
+    # panel is identified by its x label, and both axis ends carry the
+    # effect direction (phrased relative to the EXPERIMENTAL group —
+    # higher/lower in <exp>, never "higher in control"). No per-cell-type
+    # arrow marks: the bars' side already shows the direction.
+    panel_names = list(compare_names)
     if len(summary):
         try:
-            dfp = summary.sort_values("log2FC").reset_index(drop=True)
-            n = len(dfp)
-            n_credible = int(dfp["is_credible"].sum())
-            cmap = plt.get_cmap("tab20" if n_credible <= 20 else "tab20b")
-            cred_colors = [cmap(i / max(n_credible - 1, 1))
-                           for i in range(n_credible)]
-            ci = 0
-            colors = []
-            for _, row in dfp.iterrows():
-                if row["is_credible"]:
-                    colors.append(cred_colors[ci])
-                    ci += 1
-                else:
-                    colors.append("#cccccc")
-            fig, ax = plt.subplots(figsize=(10, max(4, n * 0.45 + 1.5)))
-            for i, (_, row) in enumerate(dfp.iterrows()):
-                edgecolor = "black" if row["is_credible"] else "none"
-                lw = 0.8 if row["is_credible"] else 0
-                ax.barh(i, row["log2FC"], color=colors[i],
-                        edgecolor=edgecolor, linewidth=lw, height=0.7,
-                        zorder=2)
-            ax.set_yticks(range(n))
-            ax.set_yticklabels(dfp["cell_type"], fontsize=10)
-            ax.set_xlabel("log2-fold change", fontsize=12)
-            # Two-line title + tight bbox: long "<label> (<ref> vs <treat>)"
-            # titles clipped at the figure's right edge otherwise.
-            ax.set_title(title.replace(" (", "\n("), fontsize=14, y=0.97)
-            ax.axvline(0, color="black", linewidth=0.5, alpha=0.5, zorder=1)
-            ax.spines["top"].set_visible(False)
-            ax.spines["right"].set_visible(False)
-            ax.tick_params(axis="x", labelsize=10)
-            fig.subplots_adjust(left=0.25, right=0.98, top=0.88, bottom=0.10)
+            # One color per cell type, shared across panels.
+            all_types = sorted(summary["cell_type"].astype(str).unique())
+            cmap = plt.get_cmap("tab20" if len(all_types) <= 20 else "tab20b")
+            type_colors = {ct: cmap(i / max(len(all_types) - 1, 1))
+                           for i, ct in enumerate(all_types)}
+            panel_h = [max(2.5, int((summary["group"] == g).sum()) * 0.45 + 1.6)
+                       for g in panel_names]
+            fig, axes = plt.subplots(len(panel_names), 1, squeeze=False,
+                                     figsize=(10, sum(panel_h)))
+            for pi, gname in enumerate(panel_names):
+                ax = axes[pi][0]
+                dfp = (summary[summary["group"] == gname]
+                       .sort_values("log2FC").reset_index(drop=True))
+                n = len(dfp)
+                if not (dfp["log2FC"].abs() > 0).any():
+                    # Degenerate panel (every effect zeroed): state it
+                    # explicitly instead of rendering a blank axes.
+                    ax.text(0.5, 0.5,
+                            "all effects are zero (nothing selected)",
+                            transform=ax.transAxes, ha="center", va="center",
+                            fontsize=11, color="#999999")
+                for i, (_, row) in enumerate(dfp.iterrows()):
+                    credible = bool(row["is_credible"])
+                    color = type_colors[str(row["cell_type"])] if credible else "#cccccc"
+                    ax.barh(i, row["log2FC"], color=color,
+                            edgecolor="black" if credible else "none",
+                            linewidth=0.8 if credible else 0,
+                            height=0.7, zorder=2)
+                ylabels = [str(row["cell_type"]) for _, row in dfp.iterrows()]
+                ax.set_yticks(range(n))
+                ax.set_yticklabels(ylabels, fontsize=10)
+                # Direction marking: the log2FC axis is signed, so spell
+                # out the direction RELATIVE TO THE EXPERIMENTAL GROUP
+                # ("higher/lower in <exp>"). The label keeps the house
+                # order: control FIRST, experimental second.
+                ax.set_xlabel(
+                    f"log2-fold change ({base_name} vs {gname})", fontsize=12)
+                ax.text(0.0, 1.01, f"← lower in {gname}",
+                        transform=ax.transAxes, ha="left", va="bottom",
+                        fontsize=9, color="#555555")
+                ax.text(1.0, 1.01, f"higher in {gname} →",
+                        transform=ax.transAxes, ha="right", va="bottom",
+                        fontsize=9, color="#555555")
+                ax.axvline(0, color="black", linewidth=0.5, alpha=0.5, zorder=1)
+                ax.spines["top"].set_visible(False)
+                ax.spines["right"].set_visible(False)
+                ax.tick_params(axis="x", labelsize=10)
+            fig.subplots_adjust(left=0.25, right=0.98)
             out = da_dir / f"{prefix}_effects_barplot"
             save_fig(fig, out, image_formats)
         except Exception as e:
@@ -490,14 +797,41 @@ def run_sccoda(adata: sc.AnnData, comp: dict, formula: str,
         logger.info("  skip effects_barplot: empty result table")
 
     try:
-        # Stacked proportions per sample with same-color ribbon links.
+        # Stacked proportions per group with same-color ribbon links.
         # Built from the raw cell-level crosstab (the coda counts carry the
-        # integer zero pre-fill, which would distort proportions).
-        counts_df = pd.crosstab(sub.obs["sample_id"], sub.obs["cell_type"])
-        counts_df = counts_df.reindex(
-            index=[ref, treat], columns=mdata["coda"].var.index, fill_value=0)
+        # integer zero pre-fill, which would distort proportions);
+        # crosstabbing on the sample->group mapping SUMS the samples of a
+        # group into that group's single bar.
+        group_of = sub.obs["sample_id"].map(sample_group)
+        counts_df = pd.crosstab(group_of, sub.obs["cell_type"])
+        counts_df = counts_df.reindex(index=group_names,
+                                      columns=mdata["coda"].var.index,
+                                      fill_value=0)
+        # DA arrows are appended AFTER each cell-type legend name, one
+        # glyph per comparison in that comparison's color (arrow color
+        # identifies the comparison — multi-group safe). The arrow legend
+        # below the cell-type legend carries one bold key row per
+        # comparison mapping its color to the "ctrl vs exp" reading and
+        # the ↑/↓ semantics (↑ = higher in the experimental group,
+        # ↓ = lower in it).
+        comp_palette = plt.get_cmap("tab10")
+        da_key_rows: List[Tuple[str, Any]] = []
+        cell_arrows: Dict[str, List[Tuple[str, Any]]] = {}
+        for gi, gname in enumerate(compare_names):
+            color = comp_palette(gi)
+            da_key_rows.append(
+                (f"{base_name} vs {gname} (↑/↓ = higher/lower in {gname})",
+                 color))
+            part = summary[summary["group"] == gname]
+            for _, row in part.sort_values("cell_type").iterrows():
+                if row["is_credible"] and row["log2FC"] != 0:
+                    arrow = "↑" if row["log2FC"] > 0 else "↓"
+                    cell_arrows.setdefault(str(row["cell_type"]), []).append(
+                        (arrow, color))
         out = da_dir / f"{prefix}_stacked_barplot"
-        _plot_stacked_ribbon(counts_df, out, title, image_formats=image_formats)
+        _plot_stacked_ribbon(
+            counts_df, out, image_formats=image_formats,
+            cell_arrows=cell_arrows, da_key_rows=da_key_rows)
     except Exception as e:
         plt.close("all")
         notes.append(f"stacked_barplot skipped (plot error: {e})")
@@ -532,7 +866,7 @@ def _figure_variants(out_dir: Path, comp: dict) -> List[Path]:
     preferred = ("png", "jpg", "jpeg", "tif", "tiff")
     best: Dict[Path, Tuple[int, Path]] = {}
     for fname in sorted((out_dir / "da").glob(
-            f"da_sccoda_{comp['ref']}_vs_{comp['treat']}_*")):
+            f"da_sccoda_{comp['key']}_*")):
         fmt = fname.suffix.lstrip(".").lower()
         if fmt not in VALID_FORMATS:
             continue
@@ -557,7 +891,7 @@ def write_report(out_dir: Path, comparisons: List[dict],
     out_dir : Path
         Output root (the report is written directly into it).
     comparisons : list of dict
-        Comparison dicts from :func:`parse_compare_items`.
+        Comparison dicts from :func:`parse_compare_json`.
     results : dict
         ``{key: {'summary': DataFrame, 'notes': [str]}}`` per comparison.
     run_params : dict
@@ -603,8 +937,12 @@ def write_report(out_dir: Path, comparisons: List[dict],
         key = comp["key"]
         res = results.get(key)
         parts.append(f"<h2>{_escape(comp['tissue'])}: "
-                     f"{_escape(comp['ref'])} vs {_escape(comp['treat'])} "
-                     f"({_escape(comp['label'])})</h2>")
+                     f"{_escape(comp['label'])} "
+                     f"({' vs '.join(_escape(n) for n, _ in comp['groups'])})"
+                     f"</h2>")
+        parts.append("<p>" + "; ".join(
+            f"{_escape(name)} ({_escape(' + '.join(samples))})"
+            for name, samples in comp["groups"]) + "</p>")
         if res is None:
             parts.append("<p>Comparison did not complete.</p>")
             continue
@@ -656,36 +994,74 @@ def parse_args() -> argparse.Namespace:
             "scCODA-based differential abundance analysis.\n"
             "\n"
             "PARAMETER CONVENTION (READ FIRST):\n"
-            "  --compare tissue:ref:treat   <- ref FIRST, treat SECOND\n"
+            "  --compare-json FILE  <- JSON design, DESeq2 group_pairs shape:\n"
+            "    {\"<tissue>\": {\"<contrast>\": {\n"
+            "        \"control_group_name\": \"youth\",\n"
+            "        \"experimental_group_name\": \"aged\",\n"
+            "        \"control_samples\": [\"s1\", \"s2\"],\n"
+            "        \"experimental_samples\": [\"s3\"]}}}\n"
+            "  A multi-group contrast (several consecutive bars in ONE\n"
+            "  stacked barplot) uses an ordered 'groups' list instead; the\n"
+            "  FIRST group is the base level and every later group is\n"
+            "  compared against it:\n"
+            "    {\"<tissue>\": {\"<contrast>\": {\"groups\": [\n"
+            "        {\"name\": \"youth\", \"samples\": [\"s1\", \"s2\"]}, ...]}}}\n"
+            "  Multi-sample groups are model replicates and are summed\n"
+            "  into ONE bar of the stacked barplot (x tick = group name).\n"
+            "  DA status: ↑/↓ arrows sit directly after each cell-type\n"
+            "  legend name, one glyph per comparison in that comparison's\n"
+            "  color (e.g. a blue ↓ = youth vs aged), centered on the\n"
+            "  name's row. The DA key legend below shows the ↑↓ pair as\n"
+            "  the handle (leftmost, aligned with the cell-type swatches)\n"
+            "  and the meaning as the label (ctrl vs exp; ↑ = higher in\n"
+            "  exp, ↓ = lower in exp).\n"
             "  In every output:\n"
-            "    - File names: {tissue}_{ref}_vs_{treat}_*  (label overrides)\n"
-            "    - Plot titles: 'ref vs treat'  (ref on the LEFT)\n"
-            "  In the CSV covariate column, treat is tagged with [T.]:\n"
-            "  [T.treat] so log2FC = log2(treat / ref).  ref = baseline /\n"
-            "  control / unperturbed; treat = experimental / treated /\n"
-            "  perturbed.  Convention: 'reference first, treatment second'."
+            "    - File names: da_sccoda_{contrast}_*\n"
+            "  In the CSV covariate column, non-base groups are tagged\n"
+            "  [T.<group>] so log2FC = log2(group / control).  control =\n"
+            "  baseline / unperturbed; the later groups = experimental /\n"
+            "  treated.  Convention: 'reference first, treatment second'."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 Examples:
-  # Ovaries - youth (ref) vs aged (treat):
   python sccoda.py \\
     --h5ad ovaries=/path/ovaries.h5ad \\
-    --compare ovaries:luanchao-21310:luanchao-11238=Aging_vs_Youth \\
+    --compare-json design.json \\
     --out-dir ./da_sccoda
 
-  # Uterus - sham (ref) vs POI (treat):
+  # design.json (pairwise + multi-group contrasts in one design):
+  # {
+  #   "ovaries": {
+  #     "youth_vs_aged": {
+  #       "control_group_name": "youth",
+  #       "experimental_group_name": "aged",
+  #       "control_samples": ["luanchao-21310-10XSC3"],
+  #       "experimental_samples": ["luanchao-11238-10XSC3"]},
+  #     "aging_series": {
+  #       "groups": [
+  #         {"name": "youth", "samples": ["s1", "s2"]},
+  #         {"name": "aged", "samples": ["s3", "s4"]}]}}}
+  #
+  # explicit reference cell type and stricter credible threshold:
   python sccoda.py \\
     --h5ad uterus=/path/uterus.h5ad \\
-    --compare uterus:zigong-21310:ZIGONG-21224=Sham_vs_OV-POI \\
-    --out-dir ./da_sccoda
+    --compare-json design.json \\
+    --out-dir ./da_sccoda --ref-celltype Fibroblast --credible-threshold 0.95
 """)
     p.add_argument("-a", "--h5ad", action="append", required=True,
                    metavar="tissue=path",
                    help="Tissue name = h5ad path (repeatable)")
-    p.add_argument("-c", "--compare", action="append", required=True,
-                   metavar="tissue:ref:treat[=label]",
-                   help="Comparison ref vs treat (repeatable, label optional)")
+    p.add_argument("-c", "--compare-json", action="append", required=True,
+                   metavar="FILE",
+                   help="JSON design file (repeatable, merged): "
+                        "{\"tissue\": {\"contrast\": entry}} where entry is "
+                        "a DESeq2 group_pairs object "
+                        "(control_group_name/experimental_group_name/"
+                        "control_samples/experimental_samples) or an "
+                        "ordered 'groups' list for a multi-group contrast. "
+                        "The contrast key names the outputs and the "
+                        "stacked-barplot x ticks use the group names")
     p.add_argument("-o", "--out-dir", required=True,
                    help="Output directory (report + da/ artifacts)")
     p.add_argument("-r", "--ref-celltype", default="automatic",
@@ -724,7 +1100,7 @@ def main():
         tissue, path = item.split("=", 1)
         tissues[tissue.strip()] = Path(path.strip())
 
-    comparisons = parse_compare_items(args.compare, tissues)
+    comparisons = parse_compare_json(args.compare_json, tissues)
     run_params = {
         "formula": args.formula,
         "ref_celltype": args.ref_celltype,
@@ -739,8 +1115,8 @@ def main():
     for comp in comparisons:
         tissue = comp["tissue"]
         logger.info("=" * 60)
-        logger.info("[%s] %s vs %s (%s)", tissue, comp["ref"],
-                    comp["treat"], comp["label"])
+        logger.info("[%s] %s (%s)", tissue,
+                    " vs ".join(n for n, _ in comp["groups"]), comp["label"])
         logger.info("=" * 60)
         if tissue not in loaded:
             adata = sc.read_h5ad(tissues[tissue])

@@ -555,7 +555,8 @@ rule scanpy_pseudobulk:
         pb_n_pseudo_reps=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_pseudobulk", {}).get("n_pseudo_reps", 3),
         pb_min_cells_per_rep=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_pseudobulk", {}).get("min_cells_per_rep", 10),
         pb_cell_types=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_pseudobulk", {}).get("cell_types", None),
-        pb_compare=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_pseudobulk", {}).get("compare", []) or [],
+        pb_design=lambda wildcards: config.get("design", {}) or {},
+        tissue_samples=lambda wildcards: config.get("tissue_samples", {}) or {},
         pb_top_cell_types=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_pseudobulk", {}).get("top_cell_types", []) or [],
         pb_highlight_genes=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_pseudobulk", {}).get("highlight_genes", []) or [],
         pb_deg_mode=lambda wildcards: config.get("Params", {}).get("scanpy", {}).get(wildcards.counter, {}).get("scanpy_pseudobulk", {}).get("deg_mode", ["all"]),
@@ -588,22 +589,16 @@ rule scanpy_pseudobulk:
             # repeated flags overwrite each other in argparse.
             if params.pb_cell_types:
                 cmd += ["--cell-types"] + [str(ct) for ct in params.pb_cell_types]
-            # entries: tissue:ref_sample:treat_sample[=label] — every entry
-            # is scoped to ONE tissue (pseudobulk.py rejects a compare whose
-            # tissue has no --h5ad definition), so this per-tissue job only
-            # takes the entries prefixed with its own wildcard.
-            tissue_compares = [
-                str(c) for c in (params.pb_compare or [])
-                if str(c).split(":", 1)[0] == wildcards.tissue
-            ]
-            if not tissue_compares:
-                raise RuntimeError(
-                    f"Params.scanpy.{wildcards.counter}.scanpy_pseudobulk.compare "
-                    f"has no entry for tissue '{wildcards.tissue}' — expected "
-                    f"entries like '{wildcards.tissue}:ref_sample:"
-                    f"treat_sample[=label]'")
-            for cmp_ in tissue_compares:
-                cmd += ["--compare", cmp_]
+            # 比较设计:sample_params.design → comparison_design(pairwise
+            # 视图,多组 entry 按 coding 展开成两两 group_pairs)→
+            # compare_design.json → --compare-json。转化集中在
+            # common.smk::write_compare_design(rule 层唯一转化点),
+            # 语义错误(缺组织/组名悬空/样本互斥)在那里快速失败。
+            compare_json = os.path.join(out_root, "compare_design.json")
+            write_compare_design(params.pb_design, wildcards.tissue,
+                                 "pairwise", compare_json,
+                                 tissue_samples=params.tissue_samples)
+            cmd += ["--compare-json", compare_json]
             for ct in (params.pb_top_cell_types or []):
                 cmd += ["--top-cell-types", str(ct)]
             for g in (params.pb_highlight_genes or []):

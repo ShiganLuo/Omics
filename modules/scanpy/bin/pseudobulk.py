@@ -7,16 +7,22 @@ Single entry point that:
   3. Generates PCA exploration, sample filtering, volcano, heatmap,
      GO dotplot, and overlap figures
 
-Usage (CLI-only, no config file needed):
-  python pseudobulk.py --out-dir ./results \\
-    --h5ad ovaries=/path/to/ov.h5ad \\
-    --h5ad uterus=/path/to/ut.h5ad \\
-    --compare ovaries:luanchao-21310:luanchao-11238=Aging_vs_Youth \\
-    --compare uterus:zigong-21310:ZIGONG-21224=Sham_vs_OV-POI \\
-    --compare uterus:zigong-11238:zigong-1411200=Intact_vs_OV-only
+Usage:
+  python pseudobulk.py --out-dir ./results \
+    --h5ad ovaries=/path/to/ov.h5ad \
+    --h5ad uterus=/path/to/ut.h5ad \
+    --compare-json design.json
 
---h5ad   tissue=/path/to.h5ad         (repeatable)
---compare tissue:ref:treat[=label]    (repeatable, label optional)
+--h5ad         tissue=/path/to.h5ad   (repeatable)
+--compare-json FILE                   (repeatable, merged) wire design
+               {"<tissue>": {"<contrast>": entry}}, entry = DESeq2
+               group_pairs shape (control_group_name/
+               experimental_group_name/control_samples/
+               experimental_samples)。每侧样本列表 = 生物学重复
+               (count 矩阵独立行,condition = 组名);侧内仅 1 个
+               样本时由 --n-pseudo-reps 造伪重复兜底。多组序列
+               entry 不收——差异分析没有多组对象,由 rule 展开成
+               两两后送入。contrast key 即输出命名。
 """
 from typing import List, Optional
 import logging
@@ -67,47 +73,10 @@ def setup_logger(logger_name: str, level: int = logging.INFO, log_file: Optional
 
 logger = setup_logger(__name__)
 
-def load_config(path):
-    """Load a YAML config file into the internal config dict.
-
-    Reads a YAML file with tissue-level comparison definitions and
-    enriches each comparison entry with a ``key`` (``ref_vs_treat``)
-    and a fallback ``label`` (defaults to the key if not specified).
-
-    Args:
-        path: Path to a YAML file structured as::
-
-            <tissue>:
-              h5ad: /path/to.h5ad
-              comparisons:
-                - ref:  <reference_sample_id>
-                  treat: <treatment_sample_id>
-                  label: <optional_short_name>
-
-    Returns:
-        dict: ``{tissue: {h5ad: str, comparisons: [{ref, treat, label, key}]}}``
-    """
-    import yaml
-    with open(path) as f:
-        raw = yaml.safe_load(f)
-    for tissue, cfg in raw.items():
-        for i, comp in enumerate(cfg["comparisons"]):
-            comp["key"] = f"{comp['ref']}_vs_{comp['treat']}"
-            if "label" not in comp:
-                comp["label"] = comp["key"]
-    return raw
-
-
-def comp_map(comparisons):
-    """Build a mapping from comparison key to human-readable label.
-
-    Args:
-        comparisons: List of comparison dicts with ``key`` and ``label``.
-
-    Returns:
-        dict: ``{ref_vs_treat: short_label, ...}``
-    """
-    return {c["key"]: c["label"] for c in comparisons}
+# 比较设计入口:--compare-json wire 形状({tissue: {contrast: entry}},
+# entry = group_pairs 两两形状)。历史入口 --compare 字符串 DSL 与
+# --comp-config YAML 已退役(JSON 单入口);展开/转化归 rule 层
+# (modules/common/common.smk::comparison_design)。
 
 
 # ────────────────────────────────────────────────────────────
@@ -239,7 +208,8 @@ def _resolve_count_matrix(sub, raw_sub):
 def aggregate_pseudobulk(adata, cell_type, sample_col="sample_id",
                          type_col="cell_type", min_cells=30,
                          min_counts=1000, n_pseudo_reps=0,
-                         feature_mode="all", min_cells_per_rep=10):
+                         feature_mode="all", min_cells_per_rep=10,
+                         split_samples=None):
     """Sum raw UMI counts per sample for one cell type.
 
     Filters out samples with fewer than *min_cells* cells or
@@ -268,6 +238,12 @@ def aggregate_pseudobulk(adata, cell_type, sample_col="sample_id",
             splitting (see :func:`_split_pseudo_reps`). Lower this for
             rare populations (e.g. 24-cell oocytes: 3 reps need >= 3
             cells/rep, not the default 10).
+        split_samples: Optional set of sample IDs eligible for
+            pseudo-replicate splitting. ``None`` (default) splits every
+            sample when *n_pseudo_reps* > 0; a set narrows splitting to
+            those samples — samples on multi-sample comparison sides are
+            real biological replicates and must keep independent plain
+            rows (方案 §6-1 决策 A:伪重复仅是单样本侧的兜底)。
 
     Returns:
         tuple:
@@ -320,8 +296,10 @@ def aggregate_pseudobulk(adata, cell_type, sample_col="sample_id",
     if len(samples_kept) < 1:
         return None, []
 
-    # Split into pseudo-replicates when n_pseudo_reps > 0
-    # (needed when any comparison will have only 1 sample per condition)
+    # Split into pseudo-replicates when n_pseudo_reps > 0 — only for
+    # samples on single-sample comparison sides (split_samples); they
+    # give PyDESeq2 enough rows to estimate dispersion. Multi-sample
+    # sides keep their samples as real replicates (plain rows).
     use_pseudo_reps = (n_pseudo_reps > 0)
 
     rows = []
@@ -330,7 +308,8 @@ def aggregate_pseudobulk(adata, cell_type, sample_col="sample_id",
         sub_cells = sub[mask]
         raw_cells = raw_sub[mask]
 
-        if use_pseudo_reps:
+        if use_pseudo_reps and (split_samples is None
+                                or sample in split_samples):
             if use_counts_layer:
                 rep_rows = _split_pseudo_reps(
                     sub_cells, sample,
@@ -369,7 +348,8 @@ def aggregate_pseudobulk(adata, cell_type, sample_col="sample_id",
 
 def prepare_counts(h5ad_path, out_dir, label, min_cells=30, min_counts=1000,
                    n_pseudo_reps=0, feature_mode="all", counts_h5ad=None,
-                   cell_types=None, min_cells_per_rep=10):
+                   cell_types=None, min_cells_per_rep=10,
+                   split_samples=None):
     """Prepare pseudo-bulk count CSVs for all cell types in an h5ad.
 
     Iterates over every unique cell type in the h5ad, aggregates counts
@@ -398,6 +378,9 @@ def prepare_counts(h5ad_path, out_dir, label, min_cells=30, min_counts=1000,
         min_cells_per_rep: Minimum cells per pseudo-replicate when
             splitting single-sample conditions (see
             :func:`_split_pseudo_reps`).
+        split_samples: Optional set of sample IDs eligible for
+            pseudo-replicate splitting (forwarded to
+            :func:`aggregate_pseudobulk`); ``None`` splits all.
 
     Returns:
         tuple:
@@ -457,7 +440,8 @@ def prepare_counts(h5ad_path, out_dir, label, min_cells=30, min_counts=1000,
                                         min_counts=min_counts,
                                         n_pseudo_reps=n_pseudo_reps,
                                         feature_mode=feature_mode,
-                                        min_cells_per_rep=min_cells_per_rep)
+                                        min_cells_per_rep=min_cells_per_rep,
+                                        split_samples=split_samples)
         if df is None:
             continue
         ct_safe = ct.replace(" ", "_").replace("/", "-")
@@ -481,22 +465,29 @@ def prepare_counts(h5ad_path, out_dir, label, min_cells=30, min_counts=1000,
 # 3. PyDESeq2 DEG analysis
 # ────────────────────────────────────────────────────────────
 
-def run_pydeseq2(counts_df, ref_id, treat_id):
+def run_pydeseq2(counts_df, comp):
     """Run PyDESeq2 on a pseudobulk count matrix for one comparison.
 
     Takes a pseudobulk DataFrame (rows=samples, columns=metadata+genes),
-    subsets to the two groups, and runs DESeq2 analysis.
+    subsets to the two groups, and runs DESeq2 analysis. Each side may
+    list SEVERAL samples — they enter as biological replicates
+    (independent rows, condition = group name; 方案 §6-1 决策 A). A side
+    with a single sample is backed by its pseudo-replicate rows
+    (``{id}_repN``) when present.
 
     Args:
         counts_df: DataFrame with ``cell_type``, ``n_cells``, ``n_counts``
-            columns plus gene columns. Index = sample IDs.
-        ref_id: Sample ID of the reference group.
-        treat_id: Sample ID of the treatment group.
+            columns plus gene columns. Index = sample IDs (or
+            ``{sample}_repN`` pseudo-replicates).
+        comp: wire comparison dict — ``key`` (contrast name, drives the
+            output naming and the ``comparison`` column), ``ref`` /
+            ``treat`` (group names = condition labels, reference first),
+            ``ref_samples`` / ``treat_samples`` (sample id lists).
 
     Returns:
         pd.DataFrame: DEG results with columns ``gene``, ``cell_type``,
-        ``comparison``, ``baseMean``, ``log2FC``, ``lfcSE``, ``stat``,
-        ``pval``, ``pval_adj``, ``significant``.
+            ``comparison``, ``baseMean``, ``log2FC``, ``lfcSE``, ``stat``,
+            ``pval``, ``pval_adj``, ``significant``.
     """
     try:
         from pydeseq2.dds import DeseqDataSet
@@ -505,6 +496,8 @@ def run_pydeseq2(counts_df, ref_id, treat_id):
         logger.error("pydeseq2 not installed. pip install pydeseq2")
         return pd.DataFrame()
 
+    ref_id, treat_id = comp["ref"], comp["treat"]
+
     # Separate metadata from gene columns
     metadata_cols = ["cell_type", "n_cells", "n_counts"]
     gene_cols = [c for c in counts_df.columns if c not in metadata_cols]
@@ -512,12 +505,20 @@ def run_pydeseq2(counts_df, ref_id, treat_id):
     if len(gene_cols) < 100:
         return pd.DataFrame()
 
-    # Subset to the two groups (handle pseudo-replicate IDs like sample_rep0)
-    ref_samples = [s for s in counts_df.index if s == ref_id or s.startswith(f"{ref_id}_rep")]
-    treat_samples = [s for s in counts_df.index if s == treat_id or s.startswith(f"{treat_id}_rep")]
+    # Subset to the two groups; every listed sample matches itself or its
+    # pseudo-replicate rows (sample_repN)
+    def _rows_for(sample_ids):
+        rows = []
+        for sid in sample_ids:
+            rows.extend(s for s in counts_df.index
+                        if s == sid or s.startswith(f"{sid}_rep"))
+        return rows
+
+    ref_samples = _rows_for(comp["ref_samples"])
+    treat_samples = _rows_for(comp["treat_samples"])
     selected = ref_samples + treat_samples
     if len(selected) < 2 or len(ref_samples) < 1 or len(treat_samples) < 1:
-        logger.warning(f"skip: not enough samples for {ref_id} vs {treat_id}")
+        logger.warning(f"skip: not enough samples for {comp['key']}")
         return pd.DataFrame()
 
     sub = counts_df.loc[selected]
@@ -557,7 +558,7 @@ def run_pydeseq2(counts_df, ref_id, treat_id):
         "padj": "pval_adj",
     })
     results_df["cell_type"] = cell_type
-    results_df["comparison"] = f"{ref_id}_vs_{treat_id}"
+    results_df["comparison"] = comp["key"]
     results_df["significant"] = (
         (results_df["pval_adj"] < 0.05) & (results_df["log2FC"].abs() > 1)
     )
@@ -569,7 +570,7 @@ def run_pydeseq2(counts_df, ref_id, treat_id):
     results_df = results_df[[c for c in cols if c in results_df.columns]]
 
     n_sig = int(results_df["significant"].sum())
-    logger.info(f"    {cell_type}: {ref_id} vs {treat_id} — "
+    logger.info(f"    {cell_type}: {comp['key']} — "
           f"{len(results_df)} genes, {n_sig} significant")
 
     return results_df
@@ -1332,7 +1333,7 @@ def plot_all(config, out_dir, deg_dir, go_dir, fig_dir, top_cell_types=None,
     Also saves a combined ``all_pseudobulk_DEG.csv``.
 
     Args:
-        config: Tissue config dict (see :func:`load_config`).
+        config: Tissue config dict (see :func:`parse_cli_args`).
         out_dir: Root output directory.
         deg_dir: Directory containing ``deg_{tissue}/`` subdirectories.
         go_dir: Directory containing GO enrichment CSVs.
@@ -1346,7 +1347,7 @@ def plot_all(config, out_dir, deg_dir, go_dir, fig_dir, top_cell_types=None,
     all_deg_frames = []
 
     for tissue, cfg in config.items():
-        cmap = comp_map(cfg["comparisons"])
+        cmap = {c["key"]: c["key"] for c in cfg["comparisons"]}
         prefix = f"{tissue}_"
         tissue_deg_dir = os.path.join(deg_dir, f"deg_{tissue}")
 
@@ -1372,7 +1373,7 @@ def plot_all(config, out_dir, deg_dir, go_dir, fig_dir, top_cell_types=None,
 
         for comp in cfg["comparisons"]:
             key = comp["key"]
-            label = comp["label"]
+            label = comp["key"]
             comp_dir = os.path.join(tissue_deg_dir, f"{tissue}_{key}")
 
             # Pick cell types: user-specified, or top 3 by sig count,
@@ -1438,7 +1439,7 @@ def plot_all(config, out_dir, deg_dir, go_dir, fig_dir, top_cell_types=None,
 
         # 3. Overlap bar plot (cross-comparison → fig_dir)
         if len(cfg["comparisons"]) >= 2:
-            sets = [(c["label"], c["key"]) for c in cfg["comparisons"]]
+            sets = [(c["key"], c["key"]) for c in cfg["comparisons"]]
             deg_overlap_bar(
                 t_deg, sets,
                 os.path.join(fig_dir, f"{tissue}_DEG_overlap"),
@@ -1460,11 +1461,10 @@ def plot_all(config, out_dir, deg_dir, go_dir, fig_dir, top_cell_types=None,
 def parse_cli_args(argv=None):
     """Parse CLI arguments and build the internal config dict.
 
-    Supports two input modes:
-      1. CLI-only: ``--h5ad tissue=path`` + ``--compare tissue:ref:treat[=label]``
-      2. YAML file: ``--comp-config comparisons.yaml``
-
-    In CLI mode, the label is optional and defaults to ``ref_vs_treat``.
+    Input: ``--h5ad tissue=path`` declarations + ``--compare-json FILE``
+    wire design ``{"<tissue>": {"<contrast>": entry}}`` (entry = group_pairs
+    shape; repeatable files are merged). Multi-group entries are rejected —
+    差异分析没有多组对象,须由 rule 展开成两两后送入。
 
     Args:
         argv: Argument list (defaults to ``sys.argv[1:]``).
@@ -1472,48 +1472,46 @@ def parse_cli_args(argv=None):
     Returns:
         tuple:
             - **args** (*argparse.Namespace*): Parsed CLI arguments.
-            - **config** (*dict*): Tissue config dict compatible with
-              :func:`load_config` output format.
+            - **config** (*dict*): ``{tissue: {h5ad, counts_h5ad?,
+              comparisons: [{key, ref, treat, ref_samples, treat_samples}]}}``.
     """
     parser = argparse.ArgumentParser(
         description=__doc__ + "\n\n"
         "PARAMETER CONVENTION (READ FIRST):\n"
-        "  --compare tissue:ref:treat[=label]   ← ref FIRST, treat SECOND\n"
-        "  - File names: ref_vs_treat  (e.g. uterus_luanchao-21310_vs_luanchao-11238)\n"
-        "  - Plot titles: 'ref vs treat'  (ref on left = baseline,\n"
-        "    treat on right = perturbation)\n"
-        "  - CSV 'comparison' column: ref_vs_treat  (e.g. 'luanchao-21310_vs_luanchao-11238')\n"
+        "  --compare-json design.json ← entry = group_pairs shape,\n"
+        "    control (reference) side first, experimental (treatment) second\n"
+        "  - Each side's sample list = biological replicates (condition =\n"
+        "    group name); a single-sample side is backed by pseudo-reps\n"
+        "  - File names / CSV 'comparison' column: the contrast key\n"
         "  - log2FC = log2(treat / ref); positive = higher in treat.\n"
         "  Convention follows 'reference (control) first, treatment second',\n"
         "  matching how biological contrasts are typically declared.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 Examples:
-  # Ovaries — youth (ref) vs aged (treat), default label 'ref_vs_treat':
-  python pseudobulk.py --out-dir ./results \\
-    --h5ad ovaries=/path/to/ov.h5ad \\
-    --compare ovaries:luanchao-21310:luanchao-11238
-
-  # Uterus — sham (ref) vs OV-POI (treat), custom labels:
-  python pseudobulk.py --out-dir ./results \\
-    --h5ad ovaries=/path/to/ov.h5ad \\
-    --h5ad uterus=/path/to/ut.h5ad \\
-    --compare ovaries:luanchao-21310:luanchao-11238=Aging_vs_Youth \\
-    --compare uterus:zigong-21310:ZIGONG-21224=Sham_vs_OV-POI
-
-  # Or use a YAML config:
-  python pseudobulk.py --out-dir ./results --comp-config comparisons.yaml
+  # design.json (wire shape; multi-sample sides = replicates):
+  # {"uterus": {"Sham_vs_OV-POI": {
+  #     "control_group_name": "Sham",
+  #     "experimental_group_name": "POI",
+  #     "control_samples": ["zigong-21310", "zigong-21311"],
+  #     "experimental_samples": ["ZIGONG-21224"]}}}
+  python pseudobulk.py --out-dir ./results \
+    --h5ad uterus=/path/to/ut.h5ad \
+    --compare-json design.json
 """)
-    parser.add_argument("--comp-config",
-                        help="YAML config (alternative to --h5ad/--compare)")
     parser.add_argument("--h5ad", action="append", metavar="tissue=path",
                         help="Tissue name = h5ad path (repeatable)")
     parser.add_argument("--counts-h5ad", action="append", metavar="tissue=path",
                         help="Tissue name = merged h5ad path providing integer "
                              "layers['counts'] (repeatable). Cells must match "
                              "the --h5ad annotation file 1:1.")
-    parser.add_argument("--compare", action="append", metavar="tissue:ref:treat[=label]",
-                        help="Comparison (repeatable, label optional)")
+    parser.add_argument("--compare-json", action="append", metavar="FILE",
+                        help="Wire comparison design (repeatable, merged): "
+                             "{\"tissue\": {\"contrast\": entry}} where entry "
+                             "is a DESeq2 group_pairs object "
+                             "(control_group_name/experimental_group_name/"
+                             "control_samples/experimental_samples). The "
+                             "contrast key names the outputs.")
     parser.add_argument("--out-dir", required=True)
     parser.add_argument("--min-cells", type=int, default=30,
                         help="Min cells per pseudobulk sample (default: 30)")
@@ -1558,47 +1556,77 @@ Examples:
             f"Unsupported image format(s): {', '.join(bad)}; "
             f"valid: {', '.join(VALID_FORMATS)}")
 
-    # Load config from YAML or CLI args
-    if args.comp_config:
-        config = load_config(args.comp_config)
-    elif args.h5ad and args.compare:
-        config = {}
-        # Parse --h5ad tissue=path
-        for item in args.h5ad:
-            if "=" not in item:
-                parser.error(f"--h5ad format: tissue=path, got: {item}")
-            tissue, path = item.split("=", 1)
-            config[tissue] = {"h5ad": path, "comparisons": []}
-        # Parse --counts-h5ad tissue=path (optional merged count source)
-        for item in (args.counts_h5ad or []):
-            if "=" not in item:
-                parser.error(f"--counts-h5ad format: tissue=path, got: {item}")
-            tissue, path = item.split("=", 1)
-            if tissue not in config:
-                parser.error(f"Unknown tissue '{tissue}', define it with --h5ad first")
-            config[tissue]["counts_h5ad"] = path
-        # Parse --compare tissue:ref:treat[=label]
-        for item in args.compare:
-            # Split on = for label (only the last =)
-            if "=" in item:
-                pair, label = item.rsplit("=", 1)
-            else:
-                pair, label = item, None
-            parts = pair.split(":")
-            if len(parts) != 3:
-                parser.error(f"--compare format: tissue:ref:treat[=label], got: {item}")
-            tissue, ref, treat = parts
-            if tissue not in config:
-                parser.error(f"Unknown tissue '{tissue}', define it with --h5ad first")
-            key = f"{ref}_vs_{treat}"
+    # Build config from --h5ad declarations + --compare-json wire design
+    if not args.compare_json:
+        parser.error("--compare-json is required (wire design "
+                     "{tissue: {contrast: entry}}, entry = group_pairs shape)")
+    if not args.h5ad:
+        parser.error("--h5ad tissue=path is required")
+    config = {}
+    # Parse --h5ad tissue=path
+    for item in args.h5ad:
+        if "=" not in item:
+            parser.error(f"--h5ad format: tissue=path, got: {item}")
+        tissue, path = item.split("=", 1)
+        config[tissue] = {"h5ad": path, "comparisons": []}
+    # Parse --counts-h5ad tissue=path (optional merged count source)
+    for item in (args.counts_h5ad or []):
+        if "=" not in item:
+            parser.error(f"--counts-h5ad format: tissue=path, got: {item}")
+        tissue, path = item.split("=", 1)
+        if tissue not in config:
+            parser.error(f"Unknown tissue '{tissue}', define it with --h5ad first")
+        config[tissue]["counts_h5ad"] = path
+    # Parse --compare-json wire design files (merged; keys must be unique)
+    import json
+    design = {}
+    for path in args.compare_json:
+        try:
+            with open(path) as f:
+                data = json.load(f)
+        except (OSError, ValueError) as e:
+            parser.error(f"--compare-json {path}: cannot read design: {e}")
+        if not isinstance(data, dict):
+            parser.error(f"--compare-json {path}: top level must be "
+                         f"{{tissue: {{contrast: entry}}}}")
+        for tissue, contrasts in data.items():
+            tgt = design.setdefault(tissue, {})
+            for key, entry in (contrasts or {}).items():
+                if key in tgt:
+                    parser.error(f"--compare-json {path}: duplicate contrast "
+                                 f"'{key}' for tissue '{tissue}'")
+                if not isinstance(entry, dict):
+                    parser.error(f"--compare-json {path}: contrast '{key}' "
+                                 f"entry must be an object")
+                if "groups" in entry:
+                    parser.error(
+                        f"--compare-json {path}: contrast '{key}' is a "
+                        f"multi-group entry — 差异分析不收多组对象,须由 "
+                        f"rule 展开成两两 entry 后送入")
+                required = ("control_group_name", "experimental_group_name",
+                            "control_samples", "experimental_samples")
+                missing = [k for k in required if k not in entry]
+                if missing:
+                    parser.error(f"--compare-json {path}: contrast '{key}' "
+                                 f"missing {missing}")
+                if not entry["control_samples"] or not entry["experimental_samples"]:
+                    parser.error(f"--compare-json {path}: contrast '{key}' "
+                                 f"needs non-empty sample lists on both sides")
+                tgt[key] = entry
+    if not design:
+        parser.error("--compare-json: design is empty")
+    for tissue, contrasts in design.items():
+        if tissue not in config:
+            parser.error(f"--compare-json: tissue '{tissue}' has no --h5ad "
+                         f"definition")
+        for key, entry in contrasts.items():
             config[tissue]["comparisons"].append({
-                "ref": ref, "treat": treat,
-                "label": label or key, "key": key,
+                "key": key,
+                "ref": entry["control_group_name"],
+                "treat": entry["experimental_group_name"],
+                "ref_samples": list(entry["control_samples"]),
+                "treat_samples": list(entry["experimental_samples"]),
             })
-        if not any(cfg["comparisons"] for cfg in config.values()):
-            parser.error("No comparisons defined. Use --compare tissue:ref:treat")
-    else:
-        parser.error("Provide either --comp-config or both --h5ad and --compare")
 
     return args, config
 
@@ -1676,7 +1704,7 @@ def _write_html_report(out_dir, config, run_params):
     comp_rows = []
     for tissue, cfg in sorted(config.items()):
         for comp in cfg.get("comparisons", []):
-            comp_rows.append((tissue, comp.get("label") or comp.get("key", ""),
+            comp_rows.append((tissue, comp.get("key", ""),
                               comp.get("ref", ""), comp.get("treat", "")))
 
     def _tr(cells):
@@ -1701,7 +1729,7 @@ def _write_html_report(out_dir, config, run_params):
     parts += [
         "</table>",
         "<h2>Comparisons</h2><table>",
-        _tr(["tissue", "label", "reference", "treatment"]),
+        _tr(["tissue", "contrast", "reference", "treatment"]),
     ]
     for row in comp_rows:
         parts.append(_tr([_escape(str(c)) for c in row]))
@@ -1760,6 +1788,14 @@ def main():
             all_written = []
             tissue_adata = {}
             for tissue, cfg in config.items():
+                # 伪重复只给"单样本侧"兜底:多样本侧的样本是真重复,
+                # 保留独立行(方案 §6-1 决策 A)
+                split_samples = set()
+                for comp in cfg["comparisons"]:
+                    if len(comp["ref_samples"]) == 1:
+                        split_samples.add(comp["ref_samples"][0])
+                    if len(comp["treat_samples"]) == 1:
+                        split_samples.add(comp["treat_samples"][0])
                 written, adata = prepare_counts(
                     cfg["h5ad"], counts_dir, tissue,
                     min_cells=args.min_cells, min_counts=args.min_counts,
@@ -1768,6 +1804,7 @@ def main():
                     counts_h5ad=cfg.get("counts_h5ad"),
                     cell_types=args.cell_types,
                     min_cells_per_rep=args.min_cells_per_rep,
+                    split_samples=split_samples,
                 )
                 all_written.extend(written)
                 tissue_adata[tissue] = adata
@@ -1789,8 +1826,10 @@ def main():
                         adata = tissue_adata[tissue]
                         cond_map = {}
                         for comp in cfg["comparisons"]:
-                            cond_map[comp["ref"]] = "reference"
-                            cond_map[comp["treat"]] = "treatment"
+                            for s in comp["ref_samples"]:
+                                cond_map[s] = "reference"
+                            for s in comp["treat_samples"]:
+                                cond_map[s] = "treatment"
                         pca_exploration_plot(
                             adata,
                             os.path.join(fig_dir, f"{tissue}_pca_exploration"),
@@ -1843,10 +1882,10 @@ def main():
                             ct_dir, f"{tissue}_{key}_{ct_safe}")
 
                         try:
-                            deg_results = run_pydeseq2(counts_df, ref_id, treat_id)
+                            deg_results = run_pydeseq2(counts_df, comp)
                         except Exception as e:
                             logger.error(f"PyDESeq2 failed for {ct_safe} "
-                                  f"{ref_id} vs {treat_id}: {e}")
+                                  f"{key}: {e}")
                             continue
                         if len(deg_results) == 0:
                             continue

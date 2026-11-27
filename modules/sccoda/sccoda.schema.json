@@ -96,10 +96,11 @@
                                         "required": false
                                     },
                                     "compare": {
-                                        "type": "list",
+                                        "type": "dict",
                                         "nullable": true,
                                         "required": false,
-                                        "description": "tissue:ref_sample:treat_sample[=label] entries; empty = shared from Params.scanpy.<counter>.scanpy_pseudobulk.compare"
+                                        "description": "JSON design {tissue: {contrast: entry}}; entry = DESeq2 group_pairs ({control_group_name, experimental_group_name, control_samples, experimental_samples}) or ordered 'groups' [{name, samples}] for a multi-group contrast (first group = base level, each later group vs base; stacked barplot shows one bar per group, samples of a group summed; DA-credible cell types carry ↑/↓ legend marks in group order). The contrast key names the outputs (da_sccoda_<contrast>_*). Empty = shared from Params.scanpy.<counter>.scanpy_pseudobulk.compare (bare-sample string entries, converted to single-sample group_pairs)",
+                                        "properties": {}
                                     },
                                     "formats": {
                                         "type": "list",
@@ -153,10 +154,11 @@
                                         "required": false
                                     },
                                     "compare": {
-                                        "type": "list",
+                                        "type": "dict",
                                         "nullable": true,
                                         "required": false,
-                                        "description": "tissue:ref_sample:treat_sample[=label] entries; empty = shared from Params.scanpy.<counter>.scanpy_pseudobulk.compare"
+                                        "description": "JSON design {tissue: {contrast: entry}}; entry = DESeq2 group_pairs ({control_group_name, experimental_group_name, control_samples, experimental_samples}) or ordered 'groups' [{name, samples}] for a multi-group contrast (first group = base level, each later group vs base; stacked barplot shows one bar per group, samples of a group summed; DA-credible cell types carry ↑/↓ legend marks in group order). The contrast key names the outputs (da_sccoda_<contrast>_*). Empty = shared from Params.scanpy.<counter>.scanpy_pseudobulk.compare (bare-sample string entries, converted to single-sample group_pairs)",
+                                        "properties": {}
                                     },
                                     "formats": {
                                         "type": "list",

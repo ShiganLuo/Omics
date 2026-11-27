@@ -231,6 +231,10 @@ sexcheck_config = {
         s: f"{_sexcheck_bam_dir}/{s}/{s}.bam"
         for s in paired_samples + single_samples
     },
+    "sample_bais": {
+        s: f"{_sexcheck_bam_dir}/{s}/{s}.bam.bai"
+        for s in paired_samples + single_samples
+    },
     "Procedure": {
         "samtools": config.get("Procedure", {}).get("samtools")
     },

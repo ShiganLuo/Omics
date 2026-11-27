@@ -104,6 +104,10 @@ sexcheck_config = {
         s: f"{igv_config['outdir']}/{s}/{s}.dedup.bam"
         for s in paired_samples + single_samples
     },
+    "sample_bais": {
+        s: f"{igv_config['outdir']}/{s}/{s}.dedup.bam.bai"
+        for s in paired_samples + single_samples
+    },
     "Procedure": {
         "samtools": config.get("Procedure", {}).get("samtools")
     },

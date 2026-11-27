@@ -112,6 +112,10 @@ sexcheck_config = {
         s: f"{hisat2_config['outdir']}/{s.split('/')[0]}/{s.split('/')[1]}/{s.split('/')[1]}.bam"
         for s in _sexcheck_samples
     },
+    "sample_bais": {
+        s: f"{hisat2_config['outdir']}/{s.split('/')[0]}/{s.split('/')[1]}/{s.split('/')[1]}.bam.bai"
+        for s in _sexcheck_samples
+    },
     "Procedure": {
         "samtools": config.get("Procedure", {}).get("samtools")
     },

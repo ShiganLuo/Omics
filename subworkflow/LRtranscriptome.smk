@@ -55,6 +55,10 @@ sexcheck_config = {
         s: f"{minimap2_config['outdir']}/{s}/{s}.sorted.bam"
         for s in samples
     },
+    "sample_bais": {
+        s: f"{minimap2_config['outdir']}/{s}/{s}.sorted.bam.bai"
+        for s in samples
+    },
     "Procedure": {
         "samtools": config.get("Procedure", {}).get("samtools")
     },

@@ -7,6 +7,7 @@ logdir = config.get("logdir", "log")
 logdir_combine = config.get("logdir_combine", logdir)
 samples = config.get("samples", []) or {}
 sample_bams = config.get("sample_bams", {}) or {}
+sample_bais = config.get("sample_bais", {}) or {}
 
 SEXCHECK_SCRIPT = os.path.join(ROOT_DIR, "modules", "sexcheck", "bin", "sexcheck.py")
 
@@ -24,7 +25,8 @@ rule sexcheck_idxstats:
     with the sample id — single-sample rule."""
     input:
         bam=lambda wildcards: sample_bams[wildcards.sample_id],
-        bai=lambda wildcards: os.path.splitext(sample_bams[wildcards.sample_id])[0] + ".bai",
+        bai=lambda wildcards: sample_bais.get(wildcards.sample_id)
+            or os.path.splitext(sample_bams[wildcards.sample_id])[0] + ".bai",
     output:
         tsv=outdir + "/idxstats/{sample_id}/{sample_id}.idxstats.tsv",
     log:

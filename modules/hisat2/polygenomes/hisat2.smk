@@ -107,6 +107,7 @@ rule hisat2_align:
         index = get_hisat2_index
     output:
         outfile = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}.bam", "hisat2"),
+        bai = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}.bam.bai", "hisat2"),
         splice = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}.splice.txt", "hisat2")
     log:
         logdir + "/{sample_id}/{genome}/hisat2_align.log"
@@ -161,6 +162,7 @@ rule hisat2_align:
             with open(script, 'w') as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) +"\n")
+                f.write(f"{params.samtools} index {output.outfile}\n")
                 f.write(f"echo 'hisat_align for {wildcards.sample_id} was completed successfully at {current_time}'")
             shutil.copyfile(script, plain_script)
             if SCRIPT_ONLY:

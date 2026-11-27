@@ -20,7 +20,12 @@ def get_input_for_XenofilteR(wildcards):
         contaminant_bam = indir + f"/{contaminant}/{wildcards.sample_id}/{wildcards.sample_id}.bam"
     in_dict = {
         "contaminant_bam": contaminant_bam,
-        "host_bam": host_bam
+        "host_bam": host_bam,
+        # .bai 必须声明为 input:star_align 的 .bai 是 temp 输出,无人消费时
+        # 该 job 一结束即被删除,skip 分支会 ln -s 出空链接,产物校验
+        # MissingOutputException(实测 hTBLC3,3 次尝试全挂)。
+        "host_bai": host_bam + ".bai",
+        "contaminant_bai": contaminant_bam + ".bai",
     }
     logger.debug(f"[get_input_for_XenofilteR] returning input dictionary: {in_dict}")
     return in_dict
@@ -87,8 +92,10 @@ rule XenofilteR:
             cmd6 = [
                 "ln", "-s", input.host_bam, output.outBam
             ]
+            # 复制而非软链:host_bai 是 temp,本 job 结束后即删,软链会让
+            # 下游 addReadsGroup 拿到空链接;host_bam 非 temp,软链安全。
             cmd7 = [
-                "ln", "-s", input.host_bam + ".bai", output.outBai
+                "cp", input.host_bai, output.outBai
             ]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")

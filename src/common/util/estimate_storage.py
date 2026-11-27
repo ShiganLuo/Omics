@@ -1,107 +1,143 @@
 #!/usr/bin/env python
-"""存储估算脚本:meta + config → 运行后磁盘占用(最终保留 / 运行期暂用 / 峰值)。
+"""Estimate the on-disk footprint of an Omics workflow run (final kept /
+transient / peak), or measure and calibrate against a finished run.
 
-用法:
-    # 跑之前估算(核心功能)
-    python src/common/util/estimate_storage.py estimate \
-        --meta data/meta_xxx.tsv --config config/PacVar.json --workflow PacVar
+Two kinds of run JSON exist (docs/sample-params-split.md):
 
-    # 跑完(或跑了一半)后实测:任意工作流,不需要 manifest
+  * INSTANTIATED json (raw.json, written by node.run<Workflow>()): one full
+    run's parameters -- module switches (Params), genome, samples and every
+    input file (raw_files) plus the registered deliverable list (outfiles).
+    Passing it is enough; no meta is needed:
+        python src/common/util/estimate_storage.py estimate --run-json OUTDIR/raw.json
+
+  * UNINSTANTIATED json (the config/<Workflow>.json template): it holds no
+    samples and no input files, so meta + workflow are required. The tool
+    then reads config/<Workflow>.json (or --config) and INSTANTIATES it with
+    the very same code path run.py uses (MetadataUtils + node.run<Workflow>),
+    producing an instantiated json which drives the estimate:
+        python src/common/util/estimate_storage.py estimate \\
+            --meta data/meta_xxx.tsv --workflow PacVar
+        # keep the generated instance for inspection/reuse:
+        ... estimate --meta data/meta_xxx.tsv --workflow PacVar \\
+            --outdir OUTDIR [--save-json PATH]
+
+Other subcommands:
+    # measure a run dir after (or mid-) execution; no manifest needed
     python src/common/util/estimate_storage.py measure --root OUTDIR
 
-    # 用真实运行校准比例表(append-only,和 calibrate_resources.py 同风格)
-    python src/common/util/estimate_storage.py calibrate \
-        --root OUTDIR --meta data/meta_xxx.tsv --workflow PacVar
+    # calibrate the ratio table from a real run (append-only history);
+    # inputs read from the run's raw.json or from --meta
+    python src/common/util/estimate_storage.py calibrate --root OUTDIR \\
+        --run-json OUTDIR/raw.json
+    python src/common/util/estimate_storage.py calibrate --root OUTDIR \\
+        --meta data/meta_xxx.tsv --workflow PacVar
 
-行为:
-  estimate
-    1. meta 里每个输入文件真实 stat(不存在直接报错,不猜大小);
-    2. 按 MANIFESTS[workflow] 的产物类清单展开 DAG 产物(含中间产物),
-       每类大小 = 基准量(输入 bam / fastq / 基因组 / 固定值)× 比例系数;
-    3. kept/temp 语义与模块一致:maybe_temp(...) 的产物在
-       Params.<mod>.keep_intermediates == False 时为 temp,跑完自动删除;
-    4. 峰值 = 按 stage 时间线求同时在盘的最大值。stage s 时在盘 =
-       born <= s <= die 的类(temp 在其最后一个消费者所在 stage 仍占用,
-       之后被 Snakemake 删除;kept 类 die=None 永久保留);
-    5. 比例系数优先用 storage_ratio_history.tsv 里同 workflow 同类的
-       实测校准(n>=MIN_POINTS 取 p50,p10/p90 为区间),否则用 manifest
-       的经验值(low/mid/high 三档,输出区间而不是单点)。
-    输出:分类明细表 + 最终保留/暂用/峰值三个数(带区间),--json 落盘。
+Behavior (estimate):
+  1. Every input file is stat()ed for real size (missing file -> error, we
+     never guess sizes); files are attributed to samples by sample-id match
+     in the path, and split into input_bam / input_fastq / input_total.
+  2. Product classes come from two sources:
+       a. a curated per-workflow MANIFEST (intermediates included) when one
+          exists (currently PacVar), with kept/temp semantics matching the
+          modules: maybe_temp(...) products are temp while
+          Params.<mod>.keep_intermediates == False and are auto-deleted by
+          Snakemake after their last consumer;
+       b. the instantiated json's registered outfiles: any outfile not
+          covered by the manifest is sized with the generic per-file model
+          (FALLBACK_* tables below). This is what makes EVERY workflow
+          estimable -- node.run<Workflow>() registers the full deliverable
+          set for all of them.
+  3. Class size = basis (input bam / fastq / total / genome fasta / fixed)
+     x ratio (output/basis). Manifest ratios are per-class totals; generic
+     ratios are per FILE times the file's attributed basis.
+  4. Peak = max simultaneous bytes over the stage timeline: a class is on
+     disk for born <= s <= die (temp classes release after their last
+     consumer stage; kept classes have die=None). Generic outfile classes
+     are kept, born at the final stage. Workflows without a curated
+     manifest therefore report final + overhead but no modeled temp peak.
+  5. Ratios prefer real calibration: storage_ratio_history.tsv entries with
+     the same workflow+class and >= MIN_POINTS points give p50 with p10/p90
+     as the range; otherwise the empirical low/mid/high is used.
 
-  measure
-    递归扫描 --root,按 manifest patterns 优先、文件后缀兜底归类,
-    报告每类字节数/文件数/占比。软链接(输入数据)不计入,单独计数。
+Output: per-class table + final kept / transient / peak totals with ranges;
+--report-json saves the same numbers as JSON.
 
-  calibrate
-    measure + meta 输入基准 → 每类 实测/基准 比例,追加进
-    storage_ratio_history.tsv(默认脚本同目录,--history 可改)。
-    estimate 会自动读取该表,越跑越准。
+Principles (shared with calibrate_resources.py):
+  - no guessing: stat inputs for real, error on missing files;
+  - ranges instead of point estimates (low/mid/high, or p10/p50/p90 once
+    calibrated);
+  - append-only calibration history so every correction is auditable.
 
-原则(与 calibrate_resources.py 一致):
-  - 不猜:输入 stat 不到就报错;没有 manifest 的工作流只做 measure/
-    calibrate 后缀兜底,estimate 不凭空编造产物;
-  - 区间而非单点:经验比例给 low/mid/high,校准后用实测分位数;
-  - append-only 历史,estimate 的每次修正都有 tsv 依据可审计。
+Explicitly NOT modeled: GATK/Snakemake java tmp-dir churn (under out/tmp,
+cleaned after MarkDuplicates) and filesystem block overhead (du exceeds the
+byte sum when many small files exist).
 
-新增工作流:往 MANIFESTS 加一个产物类清单(字段见 ClassSpec 注释),
-或用 --manifest extra.json 合并(格式: {"WorkflowName": [类 dict, ...]})。
-
-注意(显式未建模,不在上表):
-  - GATK/SnakeMake 的 java tmp-dir、.snakemake 元数据抖动:tmp-dir 在
-    out/tmp,MarkDuplicates 期间可能额外写临时文件,结束后清理;
-  - 文件系统块开销(小文件多时 du 略大于字节和)。
+Adding a curated workflow manifest: add a class list to MANIFESTS (fields in
+the ClassSpec comment) or merge one at runtime with --manifest extra.json
+({"WorkflowName": [class dict, ...]}).
 """
 import argparse
+import copy
 import csv
 import datetime
-import fnmatch
 import json
 import os
 import re
+import shutil
 import sys
+import tempfile
 
-MIN_POINTS = 3  # >=3 个校准点才覆盖经验比例(同 calibrate_resources.py)
+MIN_POINTS = 3   # >=3 calibration points before empirical ratios are dropped
 HISTORY_NAME = "storage_ratio_history.tsv"
+GENERIC_BORN = 6  # stage at which generic outfile products are considered born
+
+# Repo root = workflow/Omics (this file lives at src/common/util/)
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__)))))
 
 # ---------------------------------------------------------------------------
-# ClassSpec(产物类清单,manifest 条目字段):
-#   id      唯一 id,也用于校准表归并
-#   desc    说明
-#   scope   "sample" = 每样本一份(× n_samples); "run" = 全局一份
-#   basis   "input_bam" | "input_fastq" | "input_total" | "genome_fasta" | "fixed"
-#   ratio   (low, mid, high):basis 非 fixed 时为「输出字节/基准字节」比例;
-#           basis == fixed 时为「每 scope 单位的绝对字节数」三档
-#   gate    [(dotted_cfg_path, expected, default_if_missing), ...] 全部满足才
-#           产生产物;default 与 node.py 语义一致(_enabled 缺省 True,
-#           sawfish 缺省 False)
-#   require ["genome_repeat_bed"] 等特殊前置:参考库里必须有对应文件
-#   need_comparisons  True = 需要 meta design 里有 ctr_/exp_ 对(sv 分析类)
-#   temp_when (dotted_cfg_path, expected, default):满足时该类是 temp
-#           (跑完自动删);不满足按 kept
-#   born    产生该类的 stage 序号; die  最后一个消费者所在 stage(temp
-#           在该 stage 仍占用,之后释放);kept 类 die=None
-#   patterns  measure/calibrate 归类用的相对路径 glob(先匹配先赢)
+# ClassSpec (curated manifest entry fields):
+#   id       unique id; also the calibration-history key
+#   desc     human-readable description
+#   scope    "sample" = one copy per sample (x n_samples); "run" = one copy
+#   basis    "input_bam" | "input_fastq" | "input_total" | "genome_fasta"
+#            | "fixed"
+#   ratio    (low, mid, high): for non-fixed basis "output bytes / basis
+#            bytes"; for fixed basis the absolute bytes per scope unit
+#   gate     [(dotted_cfg_path, expected, default_if_missing), ...] -- all
+#            must hold for the class to be produced; defaults match node.py
+#            (_enabled defaults True, sawfish defaults False)
+#   require  special prerequisites, e.g. ["genome_repeat_bed"]: the genome
+#            reference must provide the file
+#   need_comparisons  True = needs ctr_/exp_ pairs (sv comparison analyses)
+#   temp_when (dotted_cfg_path, expected, default): when satisfied the class
+#            is temp (auto-deleted after the run); else it is kept
+#   born     stage number producing the class; die = stage of its last
+#            consumer (a temp class still occupies disk at that stage, then
+#            is released); kept classes have die=None
+#   patterns relative-path globs for measure/calibrate classification
+#            (first match wins)
 # ---------------------------------------------------------------------------
 
 PACVAR_CLASSES = [
-    dict(id="pbmm2_sorted_bam", desc="pbmm2 比对 BAM(裸 output,不标 temp,永久保留)",
+    dict(id="pbmm2_sorted_bam", desc="pbmm2 aligned BAM (bare output, never temp)",
          scope="sample", basis="input_bam", ratio=(0.95, 1.00, 1.10),
          gate=[], temp_when=None, born=2, die=None,
          patterns=["common/2_sorted_bam/**"]),
-    dict(id="addReadsGroup_bam", desc="GATK 加 read group BAM(maybe_temp,keep_intermediates=false 时删除)",
+    dict(id="addReadsGroup_bam", desc="GATK add-read-group BAM (maybe_temp, deleted when keep_intermediates=false)",
          scope="sample", basis="input_bam", ratio=(0.95, 1.00, 1.10),
          gate=[], temp_when=("Params.gatk_prepare.keep_intermediates", False, True),
          born=3, die=4,
          patterns=["common/3_markdup_bam/**/*.addReadsGroup*"]),
-    dict(id="markdup_bam", desc="MarkDuplicates 最终 BAM + metrics(交付主产物)",
+    dict(id="markdup_bam", desc="MarkDuplicates final BAM + metrics (main deliverable)",
          scope="sample", basis="input_bam", ratio=(0.95, 1.00, 1.10),
          gate=[], temp_when=None, born=4, die=None,
          patterns=["common/3_markdup_bam/**/*.sorted_markdup*"]),
-    dict(id="qc_sexcheck", desc="性别检查 idxstats + 表",
+    dict(id="qc_sexcheck", desc="sex-check idxstats + table",
          scope="run", basis="fixed", ratio=(1e6, 5e7, 5e8),
          gate=[], temp_when=None, born=4, die=None,
          patterns=["QC/sexcheck/**"]),
-    dict(id="qc_summary", desc="QC 汇总表 + HTML",
+    dict(id="qc_summary", desc="QC summary table + HTML",
          scope="run", basis="fixed", ratio=(1e6, 2e7, 2e8),
          gate=[], temp_when=None, born=4, die=None,
          patterns=["QC/qc_summary/**"]),
@@ -111,7 +147,7 @@ PACVAR_CLASSES = [
                ("Params.workflow.snv_caller", "deepvariant", "deepvariant")],
          temp_when=None, born=5, die=None,
          patterns=["variation/germline_snv_indel/**/*.vcf.gz*"]),
-    dict(id="deepvariant_examples", desc="DeepVariant make_examples 中间件(keep_intermediates=false 时删除)",
+    dict(id="deepvariant_examples", desc="DeepVariant make_examples intermediates (deleted when keep_intermediates=false)",
          scope="sample", basis="input_bam", ratio=(0.005, 0.02, 0.06),
          gate=[("Params.snv.enabled", True, True),
                ("Params.workflow.snv_caller", "deepvariant", "deepvariant")],
@@ -119,7 +155,7 @@ PACVAR_CLASSES = [
          born=5, die=5,
          patterns=["variation/germline_snv_indel/**/make_examples*",
                    "variation/germline_snv_indel/**/*.tfrecord*"]),
-    dict(id="pbsv_svsig", desc="pbsv discover 信号文件(registered deliverable,保留)",
+    dict(id="pbsv_svsig", desc="pbsv discover signal files (registered deliverable, kept)",
          scope="sample", basis="fixed", ratio=(5e6, 3e7, 2e8),
          gate=[("Params.sv.enabled", True, True)],
          temp_when=None, born=5, die=None,
@@ -129,86 +165,94 @@ PACVAR_CLASSES = [
          gate=[("Params.sv.enabled", True, True)],
          temp_when=None, born=5, die=None,
          patterns=["variation/germline_sv/**/*.vcf.gz*"]),
-    dict(id="hiphase_phased_vcf", desc="HiPhase 定相 VCF(SNV+SV)",
+    dict(id="hiphase_phased_vcf", desc="HiPhase phased VCFs (SNV + SV)",
          scope="sample", basis="fixed", ratio=(1e7, 1e8, 5e8),
          gate=[("Params.phase.enabled", True, True),
                ("Params.snv.enabled", True, True),
                ("Params.sv.enabled", True, True)],
          temp_when=None, born=6, die=None,
          patterns=["variation/**/*phased.vcf.gz*"]),
-    dict(id="sawfish_joint", desc="sawfish 联合 CNV call(队列级)",
+    dict(id="sawfish_joint", desc="sawfish joint CNV call (cohort level)",
          scope="run", basis="fixed", ratio=(1e8, 5e8, 2e9),
          gate=[("Params.sawfish.enabled", True, False)],
          temp_when=None, born=6, die=None,
          patterns=["variation/germline_cnv/cnv/**"]),
-    dict(id="sawfish_workdir", desc="sawfish per-sample 中间目录(keep_intermediates=false 时删除)",
+    dict(id="sawfish_workdir", desc="sawfish per-sample work dirs (deleted when keep_intermediates=false)",
          scope="sample", basis="fixed", ratio=(1e8, 1e9, 5e9),
          gate=[("Params.sawfish.enabled", True, False)],
          temp_when=("Params.sawfish.keep_intermediates", False, True),
          born=5, die=6,
          patterns=["variation/germline_cnv/**"]),
-    dict(id="bamCoverage_bw", desc="覆盖度 bigWig(decoil/regionplot 共用)",
+    dict(id="bamCoverage_bw", desc="coverage bigWig (shared by decoil/regionplot)",
          scope="sample", basis="input_bam", ratio=(0.0005, 0.002, 0.006),
-         gate=[],  # gate_any 注入:decoil 或 regionplot 任一开启
+         gate=[],  # gate_any injected below: decoil OR regionplot enabled
          temp_when=None, born=5, die=None,
          patterns=["eccdna/coverage/**"]),
-    dict(id="sv_go_kegg", desc="SV 基因 GO/KEGG 分析",
+    dict(id="sv_go_kegg", desc="SV gene GO/KEGG analysis",
          scope="run", basis="fixed", ratio=(1e7, 5e7, 2e8),
          gate=[("Params.function.sv_go_kegg.enabled", True, True),
                ("Params.sv.enabled", True, True)],
          need_comparisons=True, temp_when=None, born=6, die=None,
          patterns=["**/sv_go_kegg/**"]),
-    dict(id="decoil_out", desc="Decoil eccDNA 重建 + 可视化(含 IGV HTML)",
+    dict(id="decoil_out", desc="Decoil eccDNA reconstruction + visualization (incl. IGV HTML)",
          scope="sample", basis="fixed", ratio=(2e7, 1e8, 1e9),
          gate=[("Params.decoil.enabled", True, True)],
          temp_when=None, born=6, die=None,
          patterns=["eccdna/**"]),
-    dict(id="sv_analysis", desc="SV 比较分析(merged/annotated/MEI/RepeatMasker/circos)",
+    dict(id="sv_analysis", desc="SV comparison analysis (merged/annotated/MEI/RepeatMasker/circos)",
          scope="run", basis="fixed", ratio=(2e8, 1e9, 5e9),
          gate=[("Params.sv.enabled", True, True)],
          need_comparisons=True, temp_when=None, born=6, die=None,
          patterns=["variation/germline_sv_analysis/**"]),
-    dict(id="trgt_out", desc="TRGT 重复序列分型(需 repeat_bed)",
+    dict(id="trgt_out", desc="TRGT repeat genotyping (needs repeat_bed)",
          scope="sample", basis="fixed", ratio=(1e7, 1e8, 1e9),
          gate=[("Params.repeat.enabled", True, True)],
          require=["genome_repeat_bed"], temp_when=None, born=5, die=None,
          patterns=["repeat/trgt/**"]),
-    dict(id="hifiasm_assembly", desc="hifiasm 组装目录(contigs + 未声明的 .bin/.gfa 中间件,一并算)",
+    dict(id="hifiasm_assembly", desc="hifiasm assembly dirs (contigs + undeclared .bin/.gfa intermediates, counted together)",
          scope="sample", basis="input_bam", ratio=(0.05, 0.15, 0.30),
-         gate=[("Params.telomere.enabled", True, True)],  # node.py:着丝粒/组装挂在 telomere 块内
+         gate=[],  # gate_any injected below: telomere OR hifiasm.qc pulls it in
          temp_when=None, born=2, die=None,
          patterns=["repeat/centromere/**/assembly/**"]),
-    dict(id="centromere_out", desc="着丝粒分析(RepeatMasker + 统计)",
+    dict(id="centromere_out", desc="centromere analysis (RepeatMasker + stats)",
          scope="sample", basis="fixed", ratio=(1e7, 1e8, 1e9),
          gate=[("Params.telomere.enabled", True, True)],
          temp_when=None, born=6, die=None,
          patterns=["repeat/centromere/**"]),
-    dict(id="telomere_out", desc="端粒长度/组成/区域全套",
+    dict(id="telomere_out", desc="telomere length/composition/region outputs",
          scope="run", basis="fixed", ratio=(5e7, 5e8, 2e9),
          gate=[("Params.telomere.enabled", True, True)],
          temp_when=None, born=6, die=None,
          patterns=["telomere/**"]),
-    dict(id="regionplot_out", desc="区域图",
+    dict(id="regionplot_out", desc="region plots",
          scope="run", basis="fixed", ratio=(5e6, 5e7, 5e8),
          gate=[("Params.regionplot.enabled", True, True)],
          temp_when=None, born=6, die=None,
          patterns=["regionplot/**"]),
-    dict(id="run_overhead", desc="raw.json/log/tmp/.snakemake/输入软链接目录等固定开销",
+    dict(id="run_overhead", desc="raw.json/log/tmp/.snakemake/input-symlink dirs fixed overhead",
          scope="run", basis="fixed", ratio=(5e8, 2e9, 1e10),
          gate=[], temp_when=None, born=1, die=None,
          patterns=["log/**", "tmp/**", ".snakemake/**", "raw.json",
                    "common/raw.json", "common/1_raw_data/**"]),
 ]
 
-# bamCoverage bigWig 的 gate 是 decoil 或 regionplot 任一开启(node.py:两者共用)
+# any-of gates (one satisfied is enough), matching node.py:
+# bamCoverage bigWig is shared by decoil/regionplot; the hifiasm assembly is
+# pulled into the DAG by the telomere assembly_scan OR by hifiasm_qc
+# (Params.hifiasm.qc.enabled, registered unconditionally in runPacVar)
 PACVAR_GATE_ANY = {
     "bamCoverage_bw": [("Params.decoil.enabled", True, True),
                        ("Params.regionplot.enabled", True, True)],
+    "hifiasm_assembly": [("Params.telomere.enabled", True, True),
+                         ("Params.hifiasm.qc.enabled", True, True)],
 }
 
 MANIFESTS = {"PacVar": PACVAR_CLASSES}
+GATE_ANY = {"PacVar": PACVAR_GATE_ANY}
 
-# measure/calibrate 的后缀兜底类(无 manifest 也可归类;先匹配 manifest 类)
+# measure/calibrate suffix fallback (works without a manifest; first match
+# wins). These class ids are also the calibration-history keys of the
+# generic per-file model below, so measure/calibrate/estimate agree.
 FALLBACK_PATTERNS = [
     ("fb_bam", ["**/*.bam", "**/*.bam.bai", "**/*.bai", "**/*.cram", "**/*.crai", "**/*.pbi"]),
     ("fb_vcf", ["**/*.vcf", "**/*.vcf.gz", "**/*.vcf.gz.tbi", "**/*.vcf.gz.csi",
@@ -219,18 +263,56 @@ FALLBACK_PATTERNS = [
     ("fb_fastq", ["**/*.fastq", "**/*.fastq.gz", "**/*.fq", "**/*.fq.gz"]),
     ("fb_bed", ["**/*.bed", "**/*.bed.gz", "**/*.gtf", "**/*.gtf.gz",
                 "**/*.gff", "**/*.gff3", "**/*.gff.gz"]),
-    ("fb_table", ["**/*.tsv", "**/*.csv", "**/*.txt"]),
-    ("fb_figure", ["**/*.png", "**/*.pdf", "**/*.svg", "**/*.html", "**/*.htm"]),
+    ("fb_h5", ["**/*.h5ad", "**/*.h5", "**/*.hdf5", "**/*.loom", "**/*.rds", "**/*.rdata"]),
+    ("fb_office", ["**/*.pptx", "**/*.docx", "**/*.xlsx"]),
+    ("fb_table", ["**/*.tsv", "**/*.csv", "**/*.txt", "**/*.json", "**/*.yaml", "**/*.yml"]),
+    ("fb_figure", ["**/*.png", "**/*.pdf", "**/*.svg", "**/*.html", "**/*.htm",
+                   "**/*.jpg", "**/*.jpeg", "**/*.gif"]),
     ("fb_gz", ["**/*.gz", "**/*.gzip", "**/*.zip", "**/*.tar", "**/*.tgz"]),
 ]
 
+# Generic per-file size model for outfiles NOT covered by a curated manifest.
+# (basis, ratio): non-fixed classes size each FILE as ratio x its attributed
+# input basis (sample basis when the sample owns the file, else run totals);
+# fixed classes have absolute (low, mid, high) bytes per file. Ranges are
+# empirical, same spirit as the manifest ratios; calibrate() refines them.
+FALLBACK_MODEL = {
+    "fb_fastq":  ("input_fastq", (0.08, 0.25, 0.50)),   # trimmed reads fraction
+    "fb_bam":    ("input_total", (0.60, 1.10, 1.60)),   # aligned BAM ~ input size
+    "fb_bigwig": ("input_total", (2e-4, 1.5e-3, 6e-3)),
+    "fb_vcf":    ("fixed", (2e6, 3e7, 3e8)),
+    "fb_fasta":  ("fixed", (1e7, 2e8, 5e9)),            # assemblies vary wildly
+    "fb_bed":    ("fixed", (1e5, 5e6, 2e8)),
+    "fb_h5":     ("fixed", (1e7, 3e8, 5e9)),
+    "fb_office": ("fixed", (1e6, 1e7, 1e8)),
+    "fb_table":  ("fixed", (1e5, 3e6, 3e8)),            # count matrices can be large
+    "fb_figure": ("fixed", (5e4, 2e6, 5e7)),
+    "fb_gz":     ("fixed", (1e6, 5e7, 2e9)),
+    "fb_other":  ("fixed", (1e3, 1e5, 1e7)),
+}
+# class-id -> basis key ("fixed" = absolute bytes), shared with calibrate()
+FALLBACK_BASIS = {cid: model[0] for cid, model in FALLBACK_MODEL.items()}
+# index sidecar files are tiny regardless of their class (fb_bam groups
+# .bai/.crai/.pbi with the BAMs, fb_vcf the .tbi/.csi)
+INDEX_SUFFIXES = (".bai", ".crai", ".pbi", ".tbi", ".csi", ".fai")
+INDEX_FIXED = (1e5, 5e7, 5e8)
+
 
 # ---------------------------------------------------------------------------
-# 小工具
+# Small helpers
 # ---------------------------------------------------------------------------
 
 def glob_to_re(glob_pat):
-    """glob → regex(支持 ** 跨目录;fnmatch 不支持 **,自己转)。"""
+    """Convert a glob (with cross-directory **) to an anchored regex.
+
+    fnmatch does not support ** across directories, so translate manually.
+
+    Args:
+        glob_pat: glob pattern string.
+
+    Returns:
+        Compiled regex matching whole relative paths.
+    """
     out = []
     i = 0
     while i < len(glob_pat):
@@ -254,7 +336,7 @@ def glob_to_re(glob_pat):
 
 
 def human(nbytes):
-    """字节数 → 人类可读(十进制单位)。"""
+    """Format a byte count with decimal units (KB/MB/GB...)."""
     x = float(nbytes)
     for unit in ("B", "KB", "MB", "GB", "TB", "PB"):
         if abs(x) < 1000.0 or unit == "PB":
@@ -263,6 +345,7 @@ def human(nbytes):
 
 
 def cfg_get(cfg, dotted, default=None):
+    """Fetch cfg.a.b.c by dotted path; return default when any step is absent."""
     obj = cfg
     for part in dotted.split("."):
         if isinstance(obj, dict) and part in obj:
@@ -272,60 +355,229 @@ def cfg_get(cfg, dotted, default=None):
     return obj
 
 
-def parse_meta(path):
-    """meta tsv/csv → 行 dict 列表(分隔符按扩展名,兜底嗅探)。"""
-    delim = "," if path.lower().endswith(".csv") else "\t"
-    with open(path, newline="") as fh:
-        sample = fh.read(4096)
-        fh.seek(0)
-        if delim == "\t" and "\t" not in sample.splitlines()[0] and "," in sample.splitlines()[0]:
-            delim = ","
-        rows = list(csv.DictReader(fh, delimiter=delim))
-    if not rows or "sample_id" not in rows[0]:
-        raise SystemExit(f"meta 解析失败(缺 sample_id 列或空文件): {path}")
-    return rows
+def input_kind(path):
+    """Classify an input file path as 'input_bam' / 'input_fastq' / None."""
+    low = path.lower()
+    if low.endswith((".bam", ".cram")):
+        return "input_bam"
+    if low.endswith((".fastq", ".fastq.gz", ".fq", ".fq.gz")):
+        return "input_fastq"
+    return None
 
 
-INPUT_FILE_COLS = ("fastq_1", "fastq_2", "bam", "pbi", "bai", "ms_file")
+# ---------------------------------------------------------------------------
+# Instantiated-json accessors (raw.json = one complete run's parameters)
+# ---------------------------------------------------------------------------
 
+def instance_samples(datajson):
+    """Collect sample ids from an instantiated json.
 
-def sample_inputs(rows, allow_missing=False):
-    """meta → {sample_id: {basis: bytes}},输入文件真实 stat。
+    node.run<Workflow>() stores sample lists under sample_params (new
+    layout) and/or Params.workflow (legacy runs); known list keys on both
+    levels are unioned.
 
-    basis: input_bam(bam 列) / input_fastq(fastq_1+2) / input_total(全部)。
-    同一 sample 多行(data_id 一对多)累加。缺失文件默认报错(不猜)。
+    Returns:
+        Sorted list of sample ids (possibly empty).
     """
-    per = {}
+    ids = set()
+
+    def add(value):
+        if isinstance(value, str):
+            ids.add(value)
+        elif isinstance(value, list):
+            ids.update(v for v in value if isinstance(v, str))
+        elif isinstance(value, dict):
+            # genome -> [samples] maps etc.; values only, keys are genomes
+            for v in value.values():
+                add(v)
+
+    sample_keys = ("samples", "paired_samples", "single_samples",
+                   "genome_paired_samples", "genome_single_samples",
+                   "dna_paired_samples", "dna_single_samples",
+                   "ip_samples", "input_samples", "treated_ip_samples",
+                   "treated_input_samples", "control_samples")
+    for src in (datajson.get("sample_params") or {},
+                cfg_get(datajson, "Params.workflow", {}) or {}):
+        for key in sample_keys:
+            if key in src:
+                add(src[key])
+    return sorted(ids)
+
+
+def instance_raw_files(datajson):
+    """Return the run's input file list (sample_params.raw_files or legacy
+    Params.workflow.raw_files)."""
+    sp = datajson.get("sample_params") or {}
+    wf = cfg_get(datajson, "Params.workflow", {}) or {}
+    return list(sp.get("raw_files") or wf.get("raw_files") or [])
+
+
+def instance_input_dirs(datajson):
+    """Input DIRECTORIES for runs whose inputs are dirs, not flat file lists.
+
+    scRNAseq in cellranger_dir mode carries Params.workflow.cellranger_dirs
+    (or sample_params.cellranger_input_dict fastq_dirs) with raw_files empty.
+
+    Returns:
+        List of (dir_path, sample_id_or_None); never mixed with raw_files.
+    """
+    out, seen = [], set()
+    wf = cfg_get(datajson, "Params.workflow", {}) or {}
+    for src in (datajson.get("sample_params") or {}, wf):
+        cid = src.get("cellranger_input_dict")
+        if isinstance(cid, dict):
+            for sid, info in cid.items():
+                if isinstance(info, dict) and info.get("fastq_dir"):
+                    p = info["fastq_dir"]
+                    if p not in seen:
+                        seen.add(p)
+                        out.append((p, sid if isinstance(sid, str) else None))
+        for d in (src.get("cellranger_dirs") or []):
+            if isinstance(d, str) and d not in seen:
+                seen.add(d)
+                out.append((d, None))
+    return out
+
+
+def attribute_to_sample(path, samples):
+    """Attribute a file path to one of the sample ids.
+
+    Longest id first so 'DMSO_1' wins over 'DMSO'; a match is either a whole
+    path component or a boundary-delimited substring of the basename
+    (input files are usually named <lane>-<sample>.R1.raw.fastq.gz).
+
+    Returns:
+        Sample id or None when no sample id occurs in the path.
+    """
+    base = os.path.basename(path)
+    parts = set(re.split(r"[\\/]", path))
+    for sid in sorted(samples, key=len, reverse=True):
+        if sid in parts:
+            return sid
+        if re.search(rf"(?<![A-Za-z0-9]){re.escape(sid)}(?![A-Za-z0-9])", base):
+            return sid
+    return None
+
+
+def instance_inputs(datajson, samples, allow_missing=False):
+    """Stat the run's input data -> per-sample basis bytes.
+
+    Normally the flat raw_files list; when it is empty (scRNAseq
+    cellranger_dir mode) the input DIRECTORIES are walked and every real
+    file sized instead. Symlinks are followed (size of the real data).
+    Files not attributable to a sample are split evenly across samples and
+    reported as a note.
+
+    Args:
+        datajson: instantiated run json.
+        samples: sample ids from instance_samples().
+        allow_missing: when False, missing inputs abort.
+
+    Returns:
+        (per_sample, basis_all) where per_sample maps sample_id to
+        {"input_bam", "input_fastq", "input_total", "n_files"} and basis_all
+        holds the run-wide sums.
+    """
+    raw_files = instance_raw_files(datajson)
+    input_dirs = instance_input_dirs(datajson) if not raw_files else []
+    if not raw_files and not input_dirs:
+        raise SystemExit("instantiated json lists no input files "
+                         "(sample_params.raw_files / Params.workflow.raw_files)")
+    per_sample = {}
+    totals = {"input_bam": 0, "input_fastq": 0, "input_total": 0}
+    unattributed = []           # (path, size)
     missing = []
-    for row in rows:
-        sid = (row.get("sample_id") or "").strip()
-        if not sid:
+
+    def add_file(path, size, sid):
+        kind = input_kind(path)
+        totals["input_total"] += size
+        if kind:
+            totals[kind] += size
+        if sid is None:
+            unattributed.append((path, size))
+            return
+        d = per_sample.setdefault(sid, {"input_bam": 0, "input_fastq": 0,
+                                        "input_total": 0, "n_files": 0})
+        d["input_total"] += size
+        if kind:
+            d[kind] += size
+        d["n_files"] += 1
+
+    for path in raw_files:
+        if not os.path.exists(path):
+            missing.append(path)
             continue
-        d = per.setdefault(sid, {"input_bam": 0, "input_fastq": 0, "input_total": 0,
-                                 "n_files": 0})
-        for col in INPUT_FILE_COLS:
-            p = (row.get(col) or "").strip()
-            if not p:
-                continue
-            if not os.path.exists(p):
-                missing.append(p)
-                continue
-            size = os.path.getsize(p)  # 软链接按目标大小(真实数据量)
-            d["input_total"] += size
-            if col == "bam":
-                d["input_bam"] += size
-            elif col.startswith("fastq"):
-                d["input_fastq"] += size
-            d["n_files"] += 1
+        add_file(path, os.path.getsize(path),
+                 attribute_to_sample(path, samples) if samples else None)
+    for dirpath, owner in input_dirs:
+        if not os.path.isdir(dirpath):
+            missing.append(dirpath)
+            continue
+        for sub, _dirs, files in os.walk(dirpath):
+            for fn in files:
+                p = os.path.join(sub, fn)
+                try:
+                    size = os.path.getsize(p)
+                except OSError:
+                    continue
+                sid = owner or (attribute_to_sample(p, samples) if samples else None)
+                add_file(p, size, sid)
     if missing and not allow_missing:
-        raise SystemExit("meta 输入文件不存在(不猜大小),共 %d 个,例如: %s"
-                         % (len(missing), missing[0]))
-    return per
+        raise SystemExit("input files missing (sizes are never guessed), "
+                         f"{len(missing)} total, e.g. {missing[0]}")
+    if unattributed and samples:
+        # Their outputs still materialize: split evenly, and say so.
+        share = {k: 0 for k in ("input_bam", "input_fastq", "input_total")}
+        for path, size in unattributed:
+            share["input_total"] += size
+            kind = input_kind(path)
+            if kind:
+                share[kind] += size
+        n = len(samples)
+        for sid in samples:
+            d = per_sample.setdefault(sid, {"input_bam": 0, "input_fastq": 0,
+                                            "input_total": 0, "n_files": 0})
+            for k in share:
+                d[k] += share[k] / n
+        print(f"note: {len(unattributed)} input file(s) not attributable to a "
+              f"sample id; {human(sum(s for _, s in unattributed))} split evenly "
+              f"across {n} samples")
+    return per_sample, totals
 
 
-def genome_size(cfg):
-    """config genome.<default> 的 fasta 大小(0 = 未配置/不存在)。"""
-    g = cfg.get("genome") or {}
+def instance_comparisons(datajson):
+    """Count ctr_/exp_ comparison pairs recorded in the instantiated json.
+
+    sample_params.comparisons is organism-nested per docs/sample-params-split.md
+    ({organism: {name: {...}}}); older flat shapes and the pre-split
+    Params.<mod>.group_pairs / comparisons fields are understood too.
+
+    Returns:
+        Number of comparison pairs (0 when none).
+    """
+    candidates = [datajson.get("sample_params", {}).get("comparisons"),
+                  cfg_get(datajson, "Params.sv.comparisons"),
+                  cfg_get(datajson, "Params.DESeq2.group_pairs"),
+                  cfg_get(datajson, "Params.function.group_pairs")]
+    pair_keys = {"control_samples", "experimental_samples",
+                 "control_group_name", "experimental_group_name"}
+    for cmps in candidates:
+        if not isinstance(cmps, dict) or not cmps:
+            continue
+        n = 0
+        for v in cmps.values():
+            if isinstance(v, dict) and (set(v) & pair_keys):
+                n += 1                      # flat: {name: pair}
+            elif isinstance(v, dict):
+                n += len(v)                 # nested: {organism: {name: pair}}
+        if n:
+            return n
+    return 0
+
+
+def genome_size(datajson):
+    """Size of genome.<default>'s fasta (0 when unset or missing)."""
+    g = datajson.get("genome") or {}
     name = g.get("default")
     ref = (g.get("references") or {}).get(name) or {}
     fasta = ref.get("fasta")
@@ -334,63 +586,146 @@ def genome_size(cfg):
     return 0
 
 
-def comparisons_from_meta(rows):
-    """meta design 列 → ctr_/exp_ 比较对(同 MetaUtil.build_design_pairs 语义)。
+def detect_workflow(datajson, config_dir=None):
+    """Best-effort workflow name for an instantiated json.
 
-    design 格式 ctr_TAG / ctrl_TAG / exp_TAG,TAG 是下划线分词集合;
-    ctr 与 exp 共享任一 token 即成对(ctr_PlaBP6_DMSO ∩ exp_PlaBP6_PlaB = {PlaBP6})。
-    返回 {对比名: {"ctr": [...], "exp": [...]}}。
+    raw.json does not record its workflow name, so score the Params +
+    resources key signature against every config/<wf>.json template (Dice
+    coefficient) and accept a clear winner.
+
+    Args:
+        datajson: instantiated run json.
+        config_dir: template directory (default <project root>/config).
+
+    Returns:
+        Workflow name or None when no template matches confidently.
     """
-    pat = re.compile(r"^(ctr|ctrl|exp)_(.+)$")
-    ctr_tags, exp_tags = {}, {}
-    for row in rows:
-        m = pat.match((row.get("design") or "").strip())
-        if not m:
+    config_dir = config_dir or os.path.join(_PROJECT_ROOT, "config")
+
+    def dotted_keys(d, prefix):
+        keys = set()
+        for k, v in (d or {}).items():
+            p = f"{prefix}.{k}" if prefix else k
+            keys.add(p)
+            if isinstance(v, dict):
+                keys |= dotted_keys(v, p)
+        return keys
+
+    inst = (dotted_keys(datajson.get("Params"), "Params")
+            | dotted_keys(datajson.get("resources"), "res"))
+    scores = {}
+    for fn in sorted(os.listdir(config_dir)):
+        if not fn.endswith(".json") or fn.endswith(".schema.json"):
             continue
-        role, tag = m.group(1), m.group(2)
-        sid = (row.get("sample_id") or "").strip()
-        d = ctr_tags if role in ("ctr", "ctrl") else exp_tags
-        entry = d.setdefault(tag, {"tokens": set(tag.split("_")), "samples": []})
-        entry["samples"].append(sid)
-    out = {}
-    for exp_tag, exp in exp_tags.items():
-        for ctr_tag, ctr in ctr_tags.items():
-            if exp["tokens"] & ctr["tokens"]:  # token 交集非空 → 成对
-                out[f"{ctr_tag}_vs_{exp_tag}"] = {
-                    "ctr": ctr["samples"], "exp": exp["samples"]}
-    return out
+        try:
+            with open(os.path.join(config_dir, fn)) as fh:
+                tpl = json.load(fh)
+        except (OSError, ValueError):
+            continue
+        tk = dotted_keys(tpl.get("Params"), "Params") | dotted_keys(tpl.get("resources"), "res")
+        if not tk:
+            continue
+        scores[fn[:-5]] = 2.0 * len(tk & inst) / (len(tk) + len(inst))
+    if not scores:
+        return None
+    ranked = sorted(scores.items(), key=lambda kv: -kv[1])
+    top_name, top = ranked[0]
+    second = ranked[1][1] if len(ranked) > 1 else 0.0
+    if top >= 0.2 and top >= 1.25 * max(second, 1e-9):
+        return top_name
+    return None
+
+
+def is_instantiated(datajson):
+    """A json is instantiated when node.run<Workflow>() registered outfiles
+    (the template has none). Inputs may still live in input dirs instead of
+    raw_files (scRNAseq cellranger_dir mode)."""
+    return bool(datajson.get("outfiles"))
 
 
 # ---------------------------------------------------------------------------
-# gate / 尺寸 / 校准
+# Instantiation (uninstantiated template + meta -> raw.json), reusing the
+# exact code path of run.py: MetadataUtils for meta parsing and
+# node.run<Workflow>() for raw.json registration.
+# ---------------------------------------------------------------------------
+
+def instantiate_from_meta(meta, workflow, config_path, outdir, comparison=None):
+    """Generate the instantiated run json for meta + workflow.
+
+    Args:
+        meta: meta tsv/csv path.
+        workflow: workflow name (must be in run.WORKFLOW_DISPATCH).
+        config_path: uninstantiated config template (config/<wf>.json).
+        outdir: run output dir; node.run<Workflow>() writes raw.json here
+            and pre-creates log/ and tmp/ exactly like a real run.
+        comparison: optional comparison file (--comparison of run.py).
+
+    Returns:
+        (datajson, raw_json_path) of the generated instance.
+    """
+    if _PROJECT_ROOT not in sys.path:
+        sys.path.insert(0, _PROJECT_ROOT)
+    from src.common.util.MetaUtil import MetadataUtils
+    from run import WORKFLOW_DISPATCH
+
+    if workflow not in WORKFLOW_DISPATCH:
+        raise SystemExit(f"unknown workflow {workflow!r} "
+                         f"(known: {sorted(WORKFLOW_DISPATCH)})")
+    with open(config_path) as fh:
+        template = json.load(fh)
+    os.makedirs(outdir, exist_ok=True)
+    meta_util = MetadataUtils(outdir=os.path.abspath(outdir), meta=meta,
+                              workflow=workflow, comparison_file=comparison)
+    (samples_info_dict, sample_pairs, group_pairs, raw_fastq_dir,
+     raw_files, cellranger_input_dict) = meta_util.run()
+    # WORKFLOW_DISPATCH values call node.run<Workflow>() and return
+    # (snakefile, raw_json_path); pass a copy because node mutates the dict.
+    _smk, raw_json_path = WORKFLOW_DISPATCH[workflow](
+        copy.deepcopy(template), samples_info_dict, sample_pairs, group_pairs,
+        raw_fastq_dir, os.path.abspath(outdir), meta, raw_files,
+        cellranger_input_dict)
+    with open(raw_json_path) as fh:
+        datajson = json.load(fh)
+    return datajson, raw_json_path
+
+
+# ---------------------------------------------------------------------------
+# gate / size / calibration
 # ---------------------------------------------------------------------------
 
 def gate_ok(cls, cfg, n_comparisons, gate_any=None):
+    """Evaluate a manifest class's gates against the (instantiated) config.
+
+    Args:
+        cls: ClassSpec dict.
+        cfg: config dict (instantiated json).
+        n_comparisons: number of ctr_/exp_ pairs in the run.
+        gate_any: any-of gate conditions (one satisfied is enough).
+
+    Returns:
+        True when the class is produced under this config.
+    """
     for cond in cls.get("gate", []):
         path, expected, default = cond
         if cfg_get(cfg, path, default) != expected:
             return False
     if gate_any:
-        # any-of:一条满足即可,全不满足 → 不产生产物
         if not any(cfg_get(cfg, p, d) == e for p, e, d in gate_any):
             return False
     if cls.get("need_comparisons") and n_comparisons <= 0:
         return False
     for req in cls.get("require", []):
-        if req == "genome_repeat_bed":
+        if req in ("genome_repeat_bed", "genome_subtel_ref"):
+            key = "repeat_bed" if req == "genome_repeat_bed" else "subtel_ref"
             g = cfg.get("genome") or {}
             ref = (g.get("references") or {}).get(g.get("default")) or {}
-            if not ref.get("repeat_bed"):
-                return False
-        elif req == "genome_subtel_ref":
-            g = cfg.get("genome") or {}
-            ref = (g.get("references") or {}).get(g.get("default")) or {}
-            if not ref.get("subtel_ref"):
+            if not ref.get(key):
                 return False
     return True
 
 
 def is_temp(cls, cfg):
+    """True when the class is temp under this config (temp_when satisfied)."""
     tw = cls.get("temp_when")
     if not tw:
         return False
@@ -399,7 +734,7 @@ def is_temp(cls, cfg):
 
 
 def load_history(path):
-    """校准历史 → {(workflow, class_id): [ratio, ...]}。"""
+    """Load the calibration history -> {(workflow, class_id): [ratio, ...]}."""
     hist = {}
     if path and os.path.exists(path):
         with open(path, newline="") as fh:
@@ -413,7 +748,11 @@ def load_history(path):
 
 
 def calibrated_ratio(hist, workflow, cls_id, manifest_lo, manifest_mid, manifest_hi):
-    """有 >=MIN_POINTS 实测点 → p50/p10/p90,否则 manifest 经验值。"""
+    """Return (lo, mid, hi, n_obs, used) for a class.
+
+    With >= MIN_POINTS real observations use p50 with p10/p90 as the range,
+    otherwise the empirical manifest triple.
+    """
     obs = hist.get((workflow, cls_id)) or []
     if len(obs) < MIN_POINTS:
         return manifest_lo, manifest_mid, manifest_hi, len(obs), False
@@ -429,82 +768,234 @@ def calibrated_ratio(hist, workflow, cls_id, manifest_lo, manifest_mid, manifest
 # estimate
 # ---------------------------------------------------------------------------
 
+def generic_fill_classes(datajson, covered_res, per_sample, basis_all, samples):
+    """Size every registered outfile not covered by a curated manifest.
+
+    Uses FALLBACK_MODEL's per-file ratios (each file sized against the basis
+    of the sample owning it, run totals otherwise). Files are matched to
+    FALLBACK_PATTERNS classes so measure/calibrate/estimate share class ids.
+
+    Args:
+        datajson: instantiated run json.
+        covered_res: list of compiled regexes of included manifest patterns.
+        per_sample: per-sample input basis (instance_inputs()).
+        basis_all: run-wide input basis.
+        samples: sample ids.
+
+    Returns:
+        List of class dicts in the estimate's internal shape:
+        {id, desc, scope, unit, low, mid, hi, temp, calibrated, n_obs, n_files}
+    """
+    outdir = cfg_get(datajson, "Params.workflow.outdir") or "."
+    outfiles = datajson.get("outfiles") or []
+    fallback = [(glob_to_re(pat), cid) for cid, pats in FALLBACK_PATTERNS
+                for pat in pats]
+    agg = {}   # class_id -> {"lo","mid","hi","files"}
+    for out in sorted(set(outfiles)):
+        try:
+            rel = os.path.relpath(out, outdir)
+        except ValueError:
+            rel = os.path.basename(out)
+        if any(rx.match(rel) for rx in covered_res):
+            continue    # already sized by the curated manifest class
+        cid = "fb_other"
+        for rx, cand in fallback:
+            if rx.match(rel):
+                cid = cand
+                break
+        basis_key, ratio = FALLBACK_MODEL[cid]
+        if out.lower().endswith(INDEX_SUFFIXES):
+            lo, mid, hi = INDEX_FIXED   # index sidecars: small fixed files
+        else:
+            sid = attribute_to_sample(out, samples) if samples else None
+            if basis_key == "fixed":
+                lo, mid, hi = ratio
+            else:
+                unit = 0.0
+                if sid is not None:
+                    unit = per_sample.get(sid, {}).get(basis_key, 0) or \
+                        per_sample.get(sid, {}).get("input_total", 0)
+                else:
+                    unit = basis_all.get(basis_key, 0) or basis_all.get("input_total", 0)
+                lo, mid, hi = (ratio[0] * unit, ratio[1] * unit, ratio[2] * unit)
+        d = agg.setdefault(cid, {"lo": 0.0, "mid": 0.0, "hi": 0.0, "files": 0})
+        d["lo"] += lo
+        d["mid"] += mid
+        d["hi"] += hi
+        d["files"] += 1
+    rows = []
+    for cid, d in sorted(agg.items()):
+        rows.append(dict(
+            id=cid, desc=f"registered outfiles matched by suffix ({cid})",
+            scope="run", unit=f"{d['files']} outfiles x per-file model",
+            low=d["lo"], mid=d["mid"], hi=d["hi"], temp=False,
+            calibrated=False, n_obs=0, n_files=d["files"]))
+    return rows
+
+
 def do_estimate(args):
-    with open(args.config) as fh:
-        cfg = json.load(fh)
+    """Run the pre-run storage estimate.
+
+    Reads an instantiated json (--run-json) directly, or builds one from
+    --meta + --workflow via instantiate_from_meta(); then sizes curated
+    manifest classes and the remaining registered outfiles.
+
+    Returns:
+        Exit code.
+    """
+    if args.run_json:
+        with open(args.run_json) as fh:
+            datajson = json.load(fh)
+        if not is_instantiated(datajson):
+            raise SystemExit(f"{args.run_json} is not an instantiated run json "
+                             "(no outfiles/raw_files); pass it to --config with "
+                             "--meta/--workflow instead")
+        if args.meta:
+            print(f"note: --meta ignored, inputs come from {args.run_json}")
+        workflow = args.workflow or detect_workflow(datajson)
+        instance_path = args.run_json
+    else:
+        if not args.meta or not args.workflow:
+            raise SystemExit("need either --run-json (instantiated json) or "
+                             "--meta + --workflow (template is read from "
+                             "config/<workflow>.json and instantiated)")
+        workflow = args.workflow
+        config_path = args.config or os.path.join(_PROJECT_ROOT, "config",
+                                                  f"{workflow}.json")
+        if not os.path.exists(config_path):
+            raise SystemExit(f"config template not found: {config_path}")
+        if args.outdir:
+            outdir = os.path.abspath(args.outdir)
+        else:
+            outdir = tempfile.mkdtemp(prefix="estimate_storage_")
+        datajson, instance_path = instantiate_from_meta(
+            args.meta, workflow, config_path, outdir, comparison=args.comparison)
+        print(f"instance: generated {instance_path}"
+              + ("" if args.outdir else " (scratch dir; use --outdir to keep it "
+                                       "as the real run dir)"))
+    if args.save_json:
+        shutil.copyfile(instance_path, args.save_json)
+        print(f"instance copy: {args.save_json}")
+
     if args.manifest:
         with open(args.manifest) as fh:
             MANIFESTS.update(json.load(fh))
-    if args.workflow not in MANIFESTS:
-        raise SystemExit(f"无 {args.workflow} 的产物清单(现有: {sorted(MANIFESTS)});"
-                         "用 --manifest 提供,或先用 measure/calibrate 摸底")
-    classes = MANIFESTS[args.workflow]
-    rows = parse_meta(args.meta)
-    per_sample = sample_inputs(rows, allow_missing=args.allow_missing)
-    samples = sorted(per_sample)
+
+    samples = instance_samples(datajson)
+    per_sample, basis_all = instance_inputs(datajson, samples,
+                                            allow_missing=args.allow_missing)
     if not samples:
-        raise SystemExit("meta 里没有可用样本")
-    n_cmp = len(comparisons_from_meta(rows))
-    gsize = genome_size(cfg)
+        samples = sorted(per_sample)
+    if not samples:
+        print("note: no sample ids found; sample-scoped classes estimated "
+              "as a single unit")
+        samples = ["__run__"]
+        per_sample = {"__run__": dict(basis_all, n_files=len(instance_raw_files(datajson)))}
+    n_cmp = instance_comparisons(datajson)
+    gsize = genome_size(datajson)
     hist = load_history(args.calibration or
                         os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                      HISTORY_NAME))
 
-    basis_all = {k: sum(d[k] for d in per_sample.values())
-                 for k in ("input_bam", "input_fastq", "input_total")}
-
+    curated = MANIFESTS.get(workflow) if workflow else None
+    gate_any = GATE_ANY.get(workflow) if workflow else None
+    manifest_ids = set()
     table = []
     final = [0.0, 0.0, 0.0]
     transient = [0.0, 0.0, 0.0]
-    timeline = []  # (born, die|None, lo, mid, hi),峰值时间线
+    timeline = []   # (born, die|None, lo, mid, hi)
     skipped = []
-    for cls in classes:
-        if not gate_ok(cls, cfg, n_cmp, gate_any=PACVAR_GATE_ANY.get(cls["id"])):
+    covered_res = []
+
+    def fold(lo, mid, hi, temp):
+        for i, v in enumerate((lo, mid, hi)):
+            (transient if temp else final)[i] += v
+
+    for cls in (curated or []):
+        if not gate_ok(cls, datajson, n_cmp,
+                       gate_any=gate_any.get(cls["id"]) if gate_any else None):
             skipped.append((cls["id"], cls["desc"]))
             continue
-        # ratio 是「每单位」量:非 fixed = 输出/基准 比例;fixed = 每单位绝对
-        # 字节。校准历史记的也是每单位量 → 先定每单位再乘基准,避免二次缩放。
+        # ratio is per unit: non-fixed = output/basis ratio, fixed = absolute
+        # bytes per scope unit. Calibration records the same per-unit quantity.
         r_lo, r_mid, r_hi = cls["ratio"]
         r_lo, r_mid, r_hi, n_obs, used = calibrated_ratio(
-            hist, args.workflow, cls["id"], r_lo, r_mid, r_hi)
+            hist, workflow, cls["id"], r_lo, r_mid, r_hi)
         basis_key = cls["basis"] if cls["basis"] != "fixed" else None
 
-        def sid_basis(sid):
+        def sid_basis(sid, basis_key=basis_key):
+            if not basis_key:
+                return 0.0
             if basis_key == "genome_fasta":
                 return gsize
-            return per_sample[sid].get(basis_key, 0)
+            return per_sample.get(sid, {}).get(basis_key, 0)
 
         if cls["scope"] == "sample":
             if basis_key:
                 lo = sum(r_lo * sid_basis(s) for s in samples)
                 mid = sum(r_mid * sid_basis(s) for s in samples)
                 hi = sum(r_hi * sid_basis(s) for s in samples)
-                unit_desc = f"{len(samples)} 样本 × 输入比例"
+                unit_desc = f"{len(samples)} samples x input ratio"
             else:
                 lo, mid, hi = (r_lo * len(samples), r_mid * len(samples),
                                r_hi * len(samples))
-                unit_desc = f"{len(samples)} 样本 × 固定"
+                unit_desc = f"{len(samples)} samples x fixed"
         else:
             if basis_key:
                 b = gsize if basis_key == "genome_fasta" else basis_all.get(basis_key, 0)
                 lo, mid, hi = r_lo * b, r_mid * b, r_hi * b
-                unit_desc = "全局 × 输入比例"
+                unit_desc = "run x input ratio"
             else:
                 lo, mid, hi = r_lo, r_mid, r_hi
-                unit_desc = "全局固定"
-        temp = is_temp(cls, cfg)
-        for i in range(3):
-            (transient if temp else final)[i] += (lo, mid, hi)[i]
+                unit_desc = "run fixed"
+        temp = is_temp(cls, datajson)
+        fold(lo, mid, hi, temp)
         born = cls.get("born", 1)
         die = cls.get("die") if temp else None
-        # kept 类 die=None:born 之后一直占用;temp 类占用到 die(含)
+        # kept classes: die=None -> occupied from born forever;
+        # temp classes: occupied through their last consumer stage (die)
         timeline.append((born, die, lo, mid, hi))
+        manifest_ids.add(cls["id"])
+        covered_res.extend(glob_to_re(p) for p in cls["patterns"])
         table.append(dict(
             id=cls["id"], desc=cls["desc"], scope=cls["scope"], unit=unit_desc,
             low=lo, mid=mid, hi=hi, temp=temp,
             calibrated=used, n_obs=n_obs))
 
-    # 峰值:stage s 在盘 = born <= s 且 (die is None 或 s <= die) 的类之和
+    # Registered outfiles not covered by the curated manifest: generic
+    # per-file model. Calibrated class totals override the model when
+    # history has enough points for this workflow+class.
+    generic_rows = generic_fill_classes(datajson, covered_res, per_sample,
+                                        basis_all, samples)
+    for row in generic_rows:
+        obs = hist.get((workflow, row["id"])) or [] if workflow else []
+        if len(obs) >= MIN_POINTS:
+            xs = sorted(obs)
+            pick = lambda q: xs[max(0, min(len(xs) - 1, int(round(q * (len(xs) - 1)))))]
+            if FALLBACK_BASIS.get(row["id"], "fixed") == "fixed":
+                row["low"], row["mid"], row["hi"] = pick(0.10), pick(0.50), pick(0.90)
+            else:
+                b = basis_all.get(FALLBACK_BASIS[row["id"]], 0) or basis_all.get("input_total", 0)
+                row["low"], row["mid"], row["hi"] = pick(0.10) * b, pick(0.50) * b, pick(0.90) * b
+            row["calibrated"], row["n_obs"] = True, len(obs)
+        fold(row["low"], row["mid"], row["hi"], row["temp"])
+        timeline.append((GENERIC_BORN, None, row["low"], row["mid"], row["hi"]))
+        table.append(row)
+
+    if not curated:
+        # No curated manifest: still account for fixed run overhead, and say
+        # plainly that temp intermediates/peak are unmodeled.
+        r_lo, r_mid, r_hi, n_obs, used = calibrated_ratio(
+            hist, workflow or "", "run_overhead", 5e8, 2e9, 1e10)
+        fold(r_lo, r_mid, r_hi, False)
+        timeline.append((1, None, r_lo, r_mid, r_hi))
+        table.append(dict(id="run_overhead",
+                          desc="raw.json/log/tmp/.snakemake/input-symlink dirs fixed overhead",
+                          scope="run", unit="run fixed",
+                          low=r_lo, mid=r_mid, hi=r_hi, temp=False,
+                          calibrated=used, n_obs=n_obs))
+
+    # Peak: at stage s the disk holds every class with born <= s <= die
     checkpoints = set()
     for b, d, _lo, _mid, _hi in timeline:
         checkpoints.add(b)
@@ -522,44 +1013,52 @@ def do_estimate(args):
         if acc[1] > peak[1]:
             peak_stage, peak = s, acc
 
-    # ---- 报告 ----
-    print(f"workflow: {args.workflow}   样本数: {len(samples)}   "
-          f"SV 比较对: {n_cmp}   基因组 fasta: {human(gsize)}")
-    print(f"输入合计: bam {human(basis_all['input_bam'])}, "
+    # ---- report ----
+    print(f"workflow: {workflow or '(not detected)'}   samples: {len(samples)}   "
+          f"comparisons: {n_cmp}   genome fasta: {human(gsize)}")
+    print(f"inputs: bam {human(basis_all['input_bam'])}, "
           f"fastq {human(basis_all['input_fastq'])}, "
-          f"全部 {human(basis_all['input_total'])}")
+          f"total {human(basis_all['input_total'])}")
     print()
     hdr = f"{'class':<22}{'scope':<8}{'kept/temp':<10}{'low':>10}{'mid':>10}{'high':>10}  note"
     print(hdr)
     print("-" * len(hdr))
     for r in table:
-        note = f"校准 n={r['n_obs']}" if r["calibrated"] else f"经验比例 n={r['n_obs']}"
+        note = (f"calibrated n={r['n_obs']}" if r["calibrated"]
+                else f"empirical ratio n={r['n_obs']}")
+        if r.get("n_files"):
+            note += f", {r['n_files']} files"
         print(f"{r['id']:<22}{r['scope']:<8}{'temp' if r['temp'] else 'kept':<10}"
               f"{human(r['low']):>10}{human(r['mid']):>10}{human(r['hi']):>10}  {note}")
     if skipped:
         print()
-        print("本次未产生(被 config 关闭或缺前置):")
+        print("not produced (disabled in config or missing prerequisite):")
         for cid, desc in skipped:
             print(f"  - {cid}: {desc}")
     print()
     print("=" * 60)
-    print(f"最终保留(跑完后长期占用): {human(final[1])}  "
+    print(f"final kept (long-term after the run): {human(final[1])}  "
           f"[{human(final[0])} ~ {human(final[2])}]")
-    print(f"运行期暂用(temp,之后自动删): {human(transient[1])}  "
+    print(f"transient (temp, auto-deleted later): {human(transient[1])}  "
           f"[{human(transient[0])} ~ {human(transient[2])}]")
-    print(f"峰值(stage {peak_stage},须按此预留): {human(peak[1])}  "
+    print(f"peak (stage {peak_stage}, reserve this much): {human(peak[1])}  "
           f"[{human(peak[0])} ~ {human(peak[2])}]")
-    print(f"                    (十进制 GB/GiB 换算: {final[1]/1e9:.1f} GB = "
+    print(f"                    (decimal vs binary: {final[1]/1e9:.1f} GB = "
           f"{final[1]/2**30:.1f} GiB)")
     print("=" * 60)
-    print("未建模:GATK java tmp-dir 运行期临时写入(out/tmp,结束后清理)、"
-          "小文件块开销。")
+    if not curated:
+        print("note: no curated manifest for this workflow - temp "
+              "intermediates are not modeled, so the real peak can exceed "
+              "the estimate (registered outfiles + overhead only).")
+    print("not modeled: GATK java tmp-dir churn (out/tmp, cleaned after the "
+          "run) and filesystem block overhead.")
 
-    if args.json:
+    if args.report_json:
         report = dict(
-            workflow=args.workflow, generated=datetime.datetime.now().isoformat(
+            workflow=workflow, generated=datetime.datetime.now().isoformat(
                 timespec="seconds"),
-            meta=args.meta, config=args.config,
+            instance_json=instance_path, meta=args.meta, run_json=args.run_json,
+            curated_manifest=bool(curated),
             n_samples=len(samples), n_comparisons=n_cmp,
             input_bytes=basis_all, genome_fasta_bytes=gsize,
             classes=table, skipped=[c for c, _ in skipped],
@@ -568,9 +1067,9 @@ def do_estimate(args):
             peak_bytes=dict(zip(("low", "mid", "high"), peak)),
             peak_stage=peak_stage,
             unmodeled=["gatk_java_tmpdir", "fs_block_overhead"])
-        with open(args.json, "w") as fh:
+        with open(args.report_json, "w") as fh:
             json.dump(report, fh, indent=2, ensure_ascii=False)
-        print(f"json: {args.json}")
+        print(f"report json: {args.report_json}")
     return 0
 
 
@@ -579,7 +1078,14 @@ def do_estimate(args):
 # ---------------------------------------------------------------------------
 
 def classify_matcher(workflow=None):
-    """(relpath) → class_id;manifest patterns 先赢,后缀兜底。"""
+    """Build (relpath) -> class_id: manifest patterns first, suffix fallback.
+
+    Args:
+        workflow: optional workflow name for manifest-precision classes.
+
+    Returns:
+        Matcher function.
+    """
     entries = []
     if workflow and workflow in MANIFESTS:
         for cls in MANIFESTS[workflow]:
@@ -598,14 +1104,18 @@ def classify_matcher(workflow=None):
 
 
 def walk_root(root, matcher):
-    """扫描 root → {class: {"bytes": n, "files": n}} + 软链接计数。"""
+    """Scan root -> {class_id: {"bytes": n, "files": n}} + symlink count.
+
+    Symlinks (input data links) are counted but not sized, so real data is
+    not double-counted.
+    """
     agg = {}
     n_links = 0
-    for dirpath, dirnames, filenames in os.walk(root):
+    for dirpath, _dirnames, filenames in os.walk(root):
         for fn in filenames:
             p = os.path.join(dirpath, fn)
             if os.path.islink(p):
-                n_links += 1  # 输入软链接:不计目标大小,避免和真实数据重复计
+                n_links += 1
                 continue
             try:
                 size = os.path.getsize(p)
@@ -620,6 +1130,7 @@ def walk_root(root, matcher):
 
 
 def do_measure(args):
+    """Measure the actual disk usage of a run dir, classified by product class."""
     matcher = classify_matcher(args.workflow)
     agg, n_links = walk_root(args.root, matcher)
     total = sum(d["bytes"] for d in agg.values())
@@ -634,42 +1145,139 @@ def do_measure(args):
     print(f"{'TOTAL':<22}{sum(d['files'] for d in agg.values()):>8}{total:>14}"
           f"{human(total):>10}{100.0:>6.1f}%")
     if n_links:
-        print(f"(软链接 {n_links} 个,不计入 —— 输入数据软链接不重复计)")
-    if args.json:
-        with open(args.json, "w") as fh:
+        print(f"({n_links} symlinks skipped - input data links are not "
+              "double-counted)")
+    if args.report_json:
+        with open(args.report_json, "w") as fh:
             json.dump(dict(root=args.root, generated=datetime.datetime.now().isoformat(
                 timespec="seconds"), total_bytes=total, symlinks_skipped=n_links,
                 classes=agg), fh, indent=2, ensure_ascii=False)
-        print(f"json: {args.json}")
+        print(f"report json: {args.report_json}")
     return 0
 
 
+def parse_meta_rows(path):
+    """Parse a meta tsv/csv into row dicts (delimiter by extension, sniffed).
+
+    Kept as the calibrate() input path; estimate() goes through
+    MetadataUtils via instantiate_from_meta() instead.
+
+    Returns:
+        List of row dicts (needs a sample_id column).
+    """
+    delim = "," if path.lower().endswith(".csv") else "\t"
+    with open(path, newline="") as fh:
+        sample = fh.read(4096)
+        fh.seek(0)
+        first_line = sample.splitlines()[0] if sample else ""
+        if delim == "\t" and "\t" not in first_line and "," in first_line:
+            delim = ","
+        rows = list(csv.DictReader(fh, delimiter=delim))
+    if not rows or "sample_id" not in rows[0]:
+        raise SystemExit(f"meta parse failed (missing sample_id column or empty): {path}")
+    return rows
+
+
+INPUT_FILE_COLS = ("fastq_1", "fastq_2", "bam", "pbi", "bai", "ms_file")
+
+
+def sample_inputs_from_meta(rows, allow_missing=False):
+    """meta rows -> {sample_id: basis bytes}, real stat on input files.
+
+    Multiple rows per sample (data_id one-to-many) are summed. Missing files
+    abort unless allow_missing (sizes are never guessed).
+
+    Returns:
+        (per_sample, basis_all) with keys input_bam/input_fastq/input_total.
+    """
+    per = {}
+    missing = []
+    for row in rows:
+        sid = (row.get("sample_id") or "").strip()
+        if not sid:
+            continue
+        d = per.setdefault(sid, {"input_bam": 0, "input_fastq": 0,
+                                 "input_total": 0, "n_files": 0})
+        for col in INPUT_FILE_COLS:
+            p = (row.get(col) or "").strip()
+            if not p:
+                continue
+            if not os.path.exists(p):
+                missing.append(p)
+                continue
+            size = os.path.getsize(p)  # symlinks: size of the real data
+            d["input_total"] += size
+            kind = input_kind(p)
+            if kind:
+                d[kind] += size
+            d["n_files"] += 1
+    if missing and not allow_missing:
+        raise SystemExit("meta input files missing (sizes are never guessed), "
+                         f"{len(missing)} total, e.g. {missing[0]}")
+    basis_all = {k: sum(d[k] for d in per.values())
+                 for k in ("input_bam", "input_fastq", "input_total")}
+    return per, basis_all
+
+
 def do_calibrate(args):
-    if not args.manifest and args.workflow not in MANIFESTS:
-        raise SystemExit(f"无 {args.workflow} 的产物清单,无法把文件归到校准类;"
-                         "用 --manifest 提供")
+    """Measure a finished run and append per-class observed/basis ratios to
+    the append-only history so estimate() gets more accurate over time.
+
+    Inputs come from --run-json (or <root>/raw.json when present) or from
+    --meta (+ optional --config for the genome fasta basis).
+
+    Returns:
+        Exit code.
+    """
+    run_json = args.run_json
+    if not run_json and os.path.isfile(os.path.join(args.root, "raw.json")):
+        run_json = os.path.join(args.root, "raw.json")
+
+    workflow = args.workflow
+    gsize = 0
+    if run_json:
+        with open(run_json) as fh:
+            datajson = json.load(fh)
+        workflow = workflow or detect_workflow(datajson)
+        samples = instance_samples(datajson)
+        per_sample, basis_all = instance_inputs(datajson, samples,
+                                                allow_missing=args.allow_missing)
+        if not samples:
+            samples = sorted(per_sample)
+        gsize = genome_size(datajson)
+    else:
+        if not args.meta:
+            raise SystemExit("need --run-json (or <root>/raw.json) or --meta "
+                             "to derive per-sample input baselines")
+        rows = parse_meta_rows(args.meta)
+        per_sample, basis_all = sample_inputs_from_meta(
+            rows, allow_missing=args.allow_missing)
+        samples = sorted(per_sample)
+        if args.config:
+            with open(args.config) as fh:
+                gsize = genome_size(json.load(fh))
+    if not workflow:
+        raise SystemExit("workflow name unknown; pass --workflow (needed as "
+                         "the calibration history key)")
+    if workflow not in MANIFESTS and not args.manifest:
+        raise SystemExit(f"no product manifest for {workflow!r}; cannot map "
+                         "files to calibration classes (use --manifest)")
     if args.manifest:
         with open(args.manifest) as fh:
             MANIFESTS.update(json.load(fh))
-    matcher = classify_matcher(args.workflow)
-    agg, n_links = walk_root(args.root, matcher)
-    rows = parse_meta(args.meta)
-    per_sample = sample_inputs(rows, allow_missing=args.allow_missing)
-    samples = sorted(per_sample)
-    basis_all = {k: sum(d[k] for d in per_sample.values())
-                 for k in ("input_bam", "input_fastq", "input_total")}
-    gsize = genome_size(json.load(open(args.config)) if args.config else {})
 
-    # 样本归属:路径分量与 meta sample_id 精确匹配(同 calibrate_resources)
-    cls_by_id = {c["id"]: c for c in MANIFESTS[args.workflow]}
+    matcher = classify_matcher(workflow)
+    cls_by_id = {c["id"]: c for c in MANIFESTS[workflow]}
     history = args.history or os.path.join(
         os.path.dirname(os.path.abspath(__file__)), HISTORY_NAME)
 
-    # measure 的 bytes 是全 root 混在一起的;按样本重新扫一遍才能逐样本归因
-    per_class_sample = {}  # (class_id, sample) -> bytes
-    per_class_run = {}     # class_id -> bytes(非样本类)
+    # Per-sample attribution: exact path-component match on sample ids
+    # (same rule as calibrate_resources.py - unattributable sample-class
+    # bytes are dropped, never guessed).
+    per_class_sample = {}   # (class_id, sample) -> bytes
+    per_class_run = {}      # class_id -> bytes (run-scope classes)
     n_links = 0
-    for dirpath, dirnames, filenames in os.walk(args.root):
+    for dirpath, _dirnames, filenames in os.walk(args.root):
         for fn in filenames:
             p = os.path.join(dirpath, fn)
             if os.path.islink(p):
@@ -701,19 +1309,22 @@ def do_calibrate(args):
         if not exists:
             w.writerow(["run_id", "ts", "workflow", "class_id", "scope",
                         "sample_id", "basis_bytes", "observed_bytes", "ratio", "source"])
+
         def emit(cid, scope, sid, basis_b, obs_b, cls):
             nonlocal new_rows
             if obs_b <= 0:
                 return
-            if cls is not None and cls["basis"] == "fixed":
-                # fixed 类:校准「每单位绝对字节」,ratio 列记字节数
+            fixed = (cls is not None and cls["basis"] == "fixed") or \
+                (cls is None and FALLBACK_BASIS.get(cid) == "fixed")
+            if fixed:
+                # fixed class: calibrates absolute bytes; ratio holds bytes
                 ratio = obs_b
                 basis_b = ""
             else:
                 if basis_b <= 0:
                     return
                 ratio = obs_b / basis_b
-            w.writerow([run_id, ts, args.workflow, cid, scope, sid or "",
+            w.writerow([run_id, ts, workflow, cid, scope, sid or "",
                         f"{basis_b:.0f}" if basis_b != "" else "",
                         f"{obs_b:.0f}", f"{ratio:.6g}", args.root])
             new_rows += 1
@@ -726,12 +1337,19 @@ def do_calibrate(args):
         for cid, obs in sorted(per_class_run.items()):
             cls = cls_by_id.get(cid)
             if cls is not None and cls["scope"] == "sample":
-                continue  # 样本类没归因到样本的丢弃(不猜归属)
-            basis_key = cls["basis"] if cls and cls["basis"] != "fixed" else None
+                continue  # sample-class bytes without a sample owner: dropped
+            basis_key = None
+            if cls is not None and cls["basis"] != "fixed":
+                basis_key = cls["basis"]
+            elif cls is None:
+                fb = FALLBACK_BASIS.get(cid)
+                if fb and fb != "fixed":
+                    basis_key = fb
             basis_b = basis_all.get(basis_key, 0) if basis_key else 0
             emit(cid, "run", None, basis_b, obs, cls)
     print(f"calibrate: appended {new_rows} rows -> {history}")
-    print(f"(estimate 读该表需同类 >= {MIN_POINTS} 个点才覆盖经验比例)")
+    print(f"(estimate reads this table once a class has >= {MIN_POINTS} "
+          "points; until then the empirical ratios apply)")
     return 0
 
 
@@ -740,37 +1358,73 @@ def do_calibrate(args):
 # ---------------------------------------------------------------------------
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
 
-    e = sub.add_parser("estimate", help="跑之前估算占用")
-    e.add_argument("--meta", required=True, help="meta tsv(csv),输入文件真实 stat")
-    e.add_argument("--config", required=True, help="workflow config json(读 enabled/keep_intermediates)")
-    e.add_argument("--workflow", required=True, help=f"工作流名(现有: {sorted(MANIFESTS)})")
-    e.add_argument("--manifest", default=None, help="额外产物清单 json(合并进 MANIFESTS)")
-    e.add_argument("--calibration", default=None,
-                   help=f"校准历史 tsv(默认脚本同目录 {HISTORY_NAME})")
-    e.add_argument("--json", default=None, help="报告另存 json")
-    e.add_argument("--allow-missing", action="store_true",
-                   help="输入文件缺失时不报错(该文件按 0 计,会低估)")
+    e = sub.add_parser("estimate", help="estimate disk usage before running")
+    e.add_argument("-j", "--run-json", default=None, metavar="JSON",
+                   help="instantiated run json (raw.json): inputs, samples and "
+                        "module switches all come from it; meta not needed")
+    e.add_argument("-m", "--meta", default=None, metavar="TSV",
+                   help="meta tsv/csv (uninstantiated mode; combined with "
+                        "--workflow via config/<workflow>.json)")
+    e.add_argument("-w", "--workflow", default=None, metavar="NAME",
+                   help="workflow name (required with --meta; optional "
+                        "override with --run-json when auto-detection is wrong)")
+    e.add_argument("-c", "--config", default=None, metavar="JSON",
+                   help="uninstantiated config template (default "
+                        "config/<workflow>.json)")
+    e.add_argument("-o", "--outdir", default=None, metavar="DIR",
+                   help="run output dir to instantiate into (default: a "
+                        "scratch dir; pass the real dir to keep raw.json)")
+    e.add_argument("-s", "--save-json", default=None, metavar="JSON",
+                   help="write a copy of the instantiated json here")
+    e.add_argument("-p", "--comparison", default=None, metavar="FILE",
+                   help="comparison file (run.py --comparison), used during "
+                        "instantiation")
+    e.add_argument("-x", "--manifest", default=None, metavar="JSON",
+                   help="extra product-class manifest merged into MANIFESTS")
+    e.add_argument("-t", "--calibration", default=None, metavar="TSV",
+                   help=f"calibration history (default script dir {HISTORY_NAME})")
+    e.add_argument("-r", "--report-json", default=None, metavar="JSON",
+                   help="also write the report as JSON")
+    e.add_argument("-a", "--allow-missing", action="store_true",
+                   help="do not fail on missing input files (counted as 0, "
+                        "underestimates)")
     e.set_defaults(func=do_estimate)
 
-    m = sub.add_parser("measure", help="实测已有运行目录(任意工作流)")
-    m.add_argument("--root", default=".", help="运行输出根目录")
-    m.add_argument("--workflow", default=None, help="用该工作流的 manifest 精细归类(可选)")
-    m.add_argument("--json", default=None, help="报告另存 json")
+    m = sub.add_parser("measure", help="measure an existing run dir (any workflow)")
+    m.add_argument("-R", "--root", default=".", metavar="DIR",
+                   help="run output root (default: .)")
+    m.add_argument("-w", "--workflow", default=None, metavar="NAME",
+                   help="classify with this workflow's manifest (optional)")
+    m.add_argument("-r", "--report-json", default=None, metavar="JSON",
+                   help="also write the report as JSON")
     m.set_defaults(func=do_measure)
 
-    c = sub.add_parser("calibrate", help="实测 + 输入基准 → 追加校准历史")
-    c.add_argument("--root", required=True, help="运行输出根目录")
-    c.add_argument("--meta", required=True, help="该次运行的 meta tsv")
-    c.add_argument("--config", default=None, help="config json(读基因组 fasta 作基准)")
-    c.add_argument("--workflow", required=True, help="工作流名")
-    c.add_argument("--manifest", default=None, help="额外产物清单 json")
-    c.add_argument("--history", default=None,
-                   help=f"校准历史 tsv(默认脚本同目录 {HISTORY_NAME},append-only)")
-    c.add_argument("--allow-missing", action="store_true", help="meta 输入缺失不报错")
+    c = sub.add_parser("calibrate",
+                       help="measure a real run and append ratios to the history")
+    c.add_argument("-R", "--root", required=True, metavar="DIR",
+                   help="run output root")
+    c.add_argument("-j", "--run-json", default=None, metavar="JSON",
+                   help="instantiated run json for input baselines "
+                        "(default: <root>/raw.json when present)")
+    c.add_argument("-m", "--meta", default=None, metavar="TSV",
+                   help="meta tsv of this run (alternative to --run-json)")
+    c.add_argument("-w", "--workflow", default=None, metavar="NAME",
+                   help="workflow name (history key; auto-detected from "
+                        "--run-json when omitted)")
+    c.add_argument("-c", "--config", default=None, metavar="JSON",
+                   help="config json (genome fasta baseline, --meta mode)")
+    c.add_argument("-x", "--manifest", default=None, metavar="JSON",
+                   help="extra product-class manifest")
+    c.add_argument("-H", "--history", default=None, metavar="TSV",
+                   help=f"calibration history (default script dir {HISTORY_NAME}, "
+                        "append-only)")
+    c.add_argument("-a", "--allow-missing", action="store_true",
+                   help="do not fail on missing input files")
     c.set_defaults(func=do_calibrate)
 
     args = ap.parse_args(argv)

@@ -20,20 +20,35 @@ PacVar 等长读长工作流单次运行的输入可达数百 GB，BAM 中间产
 
 ## 2. 用法
 
+两种输入形态（[docs/sample-params-split.md](sample-params-split.md)）：
+
+- **已实例化 json**（`raw.json`，node.run&lt;Workflow&gt;() 写出）：一次完整运行的全部
+  参数，含所有输入文件（`raw_files`）、样本、模块开关和注册产物（`outfiles`）。
+  **指定了它就不需要 meta**。
+- **未实例化 json**（`config/<Workflow>.json` 模板）：没有样本和输入文件，需要
+  指定 meta + 流程名。工具自动读取 `config/<Workflow>.json`，走 run.py 同一条
+  实例化链路（MetadataUtils + node.run&lt;Workflow&gt;()）生成实例化 json 来估算。
+
 ```bash
 cd workflow/Omics
 
-# ① 跑之前估算（核心功能）
+# ① 跑之前估算 —— 已实例化 json（raw.json），不需要 meta
 python src/common/util/estimate_storage.py estimate \
-    --meta data/meta_PacVar_iteration_totipotency.tsv \
-    --config config/PacVar.json --workflow PacVar --json report.json
+    --run-json OUTDIR/raw.json [--report-json report.json]
 
-# ② 跑完（或跑到一半）实测 —— 任意工作流，不需要产物清单
+# ② 跑之前估算 —— meta + 流程名；config/<workflow>.json 自动读取并实例化
+python src/common/util/estimate_storage.py estimate \
+    --meta data/meta_PacVar_iteration_totipotency.tsv --workflow PacVar \
+    [--outdir OUTDIR] [--save-json instance.json] [--report-json report.json]
+#   --outdir 不给则实例化进临时目录（只用于估算）；给真实运行目录则
+#   raw.json/log/tmp 按真实运行的样子预生成，可直接复用。
+
+# ③ 跑完（或跑到一半）实测 —— 任意工作流，不需要产物清单
 python src/common/util/estimate_storage.py measure --root OUTDIR
 
-# ③ 用真实运行校准经验比例（append-only）
+# ④ 用真实运行校准经验比例（append-only）；输入基线自动取 <root>/raw.json
 python src/common/util/estimate_storage.py calibrate \
-    --root OUTDIR --meta data/meta_xxx.tsv --workflow PacVar
+    --root OUTDIR [--run-json OUTDIR/raw.json | --meta data/meta_xxx.tsv --workflow PacVar]
 ```
 
 `estimate` 读取校准历史（默认脚本同目录 `storage_ratio_history.tsv`，`--calibration` 可改），
@@ -43,16 +58,28 @@ python src/common/util/estimate_storage.py calibrate \
 
 ### 3.1 输入基准：真实 stat，不猜
 
-meta 里每个输入文件（`fastq_1/2`、`bam`/`pbi`、`ms_file` 列）真实 `stat` 取字节数；
-文件不存在直接报错（`--allow-missing` 可放行，但会低估）。样本大小不同（如 4 个
-HiFi BAM 为 108–140 GB 不等）就逐样本算再求和，不用均值 × n。
+已实例化 json 的输入清单（`sample_params.raw_files` 或旧版
+`Params.workflow.raw_files`）逐文件真实 `stat` 取字节数，按文件名归属到样本
+（scRNAseq cellranger_dir 模式则是输入目录，递归按真实文件求和）；meta 模式
+经 MetadataUtil 解析后同样逐文件 stat。文件不存在直接报错（`--allow-missing`
+可放行，但会低估）。样本大小不同（如 4 个 HiFi BAM 为 108–140 GB 不等）就
+逐样本算再求和，不用均值 × n；归属不了样本的输入均分并注明。
 
 输入数据通过软链接进 `common/1_raw_data/`（MetaUtil `_link_file`），不占额外空间，
 估算不计入。
 
-### 3.2 产物清单（manifest）：每类产物 = 基准 × 比例
+### 3.2 产物估算：manifest 精算 + 注册 outfiles 兜底（覆盖所有工作流）
 
-每个工作流一份产物类清单（`MANIFESTS`，PacVar 已内置），每个类声明：
+产物大小 = 基准 × 比例，两个来源：
+
+1. **curated manifest**（`MANIFESTS`，PacVar 已内置）：含中间产物、kept/temp
+   语义和峰值时间线，每个类声明：
+2. **实例化 json 的 `outfiles`**（node.run&lt;Workflow&gt;() 为所有工作流注册的完整
+   交付清单）：manifest 没覆盖到的注册产物按通用逐文件模型（`FALLBACK_MODEL`，
+   按后缀 bam/vcf/bigwig/h5ad/图/表分类，索引文件按小文件算）估算。这使得
+   **任意工作流都能估**——不再只有 PacVar。
+
+manifest 类字段：
 
 | 字段 | 含义 |
 |---|---|
@@ -119,7 +146,7 @@ stage 5  + SV VCF / bigWig（约 2× + 小文件）
 - 明细表列出每个类的 kept/temp、校准点数（`校准 n=N` = 实测比例，
   `经验比例 n=0` = 尚无实测）以及被 config 关闭的类。
 
-`--json` 输出机器可读报告（classes / final_bytes / transient_bytes / peak_bytes /
+`--report-json` 输出机器可读报告（classes / final_bytes / transient_bytes / peak_bytes /
 peak_stage / unmodeled），供上层调度或容量规划消费。
 
 ## 5. 校准闭环（越跑越准）
@@ -145,8 +172,10 @@ run_id  ts  workflow  class_id  scope  sample_id  basis_bytes  observed_bytes  r
 - **区间而非单点**：经验比例给 low/mid/high 三档；只有校准点足够时才收窄；
 - **显式未建模**（报告尾行注明）：GATK/SnakeMake 的 java tmp-dir 运行期临时写入
   （`out/tmp`，结束后清理）、小文件多时的文件系统块开销；
-- **无清单的工作流**：`measure`/`calibrate` 走文件后缀兜底归类（bam/vcf/bigwig/
-  fasta/...），`estimate` 不凭空编造产物——宁可报「无该工作流的产物清单」；
+- **无 curated manifest 的工作流**：estimate 用注册 outfiles 的逐文件模型估算
+  交付产物 + 固定开销，但**不建模 temp 中间产物**（报告中注明，真实峰值可能
+  更高）；`measure`/`calibrate` 走文件后缀兜底归类（bam/vcf/bigwig/fasta/...），
+  可先实测一轮再用 `--manifest` 补清单收窄；
 - 经验比例的依据：BAM 类来自重压缩不改读段的确定性推理（±5%）；
   bigWig/VCF/组装类来自同类项目观测，属待校准近似（与资源平衡提案 §1
   的自查条款同一口径：一切魔法数须可被校准闭环重定）。

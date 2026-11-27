@@ -1,4 +1,6 @@
 shell.prefix("set -x; set -e;")
+config.setdefault("OUTDIR_ROOT", config.get("Params", {}).get("workflow", {}).get("outdir", "output"))
+include: "../modules/common/common.smk"
 from snakemake.logging import logger
 import os
 ROOT_DIR = config.get("ROOT_DIR", ".")
@@ -700,8 +702,7 @@ use rule qc_summary from qc_summary as DR_DNA_qc_summary
 #     直接消费 (indir 已被 node.py runDR 改写指向那里)。
 # star 索引单独一个模块实例, index 写到 {outdir}/RNA/genome/index/{genome},
 # 各 align 实例通过 index_dir 指向同一目录 (RNAseq.smk 的多实例模式)。
-# RNA 差异对比 (sample_params.comparisons): node.py runDR 优先用 config 里手填的
-# sample_params.comparisons,否则按 RNA 行 group 列两两组合自动派生。
+# RNA 差异对比:design 派生视图过滤 RNA 行对比(comparisons_rna)。
 # ############################################
 
 rna_star_config_for_index = {
@@ -955,7 +956,15 @@ use rule featureCounts_merge from rna_featureCounts as DR_RNA_featureCounts_merg
 use rule featureCounts_result from rna_featureCounts as DR_RNA_featureCounts_result
 
 ### differential expression analysis using DESeq2
-# comparisons 由 node.py runDR 写入 (config 手填优先, 否则按 group 列派生)
+# comparisons = design 派生视图过滤 RNA 行对比(与 node.py runDR 同规则)
+comparisons_view = design_comparisons(
+    config.get("sample_params", {}).get("design") or {},
+    config.get("sample_params", {}).get("organism_samples") or {})
+_rna_only = {s for _ss in genome_paired_samples.values() for s in _ss} | \
+            {s for _ss in genome_single_samples.values() for s in _ss}
+comparisons_rna = {o: {n: c for n, c in _ps.items()
+                       if set(c["control_samples"]) | set(c["experimental_samples"]) <= _rna_only}
+                   for o, _ps in comparisons_view.items()}
 rna_DESeq2_config = {
     "indir": rna_TEtranscripts_config["outdir"],
     "outdir": f"{outdir}/RNA/diff_expression",
@@ -963,7 +972,7 @@ rna_DESeq2_config = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
-    "comparisons": config.get("sample_params", {}).get("comparisons"),
+    "comparisons": comparisons_rna,
     "Params": {
         "DESeq2": config.get("Params", {}).get("DESeq2", {})
     },
@@ -992,7 +1001,7 @@ rna_function_config = {
     "counts_dir": rna_featureCounts_config["outdir"],
     "outdir": f"{outdir}/RNA/function",
     "logdir": os.path.join(logdir, "group"),
-    "comparisons": config.get("sample_params", {}).get("comparisons"),
+    "comparisons": comparisons_rna,
     "genome": config.get('genome', {}),
     "Params": {
         "function": config.get("Params", {}).get("function", {})
@@ -1482,11 +1491,10 @@ logger.debug(f"teffect_config: {teffect_config}")
 # (downstream enabled pulls the upstream DAG)。
 # ############################################
 
-# RNA 链差异对比(sample_params.comparisons,node.py runDR 派生/写回,形状
-# {organism: {contrast_key: {...}}});报告覆盖默认基因组的 RNA 树。
+# RNA 链差异对比(design 派生,形状 {organism: {contrast_key: {...}}});
+# 报告覆盖默认基因组的 RNA 树。
 dr_report_contrasts = list(
-    config.get("sample_params", {}).get("comparisons", {})
-    .get(default_genome, {}).keys()
+    (comparisons_rna.get(default_genome) or {}).keys()
 )
 _dr_report_rna_samples = sorted(_all_paired | _all_single)
 DR_report_config = {

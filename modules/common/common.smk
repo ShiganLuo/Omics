@@ -600,7 +600,8 @@ def comparison_design(design_source, tissue, view, tissue_samples=None):
     """
     if view not in ("pairwise", "native"):
         raise ValueError(f"comparison_design: unknown view {view!r}")
-    entry_map = design_source or {}
+    entry_map = {k: v for k, v in (design_source or {}).items()
+                 if not str(k).startswith("_")}
     if tissue not in entry_map:
         raise ValueError(
             f"comparison_design: sample_params.design has no entry for "
@@ -642,6 +643,8 @@ def comparison_design(design_source, tissue, view, tissue_samples=None):
 
     result = {}
     for cname, entry in comparisons.items():
+        if str(cname).startswith("_"):
+            continue
         where = f"design.{tissue}.comparisons.{cname}"
         if not isinstance(entry, dict):
             raise ValueError(f"{where}: entry must be an object")
@@ -752,3 +755,41 @@ def write_compare_design(design_source, tissue, view, out_path,
     with open(out_path, "w") as f:
         json.dump({tissue: design}, f, indent=2, ensure_ascii=False)
     return out_path
+
+
+def design_comparisons(design_source, organism_samples=None):
+    """sample_params.design → {organism: {对比名: entry}}(两两展开)。
+
+    entry 与 DESeq2 group_pairs 形状同形;对比名 =
+    "{control_group_name}_vs_{experimental_group_name}"(与 node.py 出门
+    注册同名同形);样本名还原显示名(samples_dict 键的 |data_type 后缀剥
+    离);organism 取检验侧首样本(organism_samples 注册表),未收录归
+    "UNKNOWN"。多组 entry 按 coding 展开;派生键冲突报错。
+    """
+    result = {}
+    for scope in (design_source or {}):
+        if str(scope).startswith("_"):
+            continue
+        for entry in comparison_design(design_source, scope, "pairwise").values():
+            exp_samples = entry["experimental_samples"]
+            org = "UNKNOWN"
+            for o, ids in (organism_samples or {}).items():
+                if exp_samples and exp_samples[0] in ids:
+                    org = o
+                    break
+            out = {
+                "control_group_name": entry["control_group_name"],
+                "experimental_group_name": entry["experimental_group_name"],
+                "control_samples": [s.split("|", 1)[0]
+                                    for s in entry["control_samples"]],
+                "experimental_samples": [s.split("|", 1)[0] for s in exp_samples],
+            }
+            name = (f"{out['control_group_name']}"
+                    f"_vs_{out['experimental_group_name']}")
+            bucket = result.setdefault(org, {})
+            if name in bucket and bucket[name] != out:
+                raise ValueError(
+                    f"design_comparisons: derived contrast '{name}' collides "
+                    "across entries/scopes —重名派生对比请改对比名或组名")
+            bucket[name] = out
+    return result

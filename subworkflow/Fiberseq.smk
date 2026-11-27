@@ -1,4 +1,10 @@
 shell.prefix("set -x; set -e;")
+config.setdefault("OUTDIR_ROOT", config.get("Params", {}).get("workflow", {}).get("outdir", "output"))
+include: "../modules/common/common.smk"
+comparisons_view = design_comparisons(
+    config.get("sample_params", {}).get("design") or {},
+    config.get("sample_params", {}).get("organism_samples") or {})
+comparisons_flat = {n: c for _oc in comparisons_view.values() for n, c in _oc.items()}
 from snakemake.logging import logger
 
 ROOT_DIR = config.get("ROOT_DIR", ".")
@@ -579,7 +585,7 @@ telomere_config = {
     "logdir": f"{logdir}/sample",
     "logdir_combine": f"{logdir}/group",
     "samples": samples,
-    "comparisons": {n: c for _oc in (config.get("sample_params", {}).get("comparisons") or {}).values() for n, c in _oc.items()},
+    "comparisons": comparisons_flat,
     "bam_substring": "fiberseq.fire.sorted",
     "assembly_dir": config.get("assembly_dir") or assembly_outdir,
     "genome": {"fasta": fasta, "subtel_ref": genome_ref.get("subtel_ref")},
@@ -801,11 +807,10 @@ logger.debug(f"Fiber-seq hap extract config: {fibertools_hap_config}")
 use rule ft_split_hap from fibertools_hap as Fiberseq_ft_split_hap
 use rule ft_extract_hap from fibertools_hap as Fiberseq_ft_extract_hap
 
-# function 模块对比视图:group 名排序定角色(匹配 diff_accessibility 约定,
-# 即旧 sample_params.comparisons 语义),从 sample_params.comparisons 推导
-def _fn_sorted_comparisons(cfg):
+# function 模块对比视图:group 名排序定角色(匹配 diff_accessibility 约定)
+def _fn_sorted_comparisons(view_src):
     view = {}
-    for _oc in (cfg.get("sample_params", {}).get("comparisons") or {}).values():
+    for _oc in (view_src or {}).values():
         for _n, _c in _oc.items():
             _g1, _g2 = sorted((_c["control_group_name"], _c["experimental_group_name"]))
             _s1 = _c["control_samples"] if _c["control_group_name"] == _g1 else _c["experimental_samples"]
@@ -823,7 +828,7 @@ function_config = {
     "outdir": f"{outdir}/function",
     "logdir": f"{logdir}/sample",
     "samples": samples,
-    "comparisons": _fn_sorted_comparisons(config),
+    "comparisons": _fn_sorted_comparisons(comparisons_view),
     "genome": {
         "geneIDAnno": genome_ref.get("geneIDAnno"),
     },
@@ -1019,7 +1024,7 @@ sv_config = {
     "outdir": sv_outdir,
     "logdir": f"{logdir}/sample",
     "logdir_combine": f"{logdir}/group",
-    "comparisons": {n: c for _oc in (config.get("sample_params", {}).get("comparisons") or {}).values() for n, c in _oc.items()},
+    "comparisons": comparisons_flat,
     "vcf_dir": pbsv_config["outdir"],
     "vcf_suffix": ".sv.vcf.gz",
     "Params": {

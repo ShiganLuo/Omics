@@ -1,0 +1,23 @@
+{
+  "_说明": "design JSON 模板(run.py --design 装载,形状同 sample_params.design)。下划线开头的键为注释位,解析/校验均跳过。scope 键 = 样本 tissue 属性(无 tissue 列时全体归单一 scope,写 \"UNKNOWN\");组内样本同 data_type;同一条对比引用的组之间样本互斥;派生对比名(参照组名_vs_检验组名)不可跨条目重复。",
+  "ovaries": {
+    "groups": {
+      "DMSO_P6": ["DMSO_P6_1", "DMSO_P6_2"],
+      "PlaB_P6": ["PlaB_P6_1", "PlaB_P6_2"],
+      "PlaB_P8": ["PlaB_P8_1", "PlaB_P8_2"]
+    },
+    "comparisons": {
+      "_注释_coding 缺省 consecutive(相邻两两,前者参照);vs_ref=其余每组对 ref;all_pairs=全两两;helmert=第 k 组对此前各组均值(参照名 prev_mean)。2 元组即普通两两": null,
+      "vs_baseline": {
+        "groups": ["DMSO_P6", "PlaB_P6", "PlaB_P8"],
+        "ref": "DMSO_P6",
+        "coding": "vs_ref"
+      },
+      "time_course": {
+        "groups": ["DMSO_P6", "PlaB_P6", "PlaB_P8"],
+        "coding": "helmert"
+      }
+    },
+    "tests": ["pairwise"]
+  }
+}

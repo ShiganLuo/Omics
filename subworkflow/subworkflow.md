@@ -128,15 +128,15 @@ Params**。
 |---|---|---|
 | `Params.<tool>.<rule>` | 工具/流程控制参数(怎么跑) | `aligner`、`trimmer`、`counters`、`input_mode`、`quantification_method`、`sv.enabled`、`plot.formats` |
 | `Params.workflow` | 流程级控制与 IO 位置 | `indir`、`outdir`、`logdir`、`meta`、`dna_indir`、`snv_caller`、`genome_pairs` |
-| `sample_params` | 样本注册表(跑什么) | `samples`、`paired_samples`、`raw_files`、`ip_samples`、`sample_ip_input_map`、`paired_design`、`pair_strains`、`control_samples`、`sample_groups`、`tissue_samples`、`comparisons` |
+| `sample_params` | 样本注册表(跑什么) | `samples`、`paired_samples`、`raw_files`、`ip_samples`、`sample_ip_input_map`、`paired_design`、`pair_strains`、`control_samples`、`sample_groups`、`tissue_samples`、`organism_samples`、`design` |
 
-对比定义只有一个字段:`sample_params.comparisons`
-(`{organism: {对比名: {control_group_name, experimental_group_name,
-control_samples, experimental_samples}}}`);历史同义字段
+对比定义只有一个设计模型:`sample_params.design`;各消费形状由 rule 层
+`common.smk::design_comparisons`(两两展开,organism 嵌套)派生,不落独立
+字段。历史同义字段 `sample_params.comparisons` /
 `Params.DESeq2.group_pairs` / `Params.sv.comparisons` /
 `Params.function.group_pairs` 已废除,不得回流。模块需要不同形状/角色语义
-(sv 平铺、Fiberseq function 组名排序)时,**在 subworkflow 接线层做适配视图**,
-不另立字段名。
+(sv 平铺、Fiberseq function 组名排序、DR RNA 行过滤)时,**在 subworkflow
+接线层做适配视图**,不另立字段名。
 
 约束(新增/修改模块时逐条过):
 

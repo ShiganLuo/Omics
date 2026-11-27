@@ -1,4 +1,10 @@
 shell.prefix("set -x; set -e;")
+config.setdefault("OUTDIR_ROOT", config.get("Params", {}).get("workflow", {}).get("outdir", "output"))
+include: "../modules/common/common.smk"
+comparisons_view = design_comparisons(
+    config.get("sample_params", {}).get("design") or {},
+    config.get("sample_params", {}).get("organism_samples") or {})
+comparisons_flat = {n: c for _oc in comparisons_view.values() for n, c in _oc.items()}
 from snakemake.logging import logger
 ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("Params", {}).get("workflow").get("indir", "data/fastq")
@@ -325,7 +331,7 @@ telomere_config = {
     "logdir": f"{logdir}/sample",
     "logdir_combine": f"{logdir}/group",
     "samples": samples,
-    "comparisons": {n: c for _oc in (config.get("sample_params", {}).get("comparisons") or {}).values() for n, c in _oc.items()},
+    "comparisons": comparisons_flat,
     "bam_substring": "sorted_markdup",
     "assembly_dir": centromere_outdir,
     "genome": {"fasta": genome_ref.get("fasta"),
@@ -547,7 +553,7 @@ sv_config = {
     "outdir": sv_outdir,
     "logdir": f"{logdir}/sample",
     "logdir_combine": f"{logdir}/group",
-    "comparisons": {n: c for _oc in (config.get("sample_params", {}).get("comparisons") or {}).values() for n, c in _oc.items()},
+    "comparisons": comparisons_flat,
     "vcf_dir": pbsv_config["outdir"],
     "vcf_suffix": ".sv.vcf.gz",
     "Params": {

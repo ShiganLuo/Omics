@@ -966,6 +966,14 @@ def _classify_layouts(samples_info_dict: Dict[str, SampleInfo]) -> tuple[List[st
             logger.error(f"Unknown layout type for sample {sid}: {info.layout}")
     return paired, single
 
+def _fill_organism_samples(datajson: Dict[str, Any],
+                           samples_info_dict: Dict[str, SampleInfo]) -> None:
+    org_map: Dict[str, List[str]] = {}
+    for sid, info in samples_info_dict.items():
+        org_map.setdefault(info.organism or "UNKNOWN", []).append(sid)
+    datajson.setdefault("sample_params", {})["organism_samples"] = org_map
+
+
 def _write_raw_json(datajson: Dict[str, Any], outdir: str) -> str:
     """Write raw.json and return its path."""
     path = os.path.join(outdir, "raw.json")
@@ -1195,11 +1203,12 @@ def runPacVar(
     decides which outfiles (and therefore which DAG leaves) are requested.
 
     `Params.sv.enabled` additionally gates the SV comparison analysis
-    (modules/sv). `sample_params.comparisons` follows the DESeq2 group_pairs
-    design (name -> group names + sample name lists); it is filled from the
-    meta group pairs when not hand-authored in the config.
+    (modules/sv). Comparisons follow the DESeq2 group_pairs design (name ->
+    group names + sample name lists), derived from the design model group
+    pairs.
     """
     root_dir = _init_raw_json(datajson, indir, outdir, raw_files, "PacVar")
+    _fill_organism_samples(datajson, samples_info_dict)
     outfiles: List[str] = []
     samples: List[str] = []
     params = datajson.get("Params", {})
@@ -1377,12 +1386,10 @@ def runPacVar(
         _register_hifiasm_qc(outfiles, datajson, f"{outdir}/repeat/centromere", sample_id)
 
     # SV comparison analysis (modules/sv): DESeq2-style design —
-    # sample_params.comparisons maps "{control_group_name}_vs_{experimental_group_name}"
-    # to {control_group_name, experimental_group_name, control_samples,
+    # "{control_group_name}_vs_{experimental_group_name}" maps to
+    # {control_group_name, experimental_group_name, control_samples,
     # experimental_samples}. Sample names only: the sv rules resolve each
-    # sample's SV VCF from vcf_dir/vcf_suffix. A hand-filled config block
-    # wins; otherwise it is derived from the meta group pairs, like
-    # runRNAseq fills sample_params.comparisons.
+    # sample's SV VCF from vcf_dir/vcf_suffix.
     sv_params = datajson.get("Params", {}).get("sv", {})
     _validate_te_lib(datajson, "PacVar")
     _fill_mei_rm_species(datajson, "PacVar")
@@ -1390,24 +1397,17 @@ def runPacVar(
     _fill_telomere_n_chrom_arms(datajson, "PacVar")
     _fill_expected_chrom_ends(datajson, "PacVar")
     _fill_repeatmasker_species(datajson, "PacVar")
-    # 对比定义统一存 sample_params.comparisons(organism 嵌套,手填优先);本地
-    # comparisons 为平铺视图,供 sv 门控/样本校验。sv.smk 接线同样读
-    # sample_params.comparisons(docs/sample-params-split.md)。
-    _cmp_nested = datajson.setdefault("sample_params", {}).setdefault("comparisons", {})
-    if (enable_sv or enable_telomere) and not _cmp_nested:
-        for gp in group_pairs:
-            _cmp_nested.setdefault(gp.organism, {})[f"{gp.ctr_group_name}_vs_{gp.exp_group_name}"] = {
-                "control_group_name": gp.ctr_group_name,
-                "experimental_group_name": gp.exp_group_name,
-                "control_samples": gp.ctr_sample_ids,
-                "experimental_samples": gp.exp_sample_ids,
-            }
-    comparisons = {n: c for _org_cmps in _cmp_nested.values() for n, c in _org_cmps.items()}
+    comparisons = {f"{gp.ctr_group_name}_vs_{gp.exp_group_name}": {
+        "control_group_name": gp.ctr_group_name,
+        "experimental_group_name": gp.exp_group_name,
+        "control_samples": gp.ctr_sample_ids,
+        "experimental_samples": gp.exp_sample_ids,
+    } for gp in group_pairs}
     if enable_sv and not comparisons:
         logger.warning(
             "PacVar: Params.sv.enabled=true but no SV comparisons are defined; "
-            "fill sample_params.comparisons in the config JSON or the meta design "
-            "column (ctrl_TAG / exp_TAG). Skipping SV comparison outputs."
+            "declare comparisons in the design JSON (--design) or the meta design column. "
+            "Skipping SV comparison outputs."
         )
     if enable_sv and comparisons:
         sv_outdir = f"{outdir}/variation/germline_sv_analysis"
@@ -1420,7 +1420,7 @@ def runPacVar(
                 unknown = [s for s in (c.get(key) or []) if s not in known_samples]
                 if unknown:
                     logger.warning(
-                        f"PacVar: sample_params.comparisons['{name}'].{key} lists "
+                        f"PacVar: design comparison '{name}'.{key} lists "
                         f"samples not in the meta: {unknown}"
                     )
             base = f"{sv_outdir}/{name}"
@@ -2357,6 +2357,7 @@ def runRNAseq(
         raw_files: List[str],
     ):
     root_dir = _init_raw_json(datajson, indir, outdir, raw_files, "RNAseq")
+    _fill_organism_samples(datajson, samples_info_dict)
     outfiles = []
     genome_paired_samples = {}
     genome_single_samples = {}
@@ -2371,18 +2372,7 @@ def runRNAseq(
     enable_TElocal = _enabled(datajson, "TElocal")
     enable_report = _enabled(datajson, "report")
     enable_StringTie = _enabled(datajson, "StringTie")
-    # 对比定义统一存一级字段 sample_params.comparisons(organism 嵌套;同义旧
-    # 字段 sample_params.comparisons / sample_params.comparisons /
-    # sample_params.comparisons 已废除,见 docs/sample-params-split.md)。
-    # 手填优先,meta 推导只补缺。
-    _comparisons = datajson.setdefault("sample_params", {}).setdefault("comparisons", {})
     for group_pair in group_pairs:
-        _comparisons.setdefault(group_pair.organism, {}).setdefault(f"{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}", {
-            "control_group_name": group_pair.ctr_group_name,
-            "experimental_group_name": group_pair.exp_group_name,
-            "control_samples": group_pair.ctr_sample_ids,
-            "experimental_samples": group_pair.exp_sample_ids
-        })
         if enable_deseq2 and enable_TEcount:
             outfiles.append(f"{outdir}/diff_expression/{group_pair.organism}/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}/TEcount/DESeq2.done")
         if enable_deseq2 and enable_TElocal:
@@ -2885,11 +2875,11 @@ def runFiberseq(
     Guide: https://fiberseq.github.io/
 
     `Params.sv.enabled` gates the SV comparison analysis (modules/sv).
-    `sample_params.comparisons` follows the DESeq2 group_pairs design
-    (name -> group names + sample name lists); it is filled from the meta
-    group pairs when not hand-authored in the config.
+    Comparisons follow the DESeq2 group_pairs design (name -> group names
+    + sample name lists), derived from the design model group pairs.
     """
     root_dir = _init_raw_json(datajson, indir, outdir, raw_files, "Fiberseq")
+    _fill_organism_samples(datajson, samples_info_dict)
 
     outfiles = []
     samples = []
@@ -3199,24 +3189,17 @@ def runFiberseq(
     _fill_telomere_n_chrom_arms(datajson, "Fiberseq")
     _fill_expected_chrom_ends(datajson, "Fiberseq")
     _fill_repeatmasker_species(datajson, "Fiberseq")
-    # 对比定义统一存 sample_params.comparisons(organism 嵌套,手填优先);本地
-    # comparisons 为平铺视图,供 sv 门控/样本校验。sv.smk 接线同样读
-    # sample_params.comparisons(docs/sample-params-split.md)。
-    _cmp_nested = datajson.setdefault("sample_params", {}).setdefault("comparisons", {})
-    if (enable_sv or enable_telomere) and not _cmp_nested:
-        for gp in group_pairs:
-            _cmp_nested.setdefault(gp.organism, {})[f"{gp.ctr_group_name}_vs_{gp.exp_group_name}"] = {
-                "control_group_name": gp.ctr_group_name,
-                "experimental_group_name": gp.exp_group_name,
-                "control_samples": gp.ctr_sample_ids,
-                "experimental_samples": gp.exp_sample_ids,
-            }
-    comparisons = {n: c for _org_cmps in _cmp_nested.values() for n, c in _org_cmps.items()}
+    comparisons = {f"{gp.ctr_group_name}_vs_{gp.exp_group_name}": {
+        "control_group_name": gp.ctr_group_name,
+        "experimental_group_name": gp.exp_group_name,
+        "control_samples": gp.ctr_sample_ids,
+        "experimental_samples": gp.exp_sample_ids,
+    } for gp in group_pairs}
     if enable_sv and not comparisons:
         logger.warning(
             "Fiberseq: Params.sv.enabled=true but no SV comparisons are defined; "
-            "fill sample_params.comparisons in the config JSON or the meta design "
-            "column (ctrl_TAG / exp_TAG). Skipping SV comparison outputs."
+            "declare comparisons in the design JSON (--design) or the meta design column. "
+            "Skipping SV comparison outputs."
         )
     if enable_sv and comparisons:
         sv_outdir = f"{outdir}/variation/germline_sv_analysis"
@@ -3229,7 +3212,7 @@ def runFiberseq(
                 unknown = [s for s in (c.get(key) or []) if s not in known_samples]
                 if unknown:
                     logger.warning(
-                        f"Fiberseq: sample_params.comparisons['{name}'].{key} lists "
+                        f"Fiberseq: design comparison '{name}'.{key} lists "
                         f"samples not in the meta: {unknown}"
                     )
             base = f"{sv_outdir}/{name}"
@@ -3432,8 +3415,7 @@ def runFiberseq(
             outfiles.append(f"{base}/TEcount/{contrast}.TEcount_Gene.name.tsv")
 
         # function 模块的对比视图(group 名排序定角色,匹配 diff_accessibility
-        # 约定)由 Fiberseq.smk 接线从 sample_params.comparisons 推导
-        # (旧 sample_params.comparisons 字段已废除,docs/sample-params-split.md)。
+        # 约定)由 Fiberseq.smk 接线从 design 派生视图取。
 
         # GO/KEGG + GSEA outputs from the shared function module
         if enable_function:
@@ -3594,16 +3576,12 @@ def runDR(
         case-insensitive): DNA rows run chain 0, RNA rows run chain 1.
         MetaUtil stages each row's fastq with <ID>_{1,2}.fq.gz naming into
         {outdir}/DNA/common/1_raw_data/ or {outdir}/RNA/common/1_raw_data/.
-      - design keeps the project-wide ctr_<tag>/exp_<tag> semantics
-        (control/experiment, Mutation parity): DNA design pairs are matched
-        normal/tumor somatic pairs (control = normal). Design pairs are never
-        used for chain routing; mixed DNA-RNA pairs are ignored with a warning
-        (DRclass evidence pairing is expressed by group or Params.workflow
-        .dr_pairs instead).
-      - RNA differential expression contrasts: hand-filled
-        sample_params.comparisons wins, else RNA-only design group pairs,
-        else all pairs of the RNA rows' group column (alphabetical first =
-        control).
+      - design (meta design column shorthand or --design JSON): DNA entries
+        are matched normal/tumor somatic pairs (control = normal). Design pairs are never used for chain
+        routing; mixed DNA-RNA pairs are ignored with a warning (DRclass
+        evidence pairing is expressed by group or Params.workflow.dr_pairs
+        instead).
+      - RNA differential expression contrasts: RNA-only design group pairs.
       - DRclass evidence pairing: a DNA sample and a RNA sample with the SAME
         sample name (different data_type) are the two assays of one biological
         sample and form one DRclass pairing; hand-filled Params.workflow
@@ -3611,6 +3589,7 @@ def runDR(
         so only somatic tumors of the DNA design pairs get classified.
     """
     root_dir = _init_raw_json(datajson, indir, outdir, raw_files, workflow="DR")
+    _fill_organism_samples(datajson, samples_info_dict)
     _resolve_genome_ref(datajson, samples_info_dict, "DR")
 
     # --- Chain routing by meta data_type (the ONLY routing axis) ---
@@ -3723,10 +3702,8 @@ def runDR(
     # --- RNA chain analysis products (RNAseq.smk parity) ---
     # Counts / DE / enrichment / assembly / fusion / report / QC registration
     # mirrored from runRNAseq, every path scoped under {outdir}/RNA. DE
-    # contrasts (sample_params.comparisons): config wins, else the RNA-only design
-    # group pairs, else all pairs of the RNA rows' group column (alphabetical
-    # first = control). Function enrichment stays gated by
-    # Params.function.<organism>.enabled like runRNAseq.
+    # contrasts: RNA-only design group pairs. Function enrichment stays gated
+    # by Params.function.<organism>.enabled like runRNAseq.
     enable_te = _enabled(datajson, "TEtranscripts")
     enable_fusion = _enabled(datajson, "arriba")
     enable_deseq2 = _enabled(datajson, "DESeq2")
@@ -3735,51 +3712,18 @@ def runDR(
     enable_report = _enabled(datajson, "report")
     enable_StringTie = _enabled(datajson, "StringTie")
 
-    # 对比定义统一存 sample_params.comparisons(organism 嵌套,手填优先;旧
-    # sample_params.comparisons 已废除,docs/sample-params-split.md)。以下
-    # 推导只在未手填时进行:1) RNA 行 design 对比(runRNAseq 语义)2) 兜底取
-    # RNA 行 group 列的两两组合(字母序前者为对照)。
-    _comparisons = datajson.setdefault("sample_params", {}).setdefault("comparisons", {})
-    if not _comparisons:
-        _derived = {}
-        # 1) RNA-only design group pairs (runRNAseq semantics)
-        for gp in group_pairs:
-            if set(gp.ctr_sample_ids) <= rna_set and set(gp.exp_sample_ids) <= rna_set:
-                _derived.setdefault(gp.organism, {})[f"{gp.ctr_group_name}_vs_{gp.exp_group_name}"] = {
-                    "control_group_name": gp.ctr_group_name,
-                    "experimental_group_name": gp.exp_group_name,
-                    "control_samples": [_disp(k) for k in gp.ctr_sample_ids],
-                    "experimental_samples": [_disp(k) for k in gp.exp_sample_ids],
-                }
-        _source = "RNA design group pairs"
-        # 2) fall back to all pairs of the RNA rows' group column
-        if not _derived:
-            _rna_groups = {}
-            for sid in rna_samples:
-                _g = (samples_info_dict[sid].group or "").strip()
-                if _g:
-                    _rna_groups.setdefault(samples_info_dict[sid].organism, {}).setdefault(_g, []).append(_disp(sid))
-            for _org, _gmap in _rna_groups.items():
-                _names = sorted(_gmap)
-                for _i, _ctr in enumerate(_names):
-                    for _exp in _names[_i + 1:]:
-                        _derived.setdefault(_org, {})[f"{_ctr}_vs_{_exp}"] = {
-                            "control_group_name": _ctr,
-                            "experimental_group_name": _exp,
-                            "control_samples": list(_gmap[_ctr]),
-                            "experimental_samples": list(_gmap[_exp]),
-                        }
-            _source = "group column"
-        _comparisons.update(_derived)
-        if _derived:
-            logger.info(f"DR: RNA DE contrasts derived from {_source}: "
-                        f"{ {o: list(v) for o, v in _derived.items()} } "
-                        "(override via sample_params.comparisons)")
-    rna_group_pairs = _comparisons or {}
+    rna_group_pairs = {}
+    for gp in group_pairs:
+        if set(gp.ctr_sample_ids) <= rna_set and set(gp.exp_sample_ids) <= rna_set:
+            rna_group_pairs.setdefault(gp.organism, {})[f"{gp.ctr_group_name}_vs_{gp.exp_group_name}"] = {
+                "control_group_name": gp.ctr_group_name,
+                "experimental_group_name": gp.exp_group_name,
+                "control_samples": [_disp(k) for k in gp.ctr_sample_ids],
+                "experimental_samples": [_disp(k) for k in gp.exp_sample_ids],
+            }
     if not rna_group_pairs:
-        logger.info("DR: no RNA DE contrasts (need sample_params.comparisons, RNA "
-                    "design pairs, or >=2 groups in the RNA rows' group column); "
-                    "DE/function pair outputs skipped")
+        logger.info("DR: no RNA DE contrasts (declare RNA-row comparisons in the "
+                    "design JSON (--design)); DE/function pair outputs skipped")
 
     # StringTie sample grouping from the RNA rows' group column
     _sample_groups = {}

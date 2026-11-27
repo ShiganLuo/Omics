@@ -2,7 +2,8 @@
   "sample_params": {
     "samples": [],
     "raw_files": [],
-    "comparisons": {}
+    "design": {},
+    "organism_samples": {}
   },
   "Params": {
     "workflow": {

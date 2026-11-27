@@ -9,7 +9,8 @@
       "GRCh38": []
     },
     "raw_files": [],
-    "comparisons": {},
+    "design": {},
+    "organism_samples": {},
     "sample_groups": {}
   },
   "Params": {

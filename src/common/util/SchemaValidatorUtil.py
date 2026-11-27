@@ -647,7 +647,7 @@ class SchemaValidator:
         if isinstance(add_props, dict):
             declared_keys = props if isinstance(props, dict) else {}
             for key, val in cfg.items():
-                if key in declared_keys:
+                if key in declared_keys or str(key).startswith("_"):
                     continue
                 errors.extend(self._validate_node(
                     val, add_props,

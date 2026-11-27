@@ -23,32 +23,6 @@ logger = setup_logger(__name__, level=logging.INFO)
 DESIGN_PATTERN = re.compile(r"^(ctr|ctrl|exp)_(.+)$")
 REP_PATTERN = re.compile(r"^rep\d+$", re.IGNORECASE)
 
-# --- comparison file (--comparison) field aliases -------------------------
-# Keys are normalised (lowercase, non-alphanumerics stripped) before lookup,
-# so "control_group_name" / "control-group" / "ControlGroup" are equivalent.
-_COMPARISON_FIELD_ALIASES = {
-    # comparison id
-    "comparisonid": "comparison_id", "comparison": "comparison_id",
-    "compareid": "comparison_id", "id": "comparison_id", "name": "comparison_id",
-    # control samples
-    "controlsamples": "control_samples", "controlsample": "control_samples",
-    "controls": "control_samples", "control": "control_samples",
-    "ctrlsamples": "control_samples", "ctrlsample": "control_samples",
-    "ctrl": "control_samples", "ctrsamples": "control_samples", "ctr": "control_samples",
-    # experiment samples
-    "experimentsamples": "experiment_samples", "experimentalsamples": "experiment_samples",
-    "experimentsample": "experiment_samples", "experiments": "experiment_samples",
-    "experiment": "experiment_samples", "expsamples": "experiment_samples",
-    "expsample": "experiment_samples", "exp": "experiment_samples",
-    # control group name
-    "controlgroupname": "control_group_name", "controlgroup": "control_group_name",
-    "ctrlgroupname": "control_group_name", "ctrlgroup": "control_group_name",
-    "ctrgroupname": "control_group_name", "ctrgroup": "control_group_name",
-    # experiment group name
-    "experimentgroupname": "experiment_group_name", "experimentalgroupname": "experiment_group_name",
-    "experimentgroup": "experiment_group_name", "experimentalgroup": "experiment_group_name",
-    "expgroupname": "experiment_group_name", "expgroup": "experiment_group_name",
-}
 class MetadataUtils:
     """
     Utilities for variant-analysis metadata parsing and FASTQ preparation.
@@ -77,7 +51,7 @@ class MetadataUtils:
         design_col: str = "design",
         group_col: str = "group",
         workflow: Optional[str] = None,
-        comparison_file: Optional[str] = None,
+        design: Optional[Dict[str, Any]] = None,
     ):
         """
         Function: Initialize MetadataUtils.
@@ -89,11 +63,13 @@ class MetadataUtils:
             - pacbio_required_cols: Set of required columns for PacBio files. Default includes 'sample_id', 'bam', 'pbi'.
             - bam_required_cols: Set of required columns for BAM files. Default includes 'sample_id', 'bam'.
             - data_id_col: Column name in metadata that represents unique FASTQ identifiers (default: 'data_id').
-            - design_col: sample compare mode
+            - design_col: meta 的 design 列(ctr_/exp_TAG 两两简写入口,
+              归一到 design 表示后派生;另存 SampleInfo.design:MERIP/CLIP
+              的 ip/input 角色标签与 group 列回退)。
             - group_col: Column name in metadata that represents sample groups (default: 'group').
-            - comparison_file: JSON file declaring explicit sample-control
-              comparisons (run.py --comparison). When set, the design column
-              is NOT read at all and pairs are built from the file.
+            - design: 实验对比设计模型(run.py --design 装载的 design JSON,
+              形状同 sample_params.design)。设置时经
+              build_design_model_pairs() 派生 group_pairs / designPairs。
         Note:
             - fq_pattern: Glob pattern to identify FASTQ files in fastq_dir (default: '*fq.gz').
 
@@ -107,11 +83,11 @@ class MetadataUtils:
         self.pacbio_required_cols = pacbio_required_cols
         self.bam_required_cols = bam_required_cols
         self.data_id_col = data_id_col
-        # --comparison replaces the design column entirely: blank the column
-        # name so prepare_* never reads design cells (group names then come
-        # from the `group` column only) and run() skips build_design_pairs.
-        self.comparison_file = comparison_file
-        self.design_col = "" if comparison_file else design_col
+        # 实验对比设计唯一住 design JSON(--design);design 列只保留
+        # SampleInfo.design 存储(MERIP 角色 / group 回退),不参与配对。
+        self.design_col = design_col
+        self.design = design
+        self.column_design: Dict[str, Any] = {}
         self.group_col = group_col
         self.workflow = workflow
         self.samples_dict = defaultdict(SampleInfo)
@@ -282,212 +258,306 @@ class MetadataUtils:
         logger.debug(f"sample_pairs: {sample_pairs}")
         return sample_pairs, group_pairs
 
-    def build_comparison_pairs(self) -> Tuple[List[DesignPair], List[CompareGroupPair]]:
+    def build_design_from_column(self) -> Dict[str, Any]:
+        """meta design 列(ctr_/exp_TAG)归一到 design 模型表示。
+
+        简写语义与 build_design_pairs 同源:data_type/组织分区内词元交集
+        配对、同标签攒组、组名取 group 列(缺省 <tag>_ctr/_exp)。同名组同
+        样本合并,异样本以 tag 后缀消歧。返回
+        {tissue: {groups: {组名: [样本键,...]}, comparisons:
+        {对比名: {groups: [参照组, 检验组], ref: 参照组}}}};再经
+        build_design_model_pairs 派生 group_pairs / designPairs,与旧列
+        配对逐条等价(assests/test/design_model_pairs_test.py 校验)。
         """
-        Build sample/group comparison pairs from the explicit comparison file
-        (run.py --comparison). The file declares sample-control relations per
-        comparison, so one sample can be control in one comparison and
-        experiment in another (role flips across comparisons) — which the
-        design column cannot express. When the comparison file is used, the
-        meta design column is NOT read at all.
+        buckets: Dict[Tuple[str, str, str, str],
+                      List[Tuple[str, SampleInfo]]] = defaultdict(list)
+        for sample_key, info in self.samples_dict.items():
+            design_val = getattr(info, self.design_col, "")
+            if design_val is None:
+                continue
+            if isinstance(design_val, bytes):
+                design_val = design_val.decode("utf-8")
+            if isinstance(design_val, float) and math.isnan(design_val):
+                continue
+            design_val = str(design_val).strip()
+            m = DESIGN_PATTERN.match(design_val)
+            if not m:
+                if design_val:
+                    logger.warning(f"Invalid design format for {sample_key}: {design_val}")
+                continue
+            role, contrast = m.groups()
+            role = "ctr" if role in ("ctr", "ctrl") else "exp"
+            dt = (getattr(info, "data_type", None) or "").strip().upper()
+            tissue = str(getattr(info, "tissue", None) or "UNKNOWN")
+            buckets[(tissue, dt, role, contrast)].append((sample_key, info))
 
-        Accepted JSON shapes (both carry the same fields):
-          - dict form (dict form mirrors sample_params.comparisons per comparison):
-                {"<comparison_id>": {"control_samples": [...],
-                                     "experiment_samples": [...],
-                                     "control_group_name": "...",      # optional
-                                     "experiment_group_name": "..."},  # optional
-                 ...}
-          - list form:
-                [{"comparison_id": "...", "control_samples": [...],
-                  "experiment_samples": [...],
-                  "control_group_name": "...", "experiment_group_name": "..."},
-                 ...]
+        registry: Dict[str, Dict[str, List[str]]] = defaultdict(dict)
+        names: Dict[Tuple[str, str, str, str], str] = {}
+        claims: Dict[Tuple[str, str], Tuple[str, str, str, str]] = {}
+        for key in sorted(buckets):
+            tissue, dt, role, tag = key
+            members = buckets[key]
+            name = members[0][1].group or f"{tag}_{'ctr' if role == 'ctr' else 'exp'}"
+            if (tissue, name) in claims:
+                name = f"{name}_{role}_{tag}"
+                if (tissue, name) in claims:
+                    name = f"{name}_{dt}"
+            claims[(tissue, name)] = key
+            registry[tissue][name] = [k for k, _ in members]
+            names[key] = name
 
-        Field keys match case-/punctuation-insensitively and accept ctrl/ctr
-        for controls and exp/experimental for experiments (e.g.
-        "experimental_samples", "control_group" also work). Sample fields take
-        a list of names, or a single string with comma/semicolon/space
-        separated names.
+        def _tokens(tag: str) -> set:
+            return set(tag.split("_"))
 
-        Group names fall back to the meta `group` column of the samples on
-        that side, then to "<comparison_id>_ctr" / "<comparison_id>_exp".
-        Organism comes from the first experiment sample.
-
-        Sample pairs (DesignPair) follow build_design_pairs semantics: every
-        experiment sample pairs with the FIRST control sample of its
-        comparison.
-
-        return a list of DesignPair objects and a list of CompareGroupPair objects
-        """
-        if not self.comparison_file:
-            raise ValueError("comparison_file is not set")
-        with open(self.comparison_file, "r", encoding="utf-8") as fh:
-            try:
-                raw = json.load(fh)
-            except json.JSONDecodeError as e:
-                raise ValueError(f"comparison file {self.comparison_file} is not valid JSON: {e}")
-
-        def _norm_key(key: Any) -> str:
-            return re.sub(r"[^a-z0-9]", "", str(key).lower())
-
-        def _canon_fields(obj: Dict[str, Any], where: str) -> Dict[str, Any]:
-            fields: Dict[str, Any] = {}
-            for k, v in obj.items():
-                canon = _COMPARISON_FIELD_ALIASES.get(_norm_key(k))
-                if canon is None:
-                    logger.warning(f"comparison {where}: unknown field '{k}', ignored")
+        out: Dict[str, Any] = {}
+        seen_contrasts: Dict[Tuple[str, str], Tuple[str, str]] = {}
+        exp_keys = [k for k in buckets if k[2] == "exp"]
+        for ekey in sorted(exp_keys):
+            tissue, dt, _, exp_tag = ekey
+            exp_tokens = _tokens(exp_tag)
+            for ckey in sorted(k for k in buckets
+                               if k[0] == tissue and k[1] == dt and k[2] == "ctr"):
+                ctr_tag = ckey[3]
+                shared = exp_tokens & _tokens(ctr_tag)
+                if not shared:
                     continue
-                if canon in fields:
-                    raise ValueError(
-                        f"comparison {where}: duplicate fields for '{canon}' (key '{k}')")
-                fields[canon] = v
-            return fields
+                if not {t for t in shared if not REP_PATTERN.match(t)}:
+                    logger.warning(
+                        f"Suspicious match: exp '{exp_tag}' and ctr '{ctr_tag}' "
+                        f"share only rep-like tokens {shared}. "
+                        "Consider providing a 'group' column or adjusting design format.")
+                ctr_name = names[ckey]
+                exp_name = names[ekey]
+                cname = f"{ctr_name}_vs_{exp_name}"
+                scope = out.setdefault(tissue, {"groups": registry[tissue],
+                                                "comparisons": {}})
+                entry = {"groups": [ctr_name, exp_name], "ref": ctr_name}
+                prev = seen_contrasts.get((tissue, cname))
+                if prev is not None:
+                    if prev == (ctr_tag, exp_tag) or scope["comparisons"].get(cname) == entry:
+                        continue
+                    logger.warning(
+                        f"design column: duplicate contrast '{cname}' from tags "
+                        f"{prev} and {(ctr_tag, exp_tag)}; merging into one comparison.")
+                    continue
+                seen_contrasts[(tissue, cname)] = (ctr_tag, exp_tag)
+                scope["comparisons"][cname] = entry
 
-        def _sample_list(value: Any, field: str, cmp_id: str) -> List[str]:
-            if value is None:
-                return []
-            items = value if isinstance(value, list) else [value]
-            names: List[str] = []
-            for item in items:
-                if not isinstance(item, str):
-                    item = str(item)
-                for part in re.split(r"[,;\s|]+", item.strip()):
-                    if part and part not in names:
-                        names.append(part)
-            return names
+        if not out:
+            logger.warning(
+                "Design column has values but no comparison was derived. "
+                "Check that control samples (ctr_/ctrl_) exist with matching tags.")
+        self.column_design = out
+        return out
 
-        # --- normalise entries to (comparison_id, fields) -----------------
-        entries: List[Tuple[str, Dict[str, Any]]] = []
-        if isinstance(raw, dict):
-            for cid, val in raw.items():
-                if not isinstance(val, dict):
-                    raise ValueError(
-                        f"comparison '{cid}': value must be an object with "
-                        "control_samples/experiment_samples")
-                entries.append((str(cid).strip(), _canon_fields(val, f"'{cid}'")))
-        elif isinstance(raw, list):
-            for i, val in enumerate(raw):
-                if not isinstance(val, dict):
-                    raise ValueError(f"comparison #{i + 1}: entry must be an object")
-                fields = _canon_fields(val, f"#{i + 1}")
-                cid = str(fields.pop("comparison_id", "")).strip()
-                if not cid:
-                    raise ValueError(f"comparison #{i + 1}: missing comparison_id")
-                entries.append((cid, fields))
-        else:
-            raise ValueError(
-                f"comparison file {self.comparison_file}: top level must be a "
-                "JSON object (comparison_id -> fields) or array of comparison objects")
-        if not entries:
-            raise ValueError(f"comparison file {self.comparison_file} declares no comparisons")
-        seen_ids = [cid for cid, _ in entries]
-        dup_ids = sorted({cid for cid in seen_ids if seen_ids.count(cid) > 1})
-        if dup_ids:
-            raise ValueError(f"comparison file {self.comparison_file}: duplicate comparison_id {dup_ids}")
+    def build_design_model_pairs(
+            self,
+            design: Dict[str, Any],
+        ) -> Tuple[List[DesignPair], List[CompareGroupPair]]:
+        """design 模型(sample_params.design 形状)派生 group_pairs + designPairs。
 
-        # --- sample name -> samples_dict key resolution -------------------
+        唯一实验对比设计入口(run.py --design 装载;meta design 列的配对与
+        --comparison JSON 均已退役)。展开语义与 rule 层
+        common.smk::comparison_design() 的 pairwise 视图一致(四种 coding;
+        派生对比名 = 参照组名_vs_检验组名,helmert 的参照侧组名为 prev_mean):
+
+            consecutive  相邻两两(前者参照)
+            vs_ref       其余每组对 ref(缺省 groups 首元素)
+            all_pairs    全两两,顺序前当参照
+            helmert      第 k 组对此前 k-1 组样本合并(prev_mean)
+
+        designPairs(逐样本对)只从两两 entry 派生:实验样本 ↔ 该对比第一个
+        对照样本(与旧 build_design_pairs / build_comparison_pairs 同语义);
+        多组序列不派生逐样本对。
+
+        校验(语义错误直接 raise,与 rule 层同严):scope 键 = 样本 tissue
+        属性(缺省 UNKNOWN);组样本非空无重复、可解析(样本键或唯一样本
+        名;跨 data_type 重名须写 <sample_id>|<data_type> 键)、组内同
+        data_type;对比内组间样本互斥、ref ∈ groups、coding 合法;派生对
+        比名不冲突。
+        """
+        design = design or {}
         keys_by_name: Dict[str, List[str]] = defaultdict(list)
         for key, info in self.samples_dict.items():
             keys_by_name[str(key)].append(key)
-            display = str(info.sample_id or "").strip()
+            display = str(getattr(info, "sample_id", "") or "").strip()
             if display and display != str(key):
                 keys_by_name[display].append(key)
 
-        def _resolve(names: List[str], field: str, cmp_id: str) -> List[str]:
-            keys: List[str] = []
-            for n in names:
-                matched = keys_by_name.get(n)
-                if not matched:
-                    raise ValueError(
-                        f"comparison '{cmp_id}': {field} sample '{n}' is not a "
-                        f"sample in the meta (known: {sorted(keys_by_name)})")
-                for k in matched:
-                    if k not in keys:
-                        keys.append(k)
-            return keys
+        def _tissue_of(key) -> str:
+            return str(getattr(self.samples_dict[key], "tissue", None) or "UNKNOWN")
 
-        def _group_name(explicit: Any, keys: List[str], fallback: str) -> str:
-            if explicit is not None and str(explicit).strip():
-                return str(explicit).strip()
-            for k in keys:
-                g = self.samples_dict[k].group
-                if g:
-                    return g
-            return fallback
+        def _resolve_one(name: str, where: str) -> str:
+            matched = keys_by_name.get(str(name)) or []
+            if not matched:
+                raise ValueError(
+                    f"{where}: sample '{name}' is not a sample in the meta "
+                    f"(known: {sorted(set(keys_by_name))})")
+            if len(matched) > 1:
+                raise ValueError(
+                    f"{where}: sample '{name}' spans several data_types "
+                    f"({matched}); use the unique key '<sample_id>|<data_type>'")
+            return matched[0]
 
+        codings = ("consecutive", "vs_ref", "all_pairs", "helmert")
         sample_pairs: List[DesignPair] = []
         group_pairs: List[CompareGroupPair] = []
-        seen_contrasts: Set[Tuple[str, str]] = set()
-        for cmp_id, fields in entries:
-            if not cmp_id:
-                raise ValueError("comparison_id must be a non-empty string")
-            ctrl_names = _sample_list(fields.get("control_samples"), "control_samples", cmp_id)
-            exp_names = _sample_list(fields.get("experiment_samples"), "experiment_samples", cmp_id)
-            if not ctrl_names or not exp_names:
+        seen_pairs: Set[Tuple[str, str]] = set()
+        derived_names: Dict[str, Tuple[str, str]] = {}
+
+        for scope, block in design.items():
+            if str(scope).startswith("_"):
+                continue
+            if not isinstance(block, dict):
+                raise ValueError(f"design.{scope}: entry must be an object")
+            registry = block.get("groups") or {}
+            comparisons = block.get("comparisons") or {}
+            if not registry:
                 raise ValueError(
-                    f"comparison '{cmp_id}': both control_samples and "
-                    "experiment_samples must be non-empty")
-            ctr_keys = _resolve(ctrl_names, "control", cmp_id)
-            exp_keys = _resolve(exp_names, "experiment", cmp_id)
-            overlap = sorted(set(ctr_keys) & set(exp_keys))
-            if overlap:
+                    f"design.{scope}.groups is empty — register at least 2 groups")
+            if not comparisons:
                 raise ValueError(
-                    f"comparison '{cmp_id}': {overlap} appear as BOTH control and "
-                    "experiment; role flips need separate comparisons")
+                    f"design.{scope}.comparisons is empty — no comparison to run")
 
-            ctr_group_name = _group_name(
-                fields.get("control_group_name"), ctr_keys, f"{cmp_id}_ctr")
-            exp_group_name = _group_name(
-                fields.get("experiment_group_name"), exp_keys, f"{cmp_id}_exp")
-            if ctr_group_name == exp_group_name:
-                logger.warning(
-                    f"comparison '{cmp_id}': control and experimental group have the "
-                    f"same name: '{ctr_group_name}'. group_pairs will collapse into a "
-                    "single key.")
-            contrast = (ctr_group_name, exp_group_name)
-            if contrast in seen_contrasts:
-                logger.warning(
-                    f"comparison '{cmp_id}': duplicate contrast "
-                    f"'{ctr_group_name}_vs_{exp_group_name}'; downstream will merge "
-                    "them into one comparison.")
-            seen_contrasts.add(contrast)
+            resolved: Dict[str, List[str]] = {}
+            for gname, samples in registry.items():
+                where = f"design.{scope}.groups.{gname}"
+                if not isinstance(samples, (list, tuple)) or not samples:
+                    raise ValueError(f"{where}: needs a non-empty sample list")
+                keys: List[str] = []
+                dts: Set[str] = set()
+                for s in samples:
+                    if not isinstance(s, str) or not s:
+                        raise ValueError(f"{where}: every sample must be a non-empty str")
+                    key = _resolve_one(s, where)
+                    if key in keys:
+                        raise ValueError(
+                            f"{where}: duplicate sample in group: {list(samples)}")
+                    keys.append(key)
+                    dts.add(str(getattr(self.samples_dict[key], "data_type", None)
+                                or "").strip().upper())
+                dts.discard("")
+                if len(dts) > 1:
+                    raise ValueError(
+                        f"{where}: samples span several data_types {sorted(dts)}; "
+                        "one group belongs to one data_type")
+                tissues = {_tissue_of(k) for k in keys}
+                if len(tissues) > 1:
+                    raise ValueError(
+                        f"{where}: samples span several tissues {sorted(tissues)}; "
+                        "条目内样本必须同组织")
+                (tissue,) = tissues
+                if tissue != str(scope):
+                    raise ValueError(
+                        f"{where}: samples belong to tissue '{tissue}', not the "
+                        f"scope key '{scope}' (scope = 样本 tissue 属性,缺省 "
+                        "UNKNOWN,无 tissue 列即单一 scope)")
+                resolved[gname] = keys
 
-            organisms = {self.samples_dict[k].organism or "UNKNOWN"
-                         for k in (*ctr_keys, *exp_keys)}
-            if len(organisms) > 1:
-                logger.warning(
-                    f"comparison '{cmp_id}': mixed organisms {sorted(organisms)}; "
-                    "using the first experiment sample's organism.")
-            exp_infos = [self.samples_dict[k] for k in exp_keys]
-            group_pairs.append(CompareGroupPair(
-                organism=exp_infos[0].organism or "UNKNOWN",
-                ctr_group_token=cmp_id,
-                exp_group_token=cmp_id,
-                ctr_group_name=ctr_group_name,
-                exp_group_name=exp_group_name,
-                ctr_sample_ids=ctr_keys,
-                exp_sample_ids=exp_keys,
-            ))
-            # build_design_pairs parity: each experiment sample pairs with the
-            # FIRST control sample of the comparison.
-            for k in exp_keys:
-                info = self.samples_dict[k]
-                sample_pairs.append(DesignPair(
-                    organism=info.organism,
-                    ctr_sample_id=ctr_keys[0],
-                    exp_sample_id=k,
-                    exp_group=info.group,
-                ))
+            def _resolve(names):
+                out: List[str] = []
+                for n in names:
+                    out.extend(resolved[n])
+                return out
 
-        logger.info(
-            f"comparison file {self.comparison_file}: "
-            f"{len(group_pairs)} group_pairs, {len(sample_pairs)} sample_pairs")
-        logger.debug(f"group_pairs: {group_pairs}")
-        logger.debug(f"sample_pairs: {sample_pairs}")
+            for cname, entry in comparisons.items():
+                if str(cname).startswith("_"):
+                    continue
+                where = f"design.{scope}.comparisons.{cname}"
+                if not isinstance(entry, dict):
+                    raise ValueError(f"{where}: entry must be an object")
+                names = entry.get("groups") or []
+                if not isinstance(names, (list, tuple)) or len(names) < 2:
+                    raise ValueError(
+                        f"{where}: 'groups' needs an ordered list of >= 2 group names")
+                if any(not isinstance(n, str) or not n for n in names):
+                    raise ValueError(
+                        f"{where}: every group name must be a non-empty str")
+                if len(set(names)) != len(names):
+                    raise ValueError(f"{where}: duplicate group name in {list(names)}")
+                unknown = [n for n in names if n not in resolved]
+                if unknown:
+                    raise ValueError(
+                        f"{where}: groups not registered in design.{scope}.groups: "
+                        f"{unknown}")
+                ref = entry.get("ref") or None
+                if ref is not None and ref not in names:
+                    raise ValueError(
+                        f"{where}: ref '{ref}' is not one of {list(names)}")
+                coding = entry.get("coding") or "consecutive"
+                if coding not in codings:
+                    raise ValueError(
+                        f"{where}: unknown coding {coding!r} — valid: {list(codings)}")
+
+                seen: Dict[str, str] = {}
+                for n in names:
+                    for s in resolved[n]:
+                        if s in seen:
+                            raise ValueError(
+                                f"{where}: sample '{s}' claimed by both "
+                                f"'{seen[s]}' and '{n}'")
+                        seen[s] = n
+
+                # 派生两两对(参照, 检验, 参照组名列表, 检验组名列表)——
+                # 与 comparison_design() 的 pairwise 展开逐条一致
+                pairs = []
+                if coding == "consecutive":
+                    for i in range(len(names) - 1):
+                        pairs.append((names[i], names[i + 1],
+                                      [names[i]], [names[i + 1]]))
+                elif coding == "vs_ref":
+                    r = ref or names[0]
+                    for n in names:
+                        if n != r:
+                            pairs.append((r, n, [r], [n]))
+                elif coding == "all_pairs":
+                    for i in range(len(names)):
+                        for j in range(i + 1, len(names)):
+                            pairs.append((names[i], names[j],
+                                          [names[i]], [names[j]]))
+                else:  # helmert
+                    for k in range(1, len(names)):
+                        pairs.append(("prev_mean", names[k],
+                                      list(names[:k]), [names[k]]))
+
+                for ctrl, test, ctrl_names, test_names in pairs:
+                    dname = f"{ctrl}_vs_{test}"
+                    if dname in derived_names and derived_names[dname] != (str(scope), cname):
+                        prev_scope, prev_cname = derived_names[dname]
+                        raise ValueError(
+                            f"{where}: derived contrast '{dname}' collides with "
+                            f"design.{prev_scope}.comparisons.{prev_cname} —— "
+                            "重名派生对比请改对比名或组名")
+                    derived_names[dname] = (str(scope), cname)
+                    ctr_keys = _resolve(ctrl_names)
+                    exp_keys = _resolve(test_names)
+                    organism = self.samples_dict[exp_keys[0]].organism or "UNKNOWN"
+                    group_pairs.append(CompareGroupPair(
+                        organism=organism,
+                        ctr_group_token=ctrl,
+                        exp_group_token=test,
+                        ctr_group_name=ctrl,
+                        exp_group_name=test,
+                        ctr_sample_ids=ctr_keys,
+                        exp_sample_ids=exp_keys,
+                    ))
+                    # designPairs 只属于两两 entry:实验样本 ↔ 首个对照样本
+                    if len(names) == 2:
+                        for exp_key in exp_keys:
+                            pair_key = (ctr_keys[0], exp_key)
+                            if pair_key in seen_pairs:
+                                continue
+                            seen_pairs.add(pair_key)
+                            sample_pairs.append(DesignPair(
+                                organism=organism,
+                                ctr_sample_id=ctr_keys[0],
+                                exp_sample_id=exp_key,
+                                exp_group=self.samples_dict[exp_key].group,
+                            ))
+
+        logger.debug(f"design-derived group_pairs: {group_pairs}")
+        logger.debug(f"design-derived designPairs: {sample_pairs}")
         return sample_pairs, group_pairs
-
-
 
     def _row_workflow(self, df_sample: pd.DataFrame, col: str = "workflow") -> Optional[str]:
         """Workflow name for resolve_genome's workflow-aware species mapping:
@@ -1283,26 +1353,21 @@ class MetadataUtils:
                 logger.info("No recognized FASTQ, BAM/PBI, or MS columns found in metadata, preparing FASTQ metadata by default")
                 raise ValueError("Metadata must contain either fastq_1/fastq_2, fastq_dir/sample_prefix, bam/pbi, or ms_file columns.")
 
-            if self.comparison_file:
-                # --comparison detected: the design column is skipped entirely
-                # (already blanked in __init__) and pairs come from the file.
-                logger.info(
-                    f"comparison file {self.comparison_file} detected, skip "
-                    "design column and build pairs from the comparison file")
-                sample_pairs, group_pairs = self.build_comparison_pairs()
+            if self.design:
+                sample_pairs, group_pairs = self.build_design_model_pairs(self.design)
             elif self.design_col in df.columns and not bool(df[self.design_col].isnull().all()):
-                sample_pairs, group_pairs = self.build_design_pairs()
+                column_design = self.build_design_from_column()
+                sample_pairs, group_pairs = (
+                    self.build_design_model_pairs(column_design)
+                    if column_design else ([], []))
             else:
-                logger.info(f"meta {self.design_col} is all none, skip build_design_pairs")
+                logger.info("no design model (run.py --design) and no meta design column, skip pair derivation")
                 sample_pairs, group_pairs = [], []
             return self.samples_dict, sample_pairs, group_pairs, self.raw_fq_dir, self._collect_raw_files(), self.cellranger_input_dict
         elif self.fastq_dir:
             self.prepare_fastq_dir(self.fastq_dir)
-            if self.comparison_file:
-                logger.info(
-                    f"comparison file {self.comparison_file} detected, skip "
-                    "design column and build pairs from the comparison file")
-                sample_pairs, group_pairs = self.build_comparison_pairs()
+            if self.design:
+                sample_pairs, group_pairs = self.build_design_model_pairs(self.design)
             else:
                 sample_pairs, group_pairs = [], []
             return self.samples_dict, sample_pairs, group_pairs, self.raw_fq_dir, self._collect_raw_files(), {}
@@ -1325,18 +1390,22 @@ def main():
     parser.add_argument("--workflow", default=None,
                         help="workflow context for species-alias resolution "
                              "(e.g. PacVar/Fiberseq resolve mouse -> T2T_mhaESC_v1.5)")
-    parser.add_argument("--comparison", default=None,
-                        help="JSON file declaring explicit sample-control comparisons "
-                             "(skips the design column entirely)")
+    parser.add_argument("--design", default=None,
+                        help="design JSON file (sample_params.design shape); "
+                             "derives group_pairs / designPairs")
 
     args = parser.parse_args()
 
+    design = None
+    if args.design:
+        with open(args.design, "r", encoding="utf-8") as fh:
+            design = json.load(fh)
     metadataUtils = MetadataUtils(
         meta=args.meta,
         outdir=args.outdir,
         fastq_dir=args.fastq_dir,
         workflow=args.workflow,
-        comparison_file=args.comparison
+        design=design,
     )
     res = metadataUtils.run()
     return res    

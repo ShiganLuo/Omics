@@ -546,15 +546,29 @@ def instance_inputs(datajson, samples, allow_missing=False):
 
 
 def instance_comparisons(datajson):
-    """Count ctr_/exp_ comparison pairs recorded in the instantiated json.
+    """Count derived comparison pairs recorded in the instantiated json.
 
-    sample_params.comparisons is organism-nested per docs/sample-params-split.md
-    ({organism: {name: {...}}}); older flat shapes and the pre-split
-    Params.<mod>.group_pairs / comparisons fields are understood too.
+    sample_params.design ({scope: {groups, comparisons}}) is the single
+    design model; each comparison expands per coding (consecutive / vs_ref /
+    all_pairs / helmert) into two-group contrasts. Legacy flat /
+    organism-nested comparison fields are understood too.
 
     Returns:
         Number of comparison pairs (0 when none).
     """
+    design = datajson.get("sample_params", {}).get("design") or {}
+    n_design = 0
+    for block in design.values():
+        for entry in ((block or {}).get("comparisons") or {}).values():
+            names = (entry or {}).get("groups") or []
+            k = len(names)
+            if k < 2:
+                continue
+            coding = (entry or {}).get("coding") or "consecutive"
+            n_design += (k - 1) if coding in ("consecutive", "helmert", "vs_ref") \
+                else k * (k - 1) // 2
+    if n_design:
+        return n_design
     candidates = [datajson.get("sample_params", {}).get("comparisons"),
                   cfg_get(datajson, "Params.sv.comparisons"),
                   cfg_get(datajson, "Params.DESeq2.group_pairs"),

@@ -10,7 +10,7 @@ python /data/16T/luosg/workflow/Omics/assests/test/gen_meta.py -d /path/to/your/
 |---|---|---|
 | `sample_id` | 样本唯一标识，用于流程输出目录命名 | 从 run.tsv "Run title" 列提取，若无则用 Accession |
 | `data_id` | 数据库登录号（CRR/SRR/ERR 等） | 从 run.tsv "Accession" 列提取 |
-| `design` | 实验分组或比较设计 | 分组型（MERIP/RNAseq）：从 sample_id 去重复后缀；比较型（PeakCalling）：`ctrl_TAG` / `exp_TAG` 格式，见 Step 3 |
+| `design` | 实验分组或比较设计 | 分组型（MERIP/RNAseq）：从 sample_id 去重复后缀；比较型（PeakCalling）：`ctrl_TAG` / `exp_TAG` 两两简写（归一到 design 表示，配对语义不变）；多因子/角色翻转用 design JSON（`run.py --design`） |
 | `fastq_1` | R1 绝对路径（单端则为唯一定向文件） | 实际 fastq 文件路径 |
 | `fastq_2` | R2 绝对路径（单端留空） | 实际 fastq 文件路径，单端测序留空 |
 | `workflow` | 工作流名称 | 根据数据类型和 parametes.txt 判断 |
@@ -140,66 +140,46 @@ H3K4me3_WT      exp_WT              ← 交集={WT} → 匹配
    awk -F'\t' 'NR>1{print $1}' meta.tsv | sort | uniq -d
    ```
 
-## comparison JSON：显式样本对照关系（--comparison）
+## design JSON：实验对比设计（--design）
 
-design 列是"每样本一个值"的角色模型，**多对比 + 角色翻转**（见 Pitfall 7）无法表达。
-`run.py --comparison comparison.json` 用一个 JSON 文件按对比显式声明对照/实验样本，
-检测到该参数时**完全跳过 design 列的读取与配对**，group_pairs 全部由该文件生成。
-样例见 `assests/test/comparison_example.json`。
+复杂实验对比设计住 design JSON（形状同 `sample_params.design`，样例见
+`assests/test/design_example.json`），`run.py --design design.json` 装载。
+meta 的 design 列保留为两两简写入口（配对语义不变，归一到 design 表示；
+`--design` 传入时不读该列）；旧 `--comparison` 已完全删除。多对比、角色
+翻转、多组序列（coding 展开）由 design JSON 表达（见 Pitfall 7）。
 
 ### 文件格式
 
-dict 形式（键 = 对比名；进入 config 的 `sample_params.comparisons` 时按样本
-organism 归组为嵌套结构）：
-
 ```json
 {
-  "DMSO_P6_vs_PlaB_P6": {
-    "control_group_name": "DMSO_P6",
-    "experiment_group_name": "PlaB_P6",
-    "control_samples": ["DMSO_P6_1", "DMSO_P6_2"],
-    "experiment_samples": ["PlaB_P6_1", "PlaB_P6_2"]
+  "<tissue>": {
+    "groups": {"<组名>": ["<sample_id>", "..."]},
+    "comparisons": {
+      "<对比名>": {
+        "groups": ["<组名>", "..."],
+        "ref": "<基线组名>",
+        "coding": "consecutive"
+      }
+    },
+    "tests": ["pairwise"]
   }
 }
 ```
 
-或列表形式（对比名放 `comparison_id` 字段）：
-
-```json
-[
-  {"comparison_id": "DMSO_P6_vs_PlaB_P6",
-   "control_samples": ["DMSO_P6_1", "DMSO_P6_2"],
-   "experiment_samples": ["PlaB_P6_1", "PlaB_P6_2"],
-   "control_group_name": "DMSO_P6",
-   "experiment_group_name": "PlaB_P6"}
-]
-```
-
-字段说明（键名大小写/下划线不敏感，`ctrl`/`ctr` = 对照、`exp`/`experimental` = 实验，
-如 `control_group`、`experimental_samples` 也合法）：
-
-| 字段 | 必填 | 说明 |
-|---|---|---|
-| `comparison_id`（dict 形式即外层键） | 是 | 对比唯一标识 |
-| `control_samples` | 是 | 对照样本名列表（与 meta `sample_id` 一致） |
-| `experiment_samples` | 是 | 实验样本名列表 |
-| `control_group_name` | 否 | 对照组名；缺省取样本 `group` 列，再缺省 `<comparison_id>_ctr` |
-| `experiment_group_name` | 否 | 实验组名；缺省取样本 `group` 列，再缺省 `<comparison_id>_exp` |
-
-### 语义与校验
-
-- 一个样本可出现在任意多个对比里，对照/实验角色**按对比独立声明**（角色翻转合法）；
-  同一对比内同一样本不能既是对照又是实验（直接报错）。
-- 样本名必须存在于 meta；写错直接报错并列出已知样本名。
-- 输出对比名 = `{control_group_name}_vs_{experiment_group_name}`；organism 取该对比
-  第一个实验样本的 organism；组名重名会告警（下游合并为一个对比）。
-- 与 design 配对同构的副产物 sample_pairs：每个实验样本与该对比的**第一个**对照
-  样本配对（Mutation / DR 的逐样本 tumor-normal 配对用）。
+- scope 键 = 样本 tissue 属性（无 tissue 列时全体归单一 scope，写 `"UNKNOWN"`）；
+  下划线开头的键为注释位，解析/校验跳过；
+- `groups` 有序 = 生物学顺序，2 元即普通两两；`ref` 仅 `vs_ref` 读取（缺省首组）；
+  `coding` = `consecutive`（相邻两两，前者参照）/ `vs_ref` / `all_pairs` /
+  `helmert`（第 k 组对此前各组均值，参照名 `prev_mean`）；
+- 组内样本同 data_type、条目内样本同组织；同一条对比引用的组之间样本互斥；
+  角色翻转用不同组名表达；派生对比名（`参照组名_vs_检验组名`）不可跨条目重复；
+- 逐样本对（Mutation / DR 的 tumor-normal、PeakCalling/RIPseq/ncRNAseq 的
+  ip-input）只从两两 entry 派生：实验样本 ↔ 该对比第一个对照样本。
 
 ### 用法
 
 ```bash
-python run.py -m meta.tsv -w PacVar -o output -t 30 --comparison comparison.json
+python run.py -m meta.tsv -w PacVar -o output -t 30 --design design.json
 ```
 
 ## 常见 Pitfalls
@@ -232,7 +212,10 @@ Sample1	SRR000001	GroupA	/path/to/SRR000001_1.fq.gz	/path/to/SRR000001_2.fq.gz	R
 Sample2	SRR000002	GroupA	/path/to/SRR000002_1.fq.gz	/path/to/SRR000002_2.fq.gz	RNAseq
 ```
 
-### 比较型（PeakCalling）
+### 比较型（PeakCalling 等 ip-input）
+
+design 列填 `ctrl_TAG` / `exp_TAG` 两两简写，词元交集配对（归一到 design
+表示后派生）；等价的 design JSON 写法见上文「design JSON」一节。
 
 ```tsv
 sample_id	data_id	design	fastq_1	fastq_2	workflow
@@ -248,42 +231,24 @@ H3K4me3_KO	CRR000004	exp_KO	/path/to/CRR000004_1.fq.gz	/path/to/CRR000004_2.fq.g
 - Input_KO（ctrl_WT_KO）→ H3K4me3_WT（exp_WT）共享 token `WT`
 - Input_KO（ctrl_WT_KO）→ H3K4me3_KO（exp_KO）共享 token `KO`
 
-### 7. design 单字段无法表达多因子设计（已知缺陷）
+### 7. 多因子设计与角色翻转（design JSON 表达）
 
-design 列每个样本只有一个值，即每个样本全局只有一个 ctr/exp 角色。
-**2×2 及更复杂的因子设计（一个样本参与多个对比且角色翻转）无法用
-design 单字段表达**，这是结构性限制，不是 tag 写法问题。
-
-反例（`meta_PacVar_iteration_totipotency.tsv`，处理 × 时间 2×2）：期望 4 个对比——
-
-```
-DMSO_P6 vs PlaB_P6      # 处理效应 @P6
-DMSO_P20 vs PlaB_P20    # 处理效应 @P20
-DMSO_P6 vs DMSO_P20     # 时间效应 @DMSO
-PlaB_P6 vs PlaB_P20     # 时间效应 @PlaB
-```
-
-角色冲突：PlaB_P6 既要是 exp（处理对比）又要是 ctr（时间对比），
-DMSO_P20 同理。无论怎么换 tag / 利用多 token 交集都绕不开——即便强行
-凑出配对，也至少两个对比的 ctr/exp 方向被翻转（SV comparison 的
-merged/only 语义会反过来）。实际只能产出两个处理对比，时间对比丢失。
-
-**已知缺陷的绕行方案**：不要在 design 列上凑，改用 comparison JSON 显式声明对比
-（`run.py --comparison comparison.json`，见上文「comparison JSON：显式样本对照关系」
-一节；此时 design 列整体跳过不读）。等价的旧绕行是工作流 config JSON 里手填对比
-（手填优先于 meta 推导，所有流程统一字段 `sample_params.comparisons`，organism
-嵌套形状，见 `docs/sample-params-split.md`）：
+meta design 列是"每样本一个值"的角色模型，无法表达一个样本参与多个对比且
+角色翻转（2×2 处理 × 时间）。**复杂对比设计写 design JSON**
+（`run.py --design`）：逐对比显式写 groups/ref，角色翻转天然合法。例
+（处理 × 时间 2×2，期望 4 个对比）：
 
 ```json
-"sample_params": {
-  "comparisons": {
-    "<organism>": {
-      "对比名": {"control_group_name": "...", "experimental_group_name": "...",
-                "control_samples": ["..."], "experimental_samples": ["..."]}
-    }
-  }
+"groups": {
+  "DMSO_P6": ["DMSO_P6_1", "DMSO_P6_2"], "PlaB_P6": ["PlaB_P6_1", "PlaB_P6_2"],
+  "DMSO_P20": ["DMSO_P20_1", "DMSO_P20_2"], "PlaB_P20": ["PlaB_P20_1", "PlaB_P20_2"]
+},
+"comparisons": {
+  "trt_P6":    {"groups": ["DMSO_P6", "PlaB_P6"],   "ref": "DMSO_P6"},
+  "trt_P20":   {"groups": ["DMSO_P20", "PlaB_P20"], "ref": "DMSO_P20"},
+  "time_DMSO": {"groups": ["DMSO_P6", "DMSO_P20"],  "ref": "DMSO_P6"},
+  "time_PlaB": {"groups": ["PlaB_P6", "PlaB_P20"],  "ref": "PlaB_P6"}
 }
 ```
 
-样本名列表是显式声明，任意对比、任意方向、一个样本出现在任意多个对比
-里均可。此时 design 列可留空（不会触发 ctr_/exp_ 推导）。
+方向一律"参照 vs 检验"（ref 为参照）；一个样本出现在任意多个对比里均可。

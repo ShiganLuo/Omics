@@ -1,4 +1,9 @@
 shell.prefix("set -x; set -e;")
+config.setdefault("OUTDIR_ROOT", config.get("Params", {}).get("workflow", {}).get("outdir", "output"))
+include: "../modules/common/common.smk"
+comparisons_view = design_comparisons(
+    config.get("sample_params", {}).get("design") or {},
+    config.get("sample_params", {}).get("organism_samples") or {})
 from snakemake.logging import logger
 import os
 ROOT_DIR = config.get("ROOT_DIR", ".")
@@ -295,7 +300,7 @@ DESeq2_config = {
         "ROOT_DIR": ROOT_DIR,
         "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
-        "comparisons": config.get("sample_params", {}).get("comparisons"),
+        "comparisons": comparisons_view,
         "Params": {
             "DESeq2": config.get("Params", {}).get("DESeq2", {})
         },
@@ -324,7 +329,7 @@ function_config = {
     "counts_dir": featureCounts_config["outdir"],
     "outdir": f"{outdir}/function",
     "logdir": os.path.join(logdir,"group"),
-    "comparisons": config.get("sample_params", {}).get("comparisons"),
+    "comparisons": comparisons_view,
     "genome": config.get('genome',{}),
     "Params": {
         "function": config.get("Params", {}).get("function", {})
@@ -669,7 +674,7 @@ RNAseq_report_config = {
     "genome_samples": genome_samples,
     "genome_paired_samples": genome_paired_samples,
     "genome_single_samples": genome_single_samples,
-    "comparisons": config.get("sample_params", {}).get("comparisons"),
+    "comparisons": comparisons_view,
     "Params": {
         "report": config.get("Params", {}).get("report", {}),
         "DESeq2": config.get("Params", {}).get("DESeq2", {}),

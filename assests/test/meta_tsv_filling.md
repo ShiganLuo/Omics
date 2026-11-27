@@ -145,7 +145,8 @@ H3K4me3_WT      exp_WT              ← 交集={WT} → 匹配
 复杂实验对比设计住 design JSON（形状同 `sample_params.design`，样例见
 `assests/test/design_example.json`），`run.py --design design.json` 装载。
 meta 的 design 列保留为两两简写入口（配对语义不变，归一到 design 表示；
-`--design` 传入时不读该列）；旧 `--comparison` 已完全删除。多对比、角色
+同名异样本的组自动加数字后缀消歧，如 mESC1、mESC2；`--design` 传入时不读
+该列）；旧 `--comparison` 已完全删除。多对比、角色
 翻转、多组序列（coding 展开）由 design JSON 表达（见 Pitfall 7）。
 
 ### 文件格式
@@ -173,6 +174,7 @@ meta 的 design 列保留为两两简写入口（配对语义不变，归一到 
   `helmert`（第 k 组对此前各组均值，参照名 `prev_mean`）；
 - 组内样本同 data_type、条目内样本同组织；同一条对比引用的组之间样本互斥；
   角色翻转用不同组名表达；派生对比名（`参照组名_vs_检验组名`）不可跨条目重复；
+- 有 group 值的样本都会进组注册表（没有对比也注册，后续可随时补对比）；
 - 逐样本对（Mutation / DR 的 tumor-normal、PeakCalling/RIPseq/ncRNAseq 的
   ip-input）只从两两 entry 派生：实验样本 ↔ 该对比第一个对照样本。
 

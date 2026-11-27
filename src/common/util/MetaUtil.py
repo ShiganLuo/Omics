@@ -245,8 +245,8 @@ class MetadataUtils:
         """meta design 列(ctr_/exp_TAG)归一到 design 模型表示。
 
         简写语义与 build_design_pairs 同源:data_type/组织分区内词元交集
-        配对、同标签攒组、组名取 group 列(缺省 <tag>_ctr/_exp)。同名组同
-        样本合并,异样本以 tag 后缀消歧。返回
+        配对、同标签攒组、组名取 group 列(缺省 <tag>_ctr/_exp)。同名异
+        样本按认领顺序加数字后缀消歧(mESC1、mESC2…)。返回
         {tissue: {groups: {组名: [样本键,...]}, comparisons:
         {对比名: {groups: [参照组, 检验组], ref: 参照组}}}};再经
         build_design_model_pairs 派生 group_pairs / designPairs,与旧列
@@ -254,6 +254,7 @@ class MetadataUtils:
         """
         buckets: Dict[Tuple[str, str, str, str],
                       List[Tuple[str, SampleInfo]]] = defaultdict(list)
+        tagged: Set[str] = set()
         for sample_key, info in self.samples_dict.items():
             design_val = getattr(info, self.design_col, "")
             if design_val is None:
@@ -273,26 +274,50 @@ class MetadataUtils:
             dt = (getattr(info, "data_type", None) or "").strip().upper()
             tissue = str(getattr(info, "tissue", None) or "UNKNOWN")
             buckets[(tissue, dt, role, contrast)].append((sample_key, info))
+            tagged.add(sample_key)
+        for sample_key, info in self.samples_dict.items():
+            if sample_key in tagged:
+                continue
+            grp = (getattr(info, "group", None) or "").strip()
+            if not grp:
+                continue
+            dt = (getattr(info, "data_type", None) or "").strip().upper()
+            tissue = str(getattr(info, "tissue", None) or "UNKNOWN")
+            buckets[(tissue, dt, "", grp)].append((sample_key, info))
 
         registry: Dict[str, Dict[str, List[str]]] = defaultdict(dict)
         names: Dict[Tuple[str, str, str, str], str] = {}
-        claims: Dict[Tuple[str, str], Tuple[str, str, str, str]] = {}
+        preferred: Dict[Tuple[str, str, str, str], str] = {}
         for key in sorted(buckets):
             tissue, dt, role, tag = key
             members = buckets[key]
-            name = members[0][1].group or f"{tag}_{'ctr' if role == 'ctr' else 'exp'}"
-            if (tissue, name) in claims:
-                name = f"{name}_{role}_{tag}"
-                if (tissue, name) in claims:
-                    name = f"{name}_{dt}"
-            claims[(tissue, name)] = key
-            registry[tissue][name] = [k for k, _ in members]
-            names[key] = name
+            preferred[key] = members[0][1].group or f"{tag}_{'ctr' if role == 'ctr' else 'exp'}"
+        claimants: Dict[Tuple[str, str], List[Tuple[str, str, str, str]]] = defaultdict(list)
+        for key in sorted(buckets):
+            claimants[(key[0], preferred[key])].append(key)
+        taken: Dict[str, Set[str]] = defaultdict(set)
+        for (tissue, base), keys in sorted(claimants.items()):
+            if len(keys) == 1:
+                taken[tissue].add(base)
+                names[keys[0]] = base
+        for (tissue, base), keys in sorted(claimants.items()):
+            if len(keys) == 1:
+                continue
+            n = 0
+            for key in keys:
+                n += 1
+                while f"{base}{n}" in taken[tissue]:
+                    n += 1
+                taken[tissue].add(f"{base}{n}")
+                names[key] = f"{base}{n}"
+        for key in sorted(buckets):
+            registry[key[0]][names[key]] = [k for k, _ in buckets[key]]
 
         def _tokens(tag: str) -> set:
             return set(tag.split("_"))
 
-        out: Dict[str, Any] = {}
+        out: Dict[str, Any] = {t: {"groups": reg, "comparisons": {}}
+                               for t, reg in registry.items()}
         seen_contrasts: Dict[Tuple[str, str], Tuple[str, str]] = {}
         exp_keys = [k for k in buckets if k[2] == "exp"]
         for ekey in sorted(exp_keys):
@@ -312,8 +337,7 @@ class MetadataUtils:
                 ctr_name = names[ckey]
                 exp_name = names[ekey]
                 cname = f"{ctr_name}_vs_{exp_name}"
-                scope = out.setdefault(tissue, {"groups": registry[tissue],
-                                                "comparisons": {}})
+                scope = out[tissue]
                 entry = {"groups": [ctr_name, exp_name], "ref": ctr_name}
                 prev = seen_contrasts.get((tissue, cname))
                 if prev is not None:
@@ -326,9 +350,10 @@ class MetadataUtils:
                 seen_contrasts[(tissue, cname)] = (ctr_tag, exp_tag)
                 scope["comparisons"][cname] = entry
 
-        if not out:
+        if any(k[2] in ("ctr", "exp") for k in buckets) and not any(
+                b["comparisons"] for b in out.values()):
             logger.warning(
-                "Design column has values but no comparison was derived. "
+                "Design column has ctr_/exp_ values but no comparison was derived. "
                 "Check that control samples (ctr_/ctrl_) exist with matching tags.")
         self.column_design = out
         return out
@@ -398,9 +423,6 @@ class MetadataUtils:
             if not registry:
                 raise ValueError(
                     f"design.{scope}.groups is empty — register at least 2 groups")
-            if not comparisons:
-                raise ValueError(
-                    f"design.{scope}.comparisons is empty — no comparison to run")
 
             resolved: Dict[str, List[str]] = {}
             for gname, samples in registry.items():

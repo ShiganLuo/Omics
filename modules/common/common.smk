@@ -559,10 +559,7 @@ def comparison_design(design_source, tissue, view, tissue_samples=None):
         raise ValueError(
             f"comparison_design: design.{tissue}.groups is empty — "
             f"register at least 2 groups (组名: [sample_id, ...])")
-    if not comparisons:
-        raise ValueError(
-            f"comparison_design: design.{tissue}.comparisons is empty — "
-            f"no comparison to run")
+
 
     for gname, samples in registry.items():
         where = f"design.{tissue}.groups.{gname}"

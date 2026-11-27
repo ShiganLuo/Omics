@@ -118,6 +118,7 @@ rule hisat2_align:
         mem_mb = lambda wildcards, input, attempt: rule_res(
             "hisat2_align", input_size=input_size_mb(input),
             attempt=attempt).get("mem_mb", 32000),
+        io_bandwidth_mb_s = rule_res("hisat2_align").get("io_bandwidth_mb_s", 6),
     params:
         hisat2 = config.get('Procedure',{}).get('hisat2') or 'hisat2',
         samtools = config.get('Procedure',{}).get('samtools') or 'samtools',

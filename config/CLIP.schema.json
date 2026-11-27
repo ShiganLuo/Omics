@@ -93,6 +93,10 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "io_bandwidth_mb_s": {
+            "type": "int",
+            "required": false
           }
         }
       },
@@ -217,6 +221,10 @@
             "required": false
           },
           "mem_mb": {
+            "type": "int",
+            "required": false
+          },
+          "io_bandwidth_mb_s": {
             "type": "int",
             "required": false
           }

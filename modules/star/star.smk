@@ -38,7 +38,7 @@ rule star_index:
         sjdbOverhang = config.get('Params',{}).get('star', {}).get('index', {}).get('sjdbOverhang') or 100,
         genomeSAindexNbases = config.get('Params',{}).get('star', {}).get('index', {}).get('genomeSAindexNbases'),
         gtf = gtf,
-        outTmpDir = outdir + "/tmp_star"
+        outTmpDir = tmp_dir_root() + "/star_index"
     run:
         log_path = str(log)
         open(log_path, 'a').close()
@@ -161,6 +161,7 @@ rule star_align:
         mem_mb=lambda wildcards, input, attempt: rule_res(
             "star_align", input_size=input_size_named(input, 'fastq'),
             attempt=attempt).get("mem_mb", 32000),
+        io_bandwidth_mb_s=rule_res("star_align").get("io_bandwidth_mb_s", 56),
     params:
         outPrefix = outdir + "/{sample_id}/{sample_id}.",
         input_params = lambda wildcards, input: \
@@ -198,7 +199,7 @@ rule star_align:
         soloCBwhitelist = config.get("Params", {}).get("star", {}).get("star_align", {}).get("soloCBwhitelist", None),
         soloBarcodeReadLength = config.get("Params", {}).get("star", {}).get("star_align", {}).get("soloBarcodeReadLength", 1),
         limitSjdbInsertNsj = config.get("Params", {}).get("star", {}).get("star_align", {}).get("limitSjdbInsertNsj") or 1000000,
-        outTmpDir = outdir + "/{sample_id}/tmp_star"
+        outTmpDir = tmp_dir_root() + "/star_align/{sample_id}"
     conda:
         "star.yaml"
     container:

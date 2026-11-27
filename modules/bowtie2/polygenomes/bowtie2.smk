@@ -128,6 +128,7 @@ rule bowtie2_align_paired:
     benchmark: logdir + "/{sample_id}/{genome}/bowtie2_align.benchmark.tsv",
     resources:
         mem_mb=rule_res("bowtie2_align_paired").get("mem_mb", 16000),
+        io_bandwidth_mb_s=rule_res("bowtie2_align_paired").get("io_bandwidth_mb_s", 3),
     params:
         bowtie2 = config.get('Procedure',{}).get('bowtie2') or 'bowtie2',
         index_prefix = lambda wildcards, input: input.index[0].split(".1.bt2")[0],
@@ -189,6 +190,7 @@ rule bowtie2_align_single:
     benchmark: logdir + "/{sample_id}/{genome}/bowtie2_align.benchmark.tsv",
     resources:
         mem_mb=rule_res("bowtie2_align_single").get("mem_mb", 16000),
+        io_bandwidth_mb_s=rule_res("bowtie2_align_single").get("io_bandwidth_mb_s", 3),
     params:
         bowtie2 = config.get('Procedure',{}).get('bowtie2') or 'bowtie2',
         unmapped_prefix = outdir + "/{genome}/{sample_id}/{sample_id}_unmapped",

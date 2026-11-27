@@ -256,7 +256,8 @@
         "fixed_frac": 0.2,
         "min_mem_mb": 8000,
         "max_mem_mb": 200000
-      }
+      },
+      "io_bandwidth_mb_s": 11
     },
     "SplitNCigarReads": {
       "threads": 8,
@@ -274,7 +275,8 @@
       "mem_mb": 8000
     },
     "bam_sort": {
-      "threads": 8
+      "threads": 8,
+      "io_bandwidth_mb_s": 96
     },
     "burden_aggregate": {
       "threads": 1,

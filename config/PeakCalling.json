@@ -288,7 +288,8 @@
     },
     "MarkDuplicates": {
       "threads": 8,
-      "mem_mb": 32000
+      "mem_mb": 32000,
+      "io_bandwidth_mb_s": 11
     },
     "SplitNCigarReads": {
       "threads": 8,
@@ -311,11 +312,13 @@
     },
     "bowtie2_align_paired": {
       "threads": 8,
-      "mem_mb": 16000
+      "mem_mb": 16000,
+      "io_bandwidth_mb_s": 3
     },
     "bowtie2_align_single": {
       "threads": 8,
-      "mem_mb": 16000
+      "mem_mb": 16000,
+      "io_bandwidth_mb_s": 3
     },
     "bowtie2_index": {
       "threads": 12,

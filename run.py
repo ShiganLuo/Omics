@@ -94,6 +94,67 @@ def _detect_total_mem_mb(default_mb: int = 470000) -> int:
 
 MIN_MEM_SHARE_MB = 8000
 
+# I/O 带宽预算(设计 §8.3):盘类型 → 可持续混合读写带宽(MB/s)。全部为待校准
+# 暂定值(HDD 取现场 sda 饱和吞吐 76~100 MB/s 留余量;SSD/NVMe 为数量级估值),
+# 由校准扩展(设计 §10)实测重定。
+DISK_SUSTAINABLE_MB_S = {"hdd": 150, "sata_ssd": 450, "nvme": 1200}
+IO_SAFETY_FACTOR = 0.8
+MIN_DISK_SHARE_MB_S = 10   # 多工作流切分时每工作流带宽份额下限(经验值,待校准)
+TMP_FREE_WARN_MB = 50000  # tmp 剩余空间告警阈值(经验值:STAR 单 job tmp ~17 GB,待校准)
+
+
+def _detect_disk_budget_mb_s(outdir: str) -> int:
+    """I/O 带宽预算(MB/s) = io_safety_factor × outdir 所在盘的可持续带宽(设计 §8.3/§8.4)。
+
+    盘类型探测:st_dev → /sys/dev/block/<maj>:<min> 的 DEVNAME(含 nvme → NVMe)
+    与 queue/rotational(分区缺 queue 时向父盘回退一层)。任何探测失败回退 HDD
+    暂定常量并告警,绝不拒绝启动(设计 §8.6)。
+    """
+    kind = "hdd"
+    try:
+        st_dev = os.stat(outdir).st_dev
+        dev_dir = os.path.realpath(
+            f"/sys/dev/block/{os.major(st_dev)}:{os.minor(st_dev)}")
+        name = os.path.basename(dev_dir)
+        try:
+            with open(os.path.join(dev_dir, "uevent")) as fh:
+                for line in fh:
+                    if line.startswith("DEVNAME="):
+                        name = line.strip().split("=", 1)[1]
+                        break
+        except OSError:
+            pass
+        rotational = None
+        for d in (dev_dir, os.path.dirname(dev_dir)):
+            try:
+                with open(os.path.join(d, "queue", "rotational")) as fh:
+                    rotational = fh.read().strip()
+                break
+            except OSError:
+                continue
+        if "nvme" in name:
+            kind = "nvme"
+        elif rotational == "0":
+            kind = "sata_ssd"
+    except OSError:
+        logger.warning("disk budget: cannot probe outdir device, "
+                       "falling back to HDD constant")
+    return int(DISK_SUSTAINABLE_MB_S[kind] * IO_SAFETY_FACTOR)
+
+
+def _check_tmp_free_space(tmp_root: str) -> None:
+    """落 tmp 前的可用空间检查(设计 §9 边界):不足只告警不拦截,失败由重试兜底。"""
+    try:
+        st = os.statvfs(tmp_root)
+        free_mb = (st.f_bavail * st.f_frsize) // (1024 * 1024)
+        if free_mb < TMP_FREE_WARN_MB:
+            logger.warning(
+                "tmp dir %s has only %d MB free (< %d MB): concurrent jobs may "
+                "fill it; job failures fall back to --restart-times retries",
+                tmp_root, free_mb, TMP_FREE_WARN_MB)
+    except OSError:
+        pass
+
 
 def detect_host_profile() -> Dict[str, Any]:
     """Detect {hostname, cpus, mem_mb} of the current host (resource-balancing-proposal §3 第 1 点).
@@ -170,16 +231,40 @@ def _split_mem_budget(total_mb: int, weights: List[Optional[int]]) -> List[int]:
     return [max(s, floor) for s in shares]
 
 
-def _inject_resource_caps(input_json: str, mem_mb: int, cpus: int) -> None:
+def _split_disk_budget(total_mb_s: int, weights: List[Optional[int]]) -> List[int]:
+    """Split the disk bandwidth budget (MB/s) across workflows sharing one device.
+
+    Same rules as _split_mem_budget (input-bytes weighted, equal split when
+    weights unavailable, floor share so tiny workflows keep a usable slice) —
+    设计 §8.4 第 3 点.
+    """
+    n = len(weights)
+    if n <= 1:
+        return [total_mb_s]
+    w = [x or 0 for x in weights]
+    if sum(w) <= 0:
+        return [total_mb_s // n] * n
+    shares = [int(total_mb_s * x / sum(w)) for x in w]
+    floor = min(total_mb_s // n, MIN_DISK_SHARE_MB_S)
+    return [max(s, floor) for s in shares]
+
+
+def _inject_resource_caps(input_json: str, mem_mb: int, cpus: int,
+                          disk_budget_mb_s: Optional[int] = None) -> None:
     """Add config["resource_caps"] to a generated workflow config JSON.
 
-    common.smk's rule_res clamps declared mem_mb/threads against these caps
-    so no job can declare more than the process budget (P3). The value MUST
-    equal the --resources mem_mb passed on the same snakemake command line.
+    common.smk's rule_res clamps declared mem_mb/threads/io_bandwidth_mb_s
+    against these caps so no job can declare more than the process budget.
+    The values MUST equal the --resources values passed on the same snakemake
+    command line. disk_budget_mb_s (设计 §8.5) clamps io_bandwidth_mb_s;
+    omitted/0 -> no io clamping (run_module.py standalone behaviour).
     """
     with open(input_json, "r", encoding="utf-8") as f:
         cfg = json.load(f)
-    cfg["resource_caps"] = {"mem_mb": int(mem_mb), "cpus": int(cpus)}
+    caps = {"mem_mb": int(mem_mb), "cpus": int(cpus)}
+    if disk_budget_mb_s:
+        caps["disk_bandwidth_budget_mb_s"] = int(disk_budget_mb_s)
+    cfg["resource_caps"] = caps
     with open(input_json, "w", encoding="utf-8") as f:
         json.dump(cfg, f, indent=2, ensure_ascii=False)
 
@@ -250,6 +335,11 @@ def parse_args() -> argparse.Namespace:
         help='global mem_mb budget passed to snakemake --resources; jobs declaring '
              'resources.mem_mb are scheduled against it. Default: auto-detect '
              '(90%% of total RAM)')
+    parser.add_argument('--io-budget-mb-s', type=int, default=None, dest='io_budget_mb_s',
+        help='total disk bandwidth budget (MB/s) passed to snakemake --resources as '
+             'disk_bandwidth_budget_mb_s; jobs declaring resources.io_bandwidth_mb_s '
+             'are packed against it (design §8). Default: auto-detect from each '
+             "output disk's type; 0 disables I/O-aware scheduling")
     parser.add_argument('--singularity-args', type=str, default=None,
         help='arguments for singularity/apptainer, e.g. --singularity-args \'--bind /path1,/path2\' (use with --sdm)')
     parser.add_argument(
@@ -384,7 +474,9 @@ def _merge_singularity_args(
     add_bind_paths(json_bind_paths)
 
     if tmp_dir:
-        add_bind_paths([f"{tmp_dir}:/tmp"])
+        # 规则以 tmp_dir 绝对路径放临时文件(设计 §9),容器内需同名可见,
+        # 故自绑定;/tmp 映射保留给默认写 /tmp 的工具。
+        add_bind_paths([tmp_dir, f"{tmp_dir}:/tmp"])
     else:
         add_bind_paths(["/tmp"])
 
@@ -431,6 +523,7 @@ def build_snakemake_cmd(root_dir: str, smk: str, input_json: str, threads: int,
                         list_rules: bool = False,
                         forcerun_downstream: Optional[List[str]] = None,
                         mem_mb: Optional[int] = None,
+                        disk_budget_mb_s: Optional[int] = None,
                         restart_times: Optional[int] = None) -> List[str]:
     """Build the snakemake CLI command list for a given subworkflow.
 
@@ -476,10 +569,30 @@ def build_snakemake_cmd(root_dir: str, smk: str, input_json: str, threads: int,
         "--rerun-triggers",
         *rerun_trigger,
     ]
+    resources = []
     if mem_mb:
-        cmd += ["--resources", f"mem_mb={mem_mb}"]
+        resources.append(f"mem_mb={mem_mb}")
+    if disk_budget_mb_s:
+        resources.append(f"disk_bandwidth_budget_mb_s={disk_budget_mb_s}")
+    if resources:
+        cmd += ["--resources", *resources]
+    if disk_budget_mb_s:
+        # 未声明 io_bandwidth_mb_s 的规则的地板权重(设计 §8.6/§8.7);
+        # 限流关闭(0/未设)时不加,行为与现状逐比特一致。
+        cmd += ["--default-resources", "io_bandwidth_mb_s=1"]
     if restart_times:
         cmd += ["--restart-times", str(restart_times)]
+    # 临时目录(设计 §9):tmp_dir 未配置时默认 /tmp(自动分流,2026-11-27 已决)。
+    # 容器内同名可见:_merge_singularity_args 绑定 tmp_dir 自身及其 /tmp 映射。
+    with open(input_json, "r", encoding="utf-8") as _f:
+        _cfg = json.load(_f)
+    tmp_dir = _cfg.get("tmp_dir")
+    if tmp_dir and not os.path.isabs(tmp_dir):
+        tmp_dir = os.path.join(os.path.dirname(input_json), tmp_dir)
+    if tmp_dir:
+        os.makedirs(tmp_dir, exist_ok=True)
+    _check_tmp_free_space(tmp_dir or "/tmp")
+
     if os.environ.get("OMICS_SCRIPT_ONLY", "") == "1":
         pass
     elif not use_singularity:
@@ -495,14 +608,6 @@ def build_snakemake_cmd(root_dir: str, smk: str, input_json: str, threads: int,
             cmd += ["--sdm", sdm]
 
         json_bind_paths = _collect_bind_paths(input_json)
-
-        with open(input_json, "r", encoding="utf-8") as _f:
-            _cfg = json.load(_f)
-        tmp_dir = _cfg.get("tmp_dir")
-        if tmp_dir and not os.path.isabs(tmp_dir):
-            tmp_dir = os.path.join(os.path.dirname(input_json), tmp_dir)
-        if tmp_dir:
-            os.makedirs(tmp_dir, exist_ok=True)
 
         singularity_args = _merge_singularity_args(
             json_bind_paths,
@@ -1261,9 +1366,36 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
 
     run_started = time.time()
     weights = [p["input_bytes"] for p in pending]
+
+    # I/O 带宽预算(设计 §8.4):同一物理盘上的工作流按同一权重口径切分该盘预算,
+    # 解决 P4(多工作流各自无上限压同一块盘);--io-budget-mb-s 0 显式关闭限流。
+    io_budget_arg = getattr(args, "io_budget_mb_s", None)
+    if io_budget_arg is not None and io_budget_arg < 0:
+        raise ValueError("--io-budget-mb-s must be >= 0")
+    disk_shares: Dict[int, int] = {}
+    _dev_groups: Dict[int, List[int]] = {}
+    for _i, _p in enumerate(pending):
+        try:
+            _dev = os.stat(_p["outdir"]).st_dev
+        except OSError:
+            _dev = 0
+        _dev_groups.setdefault(_dev, []).append(_i)
+    for _dev, _idxs in _dev_groups.items():
+        if io_budget_arg == 0:
+            for _i in _idxs:
+                disk_shares[_i] = 0
+            continue
+        _total = io_budget_arg if io_budget_arg else _detect_disk_budget_mb_s(
+            pending[_idxs[0]]["outdir"])
+        _g_weights = [pending[_i]["input_bytes"] for _i in _idxs]
+        for _i, _s in zip(_idxs, _split_disk_budget(_total, _g_weights)):
+            disk_shares[_i] = _s
+
     mem_shares = _split_mem_budget(args.mem_mb, weights)
-    for p, share in zip(pending, mem_shares):
-        _inject_resource_caps(p["input_json"], mem_mb=share, cpus=threads_per_workflow)
+    for idx, (p, share) in enumerate(zip(pending, mem_shares)):
+        disk_share = disk_shares.get(idx, 0)
+        _inject_resource_caps(p["input_json"], mem_mb=share, cpus=threads_per_workflow,
+                              disk_budget_mb_s=disk_share or None)
         if args.schema_validate:
             try:
                 _sv = SchemaValidator()
@@ -1290,10 +1422,11 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
             list_rules=args.list_rules,
             forcerun_downstream=p["forcerun_downstream"],
             mem_mb=share,
+            disk_budget_mb_s=disk_share or None,
             restart_times=args.restart_times,
         )
-        logger.info("[%s] mem_mb share=%d (input_bytes=%s)",
-                    p["wf"], share, p["input_bytes"])
+        logger.info("[%s] mem_mb share=%d, disk budget=%s MB/s (input_bytes=%s)",
+                    p["wf"], share, disk_share or "off", p["input_bytes"])
         logger.info(f"[{p['wf']}] {cmd}")
         smk_cmds.append((cmd, p["outdir"]))
 
@@ -1307,10 +1440,13 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
             "threads_total": args.threads,
             "threads_per_workflow": threads_per_workflow,
             "mem_budget_mb": args.mem_mb,
+            "io_budget_mb_s": getattr(args, "io_budget_mb_s", None),
             "workflows": [
                 {"name": p["wf"], "input_bytes": p["input_bytes"],
-                 "mem_mb_share": s, "status": status.get(p["wf"], "unknown")}
-                for p, s in zip(pending, mem_shares)
+                 "mem_mb_share": s,
+                 "disk_budget_mb_s_share": disk_shares.get(i, 0),
+                 "status": status.get(p["wf"], "unknown")}
+                for i, (p, s) in enumerate(zip(pending, mem_shares))
             ],
         }
 

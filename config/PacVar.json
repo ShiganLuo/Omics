@@ -383,7 +383,9 @@
       "keep_intermediates": true,
       "qc": {
         "enabled": true,
-        "formats": ["png"]
+        "formats": [
+          "png"
+        ]
       }
     },
     "telomere": {
@@ -595,7 +597,8 @@
     },
     "MarkDuplicates": {
       "threads": 8,
-      "mem_mb": 32000
+      "mem_mb": 32000,
+      "io_bandwidth_mb_s": 11
     },
     "SplitNCigarReads": {
       "threads": 8,

@@ -562,7 +562,8 @@
         "fixed_frac": 0.2,
         "min_mem_mb": 8000,
         "max_mem_mb": 200000
-      }
+      },
+      "io_bandwidth_mb_s": 11
     },
     "SplitNCigarReads": {
       "threads": 8,
@@ -580,7 +581,8 @@
       "mem_mb": 3920
     },
     "bam_sort": {
-      "threads": 8
+      "threads": 8,
+      "io_bandwidth_mb_s": 96
     },
     "burden_aggregate": {
       "threads": 1,
@@ -777,7 +779,8 @@
         "fixed_frac": 0.9,
         "min_mem_mb": 32000,
         "max_mem_mb": 200000
-      }
+      },
+      "io_bandwidth_mb_s": 56
     },
     "star_index": {
       "threads": 12,
@@ -811,7 +814,8 @@
       "mem_mb": 6018
     },
     "bowtie2_align_paired": {
-      "mem_mb": 4258
+      "mem_mb": 4258,
+      "io_bandwidth_mb_s": 3
     },
     "function_go_kegg": {
       "mem_mb": 2814
@@ -820,7 +824,8 @@
       "mem_mb": 931
     },
     "hisat2_align": {
-      "mem_mb": 7601
+      "mem_mb": 7601,
+      "io_bandwidth_mb_s": 6
     },
     "stringTie": {
       "mem_mb": 550

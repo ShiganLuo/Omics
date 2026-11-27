@@ -4,7 +4,7 @@
 
 **一句话**：Omics 的资源分配是"主机感知 + 数据量感知 + I/O 感知 + 失败兜底 + 实测校准"的自适应体系，目标是在真实生产负载上最小化整体运行时间（makespan）。
 
-**状态**：核心机制（§3–§6）已实现；I/O 感知部分（§7–§10）为草案设计。落地路线、效果评判与待决问题见行动方案（本机 `~/.hermes/docs/io-aware-scheduling-plan.md`）。
+**状态**：全部已实现（2026-11-28 落地，含 I/O 感知部分 §7–§10）；试点评测与参数校准待进行，见行动方案（本机 `~/.hermes/docs/io-aware-scheduling-plan.md`）。
 
 ---
 
@@ -40,9 +40,9 @@
 | 数据量感知的资源缩放 | 资源 = 输入规模的函数，逐规则配 scale | 静态声明与数据量失配 | §4 | 已实现 |
 | attempt 升级与自动重试 | 失败自动重试 + 内存翻倍升级 | OOM 一次即失败 | §5 | 已实现 |
 | benchmark 校准闭环 | 实测峰值 → 建议表 → 护栏合入，持续校准 | 声明值失真、无法收敛 | §6 | 已实现 |
-| I/O 带宽预算 | 规则声明带宽需求，全局上限，调度打包不超预算 | I/O 无预算的并发挤压、多工作流抢盘 | §7–§8 | 草案 |
-| 临时写入分流 | tmp 写入与最终输出分盘 | 同盘写放大、寻道交错 | §9 | 草案 |
-| I/O 校准扩展 | calibrate 增加 io 建议列；可选磁盘带宽探测 | I/O 参数无实测回填通道 | §10 | 草案 |
+| I/O 带宽预算 | 规则声明带宽需求，全局上限，调度打包不超预算 | I/O 无预算的并发挤压、多工作流抢盘 | §7–§8 | 已实现 |
+| 临时写入分流 | tmp 写入与最终输出分盘 | 同盘写放大、寻道交错 | §9 | 已实现 |
+| I/O 校准扩展 | calibrate 增加 io 建议列；可选磁盘带宽探测 | I/O 参数无实测回填通道 | §10 | 已实现 |
 
 分工与闭环：**声明侧**（§4 缩放 + §6 校准）让资源声明贴近真实需求；**调度侧**（§3 主机预算 + §8 I/O 预算）保证并发排得下；**执行侧**（§5）兜住估偏导致的失败；I/O 侧另有降低需求的写入分流（§9）与参数回填（§10）。整个体系形成"声明 → 调度打包 → 执行 → 实测 → 校准 → 更准的声明"的闭环，其中 §4 的缩放参数唯一可靠来源是 §6 的实测数据，§5 兜住 §4 估偏的风险，§10 让 I/O 侧参数随实测收敛。
 
@@ -306,27 +306,29 @@ io_bandwidth_mb_s(<rule>) = p90 over benchmarks of (io_in + io_out) / wall_secon
 
 数据源：该规则历史 `*.benchmark.tsv` 的 `io_in/io_out/s` 列（§7.1 第 4 条，校准闭环的 resource_history 同一批数据）。锚定规则：取 p90（稳健上界），≥3 个数据点才给正式值、否则用调用点 fallback 常量；输入规模跨数量级的规则（如 gatk 系）暂用静态值并标注 v1 近似，升级路径 = 复用 scale 机制（与 mem 同款两段式）或按输入字节线性外推，待校准扩展（§10）的数据决定。
 
-**数值算例**（跨 2-3 个数量级，展示打包行为与钳位点）：
+**数值算例**（跨 2-3 个数量级，展示打包行为与钳位点；权重为 2026-11-28 落地值，锚定历史 benchmark p90）：
 
-规则权重（来自 benchmark 或 fallback）：
+规则权重（实现取值与依据）：
 
 | 规则 | io_bandwidth_mb_s | 依据 |
 |------|-------------------|------|
 | DESeq2 / 纯计算 | 0 | 无磁盘读写（读的是内存中的小矩阵） |
-| trimming | 8 | fastq 进 fastq 出，流式 |
-| star_align | 32 | 实测 16725 MB / 554 s ≈ 30，取整 |
-| gatk_sort（大 BAM 重排） | 96 | 输出≈输入 2×，大输入时的保守估计（v1 静态） |
+| bowtie2_align_paired / _single | 3 | benchmark p90 = 3.0（n=39） |
+| hisat2_align | 6 | benchmark p90 = 5.6（n=30） |
+| MarkDuplicates | 11 | benchmark p90 = 10.4（n=50） |
+| star_align | 56 | benchmark p90 = 55.6（n=48，全仓 results 汇总） |
+| bam_sort（排序类） | 96 | 无实测；排序类保守 fallback（写≈2×输入），待校准回填 |
 
-打包行为：
+打包行为（预算 = 0.8 × 盘带宽）：
 
 | 场景 | 预算 | 打包结果 |
 |------|------|----------|
-| HDD，3×star_align + trimming + DESeq2 | 120 | Σ=0+8+3×32=104 ≤ 120，5 个 job 并发成立 |
-| HDD，4×star_align 候选 | 120 | Σ=128 > 120，第 4 个暂缓——这正是 P1 的钳位点（对比现状：16 个全上，Σ≈480） |
-| HDD，1×gatk_sort | 120 | 96 ≤ 120，独占运行成立（再加任何 32 权重 job 即超） |
+| HDD，2×star_align + hisat2_align | 120 | Σ=2×56+6=118 ≤ 120，3 个 job 并发成立 |
+| HDD，第 3 个 star_align 候选 | 120 | Σ=174 > 120，暂缓——这正是 P1 的钳位点（对比现状：16 个全上） |
+| HDD，1×bam_sort + 1×star_align | 120 | Σ=152 > 120，bam_sort 独占运行 |
 | HDD，声明值 200 的超大 job | 120 | 触发 §8.5 clamp → 压到 120，单独运行（防假死） |
-| NVMe 输出 | 1200 | 37×star_align 理论可并发，钳位永不触发（限流自动退化为 no-op，正确行为） |
-| SATA SSD 输出 | 450 | 14×star_align，通常不绑定，但挡住病态并发 |
+| NVMe 输出 | 960 | 17×star_align 理论可并发，钳位永不触发（限流自动退化为 no-op，正确行为） |
+| SATA SSD 输出 | 360 | 6×star_align，通常不绑定，但挡住病态并发 |
 
 ### 8.4 run.py 接入
 
@@ -436,9 +438,9 @@ STAR 排序产生 ~16.7 GB 临时写再合并成最终 BAM（§7.1 第 4/5 条�
 | `src/common/util/CmdUtil.py` | `OMICS_RESOURCE_CAPS` 环境通道（模块级 clamp） | 已实现 |
 | `src/common/util/calibrate_resources.py` | benchmark 收集、历史累积、建议表、`--apply` 护栏合入 | 已实现 |
 | `config/*.json` + `*.schema.json` | `resources` 段（静态声明 + 可选 `scale` 段） | 已实现 |
-| `run.py` | `_detect_disk_budget_mb_s`、`build_snakemake_cmd` 追加 `disk_budget_mb_s`、`_split_disk_budget`、`--io-budget-mb-s`、run_summary 落盘 | 草案（§8） |
-| `modules/common/common.smk` | `_clamp_res_value` 扩展 io 键截断（含 `_validate_scale` 同款取值校验） | 草案（§8） |
-| `modules/star/star.smk`、`modules/hisat2/*.smk`、`modules/bowtie2/*.smk`、gatk/samtools 排序规则 | `resources: io_bandwidth_mb_s = rule_res("<rule>").get("io_bandwidth_mb_s", <fallback>)` 声明 | 草案（§8） |
-| `modules/star/star.smk`（:41、:201）及 gatk/samtools 排序规则 | outTmpDir / TMP_DIR 分流到 tmp_dir | 草案（§9） |
-| `config/<Workflow>.json` + `.schema.json` | `resources.<rule>.io_bandwidth_mb_s` 字段（schema 按 per-rule-resources-pattern 的 rule_schema 形态，indent=2 写回） | 草案（§8） |
-| `src/common/util/calibrate_resources.py` | io 建议列 + `--io-probe` | 草案（§10） |
+| `run.py` | `_detect_disk_budget_mb_s`、`build_snakemake_cmd` 追加 `disk_budget_mb_s`、`_split_disk_budget`、`--io-budget-mb-s`、run_summary 落盘 | 已实现（§8） |
+| `modules/common/common.smk` | `_clamp_res_value` 扩展 io 键截断（含 `_validate_scale` 同款取值校验） | 已实现（§8） |
+| `modules/star/star.smk`、`modules/hisat2/*.smk`、`modules/bowtie2/*.smk`、gatk/samtools 排序规则 | `resources: io_bandwidth_mb_s = rule_res("<rule>").get("io_bandwidth_mb_s", <fallback>)` 声明 | 已实现（§8） |
+| `modules/star/star.smk`（:41、:201）及 gatk/samtools 排序规则 | outTmpDir / TMP_DIR 分流到 tmp_dir | 已实现（§9） |
+| `config/<Workflow>.json` + `.schema.json` | `resources.<rule>.io_bandwidth_mb_s` 字段（schema 按 per-rule-resources-pattern 的 rule_schema 形态，indent=2 写回） | 已实现（§8） |
+| `src/common/util/calibrate_resources.py` | io 建议列 + `--io-probe` | 已实现（§10） |

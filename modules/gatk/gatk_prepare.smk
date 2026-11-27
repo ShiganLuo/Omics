@@ -172,10 +172,11 @@ rule MarkDuplicates:
         mem_mb = lambda wildcards, input, attempt: rule_res(
             "MarkDuplicates", input_size=input_size_named(input, 'bam'),
             attempt=attempt).get("mem_mb", 32000),
+        io_bandwidth_mb_s = rule_res("MarkDuplicates").get("io_bandwidth_mb_s", 11),
     params:
         javaOptions = config.get("Params", {}).get("gatk", {}).get("MarkDuplicates", {}).get("javaOptions", "-Xmx30g"),
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
-        tmp_dir = config.get("Params", {}).get("gatk", {}).get("MarkDuplicates", {}).get("tmp-dir", None)
+        tmp_dir = config.get("Params", {}).get("gatk", {}).get("MarkDuplicates", {}).get("tmp-dir") or tmp_dir_root()
     run:
         log_path = str(log)
         open(log_path, "a").close()

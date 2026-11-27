@@ -19,6 +19,7 @@ rule bam_sort:
         mem_mb = lambda wildcards, input, attempt: rule_res(
             "bam_sort", input_size=input_size_named(input, 'bam'),
             attempt=attempt).get("mem_mb", 32000),
+        io_bandwidth_mb_s = rule_res("bam_sort").get("io_bandwidth_mb_s", 96),
     conda:
         "../samtools.yaml"
     container:
@@ -28,11 +29,15 @@ rule bam_sort:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start samtools sort for sample {wildcards.sample_id} at {current_time}")
+        sort_tmp_prefix = tmp_dir_root() + f"/bam_sort/{wildcards.sample_id}"
+        os.makedirs(os.path.dirname(sort_tmp_prefix), exist_ok=True)
         cmd1 = [
             params.samtools,
             "sort",
             "-@",
             str(threads),
+            "-T",
+            sort_tmp_prefix,
             "-o",
             output.bam,
             input.bam

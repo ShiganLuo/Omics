@@ -169,7 +169,8 @@
     },
     "hisat2_align": {
       "threads": 12,
-      "mem_mb": 32000
+      "mem_mb": 32000,
+      "io_bandwidth_mb_s": 6
     },
     "hisat2_index": {
       "threads": 8,
@@ -210,7 +211,8 @@
     },
     "star_align": {
       "threads": 12,
-      "mem_mb": 32000
+      "mem_mb": 32000,
+      "io_bandwidth_mb_s": 56
     },
     "star_index": {
       "threads": 12,

@@ -108,6 +108,15 @@ def maybe_temp(path, mod_key):
     return path if keep is not False else temp(path)
 
 
+def tmp_dir_root():
+    """临时文件根目录(设计 §9):tmp_dir 未配置时默认 /tmp(2026-11-27 已决:自动分流)。
+
+    run.py 保证该路径在容器内同名可见(tmp_dir 自绑定;/tmp 默认绑定),规则可把
+    outTmpDir / TMP_DIR / samtools -T 前缀直接放在此目录下。
+    """
+    return config.get("tmp_dir") or "/tmp"
+
+
 
 def _require(value, key, tool=""):
     """Return a configured input path or fail naming the JSON key to fill.
@@ -126,13 +135,13 @@ def _require(value, key, tool=""):
 
 
 def _clamp_res_value(key, value, caps):
-    """Clamp one resource value against the host budget (resource-balancing-proposal §3 clamp).
+    """Clamp one resource value against the host budget (resource-balancing-proposal §3/§8.5 clamp).
 
-    Only ``mem_mb`` and ``threads`` are clamped; every other key, and every
-    value that fits the budget, passes through unchanged — rule semantics
-    are preserved. ``caps`` comes from ``config["resource_caps"]`` injected
-    by run.py (the per-process budget share); empty caps disable clamping
-    (standalone run_module.py runs keep today's behaviour).
+    Only ``mem_mb``, ``threads`` and ``io_bandwidth_mb_s`` are clamped; every
+    other key, and every value that fits the budget, passes through unchanged —
+    rule semantics are preserved. ``caps`` comes from ``config["resource_caps"]``
+    injected by run.py (the per-process budget share); empty caps disable
+    clamping (standalone run_module.py runs keep today's behaviour).
     """
     if not caps or isinstance(value, bool) or not isinstance(value, (int, float)):
         return value
@@ -140,6 +149,9 @@ def _clamp_res_value(key, value, caps):
         cap = int(caps["mem_mb"] * 0.8)
     elif key == "threads" and caps.get("cpus"):
         cap = int(caps["cpus"])
+    elif key == "io_bandwidth_mb_s" and caps.get("disk_bandwidth_budget_mb_s"):
+        # 设计 §8.5:声明值 ≥ 全局预算的 job 永远凑不齐打包条件,截断到预算值
+        cap = int(caps["disk_bandwidth_budget_mb_s"])
     else:
         return value
     if value > cap:
@@ -245,6 +257,16 @@ def _validate_scale(name, scale):
         raise ValueError(f"resources.{name}.scale.ref_input_size must be > 0")
 
 
+def _validate_io_weight(name, value):
+    """Reject invalid io_bandwidth_mb_s (设计 §8.6:<0 或非整数报错,命名键指向规则)。"""
+    if isinstance(value, bool) or not isinstance(value, (int, float)) \
+            or float(value) != int(value) or int(value) < 0:
+        raise ValueError(
+            f"resources.{name}.io_bandwidth_mb_s must be a non-negative "
+            f"integer (MB/s), got {value!r}")
+    return int(value)
+
+
 def _scaled_mem_mb(name, merged, input_size):
     """resource-balancing-proposal §4.3 两段式缩放:固定开销 + 数据相关。
 
@@ -308,6 +330,9 @@ def rule_res(name, input_size=None, attempt=1):
     merged = _RuleRes(config.get("resource_caps") or _resource_caps_from_env())
     merged.update(res_cfg.get("default") or {})
     merged.update(res_cfg.get(name) or {})
+    if "io_bandwidth_mb_s" in merged:
+        merged["io_bandwidth_mb_s"] = _validate_io_weight(
+            name, merged["io_bandwidth_mb_s"])
 
     scaled = _scaled_mem_mb(name, merged, input_size)
     if scaled is not None:

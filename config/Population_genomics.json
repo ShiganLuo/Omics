@@ -92,7 +92,8 @@
       "threads": 10
     },
     "MarkDuplicates": {
-      "threads": 8
+      "threads": 8,
+      "io_bandwidth_mb_s": 11
     },
     "SplitNCigarReads": {
       "threads": 8,

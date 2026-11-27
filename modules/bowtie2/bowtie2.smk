@@ -125,6 +125,7 @@ rule bowtie2_align_paired:
         mem_mb = lambda wildcards, input, attempt: rule_res(
             "bowtie2_align_paired", input_size=input_size_named(input, 'bam'),
             attempt=attempt).get("mem_mb", 16000),
+        io_bandwidth_mb_s = rule_res("bowtie2_align_paired").get("io_bandwidth_mb_s", 3),
     params:
         bowtie2 = config.get('Procedure',{}).get('bowtie2') or 'bowtie2',
         index_prefix = lambda wildcards, input: input.index[0].split(".1.bt2")[0],
@@ -189,6 +190,7 @@ rule bowtie2_align_single:
         mem_mb = lambda wildcards, input, attempt: rule_res(
             "bowtie2_align_single", input_size=input_size_named(input, 'fastq'),
             attempt=attempt).get("mem_mb", 16000),
+        io_bandwidth_mb_s = rule_res("bowtie2_align_single").get("io_bandwidth_mb_s", 3),
     params:
         bowtie2 = config.get('Procedure',{}).get('bowtie2') or 'bowtie2',
         unmapped_prefix = outdir + "/{sample_id}/{sample_id}_unmapped",

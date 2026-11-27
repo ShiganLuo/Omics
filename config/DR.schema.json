@@ -58,6 +58,10 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "io_bandwidth_mb_s": {
+            "type": "int",
+            "required": false
           }
         }
       },
@@ -324,6 +328,10 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "io_bandwidth_mb_s": {
+            "type": "int",
+            "required": false
           }
         }
       },
@@ -421,6 +429,10 @@
             "nullable": true,
             "required": false,
             "description": "该规则并行线程数"
+          },
+          "io_bandwidth_mb_s": {
+            "type": "int",
+            "required": false
           }
         }
       },
@@ -1101,8 +1113,7 @@
             }
           }
         }
-      }
-,
+      },
       "organism_samples": {
         "type": "dict",
         "nullable": true,

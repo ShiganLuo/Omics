@@ -22,7 +22,11 @@
      ≥3 个数据点才建议;单次调整幅度限 ±30%(防震荡);OOM 行按删失处理
      ——只用其 max_rss 作下界,不压低建议;
   输出 --out(默认 <root>/resources_suggest.tsv):rule、n、observed_p90_mb、
-     suggest_mb、prev_declared_mb、delta_pct、censored_n、note;
+     suggest_mb、prev_declared_mb、delta_pct、censored_n、note,外加 io 列
+     io_n、observed_io_p90_mb_s、suggest_io_bandwidth_mb_s、io_delta_pct
+     (设计 §10.1:io 权重 = p90((io_in+io_out)/s),±30% 限幅,只出建议人工合入);
+  --io-probe(默认关):实测 sustainable_disk_bandwidth_mb_s(设计 §10.2),
+     优先现成工具 fio/hdparm,缺失时内置 256MB 测速;结果写 <probe-dir>/io_probe.json。
   --apply:把建议值写回 --config 的 resources.<rule>.mem_mb(默认只出表不写)。
      护栏:已有声明值的调整须 n>=MIN_POINTS(样本不足不动)且单次 ±30%
      限幅;config 里不存在的规则键 n>=1 新建锚定(首个真实数据集起步,
@@ -36,7 +40,10 @@ import glob
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
+import time
 
 DEFAULT_SAFETY = 1.3
 DAMPING = 0.30
@@ -141,10 +148,12 @@ def resolve_rule(base, path, layout):
 
 
 def read_benchmarks(root):
-    """Collect (rule, attempt, seconds, max_rss_mb, source) from benchmark outputs.
+    """Collect (rule, attempt, seconds, max_rss_mb, io_mb_s, source) from benchmark outputs.
 
     Accepts both layouts: benchmarks/<rule>.tsv and the Omics log layout
     <...>/<rule>.benchmark.tsv(.txt) (snakemake ``benchmark:`` output).
+    io_mb_s = (io_in + io_out) / wall seconds (设计 §8.3); None when the tsv
+    has no io columns (old benchmarks) so zeros never fake "no I/O".
     """
     rows = []
     dropped = 0
@@ -179,7 +188,15 @@ def read_benchmarks(root):
                         rss_mb = float(rec.get("max_rss", 0) or 0)
                     except ValueError:
                         rss_mb = 0.0
-                    rows.append((rule, 1 if not censored_all else 2, secs, rss_mb, tsv))
+                    if "io_in" in rec or "io_out" in rec:
+                        try:
+                            io_mb = float(rec.get("io_in") or 0) + float(rec.get("io_out") or 0)
+                        except ValueError:
+                            io_mb = 0.0
+                        io_rate = (io_mb / secs) if (secs and secs > 0) else None
+                    else:
+                        io_rate = None
+                    rows.append((rule, 1 if not censored_all else 2, secs, rss_mb, io_rate, tsv))
         except OSError:
             continue
     if dropped:
@@ -217,6 +234,89 @@ def apply_to_config(config_path, applies):
         fh.write(out)
 
 
+def _median(vals):
+    xs = sorted(vals)
+    n = len(xs)
+    return xs[n // 2] if n % 2 else (xs[n // 2 - 1] + xs[n // 2]) / 2.0
+
+
+def probe_disk_bandwidth(probe_dir, size_mb=256, rounds=3):
+    """sustainable_disk_bandwidth_mb_s 实测(设计 §10.2)。
+
+    优先现成 Linux 测速工具(2026-11-27 已决):fio 顺序写+读 → hdparm(只读
+    上界估计)→ 内置 256 MB 写+读回退;每轮取写/读较慢者(混合读写口径),
+    3 轮取中位。返回 (mb_s, method)。测速本身写盘,只在空闲时人工开启。
+    """
+    fn = os.path.join(probe_dir, ".io_probe.bin")
+
+    def _cleanup():
+        try:
+            os.remove(fn)
+        except OSError:
+            pass
+
+    if shutil.which("fio"):
+        rates = []
+        try:
+            for rw in ("write", "read"):
+                out = subprocess.run(
+                    ["fio", "--name=io_probe", f"--filename={fn}",
+                     f"--size={size_mb}M", f"--rw={rw}", "--bs=1M",
+                     "--ioengine=psync", "--direct=1", "--numjobs=1",
+                     "--output-format=json"],
+                    capture_output=True, text=True, check=True)
+                data = json.loads(out.stdout)
+                rates.append(data["jobs"][0][rw]["bw_bytes"] / 1e6)
+            _cleanup()
+            return min(rates), "fio(write+read)"
+        except (subprocess.CalledProcessError, KeyError, ValueError, OSError,
+                IndexError) as e:
+            print(f"io-probe: fio failed ({e}), falling back", file=sys.stderr)
+            _cleanup()
+
+    if shutil.which("hdparm"):
+        try:
+            st_dev = os.stat(probe_dir).st_dev
+            dev_dir = os.path.realpath(
+                f"/sys/dev/block/{os.major(st_dev)}:{os.minor(st_dev)}")
+            devname = None
+            with open(os.path.join(dev_dir, "uevent")) as fh:
+                for line in fh:
+                    if line.startswith("DEVNAME="):
+                        devname = line.strip().split("=", 1)[1]
+                        break
+            if devname:
+                out = subprocess.run(["hdparm", "-t", f"/dev/{devname}"],
+                                     capture_output=True, text=True, check=True)
+                m = re.search(r"=\s*([\d.]+)\s*MB/sec", out.stdout)
+                if m:
+                    return float(m.group(1)), "hdparm(read-only 上界估计)"
+        except (subprocess.CalledProcessError, OSError, ValueError) as e:
+            print(f"io-probe: hdparm failed ({e}), falling back", file=sys.stderr)
+
+    # 内置回退:256 MB 顺序写+读,3 轮取中位
+    rates = []
+    block = os.urandom(1 << 20)  # 1 MB,避免全零被压缩/稀疏化
+    try:
+        for _ in range(rounds):
+            t0 = time.monotonic()
+            with open(fn, "wb") as fh:
+                for _ in range(size_mb):
+                    fh.write(block)
+                fh.flush()
+                os.fsync(fh.fileno())
+            w_rate = size_mb / max(time.monotonic() - t0, 1e-9)
+            t0 = time.monotonic()
+            with open(fn, "rb") as fh:
+                while fh.read(1 << 20):
+                    pass
+            r_rate = size_mb / max(time.monotonic() - t0, 1e-9)
+            rates.append(min(w_rate, r_rate))
+    finally:
+        _cleanup()
+    return _median(rates), "builtin(write+read, 256MB×3 取中位)"
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -234,9 +334,28 @@ def main(argv=None):
                     help="把建议值写回 --config 的 resources.<rule>.mem_mb"
                          f"(护栏:n<{MIN_POINTS} 不动、±30%% 限幅、取整、无变化不动)")
     ap.add_argument("--no-append", action="store_true", help="只出建议,不追加历史")
+    ap.add_argument("--io-probe", action="store_true",
+                    help="实测 sustainable_disk_bandwidth_mb_s(设计 §10.2,默认关;优先 "
+                         "fio/hdparm,缺失时内置 256MB 测速;测速写盘,只在空闲时人工开启)")
+    ap.add_argument("--probe-dir", default=None,
+                    help="--io-probe 的测速目录(默认第一个 --root)")
     args = ap.parse_args(argv)
 
     roots = args.roots or ["."]
+
+    if args.io_probe:
+        probe_dir = os.path.abspath(args.probe_dir or roots[0])
+        mb_s, method = probe_disk_bandwidth(probe_dir)
+        print(f"io-probe: sustainable_disk_bandwidth_mb_s = {mb_s:.0f} "
+              f"({method}; dir={probe_dir})")
+        try:
+            with open(os.path.join(probe_dir, "io_probe.json"), "w") as fh:
+                json.dump({"sustainable_disk_bandwidth_mb_s": mb_s,
+                           "method": method, "dir": probe_dir,
+                           "ts": datetime.datetime.now().isoformat(timespec="seconds")},
+                          fh, indent=2)
+        except OSError:
+            pass
     if args.history is None:
         if len(roots) > 1:
             ap.error("多 --root 须显式 --history(历史表位置由调用方指定,不预设共享路径)")
@@ -256,21 +375,34 @@ def main(argv=None):
         print("no benchmark tsv under any --root(先跑一次带 benchmark 的运行)", file=sys.stderr)
         return 1
 
+    hist_header = ["run_id", "ts", "rule", "attempt", "seconds", "max_rss_mb",
+                   "io_mb_s", "censored", "source"]
     new_history = 0
     if not args.no_append:
         exists = os.path.exists(args.history)
         seen = set()
         if exists:
             with open(args.history, newline="") as fh:
-                for rec in csv.DictReader(fh, delimiter="\t"):
-                    seen.add((rec["run_id"], rec["rule"], rec["attempt"], rec["max_rss_mb"]))
+                reader = csv.DictReader(fh, delimiter="\t")
+                old_rows = list(reader)
+                old_header = reader.fieldnames or []
+            if "io_mb_s" not in old_header:
+                # 历史表 schema 升级(设计 §10.1):补 io_mb_s 列,旧行留空,内容与行序保留
+                with open(args.history, "w", newline="") as fh:
+                    w = csv.DictWriter(fh, fieldnames=hist_header, delimiter="\t")
+                    w.writeheader()
+                    for rec in old_rows:
+                        rec.setdefault("io_mb_s", "")
+                        w.writerow({k: rec.get(k, "") for k in hist_header})
+            for rec in old_rows:
+                seen.add((rec["run_id"], rec["rule"], rec["attempt"], rec["max_rss_mb"]))
         run_id = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         with open(args.history, "a", newline="") as fh:
             w = csv.writer(fh, delimiter="\t")
             if not exists:
-                w.writerow(["run_id", "ts", "rule", "attempt", "seconds", "max_rss_mb", "censored", "source"])
+                w.writerow(hist_header)
             ts = datetime.datetime.now().isoformat(timespec="seconds")
-            for rule, attempt, secs, rss_mb, src in rows:
+            for rule, attempt, secs, rss_mb, io_rate, src in rows:
                 key = (run_id, rule, attempt, rss_mb)
                 if sum(1 for r in rows if r[0] == rule and r[1] == attempt and r[3] == rss_mb) > 1:
                     key = (run_id, rule, attempt, rss_mb, src)
@@ -278,6 +410,7 @@ def main(argv=None):
                     continue
                 w.writerow([run_id, ts, rule, attempt,
                             f"{secs:.1f}" if secs else "", f"{rss_mb:.0f}",
+                            f"{io_rate:.1f}" if io_rate is not None else "",
                             "1" if attempt > 1 else "0", src])
                 new_history += 1
         print(f"history: appended {new_history} rows -> {args.history}")
@@ -307,8 +440,14 @@ def main(argv=None):
                     continue
                 if why == "family":
                     family_rules.add(rule)
-                hist.setdefault(rule, {"all": [], "censored": []})
+                hist.setdefault(rule, {"all": [], "censored": [], "io": []})
                 (hist[rule]["censored"] if censored else hist[rule]["all"]).append(rss)
+                raw_io = rec.get("io_mb_s")
+                if raw_io not in (None, "") and not censored:
+                    try:
+                        hist[rule]["io"].append(float(raw_io))
+                    except ValueError:
+                        pass
 
     declared = {}
     if args.config and os.path.exists(args.config):
@@ -356,12 +495,36 @@ def main(argv=None):
                     note.append("not in config resources(--apply 新建条目)")
                     if low_n:
                         note.append(f"insufficient points({n_ok + n_cen}<{MIN_POINTS}), 单点锚定")
+        # io 权重建议(设计 §10.1):suggest = p90((io_in+io_out)/s),无安全系数;
+        # ±30% 限幅对 prev 声明值;<3 点仅信息性;只出建议,--apply 不写 io。
+        io_obs = hist[rule]["io"]
+        io_n = len(io_obs)
+        io_p90_raw = percentile(io_obs, 0.90) if io_obs else None
+        io_suggest = None
+        io_delta = None
+        if io_p90_raw is not None:
+            io_suggest = float(io_p90_raw)
+            prev_io = declared.get(rule, {}).get("io_bandwidth_mb_s")
+            if isinstance(prev_io, (int, float)) and not isinstance(prev_io, bool) \
+                    and prev_io > 0:
+                io_bounded = min(max(io_suggest, prev_io * (1 - DAMPING)),
+                                 prev_io * (1 + DAMPING))
+                if abs(io_bounded - io_suggest) > 1e-6:
+                    note.append("io damped ±30%")
+                    io_suggest = float(io_bounded)
+                io_delta = 100.0 * (io_suggest - prev_io) / prev_io
+            if io_n < MIN_POINTS:
+                note.append(f"insufficient io points({io_n}<{MIN_POINTS}), informational")
         out_rows.append({
             "rule": rule, "n_ok": n_ok, "n_censored": n_cen,
             "observed_p90_mb": f"{p90:.0f}",
             "suggest_mb": f"{suggest:.0f}",
             "prev_declared_mb": prev if prev else "",
             "delta_pct": f"{delta:+.0f}" if delta is not None else "",
+            "io_n": io_n,
+            "observed_io_p90_mb_s": f"{io_p90_raw:.0f}" if io_p90_raw is not None else "",
+            "suggest_io_bandwidth_mb_s": f"{io_suggest:.0f}" if io_suggest is not None else "",
+            "io_delta_pct": f"{io_delta:+.0f}" if io_delta is not None else "",
             "note": "; ".join(note),
         })
         if args.apply:

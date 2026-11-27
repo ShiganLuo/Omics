@@ -115,6 +115,7 @@ rule hisat2_align:
     benchmark: logdir + "/{sample_id}/{genome}/hisat2_align.benchmark.tsv",
     resources:
         mem_mb=rule_res("hisat2_align").get("mem_mb", 32000),
+        io_bandwidth_mb_s=rule_res("hisat2_align").get("io_bandwidth_mb_s", 6),
     conda:
         "../hisat2.yaml"
     params:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""方案 D 校准脚本:benchmark tsv → resource_history.tsv → resources_suggest.tsv →(--apply) config.
+"""benchmark 校准闭环脚本(对应 docs/resource-balancing-proposal.md §6):benchmark tsv → resource_history.tsv → resources_suggest.tsv →(--apply) config.
 
 用法(在 workflow 输出目录或其父目录下):
     python src/common/util/calibrate_resources.py --root OUTDIR [--root OUTDIR2 ...] \
@@ -7,8 +7,8 @@
     多项目时可重复 --root 各项目输出目录,观测合并进同一历史;历史表位置由
     调用方以 --history 指定(不预设共享路径,多 --root 时必填)。
 
-行为(对应 docs/resource-balancing-proposal.md §3.4):
-  D.1 收集:扫描 --root 下所有 benchmark 输出——`**/benchmarks/*.tsv`
+行为(对应 docs/resource-balancing-proposal.md §6):
+  6.1 收集:扫描 --root 下所有 benchmark 输出——`**/benchmarks/*.tsv`
      或 Omics 实际布局 `**/*.benchmark.tsv` / `**/*.benchmark.txt`
      (snakemake `benchmark:` 输出,列 s / h:m:s / max_rss / max_vms,
      max_rss 单位为 MB),每 job 每 attempt 追加多行,**追加**进 --history
@@ -18,7 +18,7 @@
      RULE_ALIASES/SUFFIX_ALIASES 固定映射;PE/SE 规则共用同一 benchmark
      文件名的(bowtie2_align/trimming)按 raw.json 样本布局逐行归属,
      归属不了的行丢弃并计数(不猜);
-  D.3 建议:按 rule 聚合历史,取 max_rss 的 p90 × 安全系数(默认 1.3)为建议值;
+  6.3 建议:按 rule 聚合历史,取 max_rss 的 p90 × 安全系数(默认 1.3)为建议值;
      ≥3 个数据点才建议;单次调整幅度限 ±30%(防震荡);OOM 行按删失处理
      ——只用其 max_rss 作下界,不压低建议;
   输出 --out(默认 <root>/resources_suggest.tsv):rule、n、observed_p90_mb、

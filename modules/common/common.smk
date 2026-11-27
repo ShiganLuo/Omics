@@ -126,7 +126,7 @@ def _require(value, key, tool=""):
 
 
 def _clamp_res_value(key, value, caps):
-    """Clamp one resource value against the host budget (方案 A clamp).
+    """Clamp one resource value against the host budget (resource-balancing-proposal §3 clamp).
 
     Only ``mem_mb`` and ``threads`` are clamped; every other key, and every
     value that fits the budget, passes through unchanged — rule semantics
@@ -170,7 +170,7 @@ def _resource_caps_from_env():
 
 
 def input_size_mb(input_files):
-    """Sum of input file sizes in MB (方案 B 规模度量,已定:字节数).
+    """Sum of input file sizes in MB (resource-balancing-proposal §4 规模度量,已定:字节数).
 
     ``input_files`` is a snakemake InputFiles instance (or any iterable of
     paths). Returns None when no file exists / total is 0 so callers fall
@@ -246,7 +246,7 @@ def _validate_scale(name, scale):
 
 
 def _scaled_mem_mb(name, merged, input_size):
-    """方案 B 两段式缩放:固定开销 + 数据相关(B.3)。
+    """resource-balancing-proposal §4.3 两段式缩放:固定开销 + 数据相关。
 
     mem = base × (fixed_frac + (1 − fixed_frac) × input_size / ref_input_size)
     """
@@ -285,12 +285,12 @@ class _RuleRes(dict):
 def rule_res(name, input_size=None, attempt=1):
     """Resolve resources for rule *name* from config["resources"].
 
-    Four steps, order fixed (方案 B; clamp MUST be last so scaled/attempt
+    Four steps, order fixed (§4; clamp MUST be last so scaled/attempt
     values cannot bypass the host budget):
       1) static merge: resources.default < resources[name];
       2) scale: when a ``scale`` block is configured AND input_size is given,
-         mem_mb follows the fixed-cost + data term formula (B.3);
-      3) attempt escalation: attempt>1 doubles mem_mb (方案 C, 2**(attempt-1));
+         mem_mb follows the fixed-cost + data term formula (§4.3);
+      3) attempt escalation: attempt>1 doubles mem_mb (§5, 2**(attempt-1));
       4) host clamp via config["resource_caps"] / OMICS_RESOURCE_CAPS.
 
     Callers that pass no input_size skip step 2 and behave exactly like

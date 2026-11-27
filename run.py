@@ -96,7 +96,7 @@ MIN_MEM_SHARE_MB = 8000
 
 
 def detect_host_profile() -> Dict[str, Any]:
-    """Detect {hostname, cpus, mem_mb} of the current host (方案 A 第 1 点).
+    """Detect {hostname, cpus, mem_mb} of the current host (resource-balancing-proposal §3 第 1 点).
 
     cpus: sched affinity first (containers/taskset bind below os.cpu_count),
     then cgroup v2 cpu.max quota, then os.cpu_count(). mem_mb reuses
@@ -120,7 +120,7 @@ def detect_host_profile() -> Dict[str, Any]:
 def _workflow_input_bytes(input_json: str) -> Optional[int]:
     """Total bytes of existing files referenced by a workflow config JSON.
 
-    Workload weight for the multi-workflow memory split (方案 A 第 3 点).
+    Workload weight for the multi-workflow memory split (resource-balancing-proposal §3 第 3 点).
     Returns None when no referenced file exists yet so callers fall back to
     an equal split.
     """
@@ -153,7 +153,7 @@ def _workflow_input_bytes(input_json: str) -> Optional[int]:
 
 
 def _split_mem_budget(total_mb: int, weights: List[Optional[int]]) -> List[int]:
-    """Split the memory budget across workflows (方案 A 第 3 点,已定:加权).
+    """Split the memory budget across workflows (resource-balancing-proposal §3 第 3 点,已定:加权).
 
     Weighted by input bytes; equal split when weights are unavailable.
     Every share keeps at least min(total//n, MIN_MEM_SHARE_MB) so a tiny
@@ -270,7 +270,7 @@ def parse_args() -> argparse.Namespace:
              'e.g. --forcerun-downstream somatic_spectrum')
     parser.add_argument('--unlock', action='store_true', help='unlock snakemake working directory')
     parser.add_argument('--restart-times', dest='restart_times', type=int, default=2,
-        help='snakemake --restart-times: retry failed jobs up to N times (方案 C; '
+        help='snakemake --restart-times: retry failed jobs up to N times (resource-balancing-proposal §5; '
              'resources mem_mb attempt-escalation x2**(attempt-1) in rule_res)')
     parser.add_argument('--no-schema-validate', dest='schema_validate', action='store_false',
         default=True, help='disable schema-based type casting for extra args')

@@ -449,5 +449,6 @@ STAR 排序产生 ~16.7 GB 临时写再合并成最终 BAM（§7.1 第 4/5 条�
 | `modules/common/common.smk` | `_clamp_res_value` 扩展 io 键截断（含 `_validate_scale` 同款取值校验） | 已实现（§8） |
 | `modules/star/star.smk`、`modules/hisat2/*.smk`、`modules/bowtie2/*.smk`、gatk/samtools 排序规则 | `resources: io_bandwidth_mb_s = rule_res("<rule>").get("io_bandwidth_mb_s", <fallback>)` 声明 | 已实现（§8） |
 | `modules/star/star.smk`（:41、:201）及 gatk/samtools 排序规则 | outTmpDir / TMP_DIR 分流到 tmp_dir | 已实现（§9） |
+| `node.py` / `run.py` | tmp_dir 中央解析：`显式值或 /tmp` 一次性写入总 json，`Params.gatk.*.tmp-dir` 统一派生 `<tmp_dir>/gatk`（per-rule 显式值优先）；全模块统一消费总 json tmp_dir，兜底一律 `/tmp`（禁止回落 `outdir/tmp`）；清理在默认 /tmp 模式只清工作流子目录 | 已实现（§9） |
 | `config/<Workflow>.json` + `.schema.json` | `resources.<rule>.io_bandwidth_mb_s` 字段（schema 按 per-rule-resources-pattern 的 rule_schema 形态，indent=2 写回） | 已实现（§8） |
 | `src/common/util/calibrate_resources.py` | io 建议列 + `--io-probe` | 已实现（§10） |

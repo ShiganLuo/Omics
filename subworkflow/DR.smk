@@ -254,7 +254,7 @@ gatk_somatic_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
-    "tmp_dir": config.get("tmp_dir"),
+    "tmp_dir": config.get("tmp_dir") or "/tmp",
     "env": config.get("env", {}),
     "indir": gatk_prepare_config["outdir"],
     "outdir": f"{outdir}/DNA/variation/somatic_snv_indel",

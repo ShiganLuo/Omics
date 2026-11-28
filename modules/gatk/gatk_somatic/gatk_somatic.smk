@@ -66,7 +66,7 @@ rule somaticMutect2:
     params:
         javaOptions = config.get("Params", {}).get("gatk", {}).get("somaticMutect2", {}).get("javaOptions", "-Xmx30g"),
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
-        tmp_dir = config.get("tmp_dir") or None
+        tmp_dir = config.get("tmp_dir") or "/tmp"
     threads: rule_res("somaticMutect2").get("threads", 10)
     benchmark: logdir + "/gatk/{normal_sample_id}_{experimental_sample_id}/{normal_sample_id}_{experimental_sample_id}_mutect2.benchmark.tsv",
     resources:
@@ -222,7 +222,7 @@ rule filterMutectCalls:
     params:
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         javaOptions = config.get("Params", {}).get("gatk", {}).get("filterMutectCalls", {}).get("javaOptions", "-Xmx8g"),
-        tmp_dir = config.get("tmp_dir") or None,
+        tmp_dir = config.get("tmp_dir") or "/tmp",
     run:
         log_path = str(log)
         open(log_path, "a").close()

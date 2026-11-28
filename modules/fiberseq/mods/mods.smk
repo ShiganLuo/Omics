@@ -89,7 +89,7 @@ rule fiberseq_mods_longtable:
         mod_type = mod_type_longtable,
         min_fibers = int(region_axis_longtable.get("options", {}).get("te", {}).get("min_fibers", 3)),
         loci_name = (f"te_{mod_type_longtable}_loci.tsv" if te_axis_longtable else ""),
-        tmp_dir = config.get("tmp_dir") or os.path.join(outdir, "tmp"),
+        tmp_dir = config.get("tmp_dir") or "/tmp",
     run:
         log_path = str(log)
         open(log_path, "a").close()

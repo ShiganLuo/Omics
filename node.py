@@ -837,6 +837,17 @@ def _replace_server_paths(obj: Any, foreign_dirs: List[str], current_db: str) ->
             else:
                 _replace_server_paths(v, foreign_dirs, current_db)
 
+_GATK_TMP_RULES = (
+    "gatk_index", "addReadsGroup", "MarkDuplicates",
+    "collectHsMetrics", "BaseRecalibrator", "ApplyBQSR",
+    "HaplotypeCaller", "filterHaplotypeCallerVcf",
+    "SplitNCigarReads", "VarientCalling", "vcf_filter",
+    "somaticMutect2", "filterMutectCalls",
+    "gatk_population_haplotype_caller",
+    "gatk_population_joint_genotyping",
+)
+
+
 def _init_raw_json(
     datajson: Dict[str, Any],
     indir: str,
@@ -845,7 +856,8 @@ def _init_raw_json(
     workflow: Optional[str] = None
 ) -> str:
     """Set common fields for raw.json: ROOT_DIR, indir, outdir, logdir, raw_files
-    (under sample_params).
+    (under sample_params), tmp_dir (中央解析:显式值或默认 /tmp,设计 §9;
+    Params.gatk.*.tmp-dir 统一派生 <tmp_dir>/gatk,显式 per-rule 值优先).
 
     Also detects the current server and rewrites any paths that reference a
     foreign server's database directory to use the current server's directory.
@@ -853,9 +865,16 @@ def _init_raw_json(
     root_dir = os.path.dirname(__file__)
     logdir = os.path.join(outdir, "log")
     os.makedirs(logdir, exist_ok=True)
-    tmp_dir = datajson.get("tmp_dir") or os.path.join(outdir, "tmp")
-    if not datajson.get("tmp_dir"):
-        os.makedirs(tmp_dir, exist_ok=True)
+    tmp_dir = datajson.get("tmp_dir") or "/tmp"
+    os.makedirs(tmp_dir, exist_ok=True)
+    datajson["tmp_dir"] = tmp_dir
+    gatk_dir = os.path.join(tmp_dir, "gatk")
+    os.makedirs(gatk_dir, exist_ok=True)
+    gatk = datajson.setdefault("Params", {}).setdefault("gatk", {})
+    for grule in _GATK_TMP_RULES:
+        entry = gatk.setdefault(grule, {})
+        if not entry.get("tmp-dir"):
+            entry["tmp-dir"] = gatk_dir
     datajson["ROOT_DIR"] = root_dir
     wf = datajson.setdefault("Params", {}).setdefault("workflow", {})
     wf["indir"] = indir
@@ -863,7 +882,6 @@ def _init_raw_json(
     wf["logdir"] = logdir
     sp = datajson.setdefault("sample_params", {})
     sp["raw_files"] = raw_files
-    datajson["tmp_dir"] = tmp_dir
 
     current_db = _detect_current_server_db()
     if current_db is not None:
@@ -1304,17 +1322,6 @@ def runPacVar(
             for name in comparisons:
                 outfiles.append(f"{sv_outdir}/{name}/sv_go_kegg/sv_go_kegg.done")
 
-    gatk_tmp_dir = os.path.join(outdir, "tmp")
-    os.makedirs(gatk_tmp_dir, exist_ok=True)
-    _gatk = datajson["Params"].setdefault("gatk", {})
-    for _grule in ("gatk_index", "addReadsGroup", "MarkDuplicates",
-                   "collectHsMetrics", "BaseRecalibrator", "ApplyBQSR",
-                   "HaplotypeCaller", "filterHaplotypeCallerVcf",
-                   "SplitNCigarReads", "VarientCalling", "vcf_filter",
-                   "somaticMutect2", "filterMutectCalls",
-                   "gatk_population_haplotype_caller",
-                   "gatk_population_joint_genotyping"):
-        _gatk.setdefault(_grule, {})["tmp-dir"] = gatk_tmp_dir
     datajson["sample_params"]["samples"] = samples
     outfiles += _register_regionplot(datajson, samples_info_dict, samples, outdir, "PacVar")
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")

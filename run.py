@@ -1014,8 +1014,11 @@ _TMP_CACHE_DIRS = (".cache", ".config", ".keras", ".parallel", ".RepeatMaskerCac
 _TIDK_KEEP = os.path.join(".local", "share", "tidk", "tidk_database.csv")
 
 
-def _run_tmp_dir(abs_outdir: str) -> str:
-    """Resolve the run's tmp dir from its raw.json (default <outdir>/tmp)."""
+_TMP_WORKFLOW_ENTRIES = ("star_align", "star_index", "bam_sort", "gatk")
+
+
+def _run_tmp_dir(abs_outdir: str) -> Optional[str]:
+    """The run's explicit tmp dir from its raw.json; None = 默认 /tmp 分流(设计 §9)。"""
     raw_path = os.path.join(abs_outdir, "raw.json")
     tmp_dir = None
     if os.path.isfile(raw_path):
@@ -1025,8 +1028,35 @@ def _run_tmp_dir(abs_outdir: str) -> str:
         except (OSError, ValueError):
             tmp_dir = None
     if not tmp_dir:
-        return os.path.join(abs_outdir, "tmp")
+        return None
     return tmp_dir if os.path.isabs(tmp_dir) else os.path.join(abs_outdir, tmp_dir)
+
+
+def _run_tmp_paths(abs_outdir: str) -> List[str]:
+    """Directories that may hold this run's temp files.
+
+    Explicit tmp_dir → the run's own dir(整体清空);默认 /tmp 分流时只认
+    工作流子目录(star_align、star_index*、bam_sort、gatk),绝不整扫 /tmp;
+    兼容旧布局 <outdir>/tmp(存在才收)。
+    """
+    root = _run_tmp_dir(abs_outdir)
+    if root and os.path.realpath(root) != "/tmp":
+        return [root]
+    paths = []
+    legacy = os.path.join(abs_outdir, "tmp")
+    if os.path.isdir(legacy):
+        paths.append(legacy)
+    for name in _TMP_WORKFLOW_ENTRIES:
+        p = os.path.join("/tmp", name)
+        if os.path.isdir(p):
+            paths.append(p)
+    try:
+        for name in sorted(os.listdir("/tmp")):
+            if name.startswith("star_index_") and os.path.isdir(os.path.join("/tmp", name)):
+                paths.append(os.path.join("/tmp", name))
+    except OSError:
+        pass
+    return paths
 
 
 def _tree_bytes(path: str) -> int:
@@ -1045,18 +1075,19 @@ def _tree_bytes(path: str) -> int:
 
 
 def report_temp_residue(abs_outdir: str, logger: logging.Logger) -> None:
-    tmp_dir = _run_tmp_dir(abs_outdir)
-    n = _tree_bytes(tmp_dir) if os.path.isdir(tmp_dir) else 0
+    paths = [p for p in _run_tmp_paths(abs_outdir) if os.path.isdir(p)]
+    n = sum(_tree_bytes(p) for p in paths)
     if n:
         logger.info("tmp residue in %s: %.1f MB (auto-cleaned after success; "
-                    "use --clean-temp to clean now)", tmp_dir, n / 2 ** 20)
+                    "use --clean-temp to clean now)", ", ".join(paths), n / 2 ** 20)
 
 
 def clean_run_temp(abs_outdir: str, logger: logging.Logger,
                    include_caches: bool = False) -> None:
     """Clear a finished run's temp space.
 
-    Always empties tmp_dir (the dir itself stays). With include_caches, also
+    Always empties the run's temp dirs (explicit tmp_dir 整体清空;默认 /tmp
+    分流时只清工作流子目录,目录本身保留)。With include_caches, also
     removes container/tool cache dirs at the output root, keeping the
     downloaded tidk database under .local.
 
@@ -1066,16 +1097,19 @@ def clean_run_temp(abs_outdir: str, logger: logging.Logger,
         include_caches: also remove cache dirs (.cache/.config/.keras/...).
     """
     freed = 0
-    tmp_dir = _run_tmp_dir(abs_outdir)
-    if os.path.isdir(tmp_dir):
-        freed = _tree_bytes(tmp_dir)
+    for tmp_dir in _run_tmp_paths(abs_outdir):
+        if not os.path.isdir(tmp_dir):
+            continue
+        freed += _tree_bytes(tmp_dir)
         for entry in os.listdir(tmp_dir):
             p = os.path.join(tmp_dir, entry)
             if os.path.islink(p) or os.path.isfile(p):
                 os.remove(p)
             else:
                 shutil.rmtree(p, ignore_errors=True)
-        logger.info("cleaned tmp dir %s (%.1f MB)", tmp_dir, freed / 2 ** 20)
+        logger.info("cleaned tmp dir %s", tmp_dir)
+    if freed:
+        logger.info("cleaned tmp total: %.1f MB", freed / 2 ** 20)
     if include_caches:
         cfreed = 0
         for name in _TMP_CACHE_DIRS:

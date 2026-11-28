@@ -174,7 +174,7 @@ fibertools_analysis_config = {
         "fasta": fasta,
         "fai": genome_ref.get("fai_index"),
     },
-    "tmp_dir": config.get("tmp_dir") or f"{outdir}/tmp",
+    "tmp_dir": config.get("tmp_dir") or "/tmp",
 }
 module fibertools_analysis:
     snakefile: "../modules/fibertools/fibertools_analysis.smk"
@@ -316,7 +316,7 @@ fiberseq_mods_config = {
     "logdir": f"{logdir}/group",
     "samples": samples,
     "te_bed": genome_ref.get("repeat_bed"),
-    "tmp_dir": config.get("tmp_dir") or f"{outdir}/tmp",
+    "tmp_dir": config.get("tmp_dir") or "/tmp",
     "sigtest_dir": sigtest_dir,
     "contrasts": (config.get("Params", {}).get("fiberseq_mods", {})
                   or {}).get("contrasts", []),
@@ -685,7 +685,7 @@ deepvariant_config = {
         "fasta": fasta,
         "fai": genome_ref.get("fai_index"),
     },
-    "tmp_dir": config.get("tmp_dir") or f"{outdir}/tmp",
+    "tmp_dir": config.get("tmp_dir") or "/tmp",
 }
 module deepvariant:
     snakefile: "../modules/deepvariant/deepvariant.smk"

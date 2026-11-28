@@ -8,7 +8,7 @@ logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 fasta = config.get("genome", {}).get("fasta")
 bam_substring = config.get("bam_substring") or ""
-tmp_dir = config.get("tmp_dir") or os.path.join(outdir, "tmp")
+tmp_dir = config.get("tmp_dir") or "/tmp"
 
 def get_input_for_deepvariant_run(wildcards):
     if bam_substring != "":

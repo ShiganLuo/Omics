@@ -143,7 +143,7 @@ rule ft_call_peaks:
         max_fdr = config.get("Params", {}).get("fibertools", {}).get("ft_call_peaks", {}).get("max_fdr", 0.05),
         min_fire_frac = config.get("Params", {}).get("fibertools", {}).get("ft_call_peaks", {}).get("min_fire_frac", 0.1),
         haps = config.get("Params", {}).get("fibertools", {}).get("ft_call_peaks", {}).get("haps", False),
-        tmp_dir = config.get("tmp_dir") or os.path.join(outdir, "tmp"),
+        tmp_dir = config.get("tmp_dir") or "/tmp",
     run:
         log_path = str(log)
         open(log_path, "a").close()
@@ -299,7 +299,7 @@ rule ft_extract_fire:
             ]
             if params.is_ont:
                 cmd.extend(["--ont"])
-            tmp_dir = config.get("tmp_dir") or os.path.join(outdir, "tmp")
+            tmp_dir = config.get("tmp_dir") or "/tmp"
             os.makedirs(tmp_dir, exist_ok=True)
             with open(command_script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")

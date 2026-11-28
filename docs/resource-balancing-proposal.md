@@ -25,6 +25,7 @@
 **自查条款**（一切魔法数须对目标给出理由或显式标注为待校准近似）：
 
 - clamp 的 0.8 余量、cores 的 90% 份额、份额下限 8 GB、p90×1.3——均为经验近似，由校准闭环（§6）按实测数据重定；
+- scale 拟合门槛（n≥3、≥2 个不同规模、跨度 ≥3×）与新建 scale 的 min/max 暂定 0.5×/4× base（§6.2/§6.3）——窄带斜率不可辨识的保守近似，跨度门槛与 min/max 占比待实测数据充分后重定；
 - 多工作流按**输入字节**加权是"工作量大头"的粗代理，不等于关键路径；存在"小数据但串行深的工作流被饿死 → 总时长反升"的理论风险。按待跑 job 数/实测耗时加权（同一 benchmark 数据源）是备选口径，字节加权作为 v1 近似保留并监控。
 - I/O 侧：磁盘带宽常量表（§8.3）与 `io_safety_factor = 0.8` 均为**冷启动暂定值**，标注待校准，由 I/O 校准扩展（§10）的实测数据重定；规则权重取 benchmark p90 是"需求上界"的稳健口径，p90 对输入规模分布敏感，锚定配方见 §8.3 参数表；I/O 机制压缩的是"排队等待造成的空转"，不是 I/O 总量——I/O 总量的压缩走临时写入分流（§9）。
 
@@ -39,7 +40,7 @@
 | 主机探测与全局预算 | cores auto、多工作流预算切分、clamp 防死锁 | 并行度不足、声明超预算假死、多工作流超卖 | §3 | 已实现 |
 | 数据量感知的资源缩放 | 资源 = 输入规模的函数，逐规则配 scale | 静态声明与数据量失配 | §4 | 已实现 |
 | attempt 升级与自动重试 | 失败自动重试 + 内存翻倍升级 | OOM 一次即失败 | §5 | 已实现 |
-| benchmark 校准闭环 | 实测峰值 → 建议表 → 护栏合入，持续校准 | 声明值失真、无法收敛 | §6 | 已实现 |
+| benchmark 校准闭环 | 实测峰值/规模 → 建议表（含 scale 参数）→ 护栏合入，持续校准 | 声明值失真、无法收敛 | §6 | 已实现 |
 | I/O 带宽预算 | 规则声明带宽需求，全局上限，调度打包不超预算 | I/O 无预算的并发挤压、多工作流抢盘 | §7–§8 | 已实现 |
 | 临时写入分流 | tmp 写入与最终输出分盘 | 同盘写放大、寻道交错 | §9 | 已实现 |
 | I/O 校准扩展 | calibrate 增加 io 建议列；可选磁盘带宽探测 | I/O 参数无实测回填通道 | §10 | 已实现 |
@@ -155,7 +156,7 @@ threads 一律不缩放：IO-bound 规则加核收益低，核心预算比内存
 }
 ```
 
-五字段全部必填（不设隐式默认）；schema 校验 `0 ≤ fixed_frac ≤ 1`、`min_mem_mb ≤ mem_mb ≤ max_mem_mb`、`size_metric ∈ {fastq_mb, bam_mb, sample_count}`；未配 scale 的规则保持静态，默认零变化。
+五字段全部必填（不设隐式默认）；schema 校验 `0 ≤ fixed_frac ≤ 1`、`min_mem_mb ≤ mem_mb ≤ max_mem_mb`、`size_metric ∈ {fastq_mb, bam_mb, sample_count}`；未配 scale 的规则保持静态，默认零变化。`mem_mb` 即公式中的 `base_mem_mb`（基准点等值）；`ref_input_size` / `fixed_frac` 由校准闭环（§6.2/6.3）按实测重锚定并写回。
 
 ### 4.5 规则侧接入
 
@@ -201,23 +202,29 @@ lambda 在每次作业执行前（含重试）求值，拿到运行时真实 inp
 ### 6.1 数据积累
 
 - 每条执行型规则带 `benchmark:` 指令，记录 `seconds / max_rss / max_vms`，每 job 每 attempt 一行；
-- `calibrate_resources.py` 把各运行的 benchmark 追加进 `resource_history.tsv`（append-only，跨运行跨主机）；
+- `calibrate_resources.py` 把各运行的 benchmark 追加进 `resource_history.tsv`（append-only，跨运行跨主机；同一 benchmark 行按内容键去重，重复校准不重复追加）；
+- 每行同时记录该 job 的**输入规模**（`input_size_mb` / `size_metric` / `size_src` 三列）：优先取 `.snakemake/metadata` 里该 job 的真实输入文件（bam/fastq 分型求和，与运行期 `input_size` 同口径），中间产物已删除时回退 `common/1_raw_data/<sample>/` 原始输入规模（口径不同，标记 raw），仍取不到留空——该行不参与 scale 拟合，不猜；
 - **OOM 事件单独标记**（`.OOM`）：失败 run 的峰值是删失数据（真实需求 ≥ 观测值），拟合按右删失处理，绝不能拿它压低声明值。
 
 ### 6.2 "最佳值"定义（目标函数的落地）
 
-makespan 由两条路径受声明值影响：过低 → OOM 重试浪费时间；过高 → 并发排布变少、流水线拉长。故单规则操作化目标 = **"一次跑过"前提下尽量紧**：历史峰值 **p90 × 安全系数**（默认 1.3，数据充分后可降 1.2）。p90 与安全系数是仅有的两个全局超参。
+makespan 由两条路径受声明值影响：过低 → OOM 重试浪费时间；过高 → 并发排布变少、流水线拉长。故单规则操作化目标 = **"一次跑过"前提下尽量紧**。校准对象按规则分两类：
+
+1. **静态规则**：单值 = 历史 max_rss **p90 × 安全系数**（默认 1.3，数据充分后可降 1.2）；
+2. **配 scale 的规则**：校准对象是**整条曲线** mem = A + B×size——对（input_size, max_rss）观测做稳健仿射拟合 a+b×size（OOM 删失点只抬升、不压低），安全系数乘在拟合曲线上，再按**基准点等值重算**换回三参数：`ref_input_size` = 观测规模中位数，`base_mem_mb` = A + B×ref，`fixed_frac` = A / base。动 fixed_frac / ref_input_size 的门槛：n≥3、≥2 个不同规模、跨度 ≥3×——窄带内斜率不可辨识，门槛不足时按旧 scale 形状归一化只校 base；拟合只用单一规模口径（job_input 优先，不混 raw 回退口径）与单一 size_metric 的观测。
+
+全局超参：安全系数、p90、跨度门槛（后两者见 §1 自查条款）。
 
 ### 6.3 建议与合入
 
 1. ≥3 个数据点才动；样本不足只出建议、不写回；
-2. 输出 `resources_suggest.tsv`（rule、n、实测 p90、建议值、当前声明值、变化幅度、删失数、备注）；
-3. `calibrate_resources.py --apply` 按护栏写回 config 的 `resources.<rule>.mem_mb`：n≥3、单次 ±30% 限幅、取整、无变化不动、OOM 删失下界（建议值不得低于任何删失观测 × 安全系数）；config 里没有对应资源键的规则不合入；
+2. 输出 `resources_suggest.tsv`：rule、n、实测 p90、建议值、当前声明值、变化幅度、删失数、备注，加 **scale 拟合块**（fit_size_metric、fit_n、size_min/max、fit_a_mb、fit_b_mb_per_mb、suggest_ref_input_size、suggest_fixed_frac、prev 值、curve_delta_max_pct）与 io 列（io 建议值 + io 规模归一拟合 a/b，io 只出建议人工合入，见 §10）；
+3. `calibrate_resources.py --apply` 按护栏写回 config 的 `resources.<rule>.mem_mb`，拟合达标时同步写 `scale.ref_input_size` / `scale.fixed_frac`（scale 段新建须拟合达标；新建时 min/max 暂定 0.5×/4× base 并在表中标注待人工审定）。护栏：mem 调整 n≥3、取整、无变化不动；单次 ±30% 限幅——拟合达标时由**曲线护栏**替代：新旧曲线在各观测规模（含 ref）处 ±30%，不达标按二分向旧曲线回缩；OOM 删失下界：建议曲线不得低于任何删失观测 × 安全系数，±30% 限幅内不可及时记 note（§6.4 连续同向后人工放宽）；config 里没有对应资源键的规则 n≥1 新建锚定（首个真实数据集起步），家族聚合名不合入。threads、min/max 从不校准；
 4. 每次写回是一次可回滚的 config 变更，依据都在 tsv 里可审计。
 
 ### 6.4 节奏与防震荡
 
-季度一次或每 N 次生产运行后；工具升级/新数据类型接入后立即。单次调整限幅 ±30%，连续两次同向才允许超限；样本不足不动。
+季度一次或每 N 次生产运行后；工具升级/新数据类型接入后立即。单次调整限幅 ±30%，连续两次同向才允许超限（v1 为人工审定放宽——建议表 note 标注"待放宽"，不自动执行）；样本不足不动。
 
 ### 6.5 冷启动与优先级
 
@@ -236,7 +243,7 @@ makespan 由两条路径受声明值影响：过低 → OOM 重试浪费时间�
 1. **调度只预算 CPU 与内存，无 I/O 维度**。`run.py:425-480` `build_snakemake_cmd()` 组装的 snakemake 命令只有 `--cores <threads>`（run.py:474-475）和 `--resources mem_mb=<mem_mb>`（run.py:479-480）。Snakemake 9.22（本机 `smk` 环境实测 `--help`）支持任意命名资源 `--resources NAME=INT`，机制现成，只是没有被用于 I/O。
 2. **per-rule 资源体系已存在且可直接承载新维度**。`modules/common/common.smk:285` `rule_res(name, input_size, attempt)` 四步：静态合并 → scale 缩放（common.smk:248）→ attempt 翻倍 → 主机 clamp（`_RuleRes`，common.smk:266-282，mem_mb/threads 在 get/__getitem__ 上截断）。`resources.<rule>` config 段已覆盖 16 个 workflow（如 `config/RNAseq.json:600-610` `star_align` 的 threads/mem_mb/scale）。`io_bandwidth_mb_s` 作为新命名键走同一条合并/截断链，`rule_res` 主体零改动。
 3. **多工作流预算切分已有先例**。`run.py:98` `detect_host_profile()`、`run.py:120` `_workflow_input_bytes()`、`run.py:155` `_split_mem_budget()`（输入字节加权、取不到退均分、份额下限），调用点在 run.py:1263-1296（`_inject_resource_caps` 双通道注入）。I/O 预算的多工作流切分复用同一权重口径。
-4. **benchmark 已记录逐规则 I/O 量，校准数据源现成**。实测 `results/46/RNAseq/log/sample/ciTotiSC7/GRCm39/star_align.benchmark.tsv`：表头含 `io_in, io_out` 列；该次 star_align 墙钟 554 s、io_out 16725 MB ≈ **30 MB/s 写需求**（不含输入读）。`src/common/util/calibrate_resources.py` 已消费同一批 tsv 做 mem/threads 校准（只出建议表，人工合入）。
+4. **benchmark 已记录逐规则 I/O 量，校准数据源现成**。实测 `results/46/RNAseq/log/sample/ciTotiSC7/GRCm39/star_align.benchmark.tsv`：表头含 `io_in, io_out` 列；该次 star_align 墙钟 554 s、io_out 16725 MB ≈ **30 MB/s 写需求**（不含输入读）。`src/common/util/calibrate_resources.py` 已消费同一批 tsv 做校准（mem 与 scale 参数见 §6，io 只出建议；threads 从不校准）。
 5. **STAR 临时排序写入与最终输出同盘**。`modules/star/star.smk:201`（align 规则）`outTmpDir = outdir + "/{sample_id}/tmp_star"`、star.smk:41（index 规则）同款——tmp 与最终 BAM 都在 `/data/16T`（sda，机械盘）。而 `run.py:501-511` 已有 `tmp_dir` config 键并已加入 singularity bind，`/tmp` 本身在 NVMe（`/dev/nvme0n1p2`），分流通道部分现成。
 6. **现场挤压证据**（2026-11-27 实测）：16 个比对进程（STAR ×8 + HISAT2 ×8，各 12 线程）并发时 sda `%util=100`、aqu-sz 10~11、w_await 75~125 ms、聚合写 76~89 MB/s；主机 160 核、load 139、CPU idle 36%——CPU 有余量而磁盘饱和，正是 I/O 维度缺失的形态。
 7. **命名规则约束**（既有约定）：`rule_res` 按 snakemake 规则名解析，一个规则服务多个流程阶段时（`star_align` 被 TEtranscripts/featureCounts/SNP/fusion 复用）只允许单键 `star_align`，禁止 per-stage 键。
@@ -396,9 +403,9 @@ STAR 排序产生 ~16.7 GB 临时写再合并成最终 BAM（§7.1 第 4/5 条�
 
 ## 10. I/O 校准扩展（回应 P3）
 
-校准闭环（§6）目前只有 mem/threads 维度；I/O 侧的权重与预算同样是"待校准暂定值"，需要同一套回填通道（P3）：
+校准闭环（§6）覆盖 mem 与 scale 参数；I/O 侧的权重与预算同样是"待校准暂定值"，需要同一套回填通道（P3）：
 
-1. `src/common/util/calibrate_resources.py`：建议表 `resources_suggest.tsv` 增加 `io_bandwidth_mb_s` 列 = p90((io_in+io_out)/s)，沿用既有护栏（§6.3：≥3 点、±30% 限幅、只出建议人工合入）；
+1. `src/common/util/calibrate_resources.py`：建议表 `resources_suggest.tsv` 增加 `io_bandwidth_mb_s` 列 = p90((io_in+io_out)/s)，沿用既有护栏（§6.3：≥3 点、±30% 限幅、只出建议人工合入）；并输出 io 规模归一拟合列（io_rate = a + b×size），为 §8.3 输入跨数量级规则 io 配 scale 的升级决策备数据，同样只出建议；
 2. 可选 `--io-probe`（默认关，2026-11-27 已决保留）：实测 `sustainable_disk_bandwidth_mb_s` 覆盖暂定常量。实现时**优先复用现成 Linux 测速工具（fio、hdparm 等）**直接取磁盘顺序读写带宽，替代手写 256 MB 测速文件（3 次取中位）；现成工具够用则 probe 退化为薄封装。默认关的理由：测速本身写盘、并发运行时测速失真、对用户磁盘有副作用——只在空闲时人工开启；
 3. `io_safety_factor` 与盘类型暂定常量随试点实测数据重定（试点方案见行动方案）。
 
@@ -436,7 +443,7 @@ STAR 排序产生 ~16.7 GB 临时写再合并成最终 BAM（§7.1 第 4/5 条�
 | `run.py` | detect_host_profile、cores auto、预算加权切分、resource_caps 注入、run_summary.json | 已实现 |
 | `modules/common/common.smk` | rule_res 四步合并、clamp（dict 子类）、`input_size_mb`、`_validate_scale` | 已实现 |
 | `src/common/util/CmdUtil.py` | `OMICS_RESOURCE_CAPS` 环境通道（模块级 clamp） | 已实现 |
-| `src/common/util/calibrate_resources.py` | benchmark 收集、历史累积、建议表、`--apply` 护栏合入 | 已实现 |
+| `src/common/util/calibrate_resources.py` | benchmark 收集（含 job 输入规模）、历史累积、建议表（mem/io + scale 拟合）、`--apply` 护栏合入（mem_mb + scale.ref_input_size/fixed_frac） | 已实现 |
 | `config/*.json` + `*.schema.json` | `resources` 段（静态声明 + 可选 `scale` 段） | 已实现 |
 | `run.py` | `_detect_disk_budget_mb_s`、`build_snakemake_cmd` 追加 `disk_budget_mb_s`、`_split_disk_budget`、`--io-budget-mb-s`、run_summary 落盘 | 已实现（§8） |
 | `modules/common/common.smk` | `_clamp_res_value` 扩展 io 键截断（含 `_validate_scale` 同款取值校验） | 已实现（§8） |

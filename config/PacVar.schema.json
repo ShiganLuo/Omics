@@ -44,6 +44,38 @@
           "io_bandwidth_mb_s": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -58,6 +90,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -72,6 +136,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -86,6 +182,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -100,6 +228,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -114,6 +274,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -128,6 +320,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -142,6 +366,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -156,6 +412,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -170,6 +458,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -184,6 +504,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -198,6 +550,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -212,6 +596,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -226,6 +642,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -240,6 +688,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -254,6 +734,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -268,6 +780,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -282,6 +826,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -296,6 +872,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -310,6 +918,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -324,6 +964,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -338,6 +1010,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -352,6 +1056,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -366,6 +1102,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -380,6 +1148,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -394,6 +1194,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -408,6 +1240,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -422,6 +1286,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -436,6 +1332,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -450,6 +1378,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -464,6 +1424,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -478,6 +1470,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -492,6 +1516,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -506,6 +1562,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -520,6 +1608,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -534,6 +1654,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -548,6 +1700,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       },
@@ -562,6 +1746,38 @@
           "mem_mb": {
             "type": "int",
             "required": false
+          },
+          "scale": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "size_metric": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ref_input_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fixed_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_mem_mb": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

@@ -307,7 +307,7 @@ python workflow/Omics/run.py \
 
 #### `--forcerun` 精准重跑（带通配符）
 
-对于带通配符的规则（如 `scanpy_auto` 有 `{tissue}` 和 `{counter}`），snakemake 的 `--forcerun` 不支持裸规则名。需要用 `规则:wildcard=value` 格式，`run.py` 会自动转为 `--target-jobs RULE:wildcard=value --force`：
+带通配符的规则（如 `scanpy_auto` 有 `{tissue}` 和 `{counter}`）写裸规则名即重跑该规则的全部通配符组合——`run.py` 自动探测全部实例并转为 `--target-jobs RULE:wildcard=value --force`；要精确到某个组合时才用 `规则:wildcard=value` 格式：
 
 ```bash
 # 重跑 Uterus 组织的 scTE scanpy_auto
@@ -413,7 +413,7 @@ python workflow/Omics/run.py \
 snakemake -s workflow/Omics/subworkflow/RNAseq.smk \
   --configfile output/RNAseq/raw.json \
   --cores 1 --sdm apptainer \
-  RNAseq_function_gsea --forcerun RNAseq_function_gsea \
+  --target-jobs 'RNAseq_function_gsea:contrast=your_contrast' --force \
   --dag | dot -Tpng > dag.png
 ```
 
@@ -485,7 +485,7 @@ MODE 只有两个值（其它一律非法）：
   例如 `--rerun-triggers mtime` 表示**仅**在输入比输出新时重跑，不检查 code/input/params/software-env，更轻量；`--rerun-trigger input` 只看内容哈希，依赖 metadata。
 
 - `--conda-frontend`：`conda` 或 `mamba`（默认 mamba）。
-- `--forcerun`：强制重跑指定规则或文件路径，格式：`RULE` 或 `/path/to/file` 或 `RULE:wildcard=value`。规则名自动加 workflow 前缀；作用域到命名规则为止，不重跑下游。`规则:wildcard=value` 内部转译为 snakemake 的 `--target-jobs ... --force`。
+- `--forcerun`：强制重跑指定规则或文件路径，格式：`RULE` 或 `/path/to/file` 或 `RULE:wildcard=value`。规则名自动加 workflow 前缀；带通配符的规则写裸规则名即重跑其全部通配符组合。作用域到命名规则为止，不重跑下游。`规则:wildcard=value` 内部转译为 snakemake 的 `--target-jobs ... --force`。
 - `--forcerun-downstream`：同 `--forcerun` 格式，但作用域为整条工作流——命名规则的下游依赖会因输入更新自动跟进重跑。
 - `--touch`：更新输出文件时间戳，不实际运行。与 `--dry-run` 冲突。
 - `--list-target-rules`：列出工作流中可作为目标的规则（不含通配符），不执行。

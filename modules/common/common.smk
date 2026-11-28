@@ -116,6 +116,19 @@ def tmp_dir_root():
     """
     return config.get("tmp_dir") or "/tmp"
 
+def job_tmp_dir(subdir, *parts):
+    """Unique per-job temp dir under tmp_dir_root() (design §9).
+
+    Flattens the absolute path of ``parts`` into a single directory name so
+    concurrent jobs never share one --outTmpDir. STAR 2.7.x creates only the
+    leaf directory and dies with "could not make temporary directory" both
+    when the leaf already exists and when its parents are missing; the
+    calling rule must therefore rmtree the leaf and makedirs its parent
+    right before running STAR.
+    """
+    flat = os.path.abspath(os.path.join(*parts)).lstrip(os.sep).replace(os.sep, "_")
+    return os.path.join(tmp_dir_root(), subdir, flat)
+
 
 
 def _require(value, key, tool=""):

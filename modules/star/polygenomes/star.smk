@@ -4,6 +4,11 @@ import logging
 
 
 outdir = config.get("outdir", "output")
+# Branch token for per-instance log/benchmark/receipt names: a subworkflow
+# instantiates star_align several times per sample (TEtranscripts / featureCounts
+# / SNP / fusion) with the same logdir — the outdir basename is what sets the
+# instances apart.
+branch_tag = os.path.basename(outdir.rstrip("/"))
 index_dir = config.get("index_dir",outdir)
 logdir = config.get("logdir", "log")
 logdir_index = config.get("logdir_index", logdir)
@@ -45,7 +50,7 @@ rule star_index:
         sjdbOverhang = config.get('Params',{}).get('star', {}).get('index', {}).get('sjdbOverhang') or 100,
         genomeSAindexNbases = config.get('Params',{}).get('star', {}).get('index', {}).get('genomeSAindexNbases'),
         gtf = lambda wildcards: config.get('genome', {}).get('references', {}).get(wildcards.genome, {}).get('gtf'),
-        outTmpDir = lambda wildcards: tmp_dir_root() + f"/star_index_{wildcards.genome}"
+        outTmpDir = lambda wildcards: job_tmp_dir("star_index", outdir, "index", wildcards.genome)
     run:
         log_path = str(log)
         open(log_path, 'a').close()
@@ -81,6 +86,7 @@ rule star_index:
             cmd.extend(["--genomeSAindexNbases", str(sa_index_bases)])
             if params.outTmpDir:
                 shutil.rmtree(params.outTmpDir, ignore_errors=True)
+                os.makedirs(os.path.dirname(params.outTmpDir), exist_ok=True)
                 cmd.extend(["--outTmpDir", params.outTmpDir])
             if params.gtf and os.path.exists(params.gtf):
                 cmd.extend(["--sjdbGTFfile", str(params.gtf)])
@@ -175,9 +181,9 @@ rule star_align:
         unmapped_r1 = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}.Unmapped.out.mate1", "star"),
         unmapped_r2 = maybe_temp(outdir + "/{genome}/{sample_id}/{sample_id}.Unmapped.out.mate2", "star"),
     log:
-        logdir + "/{sample_id}/{genome}/star_align.log"
+        logdir + "/{sample_id}/{genome}/" + branch_tag + "/star_align.log"
     threads: rule_res("star_align").get("threads", 12)
-    benchmark: logdir + "/{sample_id}/{genome}/star_align.benchmark.tsv",
+    benchmark: logdir + "/{sample_id}/{genome}/" + branch_tag + "/star_align.benchmark.tsv",
     resources:
         mem_mb=lambda wildcards, input, attempt: rule_res(
             "star_align", input_size=input_size_named(input, 'fastq'),
@@ -221,7 +227,7 @@ rule star_align:
         soloCBwhitelist = config.get("Params", {}).get("star", {}).get("star_align", {}).get("soloCBwhitelist", None),
         soloBarcodeReadLength = config.get("Params", {}).get("star", {}).get("star_align", {}).get("soloBarcodeReadLength", 1),
         limitSjdbInsertNsj = config.get("Params", {}).get("star", {}).get("star_align", {}).get("limitSjdbInsertNsj") or 1000000,
-        outTmpDir = tmp_dir_root() + "/star_align/{genome}/{sample_id}"
+        outTmpDir = lambda wildcards: job_tmp_dir("star_align", outdir, wildcards.genome, wildcards.sample_id)
     conda:
         "../star.yaml"
     container:
@@ -233,7 +239,7 @@ rule star_align:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             sample_outdir = os.path.dirname(str(output.bam))
-            script = receipt_script(f"star_align_{wildcards.sample_id}_{current_time}.sh")
+            script = receipt_script(f"star_align_{branch_tag}_{wildcards.sample_id}_{current_time}.sh")
             os.makedirs(os.path.dirname(script), exist_ok=True)
             plain_script = f"{sample_outdir}/star_align.sh"
             rule_logger.info(f"Start STAR alignment for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
@@ -275,6 +281,7 @@ rule star_align:
                 cmd1.extend(["--twopassMode", params.twopassMode])
             if params.outTmpDir:
                 shutil.rmtree(params.outTmpDir, ignore_errors=True)
+                os.makedirs(os.path.dirname(params.outTmpDir), exist_ok=True)
                 cmd1.extend(["--outTmpDir", params.outTmpDir])
             if params.outReadsUnmapped:
                 cmd1.extend(["--outReadsUnmapped", params.outReadsUnmapped])

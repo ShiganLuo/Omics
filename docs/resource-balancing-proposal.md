@@ -393,7 +393,7 @@ STAR 排序产生 ~16.7 GB 临时写再合并成最终 BAM（§7.1 第 4/5 条�
 
 实现项：
 
-1. `modules/star/star.smk:201`（align）与 star.smk:41（index）的 `outTmpDir` 改为指向临时目录：`tmp_dir` config 有值时用 `tmp_dir + "/star_align/{sample_id}"`，未配置时**默认 `/tmp/star_align/{sample_id}`，自动分流、默认生效**（2026-11-27 已决：默认生效优先于零行为变化；`tmp_dir` 显式配置可完全覆盖，包括配回 outdir 下旧路径以复现旧行为）；
+1. `modules/star/star.smk:201`（align）与 star.smk:41（index）的 `outTmpDir` 改为指向临时目录：`tmp_dir` config 有值时用 `tmp_dir + "/star_align/{sample_id}"`，未配置时**默认 `/tmp/star_align/{sample_id}`，自动分流、默认生效**（2026-11-27 已决：默认生效优先于零行为变化；`tmp_dir` 显式配置可完全覆盖，包括配回 outdir 下旧路径以复现旧行为）。**2026-11-28 实现修正**：按 `{sample_id}` 命名的共享路径会互踩——RNAseq/DR 同一样本的 4 个 star_align 实例（TEtranscripts/featureCounts/SNP/fusion）撞同一 `--outTmpDir`，且 STAR 2.7.x 只创建叶子目录（叶子已存在或父目录缺失均报 `could not make temporary directory`）。落地为 `common.smk` 的 `job_tmp_dir()`：tmp 子目录 + outdir/genome/sample 绝对路径扁平化命名（同 run 多分支、跨 run 同名样本均唯一），调用方在跑 STAR 前 rmtree 叶子、makedirs 父目录；同款实例互踩还波及 `log:`/`benchmark:`（四实例共写一个 `star_align.log`/`star_align.benchmark.tsv`），按分支路径段拆分（文件名不变，校准脚本按 basename 归并不受影响）；
 2. 同款检查扩展到其他大临时写规则（gatk SortSam 的 `--TMP_DIR`、samtools sort `-T`），逐规则排查，不按工具名一把抓（每个子命令的临时行为不同）；
 3. tmp 带宽占用仍计入带宽预算（§8）的权重（io_out 实测本来就是全量口径，分流后 benchmark 数字自然回落，权重随之校准下调——带宽预算与写入分流由校准扩展（§10）闭环）。
 

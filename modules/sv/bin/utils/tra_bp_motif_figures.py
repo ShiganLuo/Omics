@@ -40,11 +40,10 @@ def fig5_motif_enrichment(motif, outdir):
     struct = motif[motif.kind == 'structural'].copy()
     tf = motif[motif.kind == 'TF_PWM'].copy()
 
-    fig, axes = plt.subplots(1, 2, figsize=(11.0, 3.8))
-    fig.subplots_adjust(wspace=0.95)
-    for ax, df, title, label_side in (
-            (axes[0], struct, 'structural motifs', 'left'),
-            (axes[1], tf, 'TF motifs (HOMER PWM)', 'right')):
+    fig, axes = plt.subplots(1, 2, figsize=(9.5, 3.8))
+    fig.subplots_adjust(wspace=0.9)
+    for ax, df, title in ((axes[0], struct, 'structural motifs'),
+                          (axes[1], tf, 'TF motifs (HOMER PWM)')):
         df = df.sort_values('or_bg_matched')
         y = np.arange(len(df))
         orr = df.or_bg_matched.values
@@ -60,11 +59,9 @@ def fig5_motif_enrichment(motif, outdir):
             ax.plot([np.log2(max(l, 1e-3)), np.log2(max(h, 1e-3))],
                     [yi, yi], color=colors[yi], lw=1.2, alpha=0.7)
         ax.set_yticks(y)
-        labels = [m if len(m) <= 24 else m[:22] + '..' for m in df.motif]
-        ax.set_yticklabels(labels, fontsize=7)
-        if label_side == 'right':
-            ax.yaxis.tick_right()
-            ax.yaxis.set_label_position('right')
+        # keep the motif identity only: "Name(Family)/source/Homer" -> "Name (Family)"
+        labels = [m.split('/')[0].replace('(', ' (') for m in df.motif]
+        ax.set_yticklabels(labels, fontsize=7.5)
         ax.set_xlabel('log2 odds ratio vs matched background')
         ax.set_title(title)
     fig.suptitle('fig5 breakpoint motif enrichment (501bp windows; FDR<0.05 colored)',

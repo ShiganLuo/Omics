@@ -886,7 +886,7 @@ def volcano_plot(deg_df, cell_type, comparison, output_path, title=None,
                  nlogp_clip=18, highlight_genes=None, top_n=5):
     """Volcano plot for one cell type × comparison.
 
-    Plots log2FC vs -log10(pvalue) with up/down-regulated genes colored.
+    Plots log2FC vs -log10(padj) with up/down-regulated genes colored.
     All NS genes are shown as background (no filtering). When
     *highlight_genes* is provided, only those genes are labeled;
     otherwise top *top_n* genes per direction by p-value are labeled.
@@ -930,6 +930,13 @@ def volcano_plot(deg_df, cell_type, comparison, output_path, title=None,
 
     fig, ax = plt.subplots(figsize=(8, 6))
     not_sig = sub[~sub["sig"]]
+    plottable = np.isfinite(not_sig["log2FC"]) & np.isfinite(not_sig["nlogp"])
+    n_dropped = int(len(not_sig) - int(plottable.sum()))
+    if n_dropped:
+        logger.warning(
+            f"volcano: {n_dropped} NS gene(s) without a padj position "
+            f"are not drawn (missing values are never plotted)")
+    not_sig = not_sig[plottable]
 
     if len(not_sig) > 0:
         ax.scatter(not_sig["log2FC"], not_sig["nlogp"],
@@ -958,13 +965,11 @@ def volcano_plot(deg_df, cell_type, comparison, output_path, title=None,
                 continue
             g = gene_row.iloc[0]
             if not (np.isfinite(g["log2FC"]) and np.isfinite(g["nlogp"])):
-                p = g["pval"] if np.isfinite(g.get("pval", np.nan)) else 1.0
-                if not np.isfinite(p):
-                    p = 1.0
-                y_pos = -np.log10(min(p, 1e-300))
-            else:
-                y_pos = g["nlogp"]
-            texts.append(ax.text(g["log2FC"], y_pos, gene_name,
+                logger.warning(
+                    f"highlight gene {gene_name} has no padj position, "
+                    f"skipped (missing values are never plotted)")
+                continue
+            texts.append(ax.text(g["log2FC"], g["nlogp"], gene_name,
                                  fontsize=7, color="black", zorder=7))
 
     if texts:

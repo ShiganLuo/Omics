@@ -112,8 +112,8 @@ python ${SCRIPT_DIR}/run.py \
     --aligner cellranger \
     --rerun-triggers mtime \
     --design /data/16T/luosg/data/scRNAseq/design_scRNAseq_luancao.json \
+    --forcerun scanpy_pseudobulk \
     --dry-run
-    # --forcerun scanpy_auto
     #     scanpy_auto:tissue=Uterus,counter=scTE \
     #     scanpy_auto:tissue=Uterus,counter=cellranger
 

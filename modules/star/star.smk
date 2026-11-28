@@ -38,7 +38,7 @@ rule star_index:
         sjdbOverhang = config.get('Params',{}).get('star', {}).get('index', {}).get('sjdbOverhang') or 100,
         genomeSAindexNbases = config.get('Params',{}).get('star', {}).get('index', {}).get('genomeSAindexNbases'),
         gtf = gtf,
-        outTmpDir = tmp_dir_root() + "/star_index"
+        outTmpDir = job_tmp_dir("star_index", outdir)
     run:
         log_path = str(log)
         open(log_path, 'a').close()
@@ -74,6 +74,7 @@ rule star_index:
             cmd.extend(["--genomeSAindexNbases", str(sa_index_bases)])
             if params.outTmpDir:
                 shutil.rmtree(params.outTmpDir, ignore_errors=True)
+                os.makedirs(os.path.dirname(params.outTmpDir), exist_ok=True)
                 cmd.extend(["--outTmpDir", params.outTmpDir])
             if params.gtf:
                 cmd.extend(["--sjdbGTFfile", str(params.gtf)])
@@ -199,7 +200,7 @@ rule star_align:
         soloCBwhitelist = config.get("Params", {}).get("star", {}).get("star_align", {}).get("soloCBwhitelist", None),
         soloBarcodeReadLength = config.get("Params", {}).get("star", {}).get("star_align", {}).get("soloBarcodeReadLength", 1),
         limitSjdbInsertNsj = config.get("Params", {}).get("star", {}).get("star_align", {}).get("limitSjdbInsertNsj") or 1000000,
-        outTmpDir = tmp_dir_root() + "/star_align/{sample_id}"
+        outTmpDir = lambda wildcards: job_tmp_dir("star_align", outdir, wildcards.sample_id)
     conda:
         "star.yaml"
     container:
@@ -252,6 +253,7 @@ rule star_align:
                 cmd1.extend(["--twopassMode", params.twopassMode])
             if params.outTmpDir:
                 shutil.rmtree(params.outTmpDir, ignore_errors=True)
+                os.makedirs(os.path.dirname(params.outTmpDir), exist_ok=True)
                 cmd1.extend(["--outTmpDir", params.outTmpDir])
             if params.outReadsUnmapped:
                 cmd1.extend(["--outReadsUnmapped", params.outReadsUnmapped])

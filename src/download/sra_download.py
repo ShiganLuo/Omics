@@ -1268,19 +1268,13 @@ def load_tasks(args) -> List[Tuple[str, str]]:
 
         df = df.dropna(subset=[srr_col])
 
-        fallback_layout = args.default_layout or args.library_type or "SINGLE"
+        fallback_layout = args.default_layout or args.library_type or "PAIRED"
         if lib_col in df.columns:
             df[lib_col] = df[lib_col].fillna(fallback_layout).str.upper()
             invalid = df[~df[lib_col].isin({"PAIRED", "SINGLE"})]
             if not invalid.empty:
                 raise ValueError(f"Invalid library layout values found:\n{invalid}")
         else:
-            if args.default_layout is None and args.library_type is None:
-                raise ValueError(
-                    f"Meta 文件缺少 layout 列 '{lib_col}'。请用 --lib-col-name 指定正确的列名，"
-                    f"或显式指定 --default-layout/-t 跳过 layout 列。"
-                    f"Available columns: {list(df.columns)}"
-                )
             logger.warning(f"列 '{lib_col}' 不存在，全部使用 {fallback_layout}")
             df[lib_col] = fallback_layout
 
@@ -1288,9 +1282,9 @@ def load_tasks(args) -> List[Tuple[str, str]]:
     elif args.srr_list:
         for line in args.srr_list.open():
             if line.strip():
-                tasks.append((line.strip(), args.library_type))
+                tasks.append((line.strip(), args.library_type or "PAIRED"))
     else:
-        tasks.append((args.srr_id, args.library_type))
+        tasks.append((args.srr_id, args.library_type or "PAIRED"))
 
     return tasks
 
@@ -1309,7 +1303,8 @@ def parse_args():
     p.add_argument("--srr-col-name", default="SRR", help="SRR column name in meta file (default: SRR)")
     p.add_argument("--lib-col-name", default="Layout", help="Library layout column name (default: Layout)")
 
-    p.add_argument("-t", "--library-type", choices=["PAIRED", "SINGLE"], help="Library type")
+    p.add_argument("-t", "--library-type", choices=["PAIRED", "SINGLE"], default="PAIRED",
+                   help="Library type (default: PAIRED; meta 表有 Layout 列时按列取值)")
 
     p.add_argument("-m", "--method", choices=["ascp", "aria2c", "curl", "sra", "globus"], default="sra",
                    help="Download method: ascp (ENA fasp), aria2c (ENA HTTP multi-thread), curl (ENA HTTPS, supports socks proxy), sra (NCBI prefetch, default), globus")
@@ -1333,7 +1328,7 @@ def parse_args():
     p.add_argument("--sleep-max", type=int, default=300)
     p.add_argument("--max-retries", type=int, default=10, help="单个 SRR 最大重试次数 (默认: 10)")
     p.add_argument("--default-layout", default=None, choices=["PAIRED", "SINGLE"],
-                   help="layout 列缺失值时的默认值 (缺省 SINGLE；layout 列整个不存在时须显式指定本参数或 -t)")
+                   help="layout 列缺失值时的默认值 (缺省 PAIRED)")
 
     args = p.parse_args()
 

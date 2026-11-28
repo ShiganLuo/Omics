@@ -2484,6 +2484,12 @@ def runscRNAseq(
     datajson["sample_params"]["tissue_samples"] = tissue_samples
     pbgo_cfg = (datajson["Params"].get("function", {}) or {}).get("pseudobulk_go", {}) or {}
     if pbgo_cfg.get("enabled"):
+        pbgo_species = pbgo_cfg.get("species")
+        if pbgo_species not in ("human", "mouse", "macaque"):
+            raise ValueError(
+                "scRNAseq: Params.function.pseudobulk_go.enabled=true requires "
+                "Params.function.pseudobulk_go.species to be one of "
+                f"human/mouse/macaque (got: {pbgo_species!r}).")
         outfiles.append(f"{outdir}/function/go_kegg/enrichment.done")
     tedom_cfg = datajson["Params"].get("tedominant", {}) or {}
     if tedom_cfg.get("enabled"):

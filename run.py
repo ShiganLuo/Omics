@@ -338,9 +338,10 @@ def parse_args() -> argparse.Namespace:
              '(90%% of total RAM)')
     parser.add_argument('--io-budget-mb-s', type=int, default=None, dest='io_budget_mb_s',
         help='total disk bandwidth budget (MB/s) passed to snakemake --resources as '
-             'disk_bandwidth_budget_mb_s; jobs declaring resources.io_bandwidth_mb_s '
-             'are packed against it (design §8). Default: auto-detect from each '
-             "output disk's type; 0 disables I/O-aware scheduling")
+             'io_bandwidth_mb_s (same name jobs consume, so packing binds); jobs '
+             'declaring resources.io_bandwidth_mb_s are packed against it '
+             '(design §8). Default: auto-detect from each output disk\'s type; '
+             '0 disables I/O-aware scheduling')
     parser.add_argument('--singularity-args', type=str, default=None,
         help='arguments for singularity/apptainer, e.g. --singularity-args \'--bind /path1,/path2\' (use with --sdm)')
     parser.add_argument(
@@ -576,7 +577,9 @@ def build_snakemake_cmd(root_dir: str, smk: str, input_json: str, threads: int,
     if mem_mb:
         resources.append(f"mem_mb={mem_mb}")
     if disk_budget_mb_s:
-        resources.append(f"disk_bandwidth_budget_mb_s={disk_budget_mb_s}")
+        # 全局池名必须与规则侧消耗名 io_bandwidth_mb_s 同名:snakemake 按资源名
+        # 配对打包,异名(旧 disk_bandwidth_budget_mb_s)会让 Σ(io)≤预算 永不绑定。
+        resources.append(f"io_bandwidth_mb_s={disk_budget_mb_s}")
     if resources:
         cmd += ["--resources", *resources]
     if disk_budget_mb_s:

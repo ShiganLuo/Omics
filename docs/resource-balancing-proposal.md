@@ -270,7 +270,7 @@ makespan 由两条路径受声明值影响：过低 → OOM 重试浪费时间�
 Snakemake 的调度打包规则：运行中 job 的各命名资源之和 ≤ `--resources` 给出的全局上限，超出则暂缓调度。把"带宽需求"建模为命名资源，即得磁盘限流：
 
 - 规则侧：`resources: io_bandwidth_mb_s = <该 job 的预期带宽需求，MB/s>`
-- 全局侧：`--resources disk_bandwidth_budget_mb_s = <目标磁盘的可持续带宽预算>`
+- 全局侧：`--resources io_bandwidth_mb_s = <目标磁盘的可持续带宽预算>`（**2026-11-28 实现修正**：全局池名必须与规则侧同名——snakemake 按资源名配对打包，异名如 `disk_bandwidth_budget_mb_s` 会让约束永不绑定、打包形同虚设；`disk_bandwidth_budget_mb_s` 保留为预算概念名/CLI 语义，仅在 `resource_caps` clamp 通道使用）
 
 调度器保证任意时刻 Σ(io_bandwidth_mb_s) ≤ disk_bandwidth_budget_mb_s。**作用通道 = 调度打包**，不给进程限速（§1）。一个 job 的实际带宽超出声明值时不会被惩罚——该旋钮只管"多少 job 同时跑"，声明值的准确性影响打包质量而非正确性（低估 → 仍可能挤，高估 → 保守空转，两侧都安全）。
 
@@ -279,7 +279,7 @@ Snakemake 的调度打包规则：运行中 job 的各命名资源之和 ≤ `--
 | 名称 | 语义 | 声明位置 |
 |------|------|----------|
 | `io_bandwidth_mb_s` | 该 job 的预期 I/O 带宽需求（io_in+io_out 口径），整数 MB/s | 规则 `resources:` + `config["resources"][<rule>]` |
-| `disk_bandwidth_budget_mb_s` | 全局上限：目标磁盘的带宽预算，整数 MB/s | run.py → `--resources`（不进 config） |
+| `disk_bandwidth_budget_mb_s` | 全局上限：目标磁盘的带宽预算，整数 MB/s | run.py 计算（`--resources` 下发时以规则侧同名 `io_bandwidth_mb_s` 传入，2026-11-28 实现修正）；`resource_caps` clamp 通道沿用本名 |
 
 语义选"带宽需求 MB/s"而非"无量纲权重"：机制自明（预算与需求同量纲，Σ≤预算即打包约束），且 benchmark 的 (io_in+io_out)/墙钟 可直接换算成声明值（§8.3），校准闭环无需换算系数。规则按**规则名**单键声明（§7.1 第 7 条）。
 
@@ -350,7 +350,7 @@ io_bandwidth_mb_s(<rule>) = p90 over benchmarks of (io_in + io_out) / wall_secon
         if mem_mb:
             resources.append(f"mem_mb={mem_mb}")
         if disk_budget_mb_s:
-            resources.append(f"disk_bandwidth_budget_mb_s={disk_budget_mb_s}")
+            resources.append(f"io_bandwidth_mb_s={disk_budget_mb_s}")
         cmd += ["--resources", *resources]
 ```
 
